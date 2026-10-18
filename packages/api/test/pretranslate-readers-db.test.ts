@@ -23,6 +23,7 @@ import { processNextTranslation } from "../src/lib/content-translation-store";
 import {
   prepareReaderTranslation,
   prepareReaderTranslationPage,
+  readerPreparationHasCapacity,
 } from "../src/lib/pretranslate-readers";
 import { translateContentDetail } from "../src/lib/reader-translation";
 
@@ -130,6 +131,45 @@ void test(
       assert.equal(
         (await translateContentDetail(changed, "zh")).status,
         "unavailable",
+      );
+      const retries = Array.from({ length: 20 }, () => randomUUID());
+      ids.push(...retries);
+      await db.insert(ContentTranslationRequest).values(
+        retries.map((id) => ({
+          contentId: id,
+          contentType: "bill",
+          language: "zh",
+          sourceHash: "f".repeat(64),
+          segments: [{ key: "title", text: "Retrying" }],
+          attempts: 5,
+          availableAt: new Date(Date.now() + 30 * 60_000),
+        })),
+      );
+      assert.equal(
+        await readerPreparationHasCapacity(),
+        true,
+        "backoff rows cannot starve archive preparation",
+      );
+      await db
+        .update(ContentTranslationRequest)
+        .set({ availableAt: new Date(0) })
+        .where(inArray(ContentTranslationRequest.contentId, retries));
+      assert.equal(
+        await readerPreparationHasCapacity(),
+        false,
+        "runnable work bounds background preparation",
+      );
+      await db
+        .update(ContentTranslationRequest)
+        .set({
+          availableAt: new Date(Date.now() + 15 * 60_000),
+          claimId: randomUUID(),
+        })
+        .where(inArray(ContentTranslationRequest.contentId, retries));
+      assert.equal(
+        await readerPreparationHasCapacity(),
+        false,
+        "active leases also count toward the limit",
       );
       await assert.rejects(prepareReaderTranslationPage({ limit: 101 }));
     } finally {

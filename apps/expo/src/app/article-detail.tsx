@@ -116,7 +116,7 @@ export default function ArticleDetailScreen() {
     });
   };
 
-  const { language, t: tr } = useLanguage();
+  const { language, t: tr, isReady: isLanguageReady } = useLanguage();
   const {
     data: content,
     isLoading,
@@ -128,11 +128,11 @@ export default function ArticleDetailScreen() {
       language,
       supportsMassachusetts: true,
     }),
-    enabled: !!articleId,
+    enabled: !!articleId && isLanguageReady,
   });
 
   useEffect(() => {
-    if (content) {
+    if (content && isLanguageReady) {
       posthog.capture("article_viewed", {
         content_id: content.id,
         content_type: content.type,
@@ -140,7 +140,7 @@ export default function ArticleDetailScreen() {
         is_ai_generated: content.isAIGenerated,
       });
     }
-  }, [content]);
+  }, [content, isLanguageReady]);
   const headerImageUri = content?.imageUri ?? content?.thumbnailUrl;
   const headerImageSource = content
     ? contentImageSource(headerImageUri)
@@ -186,7 +186,9 @@ export default function ArticleDetailScreen() {
 
   const { markRead } = useReadContent();
   const loadedArticleId =
-    !error && (!translationLanguage || translation) ? content?.id : undefined;
+    !error && isLanguageReady && (!translationLanguage || translation)
+      ? content?.id
+      : undefined;
   useEffect(() => {
     // Failed requests and cards merely seen on Home are not reads.
     if (loadedArticleId) markRead(loadedArticleId);
@@ -200,7 +202,11 @@ export default function ArticleDetailScreen() {
       : "en";
   // Narration follows the selected section, with context for listening.
   const speechChunks = useMemo(() => {
-    if (!content || (translationLanguage && !translation && mode !== "source"))
+    if (
+      !isLanguageReady ||
+      !content ||
+      (translationLanguage && !translation && mode !== "source")
+    )
       return [];
     if (mode === "source") {
       return buildSpeechChunks({
@@ -226,7 +232,14 @@ export default function ArticleDetailScreen() {
         (content.type === "court_case" ? content.courtBrief : null),
       body: translation?.articleContent ?? content.articleContent,
     });
-  }, [content, translation, translationLanguage, mode, speechLanguage]);
+  }, [
+    content,
+    translation,
+    translationLanguage,
+    mode,
+    speechLanguage,
+    isLanguageReady,
+  ]);
   const speech = useArticleSpeech({
     chunks: speechChunks,
     language: speechLanguage,
@@ -266,12 +279,14 @@ export default function ArticleDetailScreen() {
     setShareSurface("screenshot");
   }, !!content);
 
-  if (isLoading) {
+  if (isLoading || !isLanguageReady) {
     return (
       <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
-        <LanguageCorner />
+        {isLanguageReady && <LanguageCorner />}
         <ActivityIndicator size="large" color={colors.white} />
-        <Text style={s.loadingText}>{tr("article.loading")}</Text>
+        {isLanguageReady && (
+          <Text style={s.loadingText}>{tr("article.loading")}</Text>
+        )}
       </View>
     );
   }

@@ -417,7 +417,7 @@ keeps the private search service separate from the production supervisor.
 
 `content-translations --watch` now prepares full Chinese readers automatically,
 including existing articles, while serving the shared translation queue. It
-walks ten records at a time when fewer than twenty requests are queued, then
+walks ten records at a time when fewer than twenty requests are runnable or in flight, then
 waits a minute before restarting a completed walk. Successful ingestion also
 queues the newly written reader immediately. Later enrichment edits are caught
 by the repeating walk; all writes reuse the existing revision-aware cache and

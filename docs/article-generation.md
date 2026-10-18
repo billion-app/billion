@@ -233,7 +233,7 @@ preparation and interactive requests use the same revision and field selection.
 The continuously running translation worker also walks existing bills, court
 cases, and executive content in bounded pages. It repeats the walk to catch
 later brief or perspective changes. It pauses preparation while the shared
-queue has 20 requests, instead of placing the entire archive ahead of readers.
+queue has 20 runnable or in-flight requests, instead of placing the entire archive ahead of readers.
 A source change invalidates the cached translation; unchanged text reuses it.
 
 `content.getById({ language: "zh" })` includes the prepared translation in its

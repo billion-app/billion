@@ -63,7 +63,9 @@ export async function prepareReaderTranslationPage(input: {
 export async function readerPreparationHasCapacity() {
   const result = await db.execute<{ count: number }>(sql`
     select count(*)::int as count from content_translation_request
+    where available_at <= now() or claim_id is not null
   `);
+  // Backoff jobs must not permanently stop the archive walk.
   // Leave the worker available for interactive requests; do not enqueue the
   // whole archive in front of someone who just opened an uncached article.
   return (result.rows[0]?.count ?? 0) < 20;
