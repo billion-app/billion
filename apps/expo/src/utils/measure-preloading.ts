@@ -60,6 +60,7 @@ export function createIdleMeasurePreloader(
     try {
       await preload(number);
     } catch {
+      return;
     } finally {
       fetching = false;
       schedule();
