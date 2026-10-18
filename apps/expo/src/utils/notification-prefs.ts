@@ -24,6 +24,7 @@ export interface NotificationPrefs {
   following: boolean;
   /** New executive orders, explicitly selected during onboarding or Settings. */
   executiveOrders: boolean;
+  newBills: boolean;
   /** Opt-in morning summary. Default off. */
   brief: boolean;
   /** Opt-in evening recap. Default off until onboarding says otherwise. */
@@ -44,6 +45,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   breaking: true,
   following: true,
   executiveOrders: false,
+  newBills: false,
   brief: false,
   recap: false,
   quietHours: true,
@@ -148,6 +150,7 @@ export function parseNotificationPrefs(raw: string | null): NotificationPrefs {
       breaking: parsed.breaking !== false,
       following: parsed.following !== false,
       executiveOrders: parsed.executiveOrders === true,
+      newBills: parsed.newBills === true,
       brief: parsed.brief === true,
       recap: parsed.recap === true,
       quietHours: parsed.quietHours !== false,

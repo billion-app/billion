@@ -449,6 +449,16 @@ export const settingsStrings = {
     es: "Cuando se publica una nueva orden ejecutiva",
     zh: "有新的行政令发布时",
   },
+  "notify.newBills": {
+    en: "New bills in Congress",
+    es: "Nuevos proyectos de ley en el Congreso",
+    zh: "国会新法案",
+  },
+  "notify.newBillsSub": {
+    en: "Recently introduced bills. One alert per bill.",
+    es: "Proyectos presentados recientemente. Una alerta por proyecto.",
+    zh: "近期提出的法案。每项法案通知一次。",
+  },
   "notify.brief": { en: "Daily Brief", es: "Resumen diario", zh: "每日简报" },
   "notify.briefSub": {
     en: "A concise summary each morning",

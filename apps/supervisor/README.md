@@ -70,7 +70,7 @@ supervisor job uses it.
 | `scotus-daily`                    | daily 01:45 local | Reads 20 recent official Court decisions, including order opinions; five generation slots |
 | `ecourt-records-daily`            | daily 02:15 local | Refreshes up to five indexed Massachusetts criminal dockets; two generation slots         |
 | `content-images-daily`            | daily 04:15 local | Generates illustrated Storage-backed header art for recent retained content               |
-| `notify-followers-hourly`         | every 60 minutes  | Sends lock-screen alerts for bills a reader asked us to watch                             |
+| `notify-followers-hourly`         | every 60 minutes  | Sends saved-bill updates and opted-in new-bill and executive-order alerts                 |
 | `court-image-smoke`               | manual            | Generates and reviews at most one real court-case image for production verification       |
 | `backfill-content-images`         | manual            | Drains missing or style-stale header art across all retained content                      |
 | `scc-cvig-weekly`                 | Sundays 03:15     | Santa Clara County voter guide                                                            |

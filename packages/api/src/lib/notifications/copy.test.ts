@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   followAlertCopy,
+  newBillAlertCopy,
   SIGNAL_CATEGORY,
   TEST_ALERT_COPY,
   testAlertCopy,
@@ -58,4 +59,16 @@ void test("test notification copy follows the selected language without leaking 
   assert.equal(testAlertCopy("zh").body, "通知已开启。");
   assert.deepEqual(testAlertCopy("en"), TEST_ALERT_COPY);
   assert.notEqual(testAlertCopy("es").title, TEST_ALERT_COPY.title);
+});
+
+void test("new-bill copy identifies the bill and clips long source titles", () => {
+  const copy = newBillAlertCopy({
+    id: "bill-id",
+    title: "a".repeat(100),
+    billNumber: "S.5686",
+  });
+  assert.equal(copy.kind, "new_bill");
+  assert.equal(copy.title, "New bill in Congress");
+  assert.equal(copy.body, `S.5686: ${"a".repeat(77)}…`);
+  assert.equal(copy.href, "/article-detail?id=bill-id");
 });

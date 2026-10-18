@@ -22,6 +22,7 @@ import {
   drainTestAlert,
   enqueueExecutiveOrders,
   enqueueFollowMoves,
+  enqueueNewBills,
   enqueueTestAlert,
   runFollowNotifications,
 } from "./deliver";
@@ -136,6 +137,190 @@ void test(
           notBefore,
         });
       };
+      await t.test(
+        "new Congress bills reach opted-in phones once, including delayed ingestion and workers",
+        async () => {
+          const newToken = `ExpoPushToken[${randomUUID()}]`;
+          const billIds: string[] = [];
+          const billSync = (newBills?: boolean, quietHours = false) =>
+            caller.sync({
+              token: newToken,
+              platform: "ios",
+              timezone: "UTC",
+              prefs: { ...prefs, following: false, newBills, quietHours },
+              followIds: [],
+            });
+          const { deviceId: newDevice } = await billSync();
+          deviceIds.push(newDevice);
+          const device = async () => {
+            const [row] = await db
+              .select()
+              .from(PushDevice)
+              .where(eq(PushDevice.id, newDevice));
+            assert.ok(row);
+            return row;
+          };
+          const outbox = () =>
+            db
+              .select()
+              .from(NotificationOutbox)
+              .where(eq(NotificationOutbox.deviceId, newDevice));
+          try {
+            assert.equal((await device()).newBillsSubscribedAt, null);
+            await billSync(true);
+            const originalStart = (await device()).newBillsSubscribedAt;
+            assert.ok(originalStart);
+            await billSync(true);
+            await billSync();
+            assert.equal(
+              (await device()).newBillsSubscribedAt?.getTime(),
+              originalStart.getTime(),
+            );
+
+            const day = new Date();
+            day.setUTCHours(0, 0, 0, 0);
+            const ingestionDay = new Date(day.getTime() - 10 * 86400_000);
+            const ingestedAt = new Date(
+              ingestionDay.getTime() + (3 * 3600 + 17 * 60 + 44) * 1000,
+            );
+            const introducedAt = new Date(
+              ingestionDay.getTime() - 3 * 86400_000,
+            );
+            const subscription = new Date(ingestionDay.getTime() - 86400_000);
+            await db
+              .update(PushDevice)
+              .set({ newBillsSubscribedAt: subscription })
+              .where(eq(PushDevice.id, newDevice));
+            const insertBill = async (
+              overrides: Partial<typeof Bill.$inferInsert> = {},
+            ) => {
+              const id = randomUUID();
+              billIds.push(id);
+              await db.insert(Bill).values({
+                id,
+                billNumber: `TEST ${id}`,
+                title: "Recently introduced bill",
+                url: `https://example.com/${id}`,
+                sourceWebsite: "congress.gov",
+                createdAt: ingestedAt,
+                introducedDate: introducedAt,
+                ...overrides,
+              });
+              return id;
+            };
+            const missed = await insertBill({
+              billNumber: "S. 5686",
+              title: "No Public Executions in America Act",
+            });
+            await insertBill({
+              createdAt: new Date(subscription.getTime() - 1),
+            });
+            await insertBill({
+              introducedDate: new Date(
+                ingestionDay.getTime() - 7 * 86400_000 - 1,
+              ),
+            });
+            await insertBill({ sourceWebsite: "openstates.org" });
+            await insertBill({ introducedDate: null });
+            await insertBill({
+              introducedDate: new Date(ingestedAt.getTime() + 1),
+            });
+            const futureId = await insertBill({
+              createdAt: new Date(day.getTime() + 2 * 86400_000),
+            });
+            await db
+              .update(PushDevice)
+              .set({ disabledAt: new Date() })
+              .where(eq(PushDevice.id, newDevice));
+            assert.equal((await enqueueNewBills()).enqueued, 0);
+            await billSync(true);
+            const result = await runFollowNotifications();
+            assert.equal(result.enqueued, 1);
+            assert.equal(result.sent, 1);
+            const history = await caller.history({ token: newToken });
+            assert.equal(history.length, 1);
+            assert.equal(history[0]?.kind, "new_bill");
+            assert.equal(history[0].title, "New bill in Congress");
+            assert.equal(
+              history[0].body,
+              "S. 5686: No Public Executions in America Act",
+            );
+            assert.equal(history[0].href, `/article-detail?id=${missed}`);
+            assert.equal(messages.at(-1)?.data.kind, "new_bill");
+            assert.equal(
+              messages.at(-1)?.data.href,
+              `/article-detail?id=${missed}`,
+            );
+            assert.equal((await runFollowNotifications()).sent, 0);
+            await db
+              .update(Bill)
+              .set({ title: "Updated source title", lastActionAt: new Date() })
+              .where(eq(Bill.id, missed));
+            assert.equal((await enqueueNewBills()).enqueued, 0);
+
+            const boundary = await insertBill({
+              introducedDate: new Date(ingestionDay.getTime() - 7 * 86400_000),
+            });
+            await billSync(true, true);
+            const quiet = new Date(day.getTime() + 23 * 3600_000);
+            const runs = await Promise.all([
+              enqueueNewBills(quiet),
+              enqueueNewBills(quiet),
+            ]);
+            assert.equal(
+              runs.reduce((sum, run) => sum + run.enqueued, 0),
+              1,
+            );
+            assert.equal((await enqueueNewBills(quiet)).enqueued, 0);
+            const pending = (await outbox()).find(
+              (row) => row.contentId === boundary,
+            );
+            assert.ok(pending);
+            assert.equal(
+              pending.notBefore.toISOString(),
+              new Date(day.getTime() + 31 * 3600_000).toISOString(),
+            );
+            assert.equal((await drainOutbox(quiet)).sent, 0);
+            await billSync(false);
+            assert.equal((await device()).newBillsSubscribedAt, null);
+            assert.equal((await outbox()).length, 1);
+            assert.equal((await caller.history({ token: newToken })).length, 1);
+            await billSync(true);
+            assert.equal((await enqueueNewBills(quiet)).enqueued, 0);
+            assert.equal(
+              (await drainOutbox(new Date(day.getTime() + 31 * 3600_000))).sent,
+              0,
+            );
+
+            await db.insert(NotificationOutbox).values({
+              deviceId: newDevice,
+              contentId: boundary,
+              kind: "new_bill",
+              title: "Stale subscription",
+              body: "Stale subscription",
+              href: `/article-detail?id=${boundary}`,
+              createdAt: subscription,
+              notBefore: new Date(0),
+            });
+            assert.equal((await drainOutbox()).sent, 0);
+            await billSync(false);
+            await db.insert(NotificationOutbox).values({
+              deviceId: newDevice,
+              contentId: futureId,
+              kind: "new_bill",
+              title: "Opted out",
+              body: "Opted out",
+              href: `/article-detail?id=${futureId}`,
+              notBefore: new Date(0),
+            });
+            assert.equal((await drainOutbox()).sent, 0);
+          } finally {
+            await db.delete(PushDevice).where(eq(PushDevice.id, newDevice));
+            if (billIds.length)
+              await db.delete(Bill).where(inArray(Bill.id, billIds));
+          }
+        },
+      );
       await t.test(
         "executive orders honor subscription, quiet hours, deduplication, opt-out and history",
         async () => {
@@ -589,7 +774,9 @@ void test(
           );
           const history = await caller.history({ token });
           assert.equal(
-            history.filter((row) => row.title === "Receipt fixture").length,
+            history.filter((row) =>
+              rows.some((receipt) => receipt.id === row.id),
+            ).length,
             1,
           );
           const before = receiptRequests;
