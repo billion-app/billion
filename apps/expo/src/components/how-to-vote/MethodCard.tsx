@@ -1,22 +1,28 @@
-/**
- * MethodCard — one way to vote, collapsed to a scannable row and expanded to a
- * numbered checklist plus the locations it applies to.
- *
- * Collapsed is the default because the whole point of the screen is that a
- * voter can see every option at once and pick one. Expanding is what reveals
- * procedure; only one card is open at a time (owned by the parent).
- */
+/** One voting method, with published locations and official instruction links. */
 import { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
+import type { MethodChip } from "./parts";
 import type { IconName } from "~/components/ui";
-import type { VotingMethod, VotingMethodId } from "~/utils/voting";
+import type {
+  MethodStatus,
+  VotingMethod,
+  VotingMethodId,
+} from "~/utils/voting";
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
 import { daysUntil } from "~/utils/dates";
 import { LinkRow, LocationList, StatusChip, UnavailableNote } from "./parts";
+
+const STATUS_CHIP: Record<MethodStatus, Omit<MethodChip, "label">> = {
+  upcoming: { tone: "urgent", icon: "clock" },
+  closed: { tone: "negative", icon: "block" },
+  listed: { tone: "neutral", icon: "info" },
+  unknown: { tone: "neutral", icon: "clock" },
+  limited: { tone: "neutral", icon: "info" },
+};
 
 const METHOD_ICON: Record<VotingMethodId, IconName> = {
   mail: "mail",
@@ -68,7 +74,7 @@ export function MethodCard({
     ? daysUntil(method.startDate)
     : undefined;
   const chip = {
-    ...method.chip,
+    ...STATUS_CHIP[method.status],
     label:
       method.id === "earlyInPerson" &&
       method.status === "upcoming" &&

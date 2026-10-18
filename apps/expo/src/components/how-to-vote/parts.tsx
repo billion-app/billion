@@ -3,7 +3,7 @@
  *
  * These are the pieces the design spec calls out as reusable: the status chip
  * (icon + word + colour, in that order of importance), the fact row, the
- * numbered checklist, the location row, and the official-source footer.
+ * location row, and the official-source footer.
  *
  * Status is never communicated by colour alone — every chip carries a word and
  * an icon so the screen survives greyscale, colour-blindness, and VoiceOver.
@@ -13,7 +13,7 @@ import { Linking, StyleSheet, TouchableOpacity, View } from "react-native";
 import type { PollingLocation } from "@acme/api";
 
 import type { IconName } from "~/components/ui";
-import type { MethodChip, OfficialSource, VotingStep } from "~/utils/voting";
+import type { OfficialSource } from "~/utils/voting";
 import { Text } from "~/components/Themed";
 import { Card, Icon } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
@@ -24,15 +24,19 @@ import { describeVotingLocation } from "~/utils/voting-logistics";
 /** Civic returns every county vote center under one address; cap each group. */
 const COLLAPSED_COUNT = 3;
 
+export interface MethodChip {
+  label: string;
+  tone: "urgent" | "neutral" | "negative";
+  icon: IconName;
+}
+
 const TONE_COLOR: Record<MethodChip["tone"], string> = {
-  positive: colors.green[500],
   urgent: colors.yellow[500],
   neutral: colors.textSecondary,
   negative: colors.red[500],
 };
 
 const TONE_BORDER: Record<MethodChip["tone"], string> = {
-  positive: "rgba(16,185,129,0.34)",
   urgent: "rgba(245,158,11,0.34)",
   neutral: hair[2],
   negative: "rgba(239,68,68,0.34)",
@@ -44,7 +48,7 @@ export function StatusChip({ chip }: { chip: MethodChip }) {
   const color = TONE_COLOR[chip.tone];
   return (
     <View style={[s.chip, { borderColor: TONE_BORDER[chip.tone] }]}>
-      <Icon name={chip.icon as IconName} size={11} color={color} />
+      <Icon name={chip.icon} size={11} color={color} />
       <Text style={[s.chipText, { color }]}>{chip.label}</Text>
     </View>
   );
@@ -81,28 +85,6 @@ export function FactRow({
           <Text style={s.factAction}>{action.label}</Text>
         </TouchableOpacity>
       )}
-    </View>
-  );
-}
-
-/* ---------- StepList — numbered checklist ---------- */
-
-export function StepList({ steps }: { steps: VotingStep[] }) {
-  return (
-    <View style={s.steps}>
-      {steps.map((step, i) => (
-        <View key={step.title} style={s.step}>
-          <View style={s.stepBadge}>
-            <Text style={s.stepNum}>{i + 1}</Text>
-          </View>
-          <View style={s.stepBody}>
-            <Text style={s.stepTitle}>{step.title}</Text>
-            {step.detail ? (
-              <Text style={s.stepDetail}>{step.detail}</Text>
-            ) : null}
-          </View>
-        </View>
-      ))}
     </View>
   );
 }
@@ -344,34 +326,6 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: colors.bill,
     paddingLeft: 8,
-  },
-
-  steps: { gap: 13 },
-  step: { flexDirection: "row", gap: 10 },
-  stepBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 7,
-    backgroundColor: planes.surface,
-    borderWidth: 1,
-    borderColor: hair[2],
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepNum: { fontFamily: fontBody.bold, fontSize: 11, color: colors.white },
-  stepBody: { flex: 1, minWidth: 0 },
-  stepTitle: {
-    fontFamily: fontBody.semibold,
-    fontSize: 13.5,
-    lineHeight: 19,
-    color: colors.white,
-  },
-  stepDetail: {
-    fontFamily: fontBody.regular,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: colors.textSecondary,
-    marginTop: 2,
   },
 
   locList: { gap: 10 },

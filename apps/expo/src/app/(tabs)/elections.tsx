@@ -645,7 +645,6 @@ function ElectionsLive({
               days_until_election: selected
                 ? daysUntil(selected.electionDay)
                 : null,
-              available_methods: votingPlan.availableCount,
             });
             router.push({
               pathname: "/how-to-vote",

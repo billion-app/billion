@@ -371,11 +371,6 @@ export const howToVoteLookupStrings = {
     es: "Consulta los plazos oficiales de devolución",
     zh: "查询官方交回截止日期",
   },
-  "howToVoteLookup.status.available": {
-    en: "Available",
-    es: "Disponible",
-    zh: "可用",
-  },
   "howToVoteLookup.status.upcoming": {
     en: "Not open yet",
     es: "Aún no abre",

@@ -5,9 +5,8 @@
  * testable without mounting React Native: iOS fills the discrete fields
  * (Apple's CLGeocoder), while Android's system geocoder usually returns only
  * one composed address line in `formattedAddress` and leaves `city` null.
- * Building from the discrete fields alone therefore degrades to raw
- * coordinates on many Android devices, which is why the composed line wins
- * when the OS provides it.
+ * Building from the discrete fields alone can therefore discard a useful
+ * suggestion, which is why the composed line wins when the OS provides it.
  */
 
 /**
@@ -37,9 +36,10 @@ function clean(value: string | null | undefined): string | undefined {
 /**
  * `"123 Oak St, Sacramento, CA 95814"` from an OS reverse-geocode placemark.
  *
- * Returns `null` when the placemark cannot make a street-level address — a
- * bare coordinate is not a registered address, so the caller asks for manual
- * entry.
+ * Returns a suggested address, not a validated registered voting address.
+ * Composed platform results may be incomplete, so the voter must review them.
+ * Returns `null` if neither a composed line nor street/city fields are usable;
+ * the caller then asks for manual entry.
  */
 export function formatPlacemark(
   placemark: GeocodedPlacemark | null | undefined,

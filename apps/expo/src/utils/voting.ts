@@ -41,47 +41,22 @@ export type VotingMethodId =
  * Listed locations likewise do not establish current opening hours.
  */
 export type MethodStatus =
-  | "available" // reserved for explicitly verified availability
   | "listed" // locations supplied; current availability is unverified
   | "upcoming" // published start date is in the future
   | "closed" // published end date has passed
   | "unknown" // this lookup does not supply the details
   | "limited"; // offered in a reduced form (e.g. in person during a mail-only election)
 
-export interface MethodChip {
-  label: string;
-  /** Which semantic colour the chip takes. Never the only signal — see label. */
-  tone: "positive" | "urgent" | "neutral" | "negative";
-  /** `IconName` from the shared icon set. */
-  icon: "check" | "clock" | "calendar" | "info" | "block";
-}
-
 export interface VotingMethod {
   id: VotingMethodId;
-  title: string;
   status: MethodStatus;
-  chip: MethodChip;
-  /** One-line status under the title. Empty string when we have nothing to say. */
-  subtitle: string;
   /** Locations this method applies to, if any were published. */
   locations: PollingLocation[];
-  /**
-   * Reserved for sourced instruction text. Authority URLs alone do not supply
-   * instructions, so this model currently leaves the checklist empty.
-   */
-  steps: VotingStep[];
   /** Official hand-off for instructions. */
   instructionsUrl?: string;
   /** Published window for the method, when the feed carried one. */
   startDate?: string;
   endDate?: string;
-}
-
-export interface VotingStep {
-  /** The instruction. Must stand alone — a reader who skips details is still correct. */
-  title: string;
-  /** Consequence or caveat only. Omitted when we'd be padding. */
-  detail?: string;
 }
 
 export interface OfficialSource {
@@ -114,8 +89,6 @@ export function registrationCheckUrl(source?: OfficialSource): string {
 
 export interface VotingPlan {
   methods: VotingMethod[];
-  /** Methods a voter can act on today — drives the entry-point sublabel. */
-  availableCount: number;
   mailOnly: boolean;
   /** True when no method carried a single published location. */
   noLocationsPublished: boolean;
@@ -161,15 +134,6 @@ export function shortAddress(address: string): string {
 // ---------------------------------------------------------------------------
 // Method construction
 // ---------------------------------------------------------------------------
-
-const CHIP: Record<MethodStatus, MethodChip> = {
-  available: { label: "Available", tone: "positive", icon: "check" },
-  upcoming: { label: "Not open yet", tone: "urgent", icon: "clock" },
-  closed: { label: "Closed", tone: "negative", icon: "block" },
-  listed: { label: "Locations listed", tone: "neutral", icon: "info" },
-  unknown: { label: "Details unavailable", tone: "neutral", icon: "clock" },
-  limited: { label: "Limited", tone: "neutral", icon: "info" },
-};
 
 /** Earliest published `startDate` across a set of locations. */
 function earliestStart(locations: PollingLocation[]): string | undefined {
@@ -217,90 +181,35 @@ function windowStatus(
   return "listed";
 }
 
-/** "18 vote centers" / "1 vote center" — count phrasing shared by in-person rows. */
-function countLabel(n: number, singular: string, plural: string): string {
-  return `${n} ${n === 1 ? singular : plural}`;
-}
-
 /** Mail instructions require supplied source text; a URL alone is not evidence. */
-function mailMethod(
-  resp: VoterInfoResponse | undefined,
-  source: OfficialSource | undefined,
-): VotingMethod {
+function mailMethod(source: OfficialSource | undefined): VotingMethod {
   return {
     id: "mail",
     instructionsUrl: source?.absenteeVotingInfoUrl ?? source?.electionInfoUrl,
-    title: resp?.mailOnly ? "Return your ballot by mail" : "Vote by mail",
     status: "unknown",
-    chip: CHIP.unknown,
-    subtitle: "Check official return deadlines",
     locations: [],
-    steps: [],
   };
 }
 
-/** Ballot drop boxes. */
-function dropBoxMethod(
+/** Published locations and dates for drop boxes or early voting. */
+function locationMethod(
+  id: "dropBox" | "earlyInPerson",
   locations: PollingLocation[],
   source: OfficialSource | undefined,
 ): VotingMethod {
   const instructionsUrl =
-    source?.absenteeVotingInfoUrl ?? source?.electionInfoUrl;
-  const start = earliestStart(locations);
-  const end = latestEnd(locations);
-  const status = windowStatus(locations, start, end);
-
+    (id === "dropBox"
+      ? source?.absenteeVotingInfoUrl
+      : source?.votingLocationFinderUrl) ?? source?.electionInfoUrl;
+  const startDate = earliestStart(locations);
+  const endDate = latestEnd(locations);
   return {
-    id: "dropBox",
+    id,
     instructionsUrl,
-    title: "Return at a drop box",
-    status,
-    chip: CHIP[status],
-    subtitle:
-      locations.length > 0
-        ? countLabel(locations.length, "location", "locations")
-        : "Location details unavailable",
+    status: windowStatus(locations, startDate, endDate),
     locations,
-    startDate: start,
-    endDate: end,
-    steps: [],
-  };
-}
-
-/** Early in-person voting / vote centers open before Election Day. */
-function earlyMethod(
-  locations: PollingLocation[],
-  source: OfficialSource | undefined,
-): VotingMethod {
-  const instructionsUrl =
-    source?.votingLocationFinderUrl ?? source?.electionInfoUrl;
-  const start = earliestStart(locations);
-  const end = latestEnd(locations);
-  const status = windowStatus(locations, start, end);
-
-  let chip = CHIP[status];
-  if (status === "upcoming" && start) {
-    const days = daysUntil(start);
-    chip = {
-      ...CHIP.upcoming,
-      label: days === 1 ? "Opens tomorrow" : `Opens in ${days} days`,
-    };
-  }
-
-  return {
-    id: "earlyInPerson",
-    instructionsUrl,
-    title: "Vote early in person",
-    status,
-    chip,
-    subtitle:
-      locations.length > 0
-        ? countLabel(locations.length, "early vote site", "early vote sites")
-        : "Location details unavailable",
-    locations,
-    startDate: start,
-    endDate: end,
-    steps: [],
+    startDate,
+    endDate,
   };
 }
 
@@ -319,12 +228,8 @@ function electionDayMethod(
     return {
       id: "electionDay",
       instructionsUrl,
-      title: "Vote in person",
       status: "limited",
-      chip: CHIP.limited,
-      subtitle: "Check with your election office about in-person options",
       locations,
-      steps: [],
     };
   }
 
@@ -332,15 +237,8 @@ function electionDayMethod(
   return {
     id: "electionDay",
     instructionsUrl,
-    title: "Vote in person on Election Day",
     status,
-    chip: CHIP[status],
-    subtitle:
-      locations.length > 0
-        ? countLabel(locations.length, "polling place", "polling places")
-        : "Location details unavailable",
     locations,
-    steps: [],
   };
 }
 
@@ -407,15 +305,14 @@ export function buildVotingPlan(
   const source = resolveOfficialSource(resp);
 
   const methods: VotingMethod[] = [
-    mailMethod(resp, source),
-    dropBoxMethod(dropOff, source),
-    ...(mailOnly ? [] : [earlyMethod(early, source)]),
+    mailMethod(source),
+    locationMethod("dropBox", dropOff, source),
+    ...(mailOnly ? [] : [locationMethod("earlyInPerson", early, source)]),
     electionDayMethod(polling, mailOnly, source),
   ];
 
   return {
     methods,
-    availableCount: methods.filter((m) => m.status === "available").length,
     mailOnly,
     noLocationsPublished:
       dropOff.length === 0 && early.length === 0 && polling.length === 0,
@@ -441,7 +338,5 @@ export function entryCardSubtitle(
     return t("voteGuide.entry.contacts");
   }
   if (phase === "electionDay") return t("voteGuide.entry.today");
-  const n = plan.availableCount;
-  if (n === 0) return t("voteGuide.entry.ways");
-  return t("voteGuide.entry.count", { count: n });
+  return t("voteGuide.entry.ways");
 }

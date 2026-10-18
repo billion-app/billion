@@ -102,8 +102,6 @@ void test("missing location details do not imply a method is unavailable", () =>
   // not render as "this method isn't offered".
   const dropBox = method(buildVotingPlan(response()), "dropBox");
   assert.equal(dropBox.status, "unknown");
-  assert.equal(dropBox.chip.label, "Details unavailable");
-  assert.equal(dropBox.subtitle, "Location details unavailable");
 });
 
 void test("listed locations do not establish current availability", () => {
@@ -112,14 +110,7 @@ void test("listed locations do not establish current availability", () => {
   );
   const dropBox = method(plan, "dropBox");
   assert.equal(dropBox.status, "listed");
-  assert.equal(dropBox.chip.label, "Locations listed");
-  assert.equal(dropBox.subtitle, "2 locations");
   assert.equal(plan.noLocationsPublished, false);
-});
-
-void test("location counts use singular phrasing for one location", () => {
-  const plan = buildVotingPlan(response({ pollingLocations: [location()] }));
-  assert.equal(method(plan, "electionDay").subtitle, "1 polling place");
 });
 
 void test("early voting is upcoming until its published window opens", () => {
@@ -128,7 +119,6 @@ void test("early voting is upcoming until its published window opens", () => {
   );
   const early = method(plan, "earlyInPerson");
   assert.equal(early.status, "upcoming");
-  assert.equal(early.chip.label, "Opens in 2 days");
 });
 
 void test("a method closes once its published window has passed", () => {
@@ -153,34 +143,6 @@ void test("a mail-only election drops early voting and limits in-person", () => 
   // in person", and hiding the row would say exactly that.
   assert.equal(method(plan, "electionDay").status, "limited");
   assert.equal(method(plan, "mail").status, "unknown");
-});
-
-void test("no step or subtitle ever states a deadline we cannot source", () => {
-  const plan = buildVotingPlan(response());
-  assert.equal(
-    method(plan, "mail").subtitle,
-    "Check official return deadlines",
-  );
-  for (const m of plan.methods) {
-    for (const step of m.steps) {
-      assert.doesNotMatch(
-        `${step.title} ${step.detail ?? ""}`,
-        /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/,
-        `step "${step.title}" must not name a date`,
-      );
-    }
-  }
-});
-
-void test("listed locations do not count as verified availability", () => {
-  const plan = buildVotingPlan(
-    response({
-      dropOffLocations: [location()],
-      pollingLocations: [location()],
-      earlyVoteSites: [location({ startDate: offsetDays(3) })],
-    }),
-  );
-  assert.equal(plan.availableCount, 0);
 });
 
 void test("resolveOfficialSource prefers the local jurisdiction", () => {
@@ -246,10 +208,8 @@ void test("provider lookup destinations are not attributed to an official author
   assert.equal(registrationCheckUrl(plan.source), "https://vote.gov");
   for (const votingMethod of plan.methods) {
     assert.equal(votingMethod.instructionsUrl, undefined);
-    assert.deepEqual(votingMethod.steps, []);
   }
   assert.deepEqual(method(plan, "electionDay").locations, [suppliedLocation]);
-  assert.equal(method(plan, "electionDay").chip.label, "Locations listed");
 });
 
 void test("resolveOfficialSource yields nothing without administration data", () => {
@@ -327,12 +287,9 @@ function withSource(
   });
 }
 
-void test("steps are withheld entirely when no source can be cited", () => {
-  // The steps summarize an authority's instructions. With nothing to point at,
-  // showing them would make Billion the author of voting procedure.
+void test("instruction links are absent when no source can be cited", () => {
   const plan = buildVotingPlan(response());
   for (const m of plan.methods) {
-    assert.equal(m.steps.length, 0, `${m.id} must not carry unsourced steps`);
     assert.equal(m.instructionsUrl, undefined);
   }
 });
@@ -340,18 +297,15 @@ void test("steps are withheld entirely when no source can be cited", () => {
 void test("official links remain available without inventing instruction text", () => {
   const plan = buildVotingPlan(withSource());
   const mail = method(plan, "mail");
-  assert.equal(mail.steps.length, 0);
   assert.equal(mail.instructionsUrl, "https://elections.saccounty.gov/vbm");
 
   const day = method(plan, "electionDay");
-  assert.equal(day.steps.length, 0);
   assert.equal(day.instructionsUrl, "https://elections.saccounty.gov/centers");
 });
 
-void test("authority URLs never authorize hardcoded instructions for any method", () => {
+void test("every method links to supplied authority instructions", () => {
   for (const mailOnly of [false, true]) {
     for (const m of buildVotingPlan(withSource({ mailOnly })).methods) {
-      assert.deepEqual(m.steps, [], `${m.id} has no supplied instruction text`);
       assert.ok(m.instructionsUrl);
     }
   }
@@ -370,7 +324,6 @@ void test("a published date window and hours do not prove a location is open now
     }),
   );
   assert.equal(method(plan, "dropBox").status, "listed");
-  assert.equal(method(plan, "dropBox").chip.label, "Locations listed");
 });
 
 // --- registration check always resolves ------------------------------------
@@ -413,7 +366,7 @@ void test("partially dated locations cannot close or postpone an entire method",
   }
 });
 
-test("link-only providers do not present hardcoded steps as official instructions", () => {
+test("provider destinations are not exposed as official instruction links", () => {
   const data = response();
   data.provider = {
     name: "democracy_works",
@@ -434,6 +387,6 @@ test("link-only providers do not present hardcoded steps as official instruction
     },
   ];
   assert.ok(
-    buildVotingPlan(data).methods.every((method) => method.steps.length === 0),
+    buildVotingPlan(data).methods.every((method) => !method.instructionsUrl),
   );
 });

@@ -62,9 +62,9 @@ not substitute for that.
   reviewer inspected rendered UI first and cleared the accessibility fixes.
 - Claude design consultation was attempted; account session quota prevented it.
 
-The original PR's privacy-policy/App Store disclosure review is still pending.
-The public policy still describes the retired Places flow and denies GPS access.
-The data inventory now reflects removal of raw-coordinate forwarding so that
-review does not rely on the original fallback behavior. This is a release gate,
-not an assertion that legal or store disclosures have been approved. The public
-ballot launch gate remains unchanged.
+At the time of this #494 review, the privacy disclosure review was still pending.
+The integrating #414 follow-up corrected the website and all three app languages,
+removed the retired Places claims, and documented the iOS collection assessment in
+[the data inventory](../../legal/data-inventory.md#native-location-assessment--october-18-2026).
+Publishing the corrected website policy and checking the existing ASC label remain
+release steps. The public ballot launch gate remains unchanged.

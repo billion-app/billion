@@ -1,0 +1,27 @@
+Privacy
+
+
+EN
+
+Billion works without an account. We never ask for your name or email to use the app.
+What we collect
+
+Usage & error diagnostics
+App activity and handled errors are linked to a random installation ID, not your name, email, or an advertising ID.
+
+Address-based ballot lookup
+Type an address or optionally use device location to suggest one. Confirm it before we send it for civic lookups. Saved addresses stay on this device; lookup results may be cached on our servers.
+
+No ads or cross-app tracking
+No advertising identifiers, and we never track you across other companies' apps or sites.
+Your controls
+
+Edit or clear your address
+Open Settings → Location to change or remove your saved address anytime.
+
+Stop analytics
+Uninstalling Billion stops all analytics collection from this device.
+
+Access or delete your data
+Email thatxliner@gmail.com and we'll help with any request.
+Read full Privacy Policy

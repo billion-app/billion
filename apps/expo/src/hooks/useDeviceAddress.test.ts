@@ -20,8 +20,9 @@ function deferred<T>() {
 
 function harness() {
   const fix = deferred<{
-    coords: { latitude: number; longitude: number };
-  } | null>();
+    location: { coords: { latitude: number; longitude: number } } | null;
+    error: "denied" | "failed" | "unavailable" | null;
+  }>();
   const geocode = deferred<Parameters<typeof formatPlacemark>[0][]>();
   const state: unknown[] = [];
   let cleanup: (() => void) | undefined;
@@ -75,7 +76,6 @@ function harness() {
           useDeviceLocation: () => ({
             request: () => fix.promise,
             locating: false,
-            error: null,
           }),
         };
       if (name === "~/utils/address") return { formatPlacemark };
@@ -90,7 +90,10 @@ function harness() {
     unmount: () => cleanup?.(),
     geocodeCalls: () => geocodeCalls,
     async finishFix() {
-      fix.resolve({ coords: { latitude: 38.5, longitude: -121.5 } });
+      fix.resolve({
+        location: { coords: { latitude: 38.5, longitude: -121.5 } },
+        error: null,
+      });
       await setImmediate();
     },
   };
@@ -146,3 +149,25 @@ test("a usable native placemark resolves to a street address", async () => {
   assert.equal(await result, "123 Oak St, Sacramento, CA 95814");
   assert.deepEqual(app.state, [false, null]);
 });
+
+for (const error of ["denied", "failed", "unavailable"] as const) {
+  test(`manual editing clears a ${error} location failure`, async () => {
+    const app = harness();
+    const result = app.hook.resolve();
+    app.fix.resolve({ location: null, error });
+    assert.equal(await result, null);
+    assert.deepEqual(app.state, [false, error]);
+    app.hook.cancel();
+    assert.deepEqual(app.state, [false, null]);
+  });
+
+  test(`cancelled location request cannot publish a late ${error} failure`, async () => {
+    const app = harness();
+    const result = app.hook.resolve();
+    app.hook.cancel();
+    app.fix.resolve({ location: null, error });
+    assert.equal(await result, null);
+    assert.deepEqual(app.state, [false, null]);
+    assert.equal(app.geocodeCalls(), 0);
+  });
+}

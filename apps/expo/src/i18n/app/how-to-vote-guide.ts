@@ -383,17 +383,6 @@ export const voteGuideStrings = {
     es: "Cómo votar y adónde ir",
     zh: "投票方式和地点",
   },
-  "voteGuide.entry.count": {
-    en: {
-      one: "{count} way to vote in this election",
-      other: "{count} ways to vote in this election",
-    },
-    es: {
-      one: "{count} forma de votar en esta elección",
-      other: "{count} formas de votar en esta elección",
-    },
-    zh: "本次选举的 {count} 种投票方式",
-  },
   "voteGuide.entry.summary": {
     en: "Four ways to vote in California, step by step.",
     es: "Cuatro formas de votar en California, paso a paso.",

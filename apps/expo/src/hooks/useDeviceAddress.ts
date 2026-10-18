@@ -1,4 +1,4 @@
-/** One foreground fix, resolved on-device into an address the voter can confirm. */
+/** One foreground fix, resolved by the OS geocoder into an address the voter can confirm. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as Location from "expo-location";
 
@@ -10,7 +10,7 @@ import { formatPlacemark } from "~/utils/address";
 type DeviceAddressError = DeviceLocationError | "address-unavailable";
 
 export function useDeviceAddress() {
-  const { request, locating, error: locationError } = useDeviceLocation();
+  const { request, locating } = useDeviceLocation();
   const [resolving, setResolving] = useState(false);
   const [addressError, setAddressError] = useState<DeviceAddressError | null>(
     null,
@@ -32,14 +32,20 @@ export function useDeviceAddress() {
   const resolve = useCallback(async (): Promise<string | null> => {
     const attempt = ++revision.current;
     setAddressError(null);
-    const fix = await request();
-    if (!fix || attempt !== revision.current) return null;
+    const result = await request();
+    if (attempt !== revision.current) return null;
+    if (!result.location) {
+      setAddressError(result.error);
+      return null;
+    }
     setResolving(true);
     try {
-      const placemarks = await Location.reverseGeocodeAsync(fix.coords);
+      const placemarks = await Location.reverseGeocodeAsync(
+        result.location.coords,
+      );
       if (attempt !== revision.current) return null;
       const address = formatPlacemark(placemarks[0]);
-      // Democracy Works requires a full street address, not raw coordinates.
+      // A missing suggestion needs manual entry, never a coordinate fallback.
       if (!address) setAddressError("address-unavailable");
       return address;
     } catch {
@@ -55,7 +61,7 @@ export function useDeviceAddress() {
     cancel,
     locating,
     resolving,
-    error: addressError ?? locationError,
+    error: addressError,
   };
 }
 

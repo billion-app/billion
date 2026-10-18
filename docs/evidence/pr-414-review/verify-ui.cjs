@@ -57,6 +57,12 @@ const fixture = {
   fs.mkdirSync(out, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   for (const [name, path, mode, width, lang] of [
+    ["privacy-en", "/settings/privacy", "empty", 390, "en"],
+    ["privacy-es", "/settings/privacy", "empty", 320, "es"],
+    ["privacy-zh", "/settings/privacy", "empty", 390, "zh"],
+    ["policy-en", "/settings/terms", "empty", 390, "en"],
+    ["policy-es", "/settings/terms", "empty", 320, "es"],
+    ["policy-zh", "/settings/terms", "empty", 390, "zh"],
     ["guide-en", "/how-to-vote-guide", "empty", 390, "en"],
     ["guide-es", "/how-to-vote-guide", "empty", 320, "es"],
     ["guide-zh", "/how-to-vote-guide", "empty", 390, "zh"],
@@ -173,6 +179,20 @@ const fixture = {
       `${out}/${name}.txt`,
       await page.locator("body").innerText(),
     );
+    if (name.startsWith("policy-")) {
+      const text = await page.locator("body").innerText();
+      if (text.includes("Google Places") || !text.includes("Democracy Works"))
+        throw new Error("Stale policy processor disclosure: " + name);
+      for (const section of [4, 6, 7]) {
+        const heading = page
+          .getByText(new RegExp("^" + section + "\\. "))
+          .last();
+        await heading.evaluate((el) => el.scrollIntoView({ block: "start" }));
+        await page.screenshot({
+          path: `${out}/${name}-section-${section}.png`,
+        });
+      }
+    }
     if (name.includes("guide") || name.includes("evidence")) {
       for (const [suffix, offset] of [
         ["middle", 650],
