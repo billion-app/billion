@@ -11,6 +11,7 @@ import {
   missingSourceDescriptionReview,
   reviewContentImage,
 } from "./content-image-review.js";
+import { planRenderedContentImagePrompt } from "./content-image-visual.js";
 
 const source = {
   title: "Clean Water Infrastructure Act",
@@ -439,4 +440,222 @@ test("rejections without an explicit reason fail schema validation", async () =>
     }),
     /at least one explicit reason/,
   );
+});
+
+test("Codex reviews both crops through native Responses without chat image translation", async () => {
+  const generated = await image();
+  let calls = 0;
+  const review = await reviewContentImage(generated, source, {
+    codex: {
+      baseURL: "http://codex.test/v1",
+      model: "gpt-6-luna",
+      apiKey: "unused",
+    },
+    local: null,
+    fetch: async (url, init) => {
+      calls += 1;
+      assert.equal(String(url), "http://codex.test/v1/responses");
+      const body = JSON.parse(init?.body as string);
+      assert.equal(body.model, "gpt-6-luna");
+      assert.equal(body.store, false);
+      const images = body.input[0].content.filter(
+        (item: { type: string }) => item.type === "input_image",
+      );
+      assert.equal(images.length, 2);
+      const dimensions = await Promise.all(
+        images.map((item: { image_url: string }) =>
+          sharp(
+            Buffer.from(item.image_url.split(",")[1]!, "base64"),
+          ).metadata(),
+        ),
+      );
+      assert.deepEqual(
+        dimensions.map((m) => [m.width, m.height]),
+        [
+          [1024, 512],
+          [768, 768],
+        ],
+      );
+      return Response.json({
+        model: "gpt-6-luna",
+        output: [
+          {
+            type: "message",
+            content: [
+              { type: "output_text", text: JSON.stringify(acceptedReview()) },
+            ],
+          },
+        ],
+      });
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(review.decision, "accept");
+  assert.equal(review.reviewModelVersion, "codex:gpt-6-luna");
+});
+
+test("Codex rejection is final and does not ask another provider to approve it", async () => {
+  let calls = 0;
+  const review = await reviewContentImage(await image(), source, {
+    codex: {
+      baseURL: "http://codex.test/v1",
+      model: "gpt-6-luna",
+      apiKey: "unused",
+    },
+    local: {
+      baseURL: "http://local.test/v1",
+      model: "local",
+      apiKey: "unused",
+    },
+    fetch: async () => {
+      calls += 1;
+      return Response.json({
+        output: [
+          {
+            type: "message",
+            content: [
+              {
+                type: "output_text",
+                text: JSON.stringify(rejectedReview("Make the pipe clear.")),
+              },
+            ],
+          },
+        ],
+      });
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(review.decision, "reject");
+});
+
+test("Codex review transport failure retains the local review alternative", async () => {
+  const calls: string[] = [];
+  const review = await reviewContentImage(await image(), source, {
+    codex: {
+      baseURL: "http://codex.test/v1",
+      model: "gpt-6-luna",
+      apiKey: "unused",
+    },
+    local: {
+      baseURL: "http://local.test/v1",
+      model: "local",
+      apiKey: "unused",
+    },
+    fetch: async (url) => {
+      calls.push(String(url));
+      if (String(url).includes("codex.test"))
+        return new Response("unavailable", { status: 503 });
+      return Response.json({
+        choices: [{ message: { content: JSON.stringify(acceptedReview()) } }],
+      });
+    },
+  });
+  assert.deepEqual(calls, [
+    "http://codex.test/v1/responses",
+    "http://local.test/v1/chat/completions",
+  ]);
+  assert.equal(review.reviewModelVersion, "local:local");
+});
+
+test("exhausted unsafe planning is a recorded rejection before image generation", async () => {
+  for (const skipReview of [false, true]) {
+    let plans = 0;
+    let imageGenerations = 0;
+    let reviews = 0;
+    const result = await generateContentImage({
+      source,
+      skipReview,
+      generate: async () => {
+        await planRenderedContentImagePrompt(source, async () => {
+          plans += 1;
+          return {
+            scene: "A roadside sign that reads STOP beside a red truck",
+          };
+        });
+        imageGenerations += 1;
+        return { image: await image(), prompt: "unused" };
+      },
+      review: async () => {
+        reviews += 1;
+        return acceptedReview();
+      },
+    });
+    assert.equal(plans, 3);
+    assert.equal(imageGenerations, 0);
+    assert.equal(reviews, 0);
+    assert.equal(result.status, "rejected");
+    if (result.status !== "rejected") return;
+    assert.deepEqual(result.review.rejectionReasons, ["unsafe-visual-plan"]);
+    assert.equal(result.review.reviewModelVersion, "visual-plan-validation-v1");
+    assert.match(result.review.description, /3 planning attempts/);
+    assert.match(result.review.feedback!, /sign that reads STOP/);
+  }
+});
+
+test("provider and schema failures during planning remain job errors", async () => {
+  for (const error of [
+    new Error("Responses HTTP 503"),
+    new Error("Scene failed schema validation"),
+  ]) {
+    const result = await generateContentImage({
+      source,
+      generate: async () => {
+        await planRenderedContentImagePrompt(source, async () => {
+          throw error;
+        });
+        return null;
+      },
+    });
+    assert.equal(result.status, "error");
+    if (result.status === "error") assert.equal(result.error, error);
+  }
+});
+
+test("unsafe replacement planning retains the completed review count without publishing", async () => {
+  let generations = 0;
+  const result = await generateReviewedContentImage({
+    source,
+    generate: async () => {
+      generations += 1;
+      if (generations === 1)
+        return { image: await image(), prompt: "A water pipe" };
+      await planRenderedContentImagePrompt(source, async () => ({
+        scene: "A banner bearing JUSTICE FOR ALL above the entrance",
+      }));
+      return null;
+    },
+    review: async () => rejectedReview("Keep the pipe prominent"),
+  });
+  assert.equal(generations, 2);
+  assert.equal(result.status, "rejected");
+  if (result.status !== "rejected") return;
+  assert.equal(result.reviewAttempts, 1);
+  assert.match(result.review.description, /No image was published/);
+  assert.deepEqual(result.review.rejectionReasons, ["unsafe-visual-plan"]);
+});
+
+test("mixed transport or schema failures never become a terminal unsafe-plan rejection", async () => {
+  const operationalError = new Error("Responses HTTP 503");
+  for (const unsafeAttempts of [
+    [false, false, true],
+    [true, false, true],
+    [true, true, false],
+  ]) {
+    let attempt = 0;
+    const result = await generateContentImage({
+      source,
+      generate: async () => {
+        await planRenderedContentImagePrompt(source, async () => {
+          if (!unsafeAttempts[attempt++]) throw operationalError;
+          return {
+            scene: "A roadside sign that reads STOP beside a red truck",
+          };
+        });
+        return null;
+      },
+    });
+    assert.equal(result.status, "error");
+    if (result.status === "error") assert.equal(result.error, operationalError);
+    assert.equal(attempt, 3);
+  }
 });

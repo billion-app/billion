@@ -49,6 +49,11 @@ import {
   officialGuideCacheParams,
 } from "./official-guide-cache";
 import {
+  TRILLION_ADDRESS_HASH,
+  TRILLION_ENDPOINT,
+  trillionCacheParams,
+} from "./trillion";
+import {
   CA_LOGISTICS_ENDPOINT,
   caLogisticsCacheParams,
 } from "./voting-logistics/ca-sos-cache";
@@ -109,6 +114,18 @@ async function getCached<T>(
     )
     .limit(1);
   return row ? (row.responseData as T) : null;
+}
+
+/** Cached Trillion graph for one statewide measure; publication is gated by the caller. */
+export async function getCachedTrillionGraph(
+  electionDate: string,
+  number: string,
+): Promise<unknown> {
+  return getCached<unknown>(
+    TRILLION_ADDRESS_HASH,
+    TRILLION_ENDPOINT,
+    trillionCacheParams(electionDate, number),
+  );
 }
 
 /** Public statewide guide; it is not an address-matched ballot roster. */

@@ -1,19 +1,20 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { MeasureRelationships } from "~/components/ballot-evidence/MeasureRelationships";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { PropositionConsequences } from "~/components/ballot-evidence/PropositionConsequences";
+import {
+  ContextUnavailable,
+  PropositionContext,
+} from "~/components/ballot-evidence/PropositionContext";
+import { developmentDebate } from "~/components/trillion/development/pilots";
+import { TrillionLoading } from "~/components/trillion/TrillionLoading";
+import { TrillionScreen } from "~/components/trillion/TrillionScreen";
 import { Icon, NavHeader } from "~/components/ui";
 import {
   fontBody,
@@ -35,8 +36,38 @@ export default function PropositionDetailScreen() {
   const { number } = useLocalSearchParams<{ number?: string }>();
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const measure = query.data?.measures.find((item) => item.number === number);
+  // A proposition with a debate is read as its Trillion (#455). The graph
+  // appears only once it passes the server's publication gate; until then, and
+  // for measures without one, the page below is the explanation.
+  const debate = useQuery(
+    trpc.civic.getTrillion.queryOptions(
+      { number: number ?? "" },
+      { enabled: !!number },
+    ),
+  );
   const proArguments = submittedGuideArguments(measure?.proArguments);
   const conArguments = submittedGuideArguments(measure?.conArguments);
+  const graph =
+    debate.data ?? (measure ? developmentDebate(measure.number) : undefined);
+  if (graph)
+    return (
+      <TrillionScreen
+        graph={graph}
+        ballot={query.data?.measures.map((item) => item.number)}
+      />
+    );
+
+  if (query.isPending || (!!measure && debate.isPending))
+    return (
+      <View style={s.screen}>
+        <NavHeader
+          title={`Proposition ${number ?? ""}`}
+          tone="dark"
+          onBack={() => router.back()}
+        />
+        <TrillionLoading />
+      </View>
+    );
 
   return (
     <View style={s.screen}>
@@ -46,12 +77,7 @@ export default function PropositionDetailScreen() {
         onBack={() => router.back()}
       />
       <ScrollView contentContainerStyle={s.content}>
-        {query.isPending ? (
-          <View style={s.surface}>
-            <ActivityIndicator color={P.quiet} />
-            <Text style={s.body}>Loading the official proposition guide…</Text>
-          </View>
-        ) : query.isError ? (
+        {query.isError ? (
           <StateCard
             title="Could not load the guide"
             detail="Try again, or open California’s official voter guide."
@@ -135,6 +161,16 @@ export default function PropositionDetailScreen() {
                   url={measure.sourceUrl}
                 />
               )}
+            {measure.contextualExplanation ? (
+              <PropositionContext analysis={measure.contextualExplanation} />
+            ) : (
+              <ContextUnavailable sourceUrl={measure.sourceUrl} />
+            )}
+            <MeasureRelationships
+              number={measure.number}
+              relationships={measure.relationships}
+            />
+
             <View style={s.record}>
               {measure.officialSummary ||
               measure.fiscalImpact ||

@@ -63,3 +63,24 @@ void test("current California guide accepts only a complete, date-matched guide"
     null,
   );
 });
+
+void test("source fingerprints may cover Trillion precedent documents", () => {
+  const hash = "a".repeat(64);
+  const withSources = (url: string) =>
+    currentCaliforniaGuide({ ...guide, relationshipSources: [{ url, hash }] });
+  assert.ok(
+    withSources("https://information.auditor.ca.gov/pdfs/reports/2017-117.pdf"),
+  );
+  assert.ok(
+    withSources("https://www.lao.ca.gov/ballot/2016/Prop55-110816.pdf"),
+  );
+  assert.equal(withSources("https://example.com/report.pdf"), null);
+  // Precedent hosts never count as the guide's own pages.
+  assert.equal(
+    currentCaliforniaGuide({
+      ...guide,
+      sourceUrl: "https://www.lao.ca.gov/ballot/2016/Prop55-110816.pdf",
+    }),
+    null,
+  );
+});

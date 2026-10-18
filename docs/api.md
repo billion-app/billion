@@ -95,3 +95,10 @@ Before discovering new moves, the hourly job checks tickets at least 15 minutes 
 Apply migration `0021_lucky_talon` before deploying this API or notification worker. It adds `notification_outbox.receipt_checked_at`; previous migrations remain unchanged.
 
 Read an adjacent procedure and test for the project's conventions. Check the response from its real caller, including missing data and unauthorized access where relevant. Installed mobile apps may keep calling an old procedure after a server deploy, which is why retired paths such as `video.getInfinite` can remain as compatibility stubs.
+
+Bill discovery (Browse, Featured, Search, and `getAll`) excludes bills enacted
+more than seven days ago. The cutoff uses the earliest explicit enactment action,
+not a later procedural update or ingestion time. A latest enactment status can
+use `lastActionAt` when the action history has no enactment date; enacted records
+without either date are excluded. Stored records, saved bills, and direct detail
+links remain available.

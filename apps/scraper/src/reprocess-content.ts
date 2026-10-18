@@ -409,6 +409,8 @@ async function processItem(
         fullText,
         item.articleType,
         effectiveArticle,
+        undefined,
+        item.url,
       );
       if (!lensGenerated) {
         errors.push("Dual-Lens failed structural quality validation");
@@ -565,10 +567,11 @@ async function main(): Promise<void> {
     argv.apply &&
     !process.env.OPENROUTER_API_KEY &&
     !process.env.LOCAL_LLM_BASE_URL &&
-    !process.env.DEEPSEEK_API_KEY
+    !process.env.DEEPSEEK_API_KEY &&
+    !process.env.SCRAPER_FALLBACK_BASE_URL
   ) {
     throw new Error(
-      "OPENROUTER_API_KEY, LOCAL_LLM_BASE_URL, or deprecated DEEPSEEK_API_KEY is required when --apply is set",
+      "OPENROUTER_API_KEY, LOCAL_LLM_BASE_URL, SCRAPER_FALLBACK_BASE_URL, or deprecated DEEPSEEK_API_KEY is required when --apply is set",
     );
   }
   logger[target.target === "production" ? "warn" : "info"](

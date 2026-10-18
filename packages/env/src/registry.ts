@@ -96,6 +96,11 @@ const scraperSourceLimitDefinitions = [
     "1",
   ],
   [
+    "CANDIDATE_RESEARCH_MAX_ITEMS",
+    "Complete candidate research races per run (only 1 is supported by the CA-17 pilot).",
+    "1",
+  ],
+  [
     "CA_GUIDE_MAX_ITEMS",
     "California official guide detail pages per run (1–100; incomplete collections are not saved).",
     "40",
@@ -129,6 +134,16 @@ const scraperSourceLimitDefinitions = [
 ] as const;
 
 export const envRegistry = [
+  define({
+    key: "FEC_API_KEY",
+    description:
+      "OpenFEC API key for bounded candidate finance collection; DEMO_KEY is used for small local runs when absent.",
+    group: "Candidate research",
+    secret: true,
+    setupUrl: "https://api.open.fec.gov/developers/",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
   define({
     key: "SANTA_CRUZ_ELECTION_DATE",
     description:
@@ -445,6 +460,110 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "TAVILY_API_KEY",
+    description:
+      "Tavily search key. Basic search uses one credit; source snippets retain their URLs.",
+    group: "AI",
+    secret: true,
+    setupUrl: "https://app.tavily.com",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "SCRAPER_SEARCH_PROVIDER",
+    description:
+      "Preferred scraper web search: hosted uses existing providers with optional Tavily fallback; tavily uses only Tavily; searxng uses only the self-hosted instance. Neither switches to a paid provider on failure.",
+    group: "AI",
+    secret: false,
+    defaultValue: "hosted",
+    requirements: { scraper: "optional" },
+    schema: z.enum(["hosted", "tavily", "searxng"]),
+  }),
+  define({
+    key: "SCRAPER_SEARXNG_BASE_URL",
+    description:
+      "Private self-hosted SearXNG URL with JSON search enabled. Used only when SCRAPER_SEARCH_PROVIDER=searxng.",
+    group: "AI",
+    secret: false,
+    example: "http://host.docker.internal:8888",
+    requirements: { scraper: "optional" },
+    schema: url,
+  }),
+  define({
+    key: "SCRAPER_TAVILY_MAX_SEARCHES_PER_RUN",
+    description:
+      "Maximum uncached Tavily search attempts per scraper process, shared across concurrent items. Zero disables Tavily searches.",
+    group: "AI",
+    secret: false,
+    defaultValue: "10",
+    requirements: { scraper: "optional" },
+    schema: string.refine(
+      (value) => Number.isSafeInteger(Number(value)) && Number(value) >= 0,
+      "must be a nonnegative integer",
+    ),
+  }),
+  define({
+    key: "SCRAPER_TAVILY_MONTHLY_CREDIT_LIMIT",
+    description:
+      "Stop Tavily searches when account plan usage reaches this monthly credit ceiling or the provider limit, whichever is lower. Defaults to reserving 200 free-tier credits.",
+    group: "AI",
+    secret: false,
+    defaultValue: "800",
+    requirements: { scraper: "optional" },
+    schema: string.refine(
+      (value) => Number.isSafeInteger(Number(value)) && Number(value) >= 0,
+      "must be a nonnegative integer",
+    ),
+  }),
+  define({
+    key: "SCRAPER_FALLBACK_BASE_URL",
+    description:
+      "Optional Responses-compatible outage fallback for scraper text, briefs, and web search. Unset disables fallback.",
+    group: "AI",
+    secret: false,
+    example: "http://host.docker.internal:10531/v1",
+    requirements: { scraper: "optional" },
+    schema: url,
+  }),
+  define({
+    key: "SCRAPER_FALLBACK_PRIORITY",
+    description:
+      "Use the Responses endpoint first for scraper text and structured briefs, or only after other providers fail. Search and vision ordering are unchanged.",
+    group: "AI",
+    secret: false,
+    defaultValue: "fallback",
+    requirements: { scraper: "optional" },
+    schema: z.enum(["fallback", "primary"]),
+  }),
+  define({
+    key: "SCRAPER_FALLBACK_MODEL",
+    description: "Model served by the scraper fallback endpoint.",
+    group: "AI",
+    secret: false,
+    defaultValue: "gpt-6-luna",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "SCRAPER_FALLBACK_REASONING_EFFORT",
+    description:
+      "Reasoning effort sent to the fallback endpoint; models differ in which values they accept.",
+    group: "AI",
+    secret: false,
+    defaultValue: "none",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "SCRAPER_FALLBACK_API_KEY",
+    description:
+      "Optional bearer token for the fallback proxy; OAuth credentials stay with the proxy.",
+    group: "AI",
+    secret: true,
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
     key: "LOCAL_LLM_BASE_URL",
     description:
       "Preferred OpenAI-compatible local inference base URL for AI text generation, for example Ollama's /v1 endpoint; OpenRouter is the fallback.",
@@ -507,6 +626,26 @@ export const envRegistry = [
     secret: true,
     setupUrl: "https://www.courtlistener.com/sign-in/",
     requirements: {},
+    schema: string,
+  }),
+  define({
+    key: "SCRAPER_IMAGE_PROVIDER",
+    description:
+      "Header-art provider: local FLUX, or subscription-backed Codex images and Responses crop review with local outage alternatives.",
+    group: "AI",
+    secret: false,
+    defaultValue: "local",
+    requirements: { scraper: "optional" },
+    schema: z.enum(["local", "codex"]),
+  }),
+  define({
+    key: "SCRAPER_IMAGE_MODEL",
+    description:
+      "Image model served by the Codex OAuth endpoint when Codex imagery is selected.",
+    group: "AI",
+    secret: false,
+    defaultValue: "gpt-image-2",
+    requirements: { scraper: "optional" },
     schema: string,
   }),
   define({

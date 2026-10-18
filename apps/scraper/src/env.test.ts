@@ -148,3 +148,17 @@ test("accepts deprecated DeepSeek during the OpenRouter migration", () => {
     ),
   );
 });
+
+test("accepts fallback-only content generation configuration", async () => {
+  const { congressConfig } = await import("./scrapers/congress.config.js");
+  assert.doesNotThrow(() =>
+    validateScraperEnv(
+      [scraper(congressConfig.id, congressConfig.environment)],
+      {
+        POSTGRES_URL: "postgresql://localhost/billion_test",
+        CONGRESS_API_KEY: "test",
+        SCRAPER_FALLBACK_BASE_URL: "http://host.docker.internal:10531/v1",
+      },
+    ),
+  );
+});

@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import type { StyleProp, TextStyle } from "react-native";
 import { useState } from "react";
 import {
   Linking,
@@ -14,6 +13,7 @@ import type { RouterOutputs } from "@acme/api";
 import type { BriefQuote } from "./BillBrief";
 import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
 import { courtSourceQuote } from "~/utils/source-passage";
+import { DefinedText } from "./DefinedText";
 import { Icon } from "./Icon";
 
 type CourtDetail = Extract<
@@ -22,7 +22,6 @@ type CourtDetail = Extract<
 >;
 export type CourtBriefData = NonNullable<CourtDetail["courtBrief"]>;
 type Point = CourtBriefData["action"];
-type CourtTerm = CourtBriefData["terms"][number];
 
 const PROCEEDING = {
   emergency_order: {
@@ -64,84 +63,6 @@ const OPINION = {
 
 function BlockTitle({ children }: { children: string }) {
   return <Text style={s.blockTitle}>{children}</Text>;
-}
-
-function escapePattern(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/** Keep definitions tied to the generated case vocabulary, not a global legal dictionary. */
-function DefinedText({
-  text,
-  terms,
-  accent,
-  style,
-}: {
-  text: string;
-  terms: CourtBriefData["terms"];
-  accent: string;
-  style: StyleProp<TextStyle>;
-}) {
-  const [openTerm, setOpenTerm] = useState<CourtTerm | null>(null);
-  const usableTerms = terms
-    .filter((term) => term.term.trim())
-    .sort((left, right) => right.term.length - left.term.length);
-  const byName = new Map(
-    usableTerms.map((term) => [term.term.toLocaleLowerCase(), term]),
-  );
-  const pattern = usableTerms.length
-    ? new RegExp(
-        `\\b(${usableTerms.map((term) => escapePattern(term.term)).join("|")})\\b`,
-        "gi",
-      )
-    : null;
-  const parts = pattern ? text.split(pattern) : [text];
-
-  return (
-    <View style={s.definedWrap}>
-      <Text style={style}>
-        {parts.map((part, index) => {
-          const term = byName.get(part.toLocaleLowerCase());
-          if (!term) return part;
-          const expanded = openTerm?.term === term.term;
-          return (
-            <Text
-              key={`${term.term}-${index}`}
-              style={[s.definedTerm, { color: accent }]}
-              onPress={() => setOpenTerm(expanded ? null : term)}
-              accessibilityRole="button"
-              accessibilityLabel={`Define ${term.term}`}
-              accessibilityHint="Shows a plain-language definition"
-              accessibilityState={{ expanded }}
-            >
-              {part}
-            </Text>
-          );
-        })}
-      </Text>
-      {openTerm ? (
-        <View
-          style={[
-            s.definitionCard,
-            {
-              backgroundColor: `${accent}12`,
-              borderColor: `${accent}55`,
-            },
-          ]}
-          accessibilityLiveRegion="polite"
-          testID="court-term-definition"
-        >
-          <View style={s.definitionHead}>
-            <Icon name="book" size={13} color={accent} />
-            <Text style={[s.definitionTerm, { color: accent }]}>
-              {openTerm.term}
-            </Text>
-          </View>
-          <Text style={s.definitionPlain}>{openTerm.plain}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
 }
 
 function QuoteDisclosure({
@@ -694,28 +615,6 @@ export function CourtOpinions({
 
 const s = StyleSheet.create({
   root: { gap: 18, paddingBottom: 24 },
-  definedWrap: { flexShrink: 1, gap: 8 },
-  definedTerm: {
-    fontFamily: fontBody.semibold,
-    textDecorationLine: "underline",
-  },
-  definitionCard: {
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 11,
-    gap: 5,
-  },
-  definitionHead: { flexDirection: "row", alignItems: "center", gap: 6 },
-  definitionTerm: {
-    fontFamily: fontBody.semibold,
-    fontSize: 11.5,
-  },
-  definitionPlain: {
-    fontFamily: fontBody.regular,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: "rgba(255,255,255,0.8)",
-  },
   blockTitle: {
     fontFamily: fontEditorial.bold,
     fontSize: 18,

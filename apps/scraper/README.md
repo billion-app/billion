@@ -284,3 +284,131 @@ pnpm --filter @acme/api exec tsx src/tools/review-proposition.ts /absolute/path/
 ```
 
 The first prints the source snapshot and hash for review. The second prints the candidate revision and whether the publication gate accepts it, exiting nonzero if blocked. It never calls a model, approves a revision, or writes data. Do not put credentials in captured payloads. An editor must review claim support and uncertainty under #334 before an approved revision is committed; see the remaining pipeline gates in the contract above.
+
+### Cross-measure discovery and drafting
+
+`measure-relationships` examines an election's measures together. It discovers
+all measure pages from the official index, captures each measure's complete
+legal PDF and official analysis once, then evaluates every unordered pair. It
+requires no authored relationship or selected proposition numbers. California
+is the current source adapter; the discovery and reader copy are not specific
+to an election or tax issue. Multiple relationships can attach to one measure.
+
+These commands write local files, not the database. Collection needs `pdftotext`
+on PATH and caps each source download at 5 MB. An election exceeding the explicit
+measure or pair budget fails instead of silently sampling. Run from the repo root:
+
+```bash
+pnpm --filter @acme/scraper measure-relationships collect 2028-11-07 /tmp/measure-corpus.json --max-measures 20
+pnpm --filter @acme/scraper measure-relationships generate /tmp/measure-corpus.json /tmp/relationship-drafts.json --max-pairs 190 --max-model-calls 190 --max-prompt-chars 200000
+```
+
+The date must match the official site's current election. The example budgets
+allow all pairs for up to 20 measures; choose explicit smaller limits for a
+bounded run. Collection refuses to overwrite its output. **Generate calls the
+configured scraper structured-output model and can spend money.** It uses one
+selected provider, no automatic retries or provider fallback, an output-token
+cap and a per-call timeout. All budgets are checked before model calls. Complete
+evidence exceeding the prompt budget fails; it is never silently truncated.
+
+The generic prompt distinguishes material operational relationships from shared
+topics and generic conflict boilerplate. An unrelated pair returns no draft;
+a one-measure election makes no model calls. Related drafts require valid claim
+citations and exact legal-text quotations from both measures with section/page
+locators. Monetary claims also require a `money` entry using the shared nominal/budget
+contract. Supply a sourced, period/jurisdiction/timing/accounting-matched denominator
+only when verified; otherwise label the comparison unavailable or inapplicable.
+Percentages are computed from validated USD data, never invented in the prompt.
+Denominator citations are part of whole-revision approval. Models can still
+misinterpret law, so quotation and money validation are grounding,
+not editorial approval. Passage scenarios are hypothetical; Yes-total comparisons
+are optional and generated only where supported. Pair explanations do not claim
+to model simultaneous three-way or larger legal interactions exhaustively.
+
+The output records both related and unrelated assessments. Each completed pair
+is saved atomically, with an input hash bound to full evidence, prompt version
+and actual model. Rerun with the same output path to resume after interruption;
+unchanged positive and negative assessments are reused without model calls.
+Changed evidence or prompts require fresh assessments. `complete: false` marks
+an interrupted run. Source capture and generated prose remain separate.
+
+Every generated revision is **pending**. Inspect its causal warrants, each claim,
+all four cases and uncertainties against the captured documents under #334 before
+approval. Extract reviewed drafts into an array and explicitly record reviewer,
+review time, findings, revision and the full evidence hash. The hash command does
+not approve anything:
+
+```bash
+pnpm --filter @acme/scraper measure-relationships review-hash /tmp/one-reviewed-draft.json
+pnpm --filter @acme/scraper measure-relationships register /tmp/measure-corpus.json /tmp/approved-relationships.json
+```
+
+`register` refuses pending, unsupported, stale or changed revisions. It writes
+immutable revision files and regenerates the server registry from those files;
+new pairs need no hand-written imports, API switches or renderer edits. Commit
+these local artifacts through review. Normal guide ingestion refreshes the
+registered approved source hashes (at most 200 distinct documents) without
+regenerating explanations. Publication still requires matching guide identities,
+source documents and whole-revision approval. The reader omits Related measures
+when no relevant approved relationship exists, including missing/stale evidence.
+
+The older two-measure `measure-relationship-preview.ts` remains a read-only
+recapture tool for an existing authored draft; it is not the discovery workflow.
+The [source-captured pilot](../../docs/evidence/447/README.md) is still pending.
+
+### Trillion argument graphs
+
+`trillion` seeds the argument graph for one measure ([design](../../docs/trillion-design.md)). Graphs publish without human review: every read re-runs a machine gate (schema, verbatim quotes, source freshness) and the app labels the graph AI-written until a person verifies it.
+
+```bash
+pnpm --filter @acme/scraper trillion collect 2026-11-03 40 /tmp/prop40-corpus.json --related 41,42
+pnpm --filter @acme/scraper trillion generate /tmp/prop40-corpus.json /tmp/prop40-graph.json --max-model-calls 1
+pnpm --filter @acme/scraper trillion check /tmp/prop40-graph.json /tmp/prop40-corpus.json
+pnpm --filter @acme/scraper trillion eval /tmp/prop40-graph.json
+pnpm --filter @acme/scraper trillion store /tmp/prop40-graph.json
+```
+
+`collect` fetches the measure's legal text, Legislative Analyst analysis and ballot arguments, the legal text of `--related` measures, and any curated historical precedent for that measure in [`trillion-precedents.ts`](src/scrapers/trillion-precedents.ts). Precedent entries are archived official PDFs (State Auditor, Legislative Analyst, past voter guides) with an optional page range that keeps the prompt bounded. It makes no model calls and no database writes. `generate` makes one paid model call and drops any quote that fails verification; an unchanged corpus reuses the existing output without a call. `generate --base-url <url> --model <id>` uses any OpenAI-compatible endpoint instead of the configured providers, and saves the model's raw answer to `<output>.raw.json`. `check` runs the publication gate offline. `eval` prints quality signals used to tune the prompt: disputes with fewer than three arguments or only one side, ballot arguments left outside any dispute, evidence not wired into the debate, and titles that describe the source instead of stating the claim. `store` writes to the selected database's `civic_api_cache`, so check the target first; a stored graph appears only after the next guide job has refreshed its source hashes.
+
+**In production,** the supervisor's `trillion-propositions-daily` job (4:00, before the guide job) keeps a graph for every proposition in the current guide:
+
+```bash
+pnpm --filter @acme/scraper trillion-propositions --dry-run
+pnpm --filter @acme/scraper trillion-propositions --only 41 --max-model-calls 2
+```
+
+It captures each proposition's sources, adds the law of any other proposition its text or analysis names, and reuses the stored graph when the sources, prompt and model are unchanged, so most runs make no model calls and write nothing. A new or changed proposition costs two calls per attempt within the run's `--max-model-calls` budget, and only graphs that pass the publication gate are stored. One bad card does not sink a graph: cards, links and terms that fail to parse or fail a structure check are dropped with whatever they leave unconnected, and the rest is checked again. A graph can still fail as a whole, for example without four branches or a disputed question. Each proposition gets three attempts, since a bad answer is often a one-off. Only when all three fail is the input remembered in `civic_api_cache` (`trillion-v1-failed`) and not retried for seven days unless something changes. Provider errors, and attempts cut short by the run budget, are retried on the next run instead. The job writes to the selected database, so check the target first; the guide job that follows fingerprints new graphs' sources, after which readers see them. On big-mac it uses the host's Codex proxy, pinned to `gpt-6.1-sol` for this job. The scraper image includes `poppler-utils` for `pdftotext`.
+
+### Search research verification
+
+[Shared research](../../docs/scraper-research.md) supplies bill history, further
+reading, and perspectives from one persistent evidence collection. Apply its
+committed migration before running the new scraper build. Keep production paused
+until schema and provider readiness are verified separately.
+
+Run the storage test against a separate local database named `billion_research*_test`.
+The test checks real source persistence, shared notes, full-text retrieval,
+original source versions and RLS. It skips without the explicit test URL.
+
+```sh
+POSTGRES_URL=postgresql://localhost/billion_research_test pnpm db:migrate
+RESEARCH_TEST_DATABASE_URL=postgresql://localhost/billion_research_test pnpm --filter @acme/scraper exec tsx --test src/research/store.integration.test.ts
+pnpm --filter @acme/scraper exec tsx --test 'src/research/*.test.ts' src/utils/ai/searxng-search.test.ts
+```
+
+A bounded provider comparison reads at most three queries from the JSON file and
+opens at most two result pages per provider/query. It never calls a model or
+writes the database. Without `--tavily` it spends no Tavily credits; adding that
+flag explicitly permits at most three basic-search requests. Output includes
+URLs, retrieval failures, source excerpts and topic-term matches. Term matches
+are a review aid, not citation-quality approval.
+
+```sh
+SCRAPER_SEARXNG_BASE_URL=http://127.0.0.1:8888 pnpm --filter @acme/scraper search-benchmark src/research/benchmark-queries.json /tmp/search-trial.json
+SCRAPER_SEARXNG_BASE_URL=http://127.0.0.1:8888 pnpm --filter @acme/scraper search-benchmark src/research/benchmark-queries.json /tmp/search-trial.json --tavily
+```
+
+Root `.env.local` can override `.env`; the benchmark needs `TAVILY_API_KEY` only
+when comparison is explicitly enabled. Review the result pages before changing
+`SCRAPER_SEARCH_PROVIDER`. The [Big Mac setup](../../deploy/big-mac/README.md#private-searxng-trial)
+keeps the private search service separate from the production supervisor.

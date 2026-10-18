@@ -7,12 +7,12 @@ These files are **live infrastructure**, not build output or leftovers. Each one
 is the versioned source of something currently installed on that host, so a
 change here is a change to a running service.
 
-| file | installed as | what it runs |
-| --- | --- | --- |
-| `com.billion.supervisor.plist` | `~/Library/LaunchAgents/` | The scraper supervisor (`apps/supervisor`), which owns every scheduled and manual job |
-| `billion-supervisor` | `~/.local/bin/` | The wrapper launchd execs — resolves the pinned image, mounts state, runs the container |
-| `com.billion.flux-api.plist` | `~/Library/LaunchAgents/` | The local FLUX HTTP server that generates header art when the hosted provider is unavailable |
-| `Modelfile.billion-scraper` | `ollama create` | Pins the local LLM to a 32K context; the full advertised window costs startup latency and memory for no benefit |
+| file                           | installed as              | what it runs                                                                                                    |
+| ------------------------------ | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `com.billion.supervisor.plist` | `~/Library/LaunchAgents/` | The scraper supervisor (`apps/supervisor`), which owns every scheduled and manual job                           |
+| `billion-supervisor`           | `~/.local/bin/`           | The wrapper launchd execs — resolves the pinned image, mounts state, runs the container                         |
+| `com.billion.flux-api.plist`   | `~/Library/LaunchAgents/` | The local FLUX HTTP server that generates header art when the hosted provider is unavailable                    |
+| `Modelfile.billion-scraper`    | `ollama create`           | Pins the local LLM to a 32K context; the full advertised window costs startup latency and memory for no benefit |
 
 ## Do not edit these on the host
 
@@ -36,3 +36,154 @@ They were briefly under `apps/supervisor/deploy/`, which put two conventions in
 the repo for the same kind of thing — host configuration. Anything describing
 what runs on `big-mac` belongs in one place, next to the FLUX plist that was
 already here.
+
+## OAuth-backed text and brief provider
+
+The scraper can use a Responses-compatible proxy on this host for text and
+structured briefs. The proxy owns login and token refresh; scraper containers do
+not receive OAuth credentials. Keep the proxy running across logouts and host
+restarts using its own service configuration.
+
+Add these settings to `~/.config/billion/scraper.env`:
+
+```dotenv
+SCRAPER_FALLBACK_BASE_URL=http://host.docker.internal:10531/v1
+SCRAPER_FALLBACK_MODEL=gpt-6-luna
+SCRAPER_FALLBACK_PRIORITY=primary
+```
+
+`primary` puts this endpoint before the local LLM and hosted text providers,
+including callers that normally request local structured generation first.
+Other configured providers remain outage alternatives; search and vision keep
+their own provider selection. Omit the priority setting or use `fallback` for
+the previous outage-only behavior. Primary mode requires the endpoint URL.
+Existing lens caches remain valid, so this changes new generation without
+starting an archive-wide regeneration. Text jobs log their provider order;
+structured generation records the selected provider in its existing provenance.
+
+The container's `127.0.0.1` refers to itself. Verify the host endpoint from the
+running container before enabling it; OrbStack exposes the host through
+`host.docker.internal`. The model must appear in the proxy's `/v1/models`.
+`SCRAPER_FALLBACK_API_KEY` is optional for proxies requiring a bearer token.
+
+Deploy a merged image containing the fallback support using the command above.
+The supervisor forwards these environment variables to jobs on restart.
+Leaving the URL unset disables this fallback. It covers text and structured briefs. Search fallback requires native search
+support from the endpoint and rejects responses without URL citations. The
+current OAuth proxy with Luna passed live text and JSON checks but did not expose
+native web search; the ordinary hosted search providers are still required. Image generation and crop review have a separate provider setting below. Adding the fallback does not invalidate existing lens caches.
+
+## Subscription-backed header artwork
+
+The host OAuth proxy also exposes `/v1/images/generations`. Select it for new
+header artwork and use the text model's native Responses endpoint to review the
+wide and square app crops:
+
+```dotenv
+SCRAPER_IMAGE_PROVIDER=codex
+SCRAPER_IMAGE_MODEL=gpt-image-2
+```
+
+These use the existing `SCRAPER_FALLBACK_BASE_URL` and optional proxy bearer key.
+The proxy owns subscription login and refresh. The scraper requests one image
+at low quality and reads the returned raster's actual dimensions; the proxy may
+return a different size from the requested one. Generation logs the selected
+image model, dimensions and reported usage. Crop review records its successful
+model, including local or DeepSeek outage alternatives.
+
+A transport failure can fall back to local FLUX generation. The scheduled
+header-art job never activates hosted BFL generation. A valid rejection remains
+a rejection; another reviewer cannot override it. Moderation does not activate
+another generator. Changing the image provider or model makes old terminal
+rejections eligible for one new reviewed attempt, while accepted artwork stays
+cached. Native Responses is required for embedded review images: this host's
+proxy chat endpoint failed the same data-URL input in live verification.
+
+Deploy the reviewed, merged image through the normal scraper deployment command
+before restarting with these settings. Verify one reviewed image first using
+`court-image-smoke`; use the job log, the stored image and the review record as
+the evidence. Do not skip suitability review to recover the queue.
+
+## Free-tier search with Tavily
+
+For search independent of the OAuth model's native tools, add a Tavily API key
+from [the Tavily dashboard](https://app.tavily.com) to `scraper.env` and select
+Tavily explicitly:
+
+```dotenv
+TAVILY_API_KEY='your-private-api-key'
+SCRAPER_SEARCH_PROVIDER=tavily
+```
+
+Use the free Researcher account with pay-as-you-go disabled. Tavily currently
+includes [1,000 monthly credits](https://www.tavily.com/pricing). Each scraper
+search requests `basic` depth with automatic parameter selection disabled,
+which uses one credit, and at most five results. This does not guarantee that
+1,000 credits cover every scheduled job; a research loop may search repeatedly.
+
+Tavily searches share a process-wide budget of ten uncached attempts by default
+(`SCRAPER_TAVILY_MAX_SEARCHES_PER_RUN`). Concurrent identical queries reuse one
+request and successful results stay cached for that job. Failed searches also
+count against the attempt budget. Before the first search, the job reads Tavily's
+account usage and stops at the smaller of the provider's remaining credits and
+the configured monthly ceiling (`SCRAPER_TAVILY_MONTHLY_CREDIT_LIMIT`, default
+800). This reserves 200 credits on the Researcher plan. Zero disables searches.
+The usage check fails closed; a budget stop never activates another search
+provider. Account usage is a starting snapshot, so separate processes or other
+applications sharing the account can spend concurrently. These limits conserve
+quota; they do not guarantee full research coverage or spread usage evenly over
+the month. A bill brief can still use official text when optional research is
+unavailable, while perspectives without supporting citations remain absent.
+
+In `tavily` mode, exhausted credits or an invalid key fail the search without
+switching to a paid provider. Text generation retains its separate provider
+order, including the OAuth fallback. Search returns source URLs and snippets;
+the research agent must still open sources before citing their contents.
+
+The default `hosted` mode retains the existing hosted search. If a Tavily key is
+configured in that mode, Tavily is tried after hosted search fails and before
+the Responses endpoint's native-search fallback. Deploy a merged image and
+restart through the usual deployment script to activate host settings.
+
+## Private SearXNG trial
+
+The [pinned Compose service](searxng/compose.yaml) exposes JSON search only on
+loopback port 8888. Its [engine settings](searxng/settings.yml) use upstream web
+engines, so rate limits, CAPTCHAs and irrelevant results remain possible. This
+service does not replace the scraper supervisor or resume paused jobs.
+
+Copy the `searxng` directory to `~/.config/billion/searxng` on Big Mac and create
+an ignored private `.env` containing `SEARXNG_SECRET` (a random 32-byte hex secret).
+Do not commit that value. Start and inspect the service from that directory:
+
+```sh
+docker compose up -d
+docker compose logs --tail 50
+docker compose down
+```
+
+Run the [bounded comparison](../../apps/scraper/README.md#search-research-verification)
+before selecting it for production. For a local trial of the Big Mac endpoint,
+forward its loopback port over SSH:
+
+```sh
+ssh -N -L 18888:127.0.0.1:8888 big-mac
+```
+
+Use `SCRAPER_SEARXNG_BASE_URL=http://127.0.0.1:18888` from the local checkout.
+A successful JSON response is not enough: inspect readable pages, relevance to
+the specific bill, and coverage of the requested evidence. Keep Tavily as an
+explicit alternative if the trial is weak; there is no automatic paid fallback.
+
+After a successful trial, the scraper container can use these settings in its
+private `scraper.env`:
+
+```dotenv
+SCRAPER_SEARCH_PROVIDER=searxng
+SCRAPER_SEARXNG_BASE_URL=http://host.docker.internal:8888
+```
+
+Apply the research-library migration and deploy a merged scraper image before
+resuming jobs. Provider selection, schema application, deployment and resumption
+are separate operations. See [shared research](../../docs/scraper-research.md)
+for cache behavior and provenance.

@@ -14,6 +14,7 @@ Expo Router maps files in `apps/expo/src/app/` to routes. Start with the route, 
 | Browse, filters, and search                         | [Browse catalog](<../apps/expo/src/app/(tabs)/index.tsx>) (`BrowseCatalog`) on the Browse tab (`feed` route)                                                                                                                                                                                                                               |
 | Home address and coverage                           | Feed lockup menu in [DigestGreetingBar](../apps/expo/src/components/DigestGreetingBar.tsx); Browse [JurisdictionPicker](../apps/expo/src/components/JurisdictionPicker.tsx)                                                                                                                                                                |
 | Address-based ballot lookup                         | [Elections route](<../apps/expo/src/app/(tabs)/elections.tsx>) — California preview entry followed by the address-based ballot                                                                                                                                                                                                             |
+| Voting logistics (How to Vote)                      | [How to Vote route](../apps/expo/src/app/how-to-vote.tsx) ; the derivation model is [utils/voting.ts](../apps/expo/src/utils/voting.ts)                                                                                                                                                                                                      |
 | Original content, explanation, brief, and citations | [Article detail](../apps/expo/src/app/article-detail.tsx)                                                                                                                                                                                                                                                                                  |
 | Candidate race and ballot measure details           | [Contest detail](../apps/expo/src/app/contest-detail.tsx), [measure detail](../apps/expo/src/app/measure-detail.tsx)                                                                                                                                                                                                                       |
 | Tab registration and visibility                     | [Tab layout](<../apps/expo/src/app/(tabs)/_layout.tsx>) and [custom TabBar](../apps/expo/src/components/ui/TabBar.tsx)                                                                                                                                                                                                                     |
@@ -32,7 +33,7 @@ as interim relief. Legislative stages appear only for bills. Records missing a
 current court brief keep their Markdown or original-text fallback; the original
 text tab remains available alongside the brief and cited lenses.
 
-Feed, Browse, and Elections are visible tabs. Feedback and Settings are reached from the profile mark. The Elections tab starts with a California preview invitation. The statewide guide links to California's official voter lookup and county offices while production address-based ballot access is unconfigured; its official-ballot link offers election-office resources, with retry when the release-state check fails. If the in-app statewide preview is missing, the entry opens California’s official guide directly. Development builds expose the address lookup and synthetic scenarios for testing. The standalone ballot route reads `civic.getBallotAvailability`; local elections remains development-only. Home address and coverage (federal, California, Massachusetts bills and court records, North Carolina, Texas) are available from the Feed lockup dropdown or the Browse jurisdiction sheet. Check both Expo Router options and the custom `TabBar` when changing visibility.
+Feed, Browse, and Elections are visible tabs. Feedback and Settings are reached from the profile mark. The Elections tab starts with a California preview invitation. The statewide guide links to California's official voter lookup and county offices while production address-based ballot access is unconfigured; its official-ballot link offers election-office resources, with retry when the release-state check fails. If the in-app statewide preview is missing, the entry opens California’s official guide directly. Development builds expose the address lookup and synthetic scenarios for testing. The standalone ballot route reads `civic.getBallotAvailability`; local elections remains development-only. Home address and coverage (federal, California, Massachusetts bills and court records, North Carolina, Texas) are available from the Feed lockup dropdown or the Browse jurisdiction sheet. The address field takes a typed entry or resolves a one-shot native device location fix. Check both Expo Router options and the custom `TabBar` when changing visibility.
 
 The gated [national ballot route](../apps/expo/src/app/ballot.tsx) offers an election-office fallback until launch. The Elections tab displays the selected provider ballot in a card layout with Candidates/Measures tabs. The separate ballot route remains available from [local elections](../apps/expo/src/app/local-elections.tsx). The initial handoff reuses the caller’s query result; changing the lookup address or retrying fetches again. Lookup edits last for that mounted experience and do not replace the saved home address.
 
@@ -87,6 +88,22 @@ The landing page uses [CinematicExperience](../apps/nextjs/src/app/_components/c
 - **The view lives in the URL.** `/browse?scope=ca&type=bill&q=wildfire` can be linked, reloaded and reached with the back button. [browse-params.ts](../apps/nextjs/src/lib/browse-params.ts) is the only code that knows the parameter names. `scope` is always written, and a bare `/browse` renders the reader's stored jurisdiction from the `billion_scope` cookie. The page awaits what the first screen shows on the server (`prefetchNow`) so results are in the HTML. Later filtering and paging run on the client through the same public procedures the phone uses.
 - **`/read/[id]` is not the share page.** `/b/[id]` stays thin and ends with an install prompt. The reader carries the full brief, the Dual-Lens, the timeline and the original text. Its canonical URL points at `/b/…`, so search engines see one URL per record. The explainer/source toggle and the Billion AI provenance note are required: without them the page would present analysis as the record.
 - **No accounts.** Saves and the chosen jurisdiction go through [reader-state.ts](../apps/nextjs/src/lib/reader-state.ts), which uses `localStorage` today. Components never touch storage directly, so a server-backed implementation (`content.saved.*`) can replace it without screen changes.
+
+### Inline word definitions
+
+[DefinedText](../apps/expo/src/components/ui/DefinedText.tsx) is the shared native
+reader component for tap-to-define words. Court briefs and candidate research
+both use it. Pass the paragraph, its content-specific `{ term, plain }`
+definitions, body style, and optional exact emphasis phrases. It keeps the original
+text intact, matches whole terms (longer phrases first), and opens one definition
+below that paragraph. Terms support keyboard activation; Close returns focus to
+the term. The lighter shared `linkOnNight` token provides contrast for body-sized
+links on dark cards.
+
+Use ordinary words first. Definitions are for necessary names and terms, not a
+reason to keep avoidable jargon. Supply meanings with the content so the same
+word can have the right meaning for that record. Do not put a defined paragraph
+inside another button: give the card its own separate navigation action.
 
 ## Authentication
 

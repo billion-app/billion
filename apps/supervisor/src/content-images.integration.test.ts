@@ -7,6 +7,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
+import { jobs } from "./config.js";
 import { loadState, saveState } from "./state.js";
 
 void test("the running supervisor dispatches and records a durable image follow-up", async () => {
@@ -15,6 +16,20 @@ void test("the running supervisor dispatches and records a durable image follow-
   const sourceStarted = new Date(Date.now() - 1000).toISOString();
   await saveState(statePath, {
     jobs: {
+      // Keep unrelated first-run interval jobs from importing during this fixture.
+      ...Object.fromEntries(
+        jobs
+          .filter((job) => job.schedule.kind === "interval")
+          .map((job) => [
+            job.id,
+            {
+              lastStartedAt: sourceStarted,
+              lastFinishedAt: sourceStarted,
+              lastExitCode: 0,
+              consecutiveFailures: 0,
+            },
+          ]),
+      ),
       "congress-daily": {
         lastStartedAt: sourceStarted,
         lastFinishedAt: sourceStarted,

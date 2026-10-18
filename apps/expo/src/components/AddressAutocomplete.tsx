@@ -1,10 +1,11 @@
 /**
  * Address field with native device-location capture, then Civic lookup.
  *
- * GPS is the fast path: one native permission prompt, one fix, reverse-geocoded
- * on-device by the OS. Typed entry stays as the equal-path fallback — GPS
- * gives you where you are, not necessarily where you're *registered*, so the
- * field never treats the fix as the final answer and never blocks typing.
+ * GPS is the fast path: one native permission prompt, one fix, handed to the
+ * operating system's geocoder for a mailing address. Typed entry stays as the
+ * equal-path fallback — GPS gives you where you are, not necessarily where
+ * you're *registered*, so the field never treats the fix as the final answer
+ * and never blocks typing.
  *
  * Google Places autocomplete is gone from this surface: suggestions required a
  * billed server key, and the native path resolves the same need with no key
@@ -19,11 +20,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import * as Location from "expo-location";
 
 import { PinMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
-import { useDeviceLocation } from "~/hooks/useDeviceLocation";
+import {
+  deviceLocationMessage,
+  useDeviceAddress,
+} from "~/hooks/useDeviceAddress";
 import { DigestHair, DigestPalette, fontBody } from "~/styles";
 
 interface AddressAutocompleteProps {
@@ -44,17 +47,6 @@ interface AddressAutocompleteProps {
 
 const DEFAULT_HINT = "Enter your address to see what's on your ballot.";
 
-/** "123 Oak St, Sacramento, CA 95814" from the OS reverse-geocode placemark. */
-function formatPlacemark(p: Location.LocationGeocodedAddress): string | null {
-  const street = [p.streetNumber, p.street].filter(Boolean).join(" ");
-  const city = p.city ?? p.district ?? p.subregion;
-  const parts = [street, city, p.region, p.postalCode].filter(Boolean);
-  // A fix without a street or a city is a coordinate, not a usable
-  // registered address — let the caller fall back to manual entry.
-  if (!street || !city) return null;
-  return parts.join(", ");
-}
-
 export function AddressAutocomplete({
   initialValue = "",
   onSubmit,
@@ -64,13 +56,11 @@ export function AddressAutocomplete({
 }: AddressAutocompleteProps) {
   const [input, setInput] = useState(initialValue);
   const {
-    request: locate,
+    resolve: resolveAddress,
     locating,
+    resolving,
     error: locationError,
-  } = useDeviceLocation();
-  // The committed address while the post-GPS lookup is still resolving.
-  const [resolving, setResolving] = useState(false);
-  const [locationNote, setLocationNote] = useState<string | null>(null);
+  } = useDeviceAddress();
 
   const commit = (address: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -79,52 +69,18 @@ export function AddressAutocomplete({
   };
 
   const captureLocation = async () => {
-    const fix = await locate();
-    if (!fix) return; // hook already set the error state we render below
-
-    setResolving(true);
-    try {
-      const placemarks = await Location.reverseGeocodeAsync({
-        latitude: fix.coords.latitude,
-        longitude: fix.coords.longitude,
-      });
-      const formatted = placemarks[0] ? formatPlacemark(placemarks[0]) : null;
-      if (formatted) {
-        setInput(formatted);
-        setLocationNote("Check this is your voting address, then submit it.");
-      } else {
-        setLocationNote(
-          "We couldn't find a street address. Enter your voting address below.",
-        );
-      }
-    } catch {
-      setLocationNote(
-        "We couldn't find a street address. Enter your voting address below.",
-      );
-    } finally {
-      setResolving(false);
-    }
+    const address = await resolveAddress();
+    // The hook already set the error state we render below.
+    if (address) commit(address);
   };
 
-  const locationStatus = resolving ? (
-    inline ? null : (
-      <Text style={s.statusText}>Finding a nearby address…</Text>
-    )
-  ) : locationError === "denied" ? (
-    <Text style={s.statusText}>
-      Location is off for Billion — type your address below instead.
-    </Text>
-  ) : locationError === "unavailable" ? (
-    <Text style={s.statusText}>
-      Location services are off — type your address below instead.
-    </Text>
-  ) : locationError === "failed" ? (
-    <Text style={s.statusText}>
-      Couldn&apos;t get a location fix — try again or type it in.
-    </Text>
-  ) : locationNote ? (
-    <Text style={s.statusText}>{locationNote}</Text>
-  ) : null;
+  const locationMessage = deviceLocationMessage(locationError);
+  const locationStatus =
+    resolving && !inline ? (
+      <Text style={s.statusText}>Confirming your address…</Text>
+    ) : locationMessage ? (
+      <Text style={s.statusText}>{locationMessage}</Text>
+    ) : null;
 
   const gpsButton = (
     <TouchableOpacity

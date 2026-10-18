@@ -1,0 +1,17 @@
+[
+  {
+    "label": "SAVE Act",
+    "query": "H.R. 22 SAVE Act 2025 proof citizenship voting arguments analysis",
+    "expectedTerms": ["SAVE", "citizenship", "voting"]
+  },
+  {
+    "label": "Texas camp safety",
+    "query": "Texas 2025 SB 1 youth camp safety legislation flood analysis",
+    "expectedTerms": ["Texas", "camp", "safety"]
+  },
+  {
+    "label": "California housing bond",
+    "query": "California Proposition 1 2026 housing bond fiscal analysis arguments",
+    "expectedTerms": ["housing", "bond", "2026"]
+  }
+]

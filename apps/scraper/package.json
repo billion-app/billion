@@ -11,6 +11,7 @@
     "@ai-sdk/anthropic": "^3.0.92",
     "@ai-sdk/deepseek": "^1.0.0",
     "@ai-sdk/google": "^3.0.53",
+    "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/openai-compatible": "2.0.59",
     "@openrouter/ai-sdk-provider": "^2.10.0",
     "ai": "^6.0.141",
@@ -53,7 +54,11 @@
     "content-images": "tsx src/content-images.ts",
     "bill-interest": "tsx src/bill-interest-entry.ts",
     "notify-followers": "tsx src/notify-followers-entry.ts",
-    "prune-bills": "tsx src/prune-bills-entry.ts"
+    "prune-bills": "tsx src/prune-bills-entry.ts",
+    "measure-relationships": "tsx src/measure-relationships-entry.ts",
+    "trillion": "tsx src/trillion-entry.ts",
+    "trillion-propositions": "tsx src/trillion-propositions-entry.ts",
+    "search-benchmark": "tsx src/research/benchmark-entry.ts"
   },
   "author": "It's not you it's me",
   "license": "ISC"

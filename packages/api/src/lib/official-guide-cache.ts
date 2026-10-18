@@ -1,24 +1,29 @@
 import { z } from "zod";
 
+import { TRILLION_PRECEDENT_HOSTS } from "@acme/validators";
+
 export const CA_OFFICIAL_GUIDE_ENDPOINT = "ca-official-guide-v1";
 export const CA_OFFICIAL_GUIDE_ADDRESS_HASH = "__global__";
 export const CA_OFFICIAL_GUIDE_SOURCE =
   "California Secretary of State Official Voter Information Guide";
 export const CA_GENERAL_ELECTION_DATE = "2026-11-03";
 const text = z.string().min(1).max(30_000);
-const url = z
-  .string()
-  .url()
-  .refine((value) => {
-    const parsed = new URL(value);
-    return (
-      parsed.protocol === "https:" &&
-      !parsed.username &&
-      !parsed.password &&
-      !parsed.port &&
-      ["voterguide.sos.ca.gov", "vig.cdn.sos.ca.gov"].includes(parsed.hostname)
-    );
-  });
+const GUIDE_HOSTS = ["voterguide.sos.ca.gov", "vig.cdn.sos.ca.gov"];
+const httpsUrl = (hosts: readonly string[]) =>
+  z
+    .string()
+    .url()
+    .refine((value) => {
+      const parsed = new URL(value);
+      return (
+        parsed.protocol === "https:" &&
+        !parsed.username &&
+        !parsed.password &&
+        !parsed.port &&
+        hosts.includes(parsed.hostname)
+      );
+    });
+const url = httpsUrl(GUIDE_HOSTS);
 const argument = z.object({ text, sourceName: text, sourceUrl: url });
 export const officialGuidePayloadSchema = z.object({
   electionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -42,6 +47,16 @@ export const officialGuidePayloadSchema = z.object({
       }),
     )
     .max(100),
+  relationshipSources: z
+    .array(
+      z.object({
+        // Trillion graphs also cite past documents, whose freshness the guide job tracks.
+        url: httpsUrl([...GUIDE_HOSTS, ...TRILLION_PRECEDENT_HOSTS]),
+        hash: z.string().regex(/^[a-f0-9]{64}$/),
+      }),
+    )
+    .max(200)
+    .optional(),
   candidates: z
     .array(
       z.object({

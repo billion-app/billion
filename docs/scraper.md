@@ -236,7 +236,7 @@ by the scrape path and the retroactive scripts.
 
 ## AI pipeline
 
-Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text uses an OpenAI-compatible local endpoint (`LOCAL_LLM_BASE_URL`, such as Ollama) first, then **OpenRouter**, with direct DeepSeek retained as a text fallback. Two workloads stay API-first regardless: bill briefs (`getStructuredLlm()`), because local servers advertise structured output but cannot compile the brief's JSON grammar, and the dual lens (`getSearchModel()`), which needs a provider-native web-search tool. PDF vision fallback uses **Gemini `gemini-2.5-flash`**. The shared image helper tries local FLUX before hosted **Black Forest Labs FLUX.2 Klein 9B**, but the scheduled header-art job calls the local-only helper and never falls back to paid generation. Provider usage and hosted-image costs are tracked per run.
+Provider config lives in `apps/scraper/src/utils/ai/provider.ts`. The default text order is local inference, then OpenRouter, with deprecated direct DeepSeek used when neither modern provider is configured. Structured generation has its own provider order. `SCRAPER_FALLBACK_PRIORITY=primary` puts the Responses endpoint first for both text and structured output; otherwise it is an outage alternative. Structured results record the successful provider while existing lens cache identity remains stable. Search selection is independent (`SCRAPER_SEARCH_PROVIDER`); PDF vision fallback uses Gemini. Header artwork uses local FLUX by default, or the subscription-backed GPT image endpoint when `SCRAPER_IMAGE_PROVIDER=codex`. The scheduled header-art path falls back only to local generation; the older shared article-image helper can still use hosted BFL. See [host configuration](../deploy/big-mac/README.md#subscription-backed-header-artwork) for setup and verification.
 
 Each new/changed item runs through:
 
@@ -260,14 +260,16 @@ not a depiction of the order’s policy.
 
 ### Header-art suitability review
 
-`content-images.ts` generates a candidate with FLUX and sends centered crops to
-the configured local multimodal model before it uploads anything. If the local
+`content-images.ts` generates a candidate with its selected image provider and
+reviews centered crops before it uploads anything. Codex image mode uses
+`gpt-image-2` generation and native Responses review; local mode uses FLUX and
+the configured local multimodal model. If the local
 review fails, it falls back to DeepSeek `deepseek-v4-flash-vision-exp`. Both
 providers see the wide 2:1 crop used by the article header and the square crop
 used by browse cards. They compare both crops with the source description and
 check that the subject remains recognizable, the framing stays neutral and
 professional, and the pixels contain no invented consequences, caricature,
-readable text, logos, watermarks, or generation defects.
+readable text, logos, watermarks, or generation defects. Planning allows source-related reading activities and blank books, documents, or signs; it rejects requests for visible copy rather than treating those object names as writing. The rendered image must still pass both crop reviews before publication. If all three scene plans fail the readable-copy check, the item receives an `unsafe-visual-plan` rejection before image generation, with a bounded excerpt of the last plan retained as feedback. It becomes eligible again when its source hash or review style changes. Provider, schema, generation, and crop-review errors still fail the job.
 
 The local review request constrains its response to the decision and reason JSON
 schema. This prevents invented reason labels from unnecessarily depending on the
@@ -434,3 +436,34 @@ pnpm --filter @acme/scraper repair-bill-descriptions --apply --manifest /tmp/bil
   that persisted a valid article or structured bill brief. Partial/failed
   IDs are printed for a targeted retry, and rate-limit failures re-raise
   `AIRateLimitError` so an orchestrator can back off.
+
+## Optional text and search outage fallback
+
+`SCRAPER_FALLBACK_BASE_URL` adds a Responses-compatible endpoint after the
+ordinary text and structured providers. `SCRAPER_FALLBACK_MODEL` defaults to
+`gpt-6-luna`; an optional `SCRAPER_FALLBACK_API_KEY` authenticates to the proxy.
+The proxy manages its own credentials. Native web search retries the whole
+request with the fallback provider's own tool so source citations remain
+available. An uncited fallback response is rejected; some OAuth endpoints do not
+expose native search even when text and JSON generation work. Court briefs retain the selected provider's model provenance through
+their existing candidate loop. An aborted text request does not start fallback.
+
+This setting is independent of the preferred `LOCAL_LLM_BASE_URL`. Enabling an
+outage fallback preserves the existing dual-lens cache key. See
+[host setup](../deploy/big-mac/README.md#optional-oauth-backed-fallback) for the
+container address and deployment procedure.
+
+### Independent search with Tavily
+
+`SCRAPER_SEARCH_PROVIDER=tavily` uses Tavily directly and requires
+`TAVILY_API_KEY`. The adapter makes one bounded `basic` request per search with
+automatic parameter selection disabled. It returns up to five HTTP(S) source
+URLs and their snippets, with no generated answer or separate LLM summary.
+The research agent still opens promising pages through its existing fetch tool;
+search snippets do not become verified source text.
+
+A failed or exhausted Tavily request does not switch to billed hosted search in
+this mode. The default `hosted` mode preserves existing behavior and uses a
+configured Tavily key as an outage fallback. The OAuth setting continues to
+control text generation independently. See
+[free-tier host setup](../deploy/big-mac/README.md#free-tier-search-with-tavily).
