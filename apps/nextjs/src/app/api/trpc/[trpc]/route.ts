@@ -27,6 +27,7 @@ export const OPTIONS = () => {
 const handler = async (req: NextRequest) => {
   const response = await fetchRequestHandler({
     endpoint: "/api/trpc",
+    allowMethodOverride: true,
     router: appRouter,
     req,
     createContext: () =>

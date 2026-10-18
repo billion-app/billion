@@ -13,6 +13,7 @@
  */
 import type { Catalog, Phrase } from "./app/types";
 import type { AppLanguage } from "./language";
+import { auditStrings } from "./app/audit";
 import { ballotStrings } from "./app/ballot";
 import { commonStrings } from "./app/common";
 import { electionStrings } from "./app/elections";
@@ -26,6 +27,7 @@ import { votingStrings } from "./app/voting";
 import { formatNumber } from "./format";
 
 export const CATALOG = {
+  ...auditStrings,
   ...pageStrings,
   ...commonStrings,
   ...feedStrings,
@@ -80,4 +82,12 @@ export function translateApp(
 /** A `t` bound to one language, for utilities that take explicit language. */
 export function appTranslator(language: AppLanguage): AppTranslate {
   return (key, vars) => translateApp(language, key, vars);
+}
+
+/** Known application labels from structured server metadata; unknown source labels retain their identity. */
+export function translateAppLabel(
+  language: AppLanguage,
+  value: string,
+): string {
+  return hasAppString(value) ? translateApp(language, value) : value;
 }

@@ -45,6 +45,7 @@ import { useLanguage } from "~/hooks/useLanguage";
 import { useReadContent } from "~/hooks/useReadContent";
 import { useSavedContent } from "~/hooks/useSavedContent";
 import { useScreenshotDetection } from "~/hooks/useScreenshotDetection";
+import { translateAppLabel } from "~/i18n/app-strings";
 import {
   colors,
   contentType,
@@ -58,9 +59,10 @@ import {
   resolveType,
 } from "~/styles";
 import { trpc } from "~/utils/api";
+import { translateSessionLabel } from "~/utils/card-metadata";
 import { formatDate } from "~/utils/dates";
 import { contentImageSource } from "~/utils/editorial-visuals";
-import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
+import { isStateJurisdiction, jurisdictionText } from "~/utils/jurisdiction";
 import { findSourcePassage } from "~/utils/source-passage";
 import { buildSpeechChunks } from "~/utils/speech-script";
 import {
@@ -371,6 +373,7 @@ export default function ArticleDetailScreen() {
   const courtBrief =
     translation?.courtBrief ??
     (content.type === "court_case" ? content.courtBrief : null);
+  const lensData = translation?.lensData ?? content.lensData;
   const displayTitle = translation?.title ?? content.title;
   const displayDescription = translation?.description ?? content.description;
   const dateLocale =
@@ -397,10 +400,14 @@ export default function ArticleDetailScreen() {
     activeContent.length <= 20000 &&
     (content.isAIGenerated || looksLikeMarkdown);
 
-  const actions =
-    "actions" in content
-      ? (content.actions as { date: string; text: string }[])
-      : [];
+  const originalActions = ("actions" in content ? content.actions : []) as {
+    date: string;
+    text: string;
+  }[];
+  const actions = (translation?.actions ?? originalActions) as {
+    date: string;
+    text: string;
+  }[];
   const hasRealActions = actions.length > 0;
   const timeline = hasRealActions
     ? actions
@@ -571,8 +578,10 @@ export default function ArticleDetailScreen() {
 
         {isStateBill ? (
           <Text style={s.jurisdictionLine}>
-            {JURISDICTIONS[content.jurisdiction].body}
-            {content.sessionLabel ? ` · ${content.sessionLabel}` : ""}
+            {jurisdictionText(content.jurisdiction, language).body}
+            {content.sessionLabel
+              ? ` · ${translateSessionLabel(content.sessionLabel, language)}`
+              : ""}
           </Text>
         ) : null}
 
@@ -632,8 +641,10 @@ export default function ArticleDetailScreen() {
               </Text>
               <Text style={s.sponsorMeta} numberOfLines={1}>
                 {[
-                  sponsor.role,
-                  sponsor.party,
+                  translateAppLabel(language, sponsor.role),
+                  sponsor.party
+                    ? translateAppLabel(language, sponsor.party)
+                    : undefined,
                   isStateBill && sponsor.district
                     ? tx("District {value1}", { value1: sponsor.district })
                     : sponsor.state,
@@ -753,9 +764,7 @@ export default function ArticleDetailScreen() {
             <CourtBrief
               data={courtBrief}
               accent={t.color}
-              dualLens={
-                content.lensData ? <LensPanel data={content.lensData} /> : null
-              }
+              dualLens={lensData ? <LensPanel data={lensData} /> : null}
               onViewSource={handleViewSource}
               includeOpinions={!courtBrief.opinions.length}
             />
@@ -769,9 +778,7 @@ export default function ArticleDetailScreen() {
             <BillBrief
               data={brief}
               accent={t.color}
-              dualLens={
-                content.lensData ? <LensPanel data={content.lensData} /> : null
-              }
+              dualLens={lensData ? <LensPanel data={lensData} /> : null}
               onViewSource={handleViewSource}
             />
           ) : mode === "source" && sourceHighlight ? (
@@ -796,9 +803,9 @@ export default function ArticleDetailScreen() {
         </View>
 
         {/* Never present generic copy as if it were generated analysis. */}
-        {mode === "explainer" && content.lensData && !brief && !courtBrief && (
+        {mode === "explainer" && lensData && !brief && !courtBrief && (
           <View style={{ marginVertical: 24 }}>
-            <LensPanel data={content.lensData} />
+            <LensPanel data={lensData} />
           </View>
         )}
 
@@ -889,7 +896,7 @@ export default function ArticleDetailScreen() {
                   <Text style={s.timelineSourceText}>
                     {tr("readerUi.officialRecord")} ·{" "}
                     {("sourceLabel" in content
-                      ? content.sourceLabel
+                      ? translateAppLabel(language, content.sourceLabel)
                       : undefined) ?? "congress.gov"}
                   </Text>
                   <Icon name="chevR" size={12} color={colors.textSecondary} />
@@ -959,7 +966,7 @@ export default function ArticleDetailScreen() {
           onClose={() => setShareSurface(null)}
           contentId={content.id}
           contentType={content.type}
-          contentTitle={content.title}
+          contentTitle={displayTitle}
           thumbnailUrl={
             headerImageSource ? (headerImageUri ?? undefined) : undefined
           }

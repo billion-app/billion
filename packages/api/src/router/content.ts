@@ -1215,6 +1215,12 @@ export const contentRouter = {
         articleContent: translations.articleContent ?? null,
         brief: applySegments(brief, translations, "brief"),
         courtBrief: applySegments(courtBrief, translations, "courtBrief"),
+        lensData: applySegments(detail.lensData, translations, "lensData"),
+        actions: applySegments(
+          "actions" in detail ? detail.actions : [],
+          translations,
+          "actions",
+        ),
       };
     }),
 

@@ -11,6 +11,7 @@ import {
 import type { RouterOutputs } from "@acme/api";
 
 import type { BriefQuote } from "./BillBrief";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useLanguage } from "~/hooks/useLanguage";
 import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
 import { courtSourceQuote } from "~/utils/source-passage";
@@ -345,6 +346,7 @@ export function CourtBrief({
   includeOpinions?: boolean;
 }) {
   const { t: tr } = useLanguage();
+  const { t: tx } = useAppTranslation();
   const template = PROCEEDING[data.proceeding];
   const proceeding = data.criminalCaseStatus
     ? {
@@ -353,7 +355,13 @@ export function CourtBrief({
           : tr("readerUi.criminalCase"),
         label: tr("readerUi.criminalDocket"),
         detail: tr("readerUi.archiveStatus", {
-          status: data.criminalCaseStatus,
+          status: /^pending$/i.test(data.criminalCaseStatus)
+            ? tx("Pending")
+            : /^disposed$/i.test(data.criminalCaseStatus)
+              ? tx("Disposed")
+              : /^status not reported$/i.test(data.criminalCaseStatus)
+                ? tx("Status not reported")
+                : data.criminalCaseStatus,
         }),
       }
     : {

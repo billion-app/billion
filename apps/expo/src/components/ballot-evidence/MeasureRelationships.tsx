@@ -120,7 +120,9 @@ function RelationshipCard({
           >
             <Text style={s.link}>
               {source.number} ·{" "}
-              {source.role === "legal-text" ? tx("Legal text") : "LAO analysis"}{" "}
+              {source.role === "legal-text"
+                ? tx("Legal text")
+                : tx("LAO analysis")}{" "}
               ↗
             </Text>
           </Pressable>
@@ -188,7 +190,8 @@ function RelationshipCard({
               <Text style={s.nodeMeta}>
                 {tx("PROP {value1}{value2}", {
                   value1: measure.number,
-                  value2: number === measure.number ? " · THIS PAGE" : " →",
+                  value2:
+                    number === measure.number ? ` · ${tx("THIS PAGE")}` : " →",
                 })}
               </Text>
               <Text style={s.nodeBody}>{description.text}</Text>

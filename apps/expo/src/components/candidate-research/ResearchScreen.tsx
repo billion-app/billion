@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { EvidenceSelection } from "./EvidenceSheet";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { CardTranslationNotice } from "~/components/CardTranslationNotice";
 import { NavHeader } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { DigestPalette as P, planes } from "~/styles";
@@ -37,7 +38,7 @@ export function ResearchScreen({
 }: {
   promisePage?: boolean;
 }) {
-  const { t: tx, locale: appLocale } = useAppTranslation();
+  const { t: tx, locale: appLocale, language } = useAppTranslation();
 
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -78,16 +79,22 @@ export function ResearchScreen({
     );
   const query = useQuery({
     ...trpc.candidateBriefs.race.queryOptions({
+      language,
       releaseId: validId ? (params.race ?? blankReleaseId) : blankReleaseId,
     }),
     enabled: validId && !params.draft && !fictional && !previewUnavailable,
     staleTime: 0,
-    refetchInterval: 30_000,
+    refetchInterval: (query) =>
+      query.state.data?.translationState === "pending" ? 3_000 : 30_000,
   });
   const catalog = useQuery({
-    ...trpc.candidateBriefs.listRaces.queryOptions(),
+    ...trpc.candidateBriefs.listRaces.queryOptions({ language }),
     enabled: !params.race && !params.draft && !fictional && !previewUnavailable,
     staleTime: 0,
+    refetchInterval: (query) =>
+      query.state.data?.some((row) => row.translationState === "pending")
+        ? 3_000
+        : false,
   });
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 10_000);
@@ -164,6 +171,20 @@ export function ResearchScreen({
         contentContainerStyle={s.content}
         keyboardShouldPersistTaps="handled"
       >
+        {catalog.data && (
+          <CardTranslationNotice
+            items={catalog.data}
+            onRetry={() => void catalog.refetch()}
+            isError={catalog.isError}
+          />
+        )}
+        {query.data && !params.draft && !fictional && (
+          <CardTranslationNotice
+            items={[query.data]}
+            isError={query.isError}
+            onRetry={() => void query.refetch()}
+          />
+        )}
         {params.draft && (
           <Panel title={tx("Editorial draft · not published")}>
             <Text style={s.body}>

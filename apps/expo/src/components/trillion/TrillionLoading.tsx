@@ -72,7 +72,7 @@ export function TrillionLoading({
                     timeZone: "UTC",
                   }),
                 })
-              : "California"}
+              : tx("California")}
           </Text>
           <Text style={s.headerTitle}>
             {tx("Proposition {value1} · The debate", { value1: number ?? "" })}

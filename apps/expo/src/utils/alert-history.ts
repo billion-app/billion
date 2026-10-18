@@ -27,6 +27,7 @@ export type AlertKind =
   | "test";
 
 export interface AlertItem {
+  translationState?: "original" | "pending" | "translated" | "unavailable";
   id: string;
   /** ISO timestamp. */
   at: string;

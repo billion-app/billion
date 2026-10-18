@@ -122,8 +122,12 @@ export function CandidateCoverage({
           "{value1} Missing coverage is not a judgment of their qualifications.",
           {
             value1: hasStatement
-              ? "Billion hasn’t published independent analysis for this race."
-              : "Billion has no statement or independent analysis for this candidate yet.",
+              ? tx(
+                  "Billion hasn’t published independent analysis for this race.",
+                )
+              : tx(
+                  "Billion has no statement or independent analysis for this candidate yet.",
+                ),
           },
         )}
       </Text>

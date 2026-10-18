@@ -5398,4 +5398,54 @@ export const pageStrings = {
       other: " · {count} 页",
     },
   },
+  "AI summary": { en: "AI summary", es: "Resumen de IA", zh: "AI 摘要" },
+  "Not available": { en: "Not available", es: "No disponible", zh: "暂无资料" },
+  "LAO analysis": {
+    en: "LAO analysis",
+    es: "Análisis de la LAO",
+    zh: "立法分析师办公室分析",
+  },
+  "THIS PAGE": { en: "THIS PAGE", es: "ESTA PÁGINA", zh: "本页" },
+  "Sparse evidence": {
+    en: "Sparse evidence",
+    es: "Pocas pruebas",
+    zh: "资料不足",
+  },
+  "Billion hasn’t published independent analysis for this race.": {
+    en: "Billion hasn’t published independent analysis for this race.",
+    es: "Billion aún no ha publicado un análisis independiente de esta contienda.",
+    zh: "Billion 尚未发布本场选举的独立分析。",
+  },
+  "Billion has no statement or independent analysis for this candidate yet.": {
+    en: "Billion has no statement or independent analysis for this candidate yet.",
+    es: "Billion aún no tiene una declaración ni un análisis independiente de esta candidatura.",
+    zh: "Billion 暂无这位候选人的声明或独立分析。",
+  },
+  Pending: { en: "Pending", es: "Pendiente", zh: "待审" },
+  Disposed: { en: "Disposed", es: "Resuelto", zh: "已结案" },
+  "Status not reported": {
+    en: "Status not reported",
+    es: "Estado no informado",
+    zh: "未报告案件状态",
+  },
+  "Back to fixture ballot": {
+    en: "Back to fixture ballot",
+    es: "Volver a la papeleta de ejemplo",
+    zh: "返回示例选票",
+  },
+  "Open fixture archive": {
+    en: "Open fixture archive",
+    es: "Abrir archivo de ejemplo",
+    zh: "打开示例存档",
+  },
+  "measure.argumentCount": {
+    en: { one: "{count} argument", other: "{count} arguments" },
+    es: { one: "{count} argumento", other: "{count} argumentos" },
+    zh: { one: "{count} 条论点", other: "{count} 条论点" },
+  },
+  "candidate.count": {
+    en: { one: "{count} candidate", other: "{count} candidates" },
+    es: { one: "{count} candidatura", other: "{count} candidaturas" },
+    zh: { one: "{count} 位候选人", other: "{count} 位候选人" },
+  },
 } satisfies Catalog;

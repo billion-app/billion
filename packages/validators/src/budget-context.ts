@@ -21,6 +21,16 @@ const scope = z.object({
 export const contextMoneySchema = z
   .object({
     nominal: short,
+    // A translated display copy never changes the canonical amount or comparison.
+    display: z
+      .object({
+        nominal: short,
+        period: short,
+        jurisdiction: short,
+        reason: short.optional(),
+        denominatorName: short.optional(),
+      })
+      .optional(),
     currency: z.literal("USD"),
     scope,
     comparison: z.discriminatedUnion("state", [

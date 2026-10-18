@@ -139,11 +139,7 @@ export function BallotReadingCard({
   );
 }
 
-export function BallotAiDisclosure({
-  label = "AI summary",
-}: {
-  label?: string;
-}) {
+export function BallotAiDisclosure({ label }: { label?: string }) {
   const { t: tx } = useAppTranslation();
 
   const [expanded, setExpanded] = useState(false);
@@ -157,7 +153,9 @@ export function BallotAiDisclosure({
       >
         <Icon name="sparkle" size={17} color={P.primary} />
         <Text style={s.provenanceText}>
-          {tx("{value1} · Check the source", { value1: label })}
+          {tx("{value1} · Check the source", {
+            value1: label ?? tx("AI summary"),
+          })}
         </Text>
         <Icon
           name={expanded ? "chevD" : "chevR"}

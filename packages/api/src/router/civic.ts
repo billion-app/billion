@@ -6,6 +6,10 @@ import { caSosResultsClient } from "../clients/ca-sos-results";
 import { BallotProviderError } from "../clients/democracy-works";
 import { getDevBallot } from "../lib/ballot-dev-mocks";
 import { getBallotAvailability } from "../lib/ballot-launch";
+import {
+  readBallotTranslationReference,
+  withBallotTranslationReferences,
+} from "../lib/ballot-translation";
 import { getCandidateBackground } from "../lib/candidate-background";
 import {
   getCachedTrillionGraph,
@@ -27,6 +31,7 @@ import { publishedMeasureRelationships } from "../lib/measure-relationships";
 import {
   measureSegments,
   measureTranslationId,
+  withMoneyDisplay,
 } from "../lib/measure-translation";
 import {
   publicPropositionConsequences,
@@ -153,8 +158,13 @@ export const civicRouter = {
       const guide = await getCaliforniaGuide();
       const original = guide?.measures.find((m) => m.number === input.number);
       if (!guide || !original) return { status: "unavailable" as const };
-      const measure = {
+      const measure = withMoneyDisplay({
         ...original,
+        relationships: publishedMeasureRelationships(
+          guide,
+          original.number,
+          guide.relationshipSources ?? [],
+        ),
         contextualExplanation: publishedPropositionContext(
           guide.electionDate,
           original,
@@ -162,8 +172,8 @@ export const civicRouter = {
         consequences: publicPropositionConsequences(
           publishedPropositionConsequences(guide.electionDate, original),
         ),
-      };
-      const graph =
+      });
+      const graph = withMoneyDisplay(
         input.scope === "reader"
           ? publishedTrillionGraph(
               guide,
@@ -171,7 +181,8 @@ export const civicRouter = {
               await getCachedTrillionGraph(guide.electionDate, input.number),
               guide.relationshipSources ?? [],
             )
-          : null;
+          : null,
+      );
       if (input.revision && input.revision !== graph?.revision)
         return { status: "stale" as const };
       const segments = measureSegments(measure, graph, input.scope);
@@ -275,6 +286,36 @@ export const civicRouter = {
   /**
    * Get voter info (polling places, ballot info) for an address
    */
+  getBallotTranslation: publicProcedure
+    .input(
+      z.object({
+        reference: z.string().max(64_100),
+        language: z.enum(TRANSLATION_LANGUAGES),
+      }),
+    )
+    .query(async ({ input }) => {
+      const secret = process.env.BETTER_AUTH_SECRET;
+      const source = secret
+        ? readBallotTranslationReference(input.reference, secret)
+        : null;
+      if (!source) return { status: "expired" as const };
+      const translations = await getSegmentTranslations({
+        contentId: source.contentId,
+        contentType: "ballot",
+        language: input.language,
+        segments: source.segments,
+      });
+      return translations
+        ? {
+            status: "translated" as const,
+            translations,
+            identity: source.identity,
+            originals: Object.fromEntries(
+              source.segments.map((segment) => [segment.key, segment.text]),
+            ),
+          }
+        : { status: "pending" as const };
+    }),
   getVoterInfo: publicProcedure
     .input(
       z.object({
@@ -287,9 +328,11 @@ export const civicRouter = {
       try {
         const mock = getDevBallot(input.address);
         if (mock) return mock;
-        return await getVoterInfo(input.address, input.electionId, {
-          includeEnrichment: input.includeEnrichment,
-        });
+        return withBallotTranslationReferences(
+          await getVoterInfo(input.address, input.electionId, {
+            includeEnrichment: input.includeEnrichment,
+          }),
+        );
       } catch (error) {
         throw new TRPCError({
           code:

@@ -349,7 +349,7 @@ export function Finance({
                 {
                   value1:
                     receipts.refundsCents === null
-                      ? "not available"
+                      ? tx("Not available")
                       : money(receipts.refundsCents, appLocale),
                 },
               )}
