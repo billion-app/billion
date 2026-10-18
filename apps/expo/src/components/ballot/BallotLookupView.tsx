@@ -156,6 +156,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
   const model = data ? ballotModel(data) : undefined;
   const elections = ballotElectionOptions(props.discovery, data);
   const commitDraft = (next: string) => {
+    cancelLocation();
     const valid = validateBallotAddress(next);
     setInvalid(!valid);
     if (valid) {
@@ -168,17 +169,18 @@ export function BallotLookupView(props: BallotLookupViewProps) {
   // separate lookup path — the voter can still type their residence.
   const {
     resolve: resolveAddress,
+    cancel: cancelLocation,
     error: locationError,
     locating: locatingAddress,
     resolving: resolvingAddress,
   } = useDeviceAddress();
   const locatingFromDevice = locatingAddress || resolvingAddress;
-  const locationMessage = deviceLocationMessage(locationError);
+  const locationMessage = deviceLocationMessage(locationError, tx);
   const captureLocation = async () => {
     const next = await resolveAddress();
     if (!next) return;
     setDraft(next);
-    commitDraft(next);
+    setInvalid(false);
   };
   const officeUrl = data ? ballotOfficeUrl(data) : undefined;
   const evidence =
@@ -392,7 +394,10 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               placeholder={tx("Street, city, state, ZIP")}
               placeholderTextColor="rgba(255,255,255,0.70)"
               value={draft}
-              onChangeText={setDraft}
+              onChangeText={(value) => {
+                cancelLocation();
+                setDraft(value);
+              }}
               onSubmitEditing={submit}
               returnKeyType="search"
               autoFocus={!!props.address}
@@ -407,7 +412,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
             )}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Use my current location"
+              accessibilityLabel={tx("address.useLocation")}
               accessibilityState={{
                 disabled: locatingFromDevice,
                 busy: locatingFromDevice,
@@ -423,8 +428,8 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               )}
               <Text style={s.deviceButtonText}>
                 {locatingFromDevice
-                  ? "Finding your location…"
-                  : "Use my location"}
+                  ? tx("address.finding")
+                  : tx("address.useLocation")}
               </Text>
             </Pressable>
             {locationMessage && (
@@ -443,6 +448,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               <Pressable
                 accessibilityRole="button"
                 onPress={() => {
+                  cancelLocation();
                   setDraft(props.address);
                   setInvalid(false);
                   setEditing(false);

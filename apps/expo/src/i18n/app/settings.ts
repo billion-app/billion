@@ -259,9 +259,9 @@ export const settingsStrings = {
     zh: "编辑或清除你的地址",
   },
   "privacy.editAddressSub": {
-    en: "Open the Ballot tab to change or remove your saved address anytime.",
-    es: "Abre la pestaña de la boleta para cambiar o quitar tu dirección guardada en cualquier momento.",
-    zh: "随时打开“选票”标签页更改或删除已保存的地址。",
+    en: "Open Settings → Location to change or remove your saved address anytime.",
+    es: "Abre Ajustes → Ubicación para cambiar o quitar tu dirección guardada en cualquier momento.",
+    zh: "随时打开“设置 → 位置”更改或删除已保存的地址。",
   },
   "privacy.stopAnalytics": {
     en: "Stop analytics",

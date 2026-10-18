@@ -24,7 +24,6 @@ The root router is the authoritative list. This table describes responsibility r
 | --------------- | ----------------------------------------------------------------------------------------------------- |
 | `content`       | Browse, search, detail, featured bills, sponsors, and content saves                                   |
 | `civic`         | Elections, voter information, representatives, and ballot enrichment                                  |
-| `places`        | Address autocomplete and address resolution                                                           |
 | `legistar`      | Stored local decisions, bodies, and ingestion health; also legacy source-format queries               |
 | `openStates`    | Request-time state legislation, legislator, and vote lookups                                          |
 | `user`          | Preferences, blocked content, settings, profile, and saved articles                                   |
@@ -66,9 +65,9 @@ retrieval time; provider metadata continues to describe the provider alone.
 
 The separate elected-officials lookup uses Google Civic's `divisionsByAddress` to
 match Open States lawmakers. Its key is optional at startup and required for that
-feature. Places has development mocks when keys are absent; ballot reads do not.
+feature. Ballot reads do not have development mocks.
 
-[Places](../packages/api/src/lib/places.ts) resolves predictions to a full address. Keep the session token stable across one address entry, including the closing details request, so the provider can group them into one session. When the provider refuses a request, autocomplete returns an empty list instead of an error so the user can still type a full address and look it up.
+Address entry uses the device’s foreground location permission and OS geocoder, or manual typing. The voter confirms the resulting street address before lookup; failed geocoding keeps manual entry available. The Places router was removed. See [native address entry](data-sources-api.md#address-entry-client-side).
 
 Local decisions have a separate durable ingestion path. New consumers should use the normalized decision API described in [Local government and Legistar](local-government-legistar.md). The old source-format queries remain during the UI transition.
 

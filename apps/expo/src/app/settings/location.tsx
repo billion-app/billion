@@ -17,56 +17,54 @@ import {
   PrimaryButton,
   ScreenShell,
 } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { DigestHair, fontBody, DigestPalette as P } from "~/styles";
 
 export default function LocationScreen() {
+  const { t } = useAppTranslation();
+  const [saveError, setSaveError] = useState(false);
   const { address, setAddress, clearAddress, isLoading } = useUserAddress();
   const [editing, setEditing] = useState(false);
 
   const save = (next: string) => {
-    void setAddress(next);
-    setEditing(false);
+    setSaveError(false);
+    void setAddress(next)
+      .then(() => setEditing(false))
+      .catch(() => setSaveError(true));
   };
 
   const confirmClear = () => {
-    Alert.alert(
-      "Remove saved location?",
-      "Ballot, voting, and representative lookups will ask for your address again until you set a new one.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: () => {
-            void clearAddress();
-            setEditing(false);
-          },
+    Alert.alert(t("location.removeTitle"), t("location.removeBody"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("location.removeAction"),
+        style: "destructive",
+        onPress: () => {
+          void clearAddress()
+            .then(() => setEditing(false))
+            .catch(() => Alert.alert(t("location.removeFailed")));
         },
-      ],
-    );
+      },
+    ]);
   };
 
   return (
-    <ScreenShell title="Location">
-      <Text style={s.body}>
-        Billion uses the address where you&rsquo;re registered to vote — not
-        necessarily where you are right now. Use the device location shortcut to
-        fill it in, or type it yourself.
-      </Text>
+    <ScreenShell title={t("location.title")}>
+      <Text style={s.body}>{t("location.intro")}</Text>
 
       {isLoading ? null : editing || !address ? (
         <View style={s.card}>
-          <Kicker>YOUR REGISTERED ADDRESS</Kicker>
+          <Kicker>{t("location.kicker")}</Kicker>
           <AddressAutocomplete
             initialValue={address ?? ""}
             onSubmit={save}
-            hint="Use your current location or type the address where you're registered."
+            hint={t("location.hint")}
             autoFocus={false}
           />
           {address ? (
             <GhostButton
-              label="Cancel"
+              label={t("common.cancel")}
               onPress={() => setEditing(false)}
               color={P.spark}
               style={s.secondaryAction}
@@ -75,15 +73,15 @@ export default function LocationScreen() {
         </View>
       ) : (
         <View style={s.card}>
-          <Text style={s.label}>Saved location</Text>
+          <Text style={s.label}>{t("location.saved")}</Text>
           <Text style={s.address}>{address}</Text>
           <PrimaryButton
-            label="Change location"
+            label={t("location.change")}
             onPress={() => setEditing(true)}
             style={s.primaryAction}
           />
           <GhostButton
-            label="Remove saved location"
+            label={t("location.remove")}
             onPress={confirmClear}
             color={P.spark}
             style={s.secondaryAction}
@@ -91,10 +89,12 @@ export default function LocationScreen() {
         </View>
       )}
 
-      <Text style={s.fineprint}>
-        Stored on this device and used only for election lookups. You can change
-        or remove it at any time.
-      </Text>
+      {saveError && (
+        <Text accessibilityRole="alert" style={s.body}>
+          {t("location.saveFailed")}
+        </Text>
+      )}
+      <Text style={s.fineprint}>{t("location.stored")}</Text>
     </ScreenShell>
   );
 }
@@ -119,7 +119,7 @@ const s = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 0.8,
     textTransform: "uppercase",
-    color: P.quiet,
+    color: P.inkOnNight,
   },
   address: {
     fontFamily: fontBody.semibold,

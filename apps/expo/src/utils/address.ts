@@ -38,9 +38,8 @@ function clean(value: string | null | undefined): string | undefined {
  * `"123 Oak St, Sacramento, CA 95814"` from an OS reverse-geocode placemark.
  *
  * Returns `null` when the placemark cannot make a street-level address — a
- * bare coordinate is not a registered address, so the caller falls back to
- * sending the coordinates for the civic lookup instead of showing them as if
- * the voter had typed them.
+ * bare coordinate is not a registered address, so the caller asks for manual
+ * entry.
  */
 export function formatPlacemark(
   placemark: GeocodedPlacemark | null | undefined,
@@ -69,12 +68,4 @@ export function formatPlacemark(
     .join(" ");
 
   return [street, city, regionPostal || undefined].filter(Boolean).join(", ");
-}
-
-/**
- * `"38.57662,-121.49337"` — the coordinate form the civic lookup accepts when
- * reverse geocoding returns nothing usable.
- */
-export function formatCoordinates(latitude: number, longitude: number): string {
-  return `${latitude.toFixed(5)},${longitude.toFixed(5)}`;
 }

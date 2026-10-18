@@ -114,6 +114,7 @@ function HowToVoteScreen() {
     ...trpc.civic.getVoterInfo.queryOptions({
       address: address ?? "",
       electionId: requestedElectionId,
+      includeEnrichment: false,
     }),
     enabled: hasAddress,
     retry: 1,
@@ -409,7 +410,6 @@ function HowToVoteScreen() {
                 mailOnly={plan.mailOnly}
                 expanded={openMethod === method.id}
                 onToggle={() => toggleMethod(method.id)}
-                authorityName={source?.name}
                 locationFinderUrl={
                   source?.votingLocationFinderUrl ?? source?.electionInfoUrl
                 }
@@ -425,6 +425,14 @@ function HowToVoteScreen() {
           <UnavailableNote
             title={t("howToVoteLookup.locationsMissing")}
             body={t("howToVoteLookup.locationsMissingBody")}
+          />
+          <LinkRow
+            label={t("howToVoteLookup.findLocations")}
+            url={
+              source?.votingLocationFinderUrl ??
+              source?.electionInfoUrl ??
+              "https://vote.gov"
+            }
           />
         </Card>
       )}

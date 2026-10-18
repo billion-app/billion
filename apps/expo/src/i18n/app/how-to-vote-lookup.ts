@@ -282,7 +282,7 @@ export const howToVoteLookupStrings = {
     zh: "投票站",
   },
   "howToVoteLookup.hoursMissing": {
-    en: "Hours not published",
+    en: "Hours unavailable",
     es: "Horarios no publicados",
     zh: "尚未公布时间",
   },

@@ -462,4 +462,101 @@ export const commonStrings = {
     es: "Resumen generado con IA para tu comodidad. Consulta siempre las fuentes originales para mayor exactitud.",
     zh: "AI 摘要仅供参考。如需完整准确的信息，请务必查阅原始来源。",
   },
+  "address.useLocation": {
+    en: "Use my location",
+    es: "Usar mi ubicación",
+    zh: "使用我的位置",
+  },
+  "address.finding": {
+    en: "Finding your location…",
+    es: "Buscando tu ubicación…",
+    zh: "正在查找你的位置…",
+  },
+  "address.denied": {
+    en: "Location is off for Billion — type your registered address instead.",
+    es: "La ubicación está desactivada para Billion. Escribe la dirección donde estás registrado para votar.",
+    zh: "Billion 的定位权限已关闭，请输入你的选民登记地址。",
+  },
+  "address.unavailable": {
+    en: "Location services are off — type your registered address instead.",
+    es: "Los servicios de ubicación están desactivados. Escribe tu dirección de registro electoral.",
+    zh: "定位服务已关闭，请输入你的选民登记地址。",
+  },
+  "address.failed": {
+    en: "Couldn't get your location. Try again or type your registered address.",
+    es: "No pudimos obtener tu ubicación. Inténtalo de nuevo o escribe tu dirección de registro electoral.",
+    zh: "无法获取你的位置。请重试或输入你的选民登记地址。",
+  },
+  "address.noStreetAddress": {
+    en: "Couldn't find a street address here. Type your registered address instead.",
+    es: "No encontramos una dirección postal aquí. Escribe tu dirección de registro electoral.",
+    zh: "无法找到此位置的街道地址，请输入你的选民登记地址。",
+  },
+  "location.title": { en: "Location", es: "Ubicación", zh: "位置" },
+  "location.change": {
+    en: "Change location",
+    es: "Cambiar ubicación",
+    zh: "更改位置",
+  },
+  "location.set": {
+    en: "Set your location",
+    es: "Establecer tu ubicación",
+    zh: "设置你的位置",
+  },
+  "location.registered": {
+    en: "The address where you’re registered to vote",
+    es: "La dirección donde estás registrado para votar",
+    zh: "你的选民登记地址",
+  },
+  "location.intro": {
+    en: "Billion uses the address where you’re registered to vote. Device location fills the field; check it before saving.",
+    es: "Billion usa la dirección donde estás registrado para votar. La ubicación del dispositivo rellena el campo; revísala antes de guardar.",
+    zh: "Billion 使用你的选民登记地址。设备定位会填入地址，请核对后保存。",
+  },
+  "location.kicker": {
+    en: "YOUR REGISTERED ADDRESS",
+    es: "TU DIRECCIÓN DE REGISTRO ELECTORAL",
+    zh: "你的选民登记地址",
+  },
+  "location.hint": {
+    en: "Type your registered address, or use your location and check the result.",
+    es: "Escribe tu dirección de registro electoral o usa tu ubicación y revisa el resultado.",
+    zh: "输入你的选民登记地址，或使用定位并核对结果。",
+  },
+  "location.saved": {
+    en: "Saved location",
+    es: "Ubicación guardada",
+    zh: "已保存的位置",
+  },
+  "location.remove": {
+    en: "Remove saved location",
+    es: "Eliminar ubicación guardada",
+    zh: "删除已保存的位置",
+  },
+  "location.removeTitle": {
+    en: "Remove saved location?",
+    es: "¿Eliminar la ubicación guardada?",
+    zh: "删除已保存的位置？",
+  },
+  "location.removeBody": {
+    en: "Ballot, voting, and representative lookups will ask for your address again until you set a new one.",
+    es: "Las consultas de boletas, votación y representantes pedirán tu dirección de nuevo hasta que guardes otra.",
+    zh: "在设置新地址之前，选票、投票和议员查询将再次要求输入地址。",
+  },
+  "location.removeAction": { en: "Remove", es: "Eliminar", zh: "删除" },
+  "location.stored": {
+    en: "Stored on this device for local news, election and representative lookups. You can change or remove it at any time.",
+    es: "Se guarda en este dispositivo para consultar noticias locales, elecciones y representantes. Puedes cambiarla o eliminarla en cualquier momento.",
+    zh: "保存在此设备上，用于查询本地新闻、选举和议员信息。你可以随时更改或删除。",
+  },
+  "location.saveFailed": {
+    en: "Couldn't save your location. Please try again.",
+    es: "No pudimos guardar tu ubicación. Inténtalo de nuevo.",
+    zh: "无法保存你的位置，请重试。",
+  },
+  "location.removeFailed": {
+    en: "Couldn't remove your location. Please try again.",
+    es: "No pudimos eliminar tu ubicación. Inténtalo de nuevo.",
+    zh: "无法删除你的位置，请重试。",
+  },
 } satisfies Catalog;

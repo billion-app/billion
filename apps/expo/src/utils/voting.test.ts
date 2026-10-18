@@ -412,3 +412,28 @@ void test("partially dated locations cannot close or postpone an entire method",
     assert.equal(method(plan, "dropBox").status, "listed");
   }
 });
+
+test("link-only providers do not present hardcoded steps as official instructions", () => {
+  const data = response();
+  data.provider = {
+    name: "democracy_works",
+    fetchedAt: "2026-10-18T00:00:00Z",
+    addressScope: "address",
+    ballotDataStatus: "provided",
+    addressNormalization: "unavailable",
+    logistics: "lookup_links_only",
+    coverage: "partial",
+  };
+  data.state = [
+    {
+      name: "California",
+      electionAdministrationBody: {
+        name: "Example election office",
+        electionInfoUrl: "https://example.gov/elections",
+      },
+    },
+  ];
+  assert.ok(
+    buildVotingPlan(data).methods.every((method) => method.steps.length === 0),
+  );
+});

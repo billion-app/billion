@@ -43,8 +43,6 @@ export function MethodCard({
   mailOnly?: boolean;
   expanded: boolean;
   onToggle: () => void;
-  /** Authority context supplied by callers; instructions open at the source. */
-  authorityName?: string;
   /** Official location finder — the fallback when nothing is published. */
   locationFinderUrl?: string;
 }) {
