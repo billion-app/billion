@@ -238,6 +238,8 @@ export interface MeasureArgumentRef {
 }
 
 export interface Contest {
+  /** Server-signed display translation capability; never part of ballot identity. */
+  translationReference?: string;
   type: string;
   primaryParty?: string;
   electorateSpecifications?: string;

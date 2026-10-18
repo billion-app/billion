@@ -1,4 +1,6 @@
 import type { ShareableContent } from "./share-copy";
+import type { ReaderLanguage } from "~/app/_lib/reader-language";
+import { readerText } from "~/app/_lib/reader-language";
 import { presentType, shareSummaryParts, truncate } from "./share-copy";
 
 /**
@@ -106,9 +108,11 @@ function Badge({
 /** The 1200×630 card a link unfurls into. */
 export function OgCard({
   content,
+  language = "en",
   art,
 }: {
   content: ShareableContent;
+  language?: ReaderLanguage;
   art?: string;
 }) {
   const type = presentType(content.type);
@@ -143,7 +147,7 @@ export function OgCard({
             color: MUTED,
           }}
         >
-          {type.kind}
+          {readerText(language, type.kind)}
         </div>
       </div>
 
@@ -166,7 +170,11 @@ export function OgCard({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <Badge label={type.label} color={type.color} size={20} />
+            <Badge
+              label={readerText(language, type.label)}
+              color={type.color}
+              size={20}
+            />
             {content.billNumber ? (
               <div
                 style={{
@@ -248,7 +256,7 @@ export function OgCard({
             color: WHITE,
           }}
         >
-          What your government is actually doing.
+          {readerText(language, "What your government is actually doing.")}
         </div>
         <div
           style={{
@@ -267,9 +275,11 @@ export function OgCard({
 
 /** The 1080×1920 image for an Instagram story. */
 export function StoryCard({
+  language = "en",
   content,
   art,
 }: {
+  language?: ReaderLanguage;
   content: ShareableContent;
   art?: string;
 }) {
@@ -314,7 +324,7 @@ export function StoryCard({
             color: MUTED,
           }}
         >
-          {type.kind}
+          {readerText(language, type.kind)}
         </div>
       </div>
 
@@ -337,7 +347,11 @@ export function StoryCard({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-            <Badge label={type.label} color={type.color} size={26} />
+            <Badge
+              label={readerText(language, type.label)}
+              color={type.color}
+              size={26}
+            />
             {content.billNumber ? (
               <div
                 style={{
@@ -428,7 +442,7 @@ export function StoryCard({
             color: WHITE,
           }}
         >
-          Read the whole thing on Billion
+          {readerText(language, "Read the whole thing on Billion")}
         </div>
         <div
           style={{

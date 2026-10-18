@@ -7,6 +7,7 @@ import { Text } from "~/components/Themed";
 import { Card, Icon } from "~/components/ui";
 import { posthog } from "~/config/posthog";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { useBallotTranslation } from "~/hooks/useBallotTranslation";
 import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
 import {
   ballotContestRoute,
@@ -34,9 +35,20 @@ export function BallotContestCard({
 
   const router = useRouter();
   const isMeasure = isBallotMeasure(contest);
+  const localization = useBallotTranslation(contest.translationReference, {
+    kind: isMeasure ? "measure" : "contest",
+    title:
+      contest.referendumTitle ?? contest.office ?? contest.ballotTitle ?? "",
+    candidates: contest.candidates?.map((candidate) => candidate.name) ?? [],
+  });
   const title = isMeasure
-    ? (contest.referendumTitle ?? contest.office ?? tx("Ballot measure"))
-    : contestListTitle(contest, uiLanguage);
+    ? (localization.text("referendumTitle", contest.referendumTitle) ??
+      contest.office ??
+      tx("Ballot measure"))
+    : localization.text(
+        "office",
+        localization.text("ballotTitle", contestListTitle(contest, uiLanguage)),
+      );
   const count = contest.candidates?.length ?? 0;
   const sourceNames = contest.sources
     ?.map((source) => source.name)
@@ -56,7 +68,7 @@ export function BallotContestCard({
         electionStage?.trim()
           ? electionStage.trim()
           : tx("Election stage unavailable"),
-        electionCoverageLabel("partial"),
+        electionCoverageLabel("partial", uiLanguage),
         tx("Source: {value1}", { value1: sourceLabel ?? "" }),
       ].join(". ")}
       onPress={() => {
@@ -88,7 +100,7 @@ export function BallotContestCard({
             {isMeasure
               ? tx("Read measure details")
               : count
-                ? `${count} candidate${count === 1 ? "" : "s"}`
+                ? tx("candidate.count", { count })
                 : tx("Candidate information unavailable")}
           </Text>
         </View>

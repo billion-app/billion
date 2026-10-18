@@ -21,6 +21,7 @@ import { Card, Icon, NavHeader, Segmented } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useLanguage } from "~/hooks/useLanguage";
 import { useMeasureTranslation } from "~/hooks/useMeasureTranslation";
+import { translateAppLabel } from "~/i18n/app-strings";
 import {
   DigestHair,
   DigestSpace,
@@ -75,7 +76,7 @@ function SourceRow({
 }
 
 function CandidateRow({ candidate }: { candidate: Candidate }) {
-  const { t: tx } = useAppTranslation();
+  const { t: tx, language } = useAppTranslation();
   const router = useRouter();
   const [photoFailed, setPhotoFailed] = useState(false);
   return (
@@ -83,8 +84,13 @@ function CandidateRow({ candidate }: { candidate: Candidate }) {
       accessibilityRole="button"
       accessibilityLabel={[
         candidate.name,
-        candidate.officeName ?? tx("statewide office"),
-        candidate.party,
+        translateAppLabel(
+          language,
+          candidate.officeName ?? tx("statewide office"),
+        ),
+        candidate.party
+          ? translateAppLabel(language, candidate.party)
+          : undefined,
       ]
         .filter(Boolean)
         .join(", ")}
@@ -108,7 +114,15 @@ function CandidateRow({ candidate }: { candidate: Candidate }) {
       <View style={s.rowCopy}>
         <Text style={s.rowTitle}>{candidate.name}</Text>
         <Text style={s.rowNote}>
-          {[candidate.officeName ?? tx("Statewide office"), candidate.party]
+          {[
+            translateAppLabel(
+              language,
+              candidate.officeName ?? tx("Statewide office"),
+            ),
+            candidate.party
+              ? translateAppLabel(language, candidate.party)
+              : undefined,
+          ]
             .filter(Boolean)
             .join(" · ")}
         </Text>

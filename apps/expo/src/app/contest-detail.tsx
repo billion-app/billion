@@ -34,9 +34,11 @@ import { CandidateBallotStatus } from "~/components/ballot-evidence/CandidateBal
 import { candidateStatusLabel } from "~/components/ballot-evidence/election-status";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { ContestMarking } from "~/components/ballot-marking/ContestMarking";
+import { CardTranslationNotice } from "~/components/CardTranslationNotice";
 import { OfficeRole } from "~/components/office-role/OfficeRole";
 import { Card, Icon, NavHeader } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { useBallotTranslation } from "~/hooks/useBallotTranslation";
 import {
   DigestHair,
   DigestRadii,
@@ -47,6 +49,7 @@ import {
   planes,
 } from "~/styles";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
+import { ballotIdentityFromRoute } from "~/utils/ballot-translation";
 import { parseRouteArray } from "~/utils/route-array";
 
 const cardChrome = {
@@ -156,6 +159,9 @@ export default function ContestDetailScreen() {
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
   const params = useLocalSearchParams<{
+    translationReference?: string;
+    translationIdentity?: string;
+    translationTitleField?: string;
     office: string;
     roles: string;
     levels: string;
@@ -172,6 +178,18 @@ export default function ContestDetailScreen() {
     citations?: string;
   }>();
 
+  const localization = useBallotTranslation(params.translationReference, {
+    kind: "contest",
+    title:
+      ballotIdentityFromRoute(params.translationIdentity)?.title === ""
+        ? ""
+        : params.office,
+    candidates: parseRouteArray<CandidateParam>(
+      params.candidates,
+      ["name"],
+      [],
+    ).map((candidate) => candidate.name),
+  });
   const candidates = useMemo(
     () =>
       parseRouteArray<CandidateParam>(
@@ -188,8 +206,12 @@ export default function ContestDetailScreen() {
           "statementSummary",
           "ballotStatus",
         ],
-      ).map((candidate) => ({
+      ).map((candidate, index) => ({
         ...candidate,
+        statementSummary: localization.text(
+          `candidates.${index}.statementSummary`,
+          candidate.statementSummary,
+        ),
         citations: parseRouteArray<CandidateCitation>(
           JSON.stringify(candidate.citations),
           ["field", "sourceName"],
@@ -200,7 +222,7 @@ export default function ContestDetailScreen() {
           ["type", "id"],
         ),
       })),
-    [params.candidates],
+    [params.candidates, localization],
   );
   const raceCitations = useMemo(
     () =>
@@ -223,7 +245,8 @@ export default function ContestDetailScreen() {
         ),
     );
   };
-  const description = params.roleDescription || null;
+  const description =
+    localization.text("roleDescription", params.roleDescription) || null;
   const [showRoleDescription, setShowRoleDescription] = useState(false);
 
   // Expansion keyed by candidate identity (name + original index), not array
@@ -316,8 +339,23 @@ export default function ContestDetailScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
+        {params.translationReference && (
+          <CardTranslationNotice
+            items={[localization]}
+            onRetry={localization.retry}
+          />
+        )}
+        {localization.expired && (
+          <Pressable onPress={() => router.replace("/ballot")}>
+            <Text style={s.descText}>{tx("Reload ballot to translate")}</Text>
+          </Pressable>
+        )}
+
         <Text accessibilityRole="header" style={s.office}>
-          {params.office}
+          {localization.text(
+            params.translationTitleField ?? "office",
+            params.office,
+          )}
         </Text>
         <Text style={s.district}>
           {[
@@ -531,7 +569,11 @@ export default function ContestDetailScreen() {
                       cand.name,
                       cand.party,
                       cand.incumbent ? tx("Incumbent") : undefined,
-                      candidateStatusLabel(cand.ballotStatus),
+                      candidateStatusLabel(
+                        cand.ballotStatus,
+                        false,
+                        uiLanguage,
+                      ),
                     ]
                       .filter(Boolean)
                       .join(", ")}

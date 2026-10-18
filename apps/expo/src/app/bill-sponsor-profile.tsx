@@ -20,6 +20,7 @@ import {
   PrimaryButton,
 } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { translateAppLabel } from "~/i18n/app-strings";
 import { colors, fontBody, fontDisplay, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import { translateCardMetadata } from "~/utils/card-metadata";
@@ -95,10 +96,19 @@ export default function BillSponsorProfileScreen() {
             {isStateSponsor ? tx("Primary author") : tx("Primary sponsor")}
           </Text>
           <Text style={s.name}>{sponsor.name}</Text>
-          <Text style={s.role}>{sponsor.role}</Text>
+          <Text style={s.role}>
+            {translateAppLabel(language, sponsor.role)}
+          </Text>
           {sponsor.party || location ? (
             <Text style={s.meta}>
-              {[sponsor.party, location].filter(Boolean).join(" · ")}
+              {[
+                sponsor.party
+                  ? translateAppLabel(language, sponsor.party)
+                  : undefined,
+                location,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </Text>
           ) : null}
         </Card>

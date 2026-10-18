@@ -15,6 +15,10 @@ import type { PublishedCandidateRace } from "../lib/candidate-race-release";
 import type { createTRPCContext } from "../trpc";
 import { readCandidateRace } from "../lib/candidate-race-release";
 import { activeResearchPolicy } from "../lib/candidate-research-store";
+import {
+  localizeCandidateCatalog,
+  localizeCandidateRace,
+} from "../lib/candidate-translation";
 import { publicProcedure } from "../trpc";
 
 interface Policy {
@@ -102,24 +106,42 @@ async function readReleases(
 /** Dependency is server-owned; no request parameter or environment flag can approve policy. */
 export function createCandidateBriefsRouter(policyInput: PolicyInput) {
   return {
-    listRaces: publicProcedure.query(async ({ ctx }) =>
-      (await readReleases(ctx.db, policyInput)).races.map((race) => ({
-        id: race.manifest.id,
-        office: race.manifest.office,
-        jurisdiction: race.manifest.jurisdictionLabel,
-        electionDate: race.manifest.electionDate,
-        candidateCount: race.manifest.members.length,
-      })),
-    ),
-    race: publicProcedure
-      .input(z.object({ releaseId: z.uuid() }))
-      .query(
-        async ({ ctx, input }) =>
-          (await readReleases(ctx.db, policyInput, input.releaseId)).races[0] ??
-          null,
+    listRaces: publicProcedure
+      .input(
+        z
+          .object({ language: z.enum(["en", "es", "zh"]).default("en") })
+          .optional(),
+      )
+      .query(async ({ ctx, input }) =>
+        localizeCandidateCatalog(
+          (await readReleases(ctx.db, policyInput)).races.map((race) => ({
+            id: race.manifest.id,
+            office: race.manifest.office,
+            jurisdiction: race.manifest.jurisdictionLabel,
+            electionDate: race.manifest.electionDate,
+            candidateCount: race.manifest.members.length,
+          })),
+          input?.language ?? "en",
+        ),
       ),
+    race: publicProcedure
+      .input(
+        z.object({
+          releaseId: z.uuid(),
+          language: z.enum(["en", "es", "zh"]).default("en"),
+        }),
+      )
+      .query(async ({ ctx, input }) => {
+        const race = (await readReleases(ctx.db, policyInput, input.releaseId))
+          .races[0];
+        return race ? localizeCandidateRace(race, input.language) : null;
+      }),
     get: publicProcedure
-      .input(candidateBriefIdentitySchema)
+      .input(
+        candidateBriefIdentitySchema.extend({
+          language: z.enum(["en", "es", "zh"]).default("en"),
+        }),
+      )
       .query(async ({ ctx, input }) => {
         const { policy, races } = await readReleases(ctx.db, policyInput);
         const race = races.find(
@@ -129,14 +151,18 @@ export function createCandidateBriefsRouter(policyInput: PolicyInput) {
             r.manifest.electionDate === input.electionDate &&
             r.manifest.members.some((m) => m.candidateId === input.candidateId),
         );
+        const display = race
+          ? await localizeCandidateRace(race, input.language)
+          : null;
         return {
+          translationState: display?.translationState,
           status: race
             ? ("published" as const)
             : policy.approved
               ? ("unavailable" as const)
               : ("policy_pending" as const),
           brief:
-            race?.briefs.find(
+            display?.briefs.find(
               (b) => b.identity.candidateId === input.candidateId,
             ) ?? null,
           coverage: {

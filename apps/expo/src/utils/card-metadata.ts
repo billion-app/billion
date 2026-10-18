@@ -36,3 +36,15 @@ export function translateCardMetadata(
     metadataKeys[value as keyof typeof metadataKeys],
   );
 }
+
+export function translateSessionLabel(
+  value: string,
+  language: AppLanguage,
+): string {
+  const regular = /^(.*?) regular session$/i.exec(value);
+  if (regular?.[1])
+    return translateApp(language, "session.regular", { years: regular[1] });
+  if (value === "89th Legislature · 2nd called session")
+    return translateApp(language, "session.texas89");
+  return value;
+}

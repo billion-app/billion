@@ -1,7 +1,12 @@
+import type { ReaderLanguage } from "../_lib/reader-language";
+import { readerText } from "../_lib/reader-language";
+
 export function ArticleDates({
+  language = "en",
   createdAt,
   updatedAt,
 }: {
+  language?: ReaderLanguage;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -17,15 +22,21 @@ export function ArticleDates({
       data-testid="article-dates"
     >
       <span>
-        Created{" "}
+        {readerText(language, "Created")}{" "}
         <time dateTime={createdAt.toISOString()}>
-          {createdAt.toLocaleDateString("en-US", options)}
+          {createdAt.toLocaleDateString(
+            language === "zh" ? "zh-CN" : `${language}-US`,
+            options,
+          )}
         </time>
       </span>
       <span>
-        Last updated{" "}
+        {readerText(language, "Last updated")}{" "}
         <time dateTime={updatedAt.toISOString()}>
-          {updatedAt.toLocaleDateString("en-US", options)}
+          {updatedAt.toLocaleDateString(
+            language === "zh" ? "zh-CN" : `${language}-US`,
+            options,
+          )}
         </time>
       </span>
     </div>

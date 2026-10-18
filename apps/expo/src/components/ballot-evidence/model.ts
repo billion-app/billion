@@ -1,5 +1,7 @@
+import type { AppLanguage } from "~/i18n/language";
+import { appTranslator, translateAppLabel } from "~/i18n/app-strings";
+import { formatDate } from "~/i18n/format";
 import { webUrl } from "../../utils/web-url";
-import { electionCoverageLabel } from "./election-status";
 
 export { webUrl } from "../../utils/web-url";
 
@@ -9,35 +11,42 @@ export type BallotEvidence =
   | { kind: "provider-failure" }
   | { kind: "result"; electionKnown: boolean; contestCount: number };
 
-export function ballotStatus(evidence: BallotEvidence) {
+export function ballotStatus(
+  evidence: BallotEvidence,
+  language: AppLanguage = "en",
+) {
+  const t = appTranslator(language);
   if (evidence.kind === "invalid-input")
     return {
-      title: "Check your address",
-      detail: "Enter a complete address and try again.",
+      title: t("Check your address"),
+      detail: t("Enter a complete address and try again."),
     };
   if (evidence.kind === "provider-failure")
     return {
-      title: "We couldn’t load your ballot",
-      detail:
+      title: t("We couldn’t load your ballot"),
+      detail: t(
         "Try again to load your ballot, or visit your election office for local information.",
+      ),
     };
   if (evidence.contestCount > 0)
     return {
-      title: "Partial ballot data",
-      detail:
-        electionCoverageLabel("partial") +
-        ". Confirm your complete ballot with your election office.",
+      title: t("Partial ballot data"),
+      detail: t(
+        "Partial provider data · other contests or candidates may be missing. Confirm your complete ballot with your election office.",
+      ),
     };
   if (evidence.electionKnown)
     return {
-      title: "Ballot details unavailable",
-      detail:
+      title: t("Ballot details unavailable"),
+      detail: t(
         "Billion has no contest information for this election. Check your election office for the official ballot.",
+      ),
     };
   return {
-    title: "No ballot data found",
-    detail:
+    title: t("No ballot data found"),
+    detail: t(
       "Billion found no ballot data for this lookup. This does not mean there is no election.",
+    ),
   };
 }
 
@@ -55,14 +64,21 @@ export interface BallotCitation {
   conflicting?: boolean;
 }
 
-export function verificationLabel(citation: BallotCitation): string {
+export function verificationLabel(
+  citation: BallotCitation,
+  language: AppLanguage = "en",
+): string {
+  const t = appTranslator(language);
   if (
     !citation.verifiedAt ||
     !citation.verifiedBy ||
     !Number.isFinite(Date.parse(citation.verifiedAt))
   )
-    return "Verification date unavailable";
-  return `Last verified ${citation.verifiedAt} by ${citation.verifiedBy}`;
+    return t("Verification date unavailable");
+  return t("Last verified {date} by {reviewer}", {
+    date: formatDate(language, citation.verifiedAt),
+    reviewer: citation.verifiedBy,
+  });
 }
 
 export interface LanguageEvidence {
@@ -85,10 +101,13 @@ export function verifiedLanguages(items: readonly LanguageEvidence[]) {
 }
 
 /** Present field names as reader-facing labels without changing attribution. */
-export function citationFieldLabel(field: string): string {
+export function citationFieldLabel(
+  field: string,
+  language: AppLanguage = "en",
+): string {
   const separator = field.indexOf(" · ");
   if (separator > 0)
-    return `${field.slice(0, separator)} · ${citationFieldLabel(field.slice(separator + 3))}`;
+    return `${field.slice(0, separator)} · ${citationFieldLabel(field.slice(separator + 3), language)}`;
   const labels: Record<string, string> = {
     referendumText: "Original text",
     referendumUrl: "Original text link",
@@ -108,10 +127,12 @@ export function citationFieldLabel(field: string): string {
     referendumConStatement: "Statement against",
   };
   const label = labels[field];
-  if (label) return label;
+  if (label) return translateAppLabel(language, label);
   const words = field
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/[_-]+/g, " ")
     .trim();
-  return words ? words[0]?.toUpperCase() + words.slice(1) : "Content";
+  return words
+    ? words[0]?.toUpperCase() + words.slice(1)
+    : translateAppLabel(language, "Content");
 }

@@ -22,6 +22,7 @@ import { getBaseUrl } from "./base-url";
 export type ShareSurface = "article_header" | "screenshot";
 
 interface ShareTarget {
+  language?: "en" | "es" | "zh";
   contentId: string;
   contentType: string;
   title: string;
@@ -47,6 +48,7 @@ function baseUrl(): string | null {
 export function shareUrlFor(
   contentId: string,
   surface: ShareSurface,
+  language: "en" | "es" | "zh" = "en",
 ): string | null {
   const base = baseUrl();
   if (!base) return null;
@@ -54,6 +56,7 @@ export function shareUrlFor(
   // Built by hand: `URLSearchParams` is a partial polyfill on React Native,
   // and three known-safe parameters are not worth depending on it for.
   const params = [
+    `lang=${language}`,
     "utm_source=app",
     "utm_medium=share",
     `utm_campaign=${encodeURIComponent(surface)}`,
@@ -69,7 +72,7 @@ export function shareUrlFor(
  * distinction, so reaching the chooser is the strongest truthful signal.
  */
 export async function shareContentLink(target: ShareTarget): Promise<boolean> {
-  const url = shareUrlFor(target.contentId, target.surface);
+  const url = shareUrlFor(target.contentId, target.surface, target.language);
   if (!url) return false;
 
   try {
@@ -122,10 +125,10 @@ async function downloadStoryImage(target: ShareTarget): Promise<File> {
   // per record so a re-share overwrites rather than accumulating.
   const destination = new File(
     Paths.cache,
-    `billion-story-${target.contentId}.png`,
+    `billion-story-${target.contentId}-${target.language ?? "en"}.png`,
   );
   await File.downloadFileAsync(
-    `${base}/b/${target.contentId}/story`,
+    `${base}/b/${target.contentId}/story?lang=${target.language ?? "en"}`,
     destination,
     { idempotent: true },
   );
@@ -191,7 +194,9 @@ export async function shareContentToInstagramStory(
     const destination = await downloadStoryImage(target);
     const handedOff = await shareToInstagramStory({
       fileUri: destination.uri,
-      contentUrl: shareUrlFor(target.contentId, target.surface) ?? undefined,
+      contentUrl:
+        shareUrlFor(target.contentId, target.surface, target.language) ??
+        undefined,
     });
 
     if (handedOff) {

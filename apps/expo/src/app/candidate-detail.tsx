@@ -31,6 +31,7 @@ import { OfficeRole } from "~/components/office-role/OfficeRole";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { translateAppLabel } from "~/i18n/app-strings";
 import {
   colors,
   fontBody,
@@ -314,9 +315,12 @@ export default function CandidateDetailScreen() {
                     {candidate.name}
                   </Text>
                   <Text style={s.office}>
-                    {guide?.officeName ??
-                      backgroundOffice ??
-                      tx("Office unavailable")}
+                    {translateAppLabel(
+                      uiLanguage,
+                      guide?.officeName ??
+                        backgroundOffice ??
+                        tx("Office unavailable"),
+                    )}
                   </Text>
                 </View>
               </View>
@@ -387,7 +391,9 @@ export default function CandidateDetailScreen() {
               {previewBrief && (
                 <CandidateIndependentBrief
                   brief={previewBrief}
-                  reviewedAt="October 2, 2026"
+                  reviewedAt={new Date(
+                    "2026-10-02T12:00:00Z",
+                  ).toLocaleDateString(appLocale)}
                   topics={[
                     "priorities",
                     "mechanisms",
@@ -458,7 +464,9 @@ export default function CandidateDetailScreen() {
               {previewBrief && (
                 <CandidateIndependentBrief
                   brief={previewBrief}
-                  reviewedAt="October 2, 2026"
+                  reviewedAt={new Date(
+                    "2026-10-02T12:00:00Z",
+                  ).toLocaleDateString(appLocale)}
                   topics={["record"]}
                 />
               )}
