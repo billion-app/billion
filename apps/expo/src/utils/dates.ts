@@ -1,6 +1,16 @@
 export function daysUntil(dateString: string): number {
-  const target = new Date(dateString);
   const now = new Date();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    const calendar = new Date(dateString);
+    const targetDay = Date.UTC(
+      calendar.getUTCFullYear(),
+      calendar.getUTCMonth(),
+      calendar.getUTCDate(),
+    );
+    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((targetDay - today) / 86400000);
+  }
+  const target = new Date(dateString);
   const diffTime = target.getTime() - now.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;

@@ -18,6 +18,8 @@ import { ballotStrings } from "./app/ballot";
 import { commonStrings } from "./app/common";
 import { electionStrings } from "./app/elections";
 import { feedStrings } from "./app/feed";
+import { voteGuideStrings } from "./app/how-to-vote-guide";
+import { howToVoteLookupStrings } from "./app/how-to-vote-lookup";
 import { onboardingStrings } from "./app/onboarding";
 import { pageStrings } from "./app/pages";
 import { settingsStrings } from "./app/settings";
@@ -32,6 +34,8 @@ export const CATALOG = {
   ...electionStrings,
   ...ballotStrings,
   ...votingStrings,
+  ...voteGuideStrings,
+  ...howToVoteLookupStrings,
   ...settingsStrings,
   ...onboardingStrings,
 } satisfies Catalog;

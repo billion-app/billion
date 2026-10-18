@@ -55,7 +55,7 @@ export function useDeviceAddress() {
       const placemarks = await Location.reverseGeocodeAsync(fix.coords);
       if (attempt !== revision.current) return null;
       const address = formatPlacemark(placemarks[0]);
-      // Democracy Works requires a full street address, not raw coordinates.
+      // A missing suggestion needs manual entry, never a coordinate fallback.
       if (!address) setError("address-unavailable");
       return address;
     } catch {

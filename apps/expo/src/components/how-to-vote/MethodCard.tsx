@@ -1,26 +1,28 @@
-/**
- * MethodCard — one way to vote, collapsed to a scannable row and expanded to a
- * numbered checklist plus the locations it applies to.
- *
- * Collapsed is the default because the whole point of the screen is that a
- * voter can see every option at once and pick one. Expanding is what reveals
- * procedure; only one card is open at a time (owned by the parent).
- */
+/** One voting method, with published locations and official instruction links. */
 import { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
+import type { MethodChip } from "./parts";
 import type { IconName } from "~/components/ui";
-import type { VotingMethod, VotingMethodId } from "~/utils/voting";
+import type {
+  MethodStatus,
+  VotingMethod,
+  VotingMethodId,
+} from "~/utils/voting";
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
-import {
-  LinkRow,
-  LocationList,
-  StatusChip,
-  StepList,
-  UnavailableNote,
-} from "./parts";
+import { daysUntil } from "~/utils/dates";
+import { LinkRow, LocationList, StatusChip, UnavailableNote } from "./parts";
+
+const STATUS_CHIP: Record<MethodStatus, Omit<MethodChip, "label">> = {
+  upcoming: { tone: "urgent", icon: "clock" },
+  closed: { tone: "negative", icon: "block" },
+  listed: { tone: "neutral", icon: "info" },
+  unknown: { tone: "neutral", icon: "clock" },
+  limited: { tone: "neutral", icon: "info" },
+};
 
 const METHOD_ICON: Record<VotingMethodId, IconName> = {
   mail: "mail",
@@ -36,26 +38,52 @@ const LOCATION_ACCENT: Record<VotingMethodId, string> = {
   electionDay: colors.green[500],
 };
 
-/** Kicker above the location list, per method. */
-const LOCATION_TITLE: Record<VotingMethodId, string> = {
-  mail: "WHERE TO SEND IT",
-  dropBox: "DROP BOX LOCATIONS",
-  earlyInPerson: "EARLY VOTE SITES",
-  electionDay: "POLLING PLACES",
-};
-
 export function MethodCard({
   method,
+  mailOnly = false,
   expanded,
   onToggle,
   locationFinderUrl,
 }: {
   method: VotingMethod;
+  mailOnly?: boolean;
   expanded: boolean;
   onToggle: () => void;
   /** Official location finder — the fallback when nothing is published. */
   locationFinderUrl?: string;
 }) {
+  const { t } = useAppTranslation();
+  const title = t(
+    method.id === "mail" && mailOnly
+      ? "howToVoteLookup.method.mailOnly"
+      : method.id === "electionDay" && method.status === "limited"
+        ? "howToVoteLookup.method.limited"
+        : `howToVoteLookup.method.${method.id}`,
+  );
+  const subtitle =
+    method.id === "mail"
+      ? t("howToVoteLookup.returnMissing")
+      : method.status === "limited"
+        ? t("howToVoteLookup.limitedBody")
+        : method.locations.length > 0
+          ? t(`howToVoteLookup.count.${method.id}`, {
+              count: method.locations.length,
+            })
+          : t("howToVoteLookup.locationsMissing");
+  const openingDays = method.startDate
+    ? daysUntil(method.startDate)
+    : undefined;
+  const chip = {
+    ...STATUS_CHIP[method.status],
+    label:
+      method.id === "earlyInPerson" &&
+      method.status === "upcoming" &&
+      openingDays !== undefined
+        ? openingDays === 1
+          ? t("howToVoteLookup.opensTomorrow")
+          : t("howToVoteLookup.opensDays", { count: openingDays })
+        : t(`howToVoteLookup.status.${method.status}`),
+  };
   const [showAllLocations, setShowAllLocations] = useState(false);
   const dimmed = method.status === "limited" || method.status === "closed";
 
@@ -73,9 +101,9 @@ export function MethodCard({
         onPress={onToggle}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
-        accessibilityLabel={`${method.title}. ${method.chip.label}. ${method.subtitle}`}
+        accessibilityLabel={`${title}. ${chip.label}. ${subtitle}`}
         accessibilityHint={
-          expanded ? "Double-tap to collapse" : "Double-tap for the steps"
+          expanded ? t("howToVoteLookup.collapse") : t("howToVoteLookup.expand")
         }
       >
         <View style={[s.iconTile, expanded && s.iconTileOpen]}>
@@ -86,12 +114,10 @@ export function MethodCard({
           />
         </View>
         <View style={s.body}>
-          <Text style={[s.title, dimmed && s.titleDimmed]}>{method.title}</Text>
-          {method.subtitle ? (
-            <Text style={s.subtitle}>{method.subtitle}</Text>
-          ) : null}
+          <Text style={[s.title, dimmed && s.titleDimmed]}>{title}</Text>
+          {subtitle ? <Text style={s.subtitle}>{subtitle}</Text> : null}
           <View style={s.chips}>
-            <StatusChip chip={method.chip} />
+            <StatusChip chip={chip} />
           </View>
         </View>
         <Icon
@@ -104,29 +130,17 @@ export function MethodCard({
 
       {expanded && (
         <View style={s.open}>
-          {/* App-authored guidance stays distinct from official source text. */}
-          {method.steps.length > 0 && (
-            <>
-              <Text style={s.kicker}>GENERAL GUIDANCE FROM BILLION</Text>
-              <StepList steps={method.steps} />
-              <LinkRow
-                label="Check instructions with your election office"
-                url={method.instructionsUrl}
-              />
-            </>
-          )}
-
-          {method.steps.length === 0 && (
-            <LinkRow
-              label="Instructions from your election office"
-              url={method.instructionsUrl ?? locationFinderUrl}
-            />
-          )}
+          <LinkRow
+            label={t("howToVoteLookup.instructions")}
+            url={method.instructionsUrl ?? locationFinderUrl}
+          />
 
           {method.locations.length > 0 ? (
             <>
               <View style={s.rule} />
-              <Text style={s.kicker}>{LOCATION_TITLE[method.id]}</Text>
+              <Text style={s.kicker}>
+                {t(`howToVoteLookup.locationTitle.${method.id}`)}
+              </Text>
               <LocationList
                 locations={method.locations}
                 accent={LOCATION_ACCENT[method.id]}
@@ -138,11 +152,11 @@ export function MethodCard({
             <>
               <View style={s.rule} />
               <UnavailableNote
-                title="Billion doesn't have these details yet"
-                body="We won't guess at a date or a location. Your county election office is always authoritative."
+                title={t("howToVoteLookup.detailsTitle")}
+                body={t("howToVoteLookup.detailsBody")}
               />
               <LinkRow
-                label="Find locations on the official site"
+                label={t("howToVoteLookup.findLocations")}
                 url={locationFinderUrl}
               />
             </>

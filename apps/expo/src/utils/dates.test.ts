@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { formatDate, monthDay } from "./dates";
+import { daysUntil, formatDate, monthDay } from "./dates";
 
 void test("calendar dates retain their day in all UI languages west of UTC", () => {
   const previous = process.env.TZ;
@@ -35,6 +35,23 @@ void test("calendar dates retain their day in all UI languages west of UTC", () 
       formatDate("2026-11-03", "en-US"),
     );
   } finally {
+    if (previous === undefined) delete process.env.TZ;
+    else process.env.TZ = previous;
+  }
+});
+
+test("Election Day does not end at UTC midnight in California", (context) => {
+  const previous = process.env.TZ;
+  process.env.TZ = "America/Los_Angeles";
+  context.mock.timers.enable({
+    apis: ["Date"],
+    now: new Date("2026-11-04T01:00:00Z"),
+  });
+  try {
+    assert.equal(daysUntil("2026-11-03"), 0);
+    assert.equal(daysUntil("2026-11-04"), 1);
+  } finally {
+    context.mock.timers.reset();
     if (previous === undefined) delete process.env.TZ;
     else process.env.TZ = previous;
   }

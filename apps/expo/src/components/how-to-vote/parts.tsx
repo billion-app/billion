@@ -1,30 +1,48 @@
+/**
+ * Shared atoms for the How to Vote screen.
+ *
+ * These are the pieces the design spec calls out as reusable: the status chip
+ * (icon + word + colour, in that order of importance), the fact row, the
+ * location row, and the official-source footer.
+ *
+ * Status is never communicated by colour alone — every chip carries a word and
+ * an icon so the screen survives greyscale, colour-blindness, and VoiceOver.
+ */
 import { Linking, StyleSheet, TouchableOpacity, View } from "react-native";
 
-import type { Address, PollingLocation } from "@acme/api";
+import type { PollingLocation } from "@acme/api";
 
 import type { IconName } from "~/components/ui";
-import type { MethodChip, OfficialSource, VotingStep } from "~/utils/voting";
+import type { OfficialSource } from "~/utils/voting";
 import { Text } from "~/components/Themed";
 import { Card, Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { formatCivicAddress } from "~/utils/voting";
+import { describeVotingLocation } from "~/utils/voting-logistics";
 
 /** Civic returns every county vote center under one address; cap each group. */
 const COLLAPSED_COUNT = 3;
 
+export interface MethodChip {
+  label: string;
+  tone: "urgent" | "neutral" | "negative";
+  icon: IconName;
+}
+
 const TONE_COLOR: Record<MethodChip["tone"], string> = {
-  positive: colors.green[500],
   urgent: colors.yellow[500],
   neutral: colors.textSecondary,
   negative: colors.red[500],
 };
 
 const TONE_BORDER: Record<MethodChip["tone"], string> = {
-  positive: "rgba(16,185,129,0.34)",
   urgent: "rgba(245,158,11,0.34)",
   neutral: hair[2],
   negative: "rgba(239,68,68,0.34)",
 };
+
+/* ---------- StatusChip ---------- */
 
 export function StatusChip({ chip }: { chip: MethodChip }) {
   const color = TONE_COLOR[chip.tone];
@@ -36,16 +54,20 @@ export function StatusChip({ chip }: { chip: MethodChip }) {
   );
 }
 
+/* ---------- FactRow — deadlines, requirements, registration ---------- */
+
 export function FactRow({
   icon,
   iconColor = colors.textSecondary,
   label,
   value,
+  action,
 }: {
   icon: IconName;
   iconColor?: string;
   label: string;
   value?: string;
+  action?: { label: string; onPress: () => void };
 }) {
   return (
     <View style={s.factRow}>
@@ -54,32 +76,23 @@ export function FactRow({
         <Text style={s.factLabel}>{label}</Text>
         {value ? <Text style={s.factValue}>{value}</Text> : null}
       </View>
+      {action && (
+        <TouchableOpacity
+          onPress={action.onPress}
+          hitSlop={10}
+          activeOpacity={0.7}
+        >
+          <Text style={s.factAction}>{action.label}</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
-export function StepList({ steps }: { steps: VotingStep[] }) {
-  return (
-    <View style={s.steps}>
-      {steps.map((step, i) => (
-        <View key={step.title} style={s.step}>
-          <View style={s.stepBadge}>
-            <Text style={s.stepNum}>{i + 1}</Text>
-          </View>
-          <View style={s.stepBody}>
-            <Text style={s.stepTitle}>{step.title}</Text>
-            {step.detail ? (
-              <Text style={s.stepDetail}>{step.detail}</Text>
-            ) : null}
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-}
+/* ---------- LocationRow ---------- */
 
 /** Open the platform maps app with the location as a search query. */
-function openDirections(loc: PollingLocation) {
+export function openDirections(loc: PollingLocation) {
   const q = encodeURIComponent(
     [loc.name ?? loc.address.locationName, formatCivicAddress(loc.address)]
       .filter(Boolean)
@@ -88,15 +101,15 @@ function openDirections(loc: PollingLocation) {
   void Linking.openURL(`https://maps.apple.com/?q=${q}`);
 }
 
-function LocationRow({
+export function LocationRow({
   loc,
   accent,
 }: {
   loc: PollingLocation;
   accent: string;
 }) {
-  const name = loc.name ?? loc.address.locationName ?? "Voting location";
-  const address: Address = loc.address;
+  const { t, language } = useAppTranslation();
+  const { name, address, sources } = describeVotingLocation(loc, language);
   return (
     <View style={s.loc}>
       <View style={[s.locSpine, { backgroundColor: accent }]} />
@@ -104,25 +117,34 @@ function LocationRow({
         <Text style={s.locName} numberOfLines={2}>
           {name}
         </Text>
-        <Text style={s.locAddr}>{formatCivicAddress(address)}</Text>
+        <Text style={s.locAddr}>{address}</Text>
         <View style={s.locHoursRow}>
           <Icon name="clock" size={12} color={colors.textSecondary} />
           <Text style={s.locHours}>
-            {loc.pollingHours ?? "Hours unavailable"}
+            {loc.pollingHours ?? t("howToVoteLookup.hoursMissing")}
           </Text>
         </View>
         {loc.notes ? <Text style={s.locNotes}>{loc.notes}</Text> : null}
+        {sources.map((source, index) =>
+          source.url ? (
+            <LinkRow key={index} label={source.label} url={source.url} />
+          ) : (
+            <Text key={index} style={s.locNotes}>
+              {source.label}
+            </Text>
+          ),
+        )}
         <TouchableOpacity
           style={s.dirBtn}
           activeOpacity={0.8}
           hitSlop={8}
           onPress={() => openDirections(loc)}
           accessibilityRole="button"
-          accessibilityLabel={`Get directions to ${name}`}
-          accessibilityHint="Opens in Maps"
+          accessibilityLabel={t("howToVoteLookup.directionsA11y", { name })}
+          accessibilityHint={t("howToVoteLookup.maps")}
         >
           <Icon name="pin" size={13} color={colors.bill} />
-          <Text style={s.dirText}>Get directions</Text>
+          <Text style={s.dirText}>{t("howToVoteLookup.directions")}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -141,6 +163,7 @@ export function LocationList({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useAppTranslation();
   const overflow = locations.length - COLLAPSED_COUNT;
   const visible =
     expanded || overflow <= 0 ? locations : locations.slice(0, COLLAPSED_COUNT);
@@ -162,7 +185,9 @@ export function LocationList({
           accessibilityRole="button"
         >
           <Text style={s.showAllText}>
-            {expanded ? "Show fewer" : `Show all ${locations.length}`}
+            {expanded
+              ? t("howToVoteLookup.showFewer")
+              : t("howToVoteLookup.showAll", { count: locations.length })}
           </Text>
           <Icon
             name={expanded ? "chevD" : "chevR"}
@@ -175,6 +200,8 @@ export function LocationList({
   );
 }
 
+/* ---------- LinkRow — an explicit, labelled hand-off out of the app ---------- */
+
 export function LinkRow({
   label,
   url,
@@ -184,6 +211,7 @@ export function LinkRow({
   url?: string;
   onPress?: () => void;
 }) {
+  const { t } = useAppTranslation();
   if (!url && !onPress) return null;
   return (
     <TouchableOpacity
@@ -195,13 +223,17 @@ export function LinkRow({
       }}
       accessibilityRole="link"
       accessibilityLabel={label}
-      accessibilityHint="Opens in your browser"
+      accessibilityHint={
+        url && !onPress ? t("common.opensInBrowser") : undefined
+      }
     >
       <Text style={s.linkText}>{label}</Text>
       <Icon name="external" size={15} color={colors.bill} />
     </TouchableOpacity>
   );
 }
+
+/* ---------- UnavailableNote — a named gap, never a silent one ---------- */
 
 export function UnavailableNote({
   title,
@@ -226,25 +258,34 @@ export function UnavailableNote({
   );
 }
 
-export function SourceFooter({ source }: { source?: OfficialSource }) {
+/* ---------- SourceFooter — the last card on every state ---------- */
+
+export function SourceFooter({
+  source,
+  note,
+}: {
+  source?: OfficialSource;
+  /** Overrides the default verification line (e.g. "Last checked …"). */
+  note?: string;
+}) {
+  const { t } = useAppTranslation();
   return (
     <Card style={s.source}>
       <View style={s.sourceHead}>
         <Icon name="shield" size={15} color={colors.textSecondary} />
-        <Text style={s.sourceKicker}>OFFICIAL INFORMATION</Text>
+        <Text style={s.sourceKicker}>{t("howToVoteLookup.official")}</Text>
       </View>
       <Text style={s.sourceName}>
-        {source?.name ?? "Your state or county election office"}
+        {source?.name ?? t("howToVoteLookup.office")}
       </Text>
       <Text style={s.sourceVerified}>
-        Use your election office's site for current voting information. Confirm
-        deadlines and location details there before making your plan.
+        {note ?? t("howToVoteLookup.verify")}
       </Text>
       <LinkRow
-        label="Open the election office site"
+        label={t("howToVoteLookup.officeSite")}
         url={source?.electionInfoUrl ?? source?.electionRulesUrl}
       />
-      <LinkRow label="Find my state election office" url="https://vote.gov" />
+      <LinkRow label={t("howToVoteLookup.findState")} url="https://vote.gov" />
     </Card>
   );
 }
@@ -280,33 +321,11 @@ const s = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 1,
   },
-
-  steps: { gap: 13 },
-  step: { flexDirection: "row", gap: 10 },
-  stepBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 7,
-    backgroundColor: planes.surface,
-    borderWidth: 1,
-    borderColor: hair[2],
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepNum: { fontFamily: fontBody.bold, fontSize: 11, color: colors.white },
-  stepBody: { flex: 1, minWidth: 0 },
-  stepTitle: {
+  factAction: {
     fontFamily: fontBody.semibold,
-    fontSize: 13.5,
-    lineHeight: 19,
-    color: colors.white,
-  },
-  stepDetail: {
-    fontFamily: fontBody.regular,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: colors.textSecondary,
-    marginTop: 2,
+    fontSize: 13,
+    color: colors.bill,
+    paddingLeft: 8,
   },
 
   locList: { gap: 10 },

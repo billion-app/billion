@@ -277,6 +277,42 @@ function CaliforniaElectionEntry({
             : t("elections.entry.kickerGuide")}
         </Text>
         <Text style={s.entryTitle}>{t("elections.entry.title")}</Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t("voteGuide.entry.a11y")}
+          accessibilityHint={t("voteGuide.entry.hint")}
+          activeOpacity={0.85}
+          onPress={() => router.push("/how-to-vote-guide")}
+          style={s.howCard}
+        >
+          <View style={s.howHead}>
+            <View style={s.entryIcon}>
+              <Icon name="vote" size={18} color={colors.bill} />
+            </View>
+            <View style={{ flex: 1, gap: 3 }}>
+              <Text style={s.entryGuideTitle}>{t("voteGuide.title")}</Text>
+              <Text style={s.entryNoteText}>
+                {t("voteGuide.entry.summary")}
+              </Text>
+            </View>
+            <Icon name="chevR" size={16} color={colors.bill} />
+          </View>
+          <View style={s.howIcons}>
+            {(
+              [
+                ["mail", t("voteGuide.chip.mail")],
+                ["inbox", t("voteGuide.chip.dropBox")],
+                ["calendar", t("voteGuide.chip.early")],
+                ["flag", t("voteGuide.chip.electionDay")],
+              ] as const
+            ).map(([icon, label]) => (
+              <View key={icon} style={s.howChip}>
+                <Icon name={icon} size={13} color={colors.bill} />
+                <Text style={s.howChipText}>{label}</Text>
+              </View>
+            ))}
+          </View>
+        </TouchableOpacity>
         <Card style={s.entryGuide}>
           <View style={s.entryGuideHead}>
             <View
@@ -608,9 +644,11 @@ function ElectionsLive({
               days_until_election: selected
                 ? daysUntil(selected.electionDay)
                 : null,
-              available_methods: votingPlan.availableCount,
             });
-            router.push("/how-to-vote");
+            router.push({
+              pathname: "/how-to-vote",
+              params: { address: storedAddress, electionId: selected?.id },
+            });
           }}
         />
       </View>
@@ -796,6 +834,33 @@ const s = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     gap: 13,
+  },
+  howCard: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[2],
+    borderRadius: 14,
+    padding: 14,
+    gap: 12,
+    marginBottom: 14,
+  },
+  howHead: { flexDirection: "row", alignItems: "center", gap: 10 },
+  howIcons: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  howChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minHeight: 30,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: planes.surface,
+    borderWidth: 1,
+    borderColor: hair[1],
+  },
+  howChipText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 11.5,
+    color: "rgba(255,255,255,0.82)",
   },
   entryGuideHead: { flexDirection: "row", alignItems: "center", gap: 9 },
   entryGuideTitle: {

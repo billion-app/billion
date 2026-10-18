@@ -117,6 +117,8 @@ Performance Data.
 ### Location classification (reviewed 2026-10-18)
 
 Declare **Precise Location**, **App Functionality**, **Linked: Yes**, **Tracking: No**.
+This supersedes the earlier #414 assessment that classified only Physical Address.
+The retained derived location matters independently of the raw-coordinate path.
 This is a conservative application of [Apple's App Privacy definitions](https://developer.apple.com/app-store/app-privacy-details/):
 precision describes the information, not just its coordinate encoding. Although raw GPS
 coordinates are only passed to the OS geocoder and never sent to Billion's servers or

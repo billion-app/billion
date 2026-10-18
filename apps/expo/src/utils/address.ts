@@ -19,9 +19,9 @@ function clean(value: string | null | undefined): string | undefined {
 /**
  * `"123 Oak St, Sacramento, CA 95814"` from an OS reverse-geocode placemark.
  *
- * Returns `null` when the placemark cannot make a street-level address — a
- * bare coordinate is not a registered address, so the caller asks for manual
- * entry.
+ * Returns a suggestion, not a validated registered voting address. Composed
+ * platform results may be incomplete, so the voter must review them. Returns
+ * `null` when neither a composed line nor street/city fields are usable.
  */
 export function formatPlacemark(
   placemark: GeocodedPlacemark | null | undefined,

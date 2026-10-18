@@ -6,6 +6,8 @@ import type {
   VoterInfoResponse,
 } from "@acme/api";
 
+import type { AppTranslate } from "../i18n/app-strings";
+import { appTranslator } from "../i18n/app-strings";
 import { daysUntil } from "./dates";
 
 // ---------------------------------------------------------------------------
@@ -18,44 +20,29 @@ export type VotingMethodId =
   | "earlyInPerson"
   | "electionDay";
 
-type MethodStatus =
-  | "available" // usable today
+/**
+ * How usable a method is right now.
+ *
+ * Missing data does not establish whether a method is offered or open.
+ * Listed locations likewise do not establish current opening hours.
+ */
+export type MethodStatus =
+  | "listed" // locations supplied; current availability is unverified
   | "upcoming" // published start date is in the future
   | "closed" // published end date has passed
-  | "unknown" // the feed does not provide enough information
+  | "unknown" // this lookup does not supply the details
   | "limited"; // offered in a reduced form (e.g. in person during a mail-only election)
-
-export interface MethodChip {
-  label: string;
-  /** Which semantic colour the chip takes. Never the only signal — see label. */
-  tone: "positive" | "urgent" | "neutral" | "negative";
-  /** `IconName` from the shared icon set. */
-  icon: "check" | "clock" | "calendar" | "info" | "block";
-}
 
 export interface VotingMethod {
   id: VotingMethodId;
-  title: string;
   status: MethodStatus;
-  chip: MethodChip;
-  /** One-line status under the title. Empty string when we have nothing to say. */
-  subtitle: string;
   /** Locations this method applies to, if any were published. */
   locations: PollingLocation[];
-  /**
-   * General app-authored checklist, distinct from official instructions.
-   * Omitted for providers that supply links without location details.
-   */
-  steps: VotingStep[];
-  /** Official page offered alongside the general checklist. */
+  /** Official hand-off for instructions. */
   instructionsUrl?: string;
-}
-
-export interface VotingStep {
-  /** The instruction. Must stand alone — a reader who skips details is still correct. */
-  title: string;
-  /** Consequence or caveat only. Omitted when we'd be padding. */
-  detail?: string;
+  /** Published window for the method, when the feed carried one. */
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface OfficialSource {
@@ -88,8 +75,6 @@ export function registrationCheckUrl(source?: OfficialSource): string {
 
 export interface VotingPlan {
   methods: VotingMethod[];
-  /** Methods a voter can act on today — drives the entry-point sublabel. */
-  availableCount: number;
   mailOnly: boolean;
   /** True when no method carried a single published location. */
   noLocationsPublished: boolean;
@@ -136,14 +121,6 @@ export function shortAddress(address: string): string {
 // Method construction
 // ---------------------------------------------------------------------------
 
-const CHIP: Record<MethodStatus, MethodChip> = {
-  available: { label: "Available", tone: "positive", icon: "check" },
-  upcoming: { label: "Not open yet", tone: "urgent", icon: "clock" },
-  closed: { label: "Closed", tone: "negative", icon: "block" },
-  unknown: { label: "Details unavailable", tone: "neutral", icon: "clock" },
-  limited: { label: "Limited", tone: "neutral", icon: "info" },
-};
-
 /** Earliest published `startDate` across a set of locations. */
 function earliestStart(locations: PollingLocation[]): string | undefined {
   const dates = locations
@@ -175,155 +152,50 @@ function windowStatus(
   end: string | undefined,
 ): MethodStatus {
   if (locations.length === 0) return "unknown";
-  if (start && daysUntil(start) > 0) return "upcoming";
-  if (end && daysUntil(end) < 0) return "closed";
-  return "available";
+  if (
+    start &&
+    locations.every((location) => !!location.startDate) &&
+    daysUntil(start) > 0
+  )
+    return "upcoming";
+  if (
+    end &&
+    locations.every((location) => !!location.endDate) &&
+    daysUntil(end) < 0
+  )
+    return "closed";
+  return "listed";
 }
 
-/** "18 vote centers" / "1 vote center" — count phrasing shared by in-person rows. */
-function countLabel(n: number, singular: string, plural: string): string {
-  return `${n} ${n === 1 ? singular : plural}`;
-}
-
-/**
- * Vote by mail.
- *
- * Steps are unconditional (they describe handling a ballot, not a jurisdiction
- * rule) except the postage line, which is California-specific and therefore
- * gated on the resolved state.
- */
-function mailMethod(
-  resp: VoterInfoResponse | undefined,
-  isCalifornia: boolean,
-  source: OfficialSource | undefined,
-): VotingMethod {
-  const instructionsUrl =
-    source?.absenteeVotingInfoUrl ?? source?.electionInfoUrl;
-  const mailOnly = resp?.mailOnly === true;
-  const steps: VotingStep[] = [
-    {
-      title: "Find the ballot mailed to you",
-      detail: "Contact your county if it hasn't arrived.",
-    },
-    {
-      title: "Mark your choices in ink",
-      detail: "Skipping contests won't void your ballot.",
-    },
-    {
-      title: "Seal it in the official return envelope",
-      detail: "Any other envelope may not be counted.",
-    },
-    {
-      title: "Sign the back — it must match your registration",
-      detail: "The most common reason a ballot is rejected.",
-    },
-    isCalifornia
-      ? {
-          title: "Mail it — no stamp needed",
-          detail: "Postage is prepaid in California.",
-        }
-      : { title: "Mail it back as early as you can" },
-  ];
-
+/** Mail instructions require supplied source text; a URL alone is not evidence. */
+function mailMethod(source: OfficialSource | undefined): VotingMethod {
   return {
     id: "mail",
-    instructionsUrl,
-    title: mailOnly ? "Return your ballot by mail" : "Vote by mail",
-    // Every registered voter in an all-mail election is sent a ballot; outside
-    // one we can't confirm this voter gets one without a source, so the status
-    // stays honest rather than optimistic.
-    status: mailOnly ? "available" : "unknown",
-    chip: mailOnly ? CHIP.available : CHIP.unknown,
-    subtitle: mailOnly
-      ? "Every registered voter is mailed a ballot"
-      : "Return deadline not available",
+    instructionsUrl: source?.absenteeVotingInfoUrl ?? source?.electionInfoUrl,
+    status: "unknown",
     locations: [],
-    steps: instructionsUrl ? steps : [],
   };
 }
 
-/** Ballot drop boxes. */
-function dropBoxMethod(
+/** Published locations and dates for drop boxes or early voting. */
+function locationMethod(
+  id: "dropBox" | "earlyInPerson",
   locations: PollingLocation[],
   source: OfficialSource | undefined,
 ): VotingMethod {
   const instructionsUrl =
-    source?.absenteeVotingInfoUrl ?? source?.electionInfoUrl;
-  const start = earliestStart(locations);
-  const end = latestEnd(locations);
-  const status = windowStatus(locations, start, end);
-
+    (id === "dropBox"
+      ? source?.absenteeVotingInfoUrl
+      : source?.votingLocationFinderUrl) ?? source?.electionInfoUrl;
+  const startDate = earliestStart(locations);
+  const endDate = latestEnd(locations);
   return {
-    id: "dropBox",
+    id,
     instructionsUrl,
-    title: "Return at a drop box",
-    status,
-    chip:
-      status === "available"
-        ? { ...CHIP.available, label: "Open now" }
-        : CHIP[status],
-    subtitle:
-      locations.length > 0
-        ? countLabel(locations.length, "location", "locations")
-        : "Location details unavailable",
+    status: windowStatus(locations, startDate, endDate),
     locations,
-    steps: !instructionsUrl
-      ? []
-      : [
-          {
-            title: "Mark, seal, and sign your ballot first",
-            detail: "A drop box takes the same sealed return envelope.",
-          },
-          { title: "Drop it in any box in your county" },
-          {
-            title: "Arrive before your county's cutoff on Election Day",
-            detail: "Boxes are locked at closing; later isn't counted.",
-          },
-        ],
-  };
-}
-
-/** Early in-person voting / vote centers open before Election Day. */
-function earlyMethod(
-  locations: PollingLocation[],
-  source: OfficialSource | undefined,
-): VotingMethod {
-  const instructionsUrl =
-    source?.votingLocationFinderUrl ?? source?.electionInfoUrl;
-  const start = earliestStart(locations);
-  const end = latestEnd(locations);
-  const status = windowStatus(locations, start, end);
-
-  let chip = CHIP[status];
-  if (status === "upcoming" && start) {
-    const days = daysUntil(start);
-    chip = {
-      ...CHIP.upcoming,
-      label: days === 1 ? "Opens tomorrow" : `Opens in ${days} days`,
-    };
-  }
-
-  return {
-    id: "earlyInPerson",
-    instructionsUrl,
-    title: "Vote early in person",
-    status,
-    chip,
-    subtitle:
-      locations.length > 0
-        ? countLabel(locations.length, "early vote site", "early vote sites")
-        : "Location details unavailable",
-    locations,
-    steps: !instructionsUrl
-      ? []
-      : [
-          { title: "Go to any early vote site in your county" },
-          {
-            title: "Bring your mailed ballot if you have it",
-            detail: "You can surrender it and vote in person instead.",
-          },
-          { title: "Check the site's hours before you go" },
-        ],
+    startDate,
+    endDate,
   };
 }
 
@@ -342,48 +214,17 @@ function electionDayMethod(
     return {
       id: "electionDay",
       instructionsUrl,
-      title: "Vote in person",
       status: "limited",
-      chip: CHIP.limited,
-      subtitle: "In-person help is available for replacement ballots",
       locations,
-      steps: !instructionsUrl
-        ? []
-        : [
-            { title: "Contact your county election office" },
-            {
-              title: "Ask about in-person service for this election",
-              detail: "All-mail elections still staff at least one location.",
-            },
-          ],
     };
   }
 
-  const status: MethodStatus = locations.length > 0 ? "available" : "unknown";
+  const status: MethodStatus = locations.length > 0 ? "listed" : "unknown";
   return {
     id: "electionDay",
     instructionsUrl,
-    title: "Vote in person on Election Day",
     status,
-    chip: status === "available" ? CHIP.available : CHIP.unknown,
-    subtitle:
-      locations.length > 0
-        ? countLabel(locations.length, "polling place", "polling places")
-        : "Location details unavailable",
     locations,
-    steps: !instructionsUrl
-      ? []
-      : [
-          { title: "Go to a polling place listed below" },
-          {
-            title: "Bring your mailed ballot if you received one",
-            detail: "You can surrender it and vote in person instead.",
-          },
-          {
-            title: "If you're in line when polls close, stay in line",
-            detail: "Anyone already in line is entitled to vote.",
-          },
-        ],
   };
 }
 
@@ -400,6 +241,10 @@ function electionDayMethod(
 export function resolveOfficialSource(
   resp: VoterInfoResponse | undefined,
 ): OfficialSource | undefined {
+  // Democracy Works synthesizes these fields from provider lookup destinations;
+  // they do not identify a verified election authority (see ballotOfficeUrl).
+  if (resp?.provider?.name === "democracy_works") return undefined;
+
   const region = resp?.state?.[0];
   if (!region) return undefined;
 
@@ -427,17 +272,6 @@ export function resolveOfficialSource(
 // Entry point
 // ---------------------------------------------------------------------------
 
-/** Election jurisdiction only; an OCD ID does not verify the voter's residence. */
-export function hasCaliforniaVotingRules(
-  resp: VoterInfoResponse | undefined,
-): boolean {
-  const state = resp?.normalizedInput.state.trim().toLowerCase();
-  if (state) return state === "ca" || state === "california";
-  return /^ocd-division\/country:us\/state:ca(?:\/|$)/i.test(
-    resp?.election.ocdDivisionId ?? "",
-  );
-}
-
 /**
  * Build the full voting plan for a voter-info response.
  *
@@ -449,29 +283,22 @@ export function buildVotingPlan(
   resp: VoterInfoResponse | undefined,
 ): VotingPlan {
   const mailOnly = resp?.mailOnly === true;
-  const isCalifornia = hasCaliforniaVotingRules(resp);
   const dropOff = resp?.dropOffLocations ?? [];
   const early = resp?.earlyVoteSites ?? [];
   const polling = resp?.pollingLocations ?? [];
 
-  // Resolved first: it gates whether any method may show a step summary.
+  // Resolve the authority used for official hand-offs.
   const source = resolveOfficialSource(resp);
 
   const methods: VotingMethod[] = [
-    mailMethod(resp, isCalifornia, source),
-    dropBoxMethod(dropOff, source),
-    ...(mailOnly ? [] : [earlyMethod(early, source)]),
+    mailMethod(source),
+    locationMethod("dropBox", dropOff, source),
+    ...(mailOnly ? [] : [locationMethod("earlyInPerson", early, source)]),
     electionDayMethod(polling, mailOnly, source),
   ];
 
-  // A generic authority URL is not evidence of instructions we fetched.
-  if (resp?.provider?.logistics === "lookup_links_only") {
-    for (const method of methods) method.steps = [];
-  }
-
   return {
     methods,
-    availableCount: methods.filter((m) => m.status === "available").length,
     mailOnly,
     noLocationsPublished:
       dropOff.length === 0 && early.length === 0 && polling.length === 0,
@@ -489,14 +316,13 @@ export function entryCardSubtitle(
   hasAddress: boolean,
   plan: VotingPlan | undefined,
   phase: ElectionPhase,
+  t: AppTranslate = appTranslator("en"),
 ): string {
-  if (!hasAddress) return "Add your address to see your options";
-  if (phase === "ended") return "See results and what comes next";
+  if (!hasAddress) return t("voteGuide.entry.address");
+  if (phase === "ended") return t("voteGuide.entry.ended");
   if (!plan || plan.methods.length === 0) {
-    return "Deadlines and official election contacts";
+    return t("voteGuide.entry.contacts");
   }
-  if (phase === "electionDay") return "Polling places, hours, and directions";
-  const n = plan.availableCount;
-  if (n === 0) return "Ways to vote and where to go";
-  return `${countLabel(n, "way", "ways")} to vote in this election`;
+  if (phase === "electionDay") return t("voteGuide.entry.today");
+  return t("voteGuide.entry.ways");
 }

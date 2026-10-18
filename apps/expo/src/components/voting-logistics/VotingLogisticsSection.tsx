@@ -257,7 +257,11 @@ function LocationGroup({
   );
 }
 
-function GuidanceDates({ data }: { data: VotingLogisticsData }) {
+export function OfficialVotingGuidance({
+  data,
+}: {
+  data: VotingLogisticsData;
+}) {
   const { language, t } = useAppTranslation();
   const guidance = votingGuidance(data, language);
   const [expanded, setExpanded] = useState<string>();
@@ -405,7 +409,7 @@ export function VotingLogisticsSection({
     links.every((link) => link.label === registrationLabel);
   return (
     <View style={styles.section}>
-      <GuidanceDates data={current} />
+      <OfficialVotingGuidance data={current} />
       {current.officialLocationSource &&
       current.officialLocationSource.electionDate ===
         current.election?.electionDay ? (
