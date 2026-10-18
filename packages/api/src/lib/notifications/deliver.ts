@@ -24,6 +24,7 @@ import {
   executiveOrderAlertCopy,
   followAlertCopy,
   TEST_ALERT_COPY,
+  testAlertCopy,
 } from "./copy";
 import {
   expoPushMessage,
@@ -189,8 +190,14 @@ export async function enqueueTestAlert(
       | null;
   },
   now = new Date(),
+  language: "en" | "es" | "zh" = "en",
 ): Promise<string> {
-  const copy = bill ? followAlertCopy(bill) : TEST_ALERT_COPY;
+  const copy =
+    language !== "en"
+      ? testAlertCopy(language)
+      : bill
+        ? followAlertCopy(bill)
+        : TEST_ALERT_COPY;
   const [row] = await db
     .insert(NotificationOutbox)
     .values({

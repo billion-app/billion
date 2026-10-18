@@ -81,6 +81,7 @@ export default function NotificationsScreen() {
           await trpcClient.notifications.test.mutate({
             token,
             billId: bill?.id,
+            language,
           });
           setStatus(t("notify.expoAccepted"));
         } else {
@@ -103,10 +104,8 @@ export default function NotificationsScreen() {
           href,
           billId: bill?.id ?? null,
         });
-      } catch (error: unknown) {
-        setStatus(
-          error instanceof Error ? error.message : t("notify.sendFailed"),
-        );
+      } catch {
+        setStatus(t("notify.sendFailed"));
       } finally {
         setSending(false);
       }

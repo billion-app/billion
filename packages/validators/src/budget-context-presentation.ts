@@ -57,14 +57,14 @@ export function contextMoneyPresentation(
   const labels = moneyLabels[language];
   const locale = language === "zh" ? "zh-CN" : `${language}-US`;
   const accounting = labels[value.scope.accounting];
-  const scope = `${value.scope.period} · ${value.scope.jurisdiction} · ${labels[value.scope.timing]} · ${accounting}`;
-  const nominal = `${value.nominal} USD`;
+  const scope = `${value.display?.period ?? value.scope.period} · ${value.display?.jurisdiction ?? value.scope.jurisdiction} · ${labels[value.scope.timing]} · ${accounting}`;
+  const nominal = `${value.display?.nominal ?? value.nominal} USD`;
   if (comparison.state !== "available")
     return {
       nominal,
       comparison: labels[comparison.state],
       scope,
-      reason: comparison.reason,
+      reason: value.display?.reason ?? comparison.reason,
     };
   const percent = (amount: number) =>
     new Intl.NumberFormat(locale, { maximumSignificantDigits: 3 }).format(
@@ -90,10 +90,10 @@ export function contextMoneyPresentation(
     nominal,
     comparison:
       language === "zh"
-        ? `占${comparison.denominator.name}（${denominator}）的 ${share}`
+        ? `占${value.display?.denominatorName ?? comparison.denominator.name}（${denominator}）的 ${share}`
         : language === "es"
-          ? `${share} de ${comparison.denominator.name} (${denominator})`
-          : `${share} of ${comparison.denominator.name} (${denominator})`,
+          ? `${share} de ${value.display?.denominatorName ?? comparison.denominator.name} (${denominator})`
+          : `${share} of ${value.display?.denominatorName ?? comparison.denominator.name} (${denominator})`,
     scope: `${scope} · ${labels[comparison.basis]}`,
   };
 }

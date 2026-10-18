@@ -88,3 +88,96 @@ void test("measure translations cover reader prose but preserve evidence and ide
     measureTranslationId("2028-11-07", "1", "reader"),
   );
 });
+
+void test("related measures and money translate display prose without changing canonical amounts or evidence", async () => {
+  const { withMoneyDisplay } = await import("./measure-translation");
+  const { contextMoneySchema, contextMoneyPresentation } =
+    await import("@acme/validators");
+  const money = contextMoneySchema.parse({
+    nominal: "$20 million",
+    currency: "USD",
+    scope: {
+      period: "One year",
+      jurisdiction: "California",
+      timing: "annual",
+      accounting: "gross",
+    },
+    comparison: { state: "unavailable", reason: "No matching denominator" },
+  });
+  const source = {
+    relationships: [
+      {
+        takeaway: {
+          text: "Both measures could pass",
+          sourceIds: ["law"],
+          money: [money],
+        },
+        scenarios: { both: { text: "One rule controls", sourceIds: ["law"] } },
+        compact: {
+          conflictScopes: {
+            condition: { text: "If they conflict", sourceIds: ["law"] },
+          },
+        },
+        sources: [{ url: "https://example.com", snapshot: "Exact law" }],
+      },
+    ],
+    contextualExplanation: {
+      review: { findings: "Sources verified" },
+      magnitude: [{ period: "Over several years" }],
+    },
+  };
+  const prepared = withMoneyDisplay(source);
+  const segments = measureSegments(prepared, null, "reader");
+  for (const key of [
+    "measure.relationships.0.takeaway.text",
+    "measure.relationships.0.scenarios.both.text",
+    "measure.relationships.0.compact.conflictScopes.condition.text",
+    "measure.relationships.0.takeaway.money.0.display.nominal",
+    "measure.contextualExplanation.review.findings",
+    "measure.contextualExplanation.magnitude.0.period",
+  ])
+    assert.ok(
+      segments.some((s) => s.key === key),
+      key,
+    );
+  const translated = applySegments(
+    prepared,
+    Object.fromEntries(segments.map((s) => [s.key, `中文 ${s.text}`])),
+    "measure",
+  );
+  const result = contextMoneySchema.parse(
+    translated.relationships[0]?.takeaway.money[0],
+  );
+  assert.equal(result.nominal, money.nominal);
+  assert.deepEqual(result.scope, money.scope);
+  assert.deepEqual(result.comparison, money.comparison);
+  assert.ok(contextMoneyPresentation(result, "zh").nominal.startsWith("中文"));
+  assert.ok(contextMoneyPresentation(result, "zh").scope.startsWith("中文"));
+  assert.deepEqual(
+    translated.relationships[0]?.sources,
+    source.relationships[0]?.sources,
+  );
+  assert.deepEqual(translated.relationships[0]?.takeaway.sourceIds, ["law"]);
+  assert.equal("display" in money, false);
+  const graph = withMoneyDisplay({ nodes: [{ context: { money: [money] } }] });
+  const graphSegments = measureSegments({}, graph, "reader");
+  assert.ok(
+    graphSegments.some(
+      (s) => s.key === "graph.nodes.0.context.money.0.display.reason",
+    ),
+  );
+  assert.ok(!graphSegments.some((s) => s.key.includes(".comparison.")));
+  const translatedGraph = applySegments(
+    graph,
+    Object.fromEntries(graphSegments.map((s) => [s.key, `中文 ${s.text}`])),
+    "graph",
+  );
+  assert.deepEqual(
+    translatedGraph.nodes[0]?.context.money[0]?.comparison,
+    money.comparison,
+  );
+  assert.deepEqual(
+    translatedGraph.nodes[0].context.money[0].scope,
+    money.scope,
+  );
+});

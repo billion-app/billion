@@ -29,6 +29,7 @@ import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogi
 import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import { posthog } from "~/config/posthog";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { useBallotTranslation } from "~/hooks/useBallotTranslation";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import {
   colors,
@@ -40,6 +41,7 @@ import {
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import {
+  ballotContestRoute,
   ballotElectionDate,
   ballotElectionOptions,
   contestBallotCitations,
@@ -52,28 +54,6 @@ import {
 } from "~/utils/elections";
 
 type BallotTab = "candidates" | "measures";
-
-/** Build the /measure-detail route params for a measure contest. */
-function measureRoute(m: Contest) {
-  return {
-    pathname: "/measure-detail" as const,
-    params: {
-      referendumTitle: m.referendumTitle ?? "",
-      referendumSubtitle: m.referendumSubtitle ?? "",
-      referendumProStatement: m.referendumProStatement ?? "",
-      referendumConStatement: m.referendumConStatement ?? "",
-      referendumText: m.referendumText ?? "",
-      referendumUrl: m.referendumUrl ?? "",
-      summary: m.summary ?? "",
-      summaryLong: m.summaryLong ?? m.summary ?? "",
-      summaryIsAiGenerated: m.summaryIsAiGenerated ? "true" : "false",
-      fiscalImpact: m.fiscalImpact ?? "",
-      proArguments: JSON.stringify(m.proArguments ?? []),
-      conArguments: JSON.stringify(m.conArguments ?? []),
-      citations: JSON.stringify(contestBallotCitations(m)),
-    },
-  };
-}
 
 /** Short label for the most authoritative source backing a measure. */
 function topSourceLabel(m: Contest, t: AppTranslate): string | null {
@@ -88,7 +68,7 @@ function topSourceLabel(m: Contest, t: AppTranslate): string | null {
 
 /** Expandable card for a single ballot measure (statewide or local). */
 function MeasureCard({
-  measure: m,
+  measure: original,
   expanded,
   onToggle,
   onReadMore,
@@ -99,6 +79,25 @@ function MeasureCard({
   onReadMore: () => void;
 }) {
   const { t } = useAppTranslation();
+  const localization = useBallotTranslation(original.translationReference, {
+    kind: "measure",
+    title: original.referendumTitle ?? "",
+    candidates: [],
+  });
+  const m = {
+    ...original,
+    referendumTitle: localization.text(
+      "referendumTitle",
+      original.referendumTitle,
+    ),
+    referendumSubtitle: localization.text(
+      "referendumSubtitle",
+      original.referendumSubtitle,
+    ),
+    summary: localization.text("summary", original.summary),
+    summaryShort: localization.text("summaryShort", original.summaryShort),
+    fiscalImpact: localization.text("fiscalImpact", original.fiscalImpact),
+  };
   const sourceLabel = topSourceLabel(m, t);
   return (
     <Card style={{ padding: 18 }}>
@@ -704,7 +703,9 @@ function ElectionsLive({
               measure={m}
               expanded={expandedMeasures.has(i)}
               onToggle={() => toggleMeasure(i, m)}
-              onReadMore={() => router.push(measureRoute(m))}
+              onReadMore={() =>
+                router.push(ballotContestRoute(m, undefined, language))
+              }
             />
           ))}
         </View>

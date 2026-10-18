@@ -4,17 +4,23 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import posthog from "posthog-js";
 
+import type { ReaderLanguage } from "../_lib/reader-language";
+import { readerText } from "../_lib/reader-language";
+
 export function WaitlistForm({
+  language = "en",
   size = "default",
-  buttonText = "Get updates",
-  placeholder = "Enter your email",
+  buttonText,
+  placeholder,
   formLocation,
 }: {
+  language?: ReaderLanguage;
   size?: "default" | "large";
   buttonText?: string;
   placeholder?: string;
   formLocation?: string;
 }) {
+  const t = (text: string) => readerText(language, text);
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<WaitlistStatus>("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -56,7 +62,7 @@ export function WaitlistForm({
         }
       } else {
         setStatus("error");
-        setErrorMsg(data?.error ?? "Something went wrong. Please try again.");
+        setErrorMsg(t("Something went wrong. Please try again."));
         posthog.capture("mailing_list_signup_error", {
           form_location: location,
           error: data?.error ?? "unknown",
@@ -64,7 +70,7 @@ export function WaitlistForm({
       }
     } catch {
       setStatus("error");
-      setErrorMsg("Something went wrong. Please try again.");
+      setErrorMsg(t("Something went wrong. Please try again."));
       posthog.capture("mailing_list_signup_error", {
         form_location: location,
         error: "network_error",
@@ -81,7 +87,7 @@ export function WaitlistForm({
     status === "already"
       ? {
           key: "already",
-          message: "You're already on the list — you're all set.",
+          message: t("You're already on the list — you're all set."),
           tone: "rgba(148,163,184,0.1)",
           border: "rgba(148,163,184,0.28)",
           iconFill: "rgba(148,163,184,0.18)",
@@ -90,7 +96,7 @@ export function WaitlistForm({
         }
       : {
           key: "success",
-          message: "You're on the list — we'll be in touch!",
+          message: t("You're on the list — we'll be in touch!"),
           tone: "rgba(74,124,255,0.1)",
           border: "rgba(74,124,255,0.3)",
           iconFill: "rgba(74,124,255,0.2)",
@@ -149,8 +155,8 @@ export function WaitlistForm({
             <input
               type="email"
               required
-              aria-label="Email address"
-              placeholder={placeholder}
+              aria-label={t("Email address")}
+              placeholder={placeholder ?? t("Enter your email")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={status === "loading"}
@@ -180,7 +186,7 @@ export function WaitlistForm({
                   animate={{ opacity: [1, 0.4, 1] }}
                   transition={{ repeat: Infinity, duration: 1.2 }}
                 >
-                  Submitting
+                  {t("Submitting")}
                 </motion.span>
                 <span className="flex gap-[3px]">
                   {[0, 1, 2].map((i) => (
@@ -198,7 +204,7 @@ export function WaitlistForm({
                 </span>
               </span>
             ) : (
-              buttonText
+              (buttonText ?? t("Get updates"))
             )}
           </motion.button>
           <AnimatePresence>

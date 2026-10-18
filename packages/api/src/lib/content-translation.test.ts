@@ -274,3 +274,77 @@ for (const cause of ["shutdown", "deadline"] as const) {
     assert.equal(model.doGenerateCalls.length, 1);
   });
 }
+
+void test("full readers translate both sides, examples and legacy lens points while preserving citations", async () => {
+  const detail = {
+    title: "Bill",
+    description: "Summary",
+    articleContent: "Explanation",
+    originalContent: "Source",
+    lensData: {
+      left: {
+        stance: "Supporters favor access",
+        points: [
+          {
+            text: "It opens data",
+            example: { fact: "Researchers wait", relevance: "Access matters" },
+            sourceIds: [1],
+          },
+        ],
+      },
+      right: {
+        stance: "Opponents cite costs",
+        points: [
+          "It costs money",
+          {
+            text: "Privacy matters",
+            example: "A prior disclosure",
+            sourceIds: [1],
+          },
+        ],
+      },
+      sources: [
+        {
+          id: 1,
+          title: "Original headline",
+          url: "https://example.com/source",
+        },
+      ],
+    },
+  };
+  const source = readerTranslationSource(detail);
+  const segments = sourceSegments(source);
+  assert.ok(
+    segments.some((x) => x.key === "lensData.left.points.0.example.relevance"),
+  );
+  const translated = applySegments(
+    detail.lensData,
+    await translateSegments(segments, "zh", upper),
+    "lensData",
+  );
+  assert.equal(translated.left.stance, "SUPPORTERS FAVOR ACCESS");
+  assert.equal(translated.right.points[0], "IT COSTS MONEY");
+  assert.deepEqual(translated.sources, detail.lensData.sources);
+});
+
+void test("action timeline has a translated display copy and unchanged original record", async () => {
+  const detail = {
+    title: "Bill",
+    description: "Summary",
+    articleContent: "Explainer",
+    originalContent: "Legal text",
+    actions: [{ date: "2026-01-01", text: "Passed committee" }],
+  };
+  const source = readerTranslationSource(detail);
+  const segments = sourceSegments(source);
+  assert.ok(segments.some((s) => s.key === "actions.0.text"));
+  assert.equal(
+    applySegments(
+      detail.actions,
+      await translateSegments(segments, "zh", upper),
+      "actions",
+    )[0]?.text,
+    "PASSED COMMITTEE",
+  );
+  assert.equal(detail.actions[0]?.text, "Passed committee");
+});

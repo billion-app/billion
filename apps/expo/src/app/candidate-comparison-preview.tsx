@@ -40,12 +40,12 @@ export default function CandidateComparisonPreview() {
                 {tx("Change fictional example · {value1}", {
                   value1:
                     scenario === "long"
-                      ? "8 candidates"
+                      ? tx("candidate.count", { count: 8 })
                       : scenario === "two"
-                        ? "2 candidates"
+                        ? tx("candidate.count", { count: 2 })
                         : scenario === "sparse"
-                          ? "Sparse evidence"
-                          : "3 candidates",
+                          ? tx("Sparse evidence")
+                          : tx("candidate.count", { count: 3 }),
                 })}
               </Text>
             </Pressable>

@@ -80,6 +80,19 @@ export const COURT_BRIEF_FIELDS = [
   "terms.*.plain",
 ] as const;
 
+/** Generated analysis only; source titles, IDs and URLs remain unchanged. */
+export const LENS_FIELDS = [
+  "left.stance",
+  "right.stance",
+  ...["left", "right"].flatMap((side) => [
+    `${side}.points.*`,
+    `${side}.points.*.text`,
+    `${side}.points.*.example`,
+    `${side}.points.*.example.fact`,
+    `${side}.points.*.example.relevance`,
+  ]),
+] as const;
+
 export interface Segment {
   /** Dot path, e.g. `brief.changes.0.title`. */
   key: string;
@@ -160,6 +173,8 @@ export interface TranslationSource {
   articleContent: string | null;
   brief: unknown;
   courtBrief: unknown;
+  lensData?: unknown;
+  actions?: unknown;
 }
 
 export function readerTranslationSource(detail: {
@@ -169,6 +184,8 @@ export function readerTranslationSource(detail: {
   originalContent: string;
   brief?: unknown;
   courtBrief?: unknown;
+  lensData?: unknown;
+  actions?: unknown;
 }): TranslationSource {
   return {
     title: detail.title,
@@ -180,6 +197,8 @@ export function readerTranslationSource(detail: {
         : null,
     brief: detail.brief ?? null,
     courtBrief: detail.courtBrief ?? null,
+    ...(detail.lensData ? { lensData: detail.lensData } : {}),
+    ...(detail.actions ? { actions: detail.actions } : {}),
   };
 }
 
@@ -195,6 +214,8 @@ export function sourceSegments(source: TranslationSource): Segment[] {
   segments.push(
     ...collectSegments(source.courtBrief, COURT_BRIEF_FIELDS, "courtBrief"),
   );
+  segments.push(...collectSegments(source.lensData, LENS_FIELDS, "lensData"));
+  segments.push(...collectSegments(source.actions, ["*.text"], "actions"));
   return segments.filter((segment) => segment.text.trim());
 }
 

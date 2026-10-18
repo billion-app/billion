@@ -164,13 +164,29 @@ export function ballotContestRoute(
   },
   language: AppLanguage = "en",
 ) {
+  const translationIdentity = JSON.stringify({
+    kind: isBallotMeasure(contest) ? "measure" : "contest",
+    title:
+      contest.referendumTitle ?? contest.office ?? contest.ballotTitle ?? "",
+    candidates: contest.candidates?.map((candidate) => candidate.name) ?? [],
+  });
+  const translationTitleField =
+    contest.referendumTitle != null
+      ? "referendumTitle"
+      : contest.office != null
+        ? "office"
+        : "ballotTitle";
   if (isBallotMeasure(contest)) {
     return {
       pathname: "/measure-detail" as const,
       params: {
+        translationIdentity,
+        translationTitleField,
+        translationReference: contest.translationReference ?? "",
         referendumTitle:
           contest.referendumTitle ??
           contest.office ??
+          contest.ballotTitle ??
           translateApp(language, "ballot.measureFallback"),
         referendumSubtitle: contest.referendumSubtitle ?? "",
         referendumProStatement: contest.referendumProStatement ?? "",
@@ -179,7 +195,7 @@ export function ballotContestRoute(
         referendumUrl: contest.referendumUrl ?? "",
         summary: contest.summary ?? "",
         summaryShort: contest.summaryShort ?? "",
-        summaryLong: contest.summaryLong ?? contest.summary ?? "",
+        summaryLong: contest.summaryLong ?? "",
         summaryIsAiGenerated: contest.summaryIsAiGenerated ? "true" : "false",
         fiscalImpact: contest.fiscalImpact ?? "",
         proArguments: JSON.stringify(contest.proArguments ?? []),
@@ -191,7 +207,13 @@ export function ballotContestRoute(
   return {
     pathname: "/contest-detail" as const,
     params: {
-      office: contest.office ?? translateApp(language, "ballot.raceFallback"),
+      translationIdentity,
+      translationTitleField,
+      translationReference: contest.translationReference ?? "",
+      office:
+        contest.office ??
+        contest.ballotTitle ??
+        translateApp(language, "ballot.raceFallback"),
       state: context?.state ?? "",
       electionDate: context?.electionDate ?? "",
       electionStage: context?.electionStage ?? "",

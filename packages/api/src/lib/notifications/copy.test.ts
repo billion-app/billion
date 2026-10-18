@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { followAlertCopy, SIGNAL_CATEGORY, TEST_ALERT_COPY } from "./copy";
+import {
+  followAlertCopy,
+  SIGNAL_CATEGORY,
+  TEST_ALERT_COPY,
+  testAlertCopy,
+} from "./copy";
 import { expoPushMessage, isExpoPushToken } from "./expo-push";
 
 void test("a follow alert is the event line plus a deep link", () => {
@@ -46,4 +51,11 @@ void test("the push payload uses the signal category and in-app href", () => {
   assert.equal(message.data.href, "/article-detail?id=abc");
   assert.equal(message.sound, null);
   assert.equal(TEST_ALERT_COPY.href, "/settings/notifications");
+});
+
+void test("test notification copy follows the selected language without leaking a previous localized title", () => {
+  assert.equal(testAlertCopy("zh").title, "Billion 测试通知");
+  assert.equal(testAlertCopy("zh").body, "通知已开启。");
+  assert.deepEqual(testAlertCopy("en"), TEST_ALERT_COPY);
+  assert.notEqual(testAlertCopy("es").title, TEST_ALERT_COPY.title);
 });

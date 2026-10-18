@@ -192,7 +192,7 @@ export function BallotProvenanceRows({
   );
 }
 
-export function AiSummaryLabel({ label = "AI summary" }: { label?: string }) {
+export function AiSummaryLabel({ label }: { label?: string }) {
   return <Text style={s.secondary}>{label}</Text>;
 }
 
@@ -206,9 +206,9 @@ export function BallotStatusNotice({
   onRetry: () => void;
   officialOfficeUrl?: string;
 }) {
-  const { t: tx } = useAppTranslation();
+  const { t: tx, language } = useAppTranslation();
 
-  const status = ballotStatus(evidence);
+  const status = ballotStatus(evidence, language);
   const retryFirst =
     evidence.kind === "provider-failure" || evidence.kind === "invalid-input";
   const office = (
@@ -279,7 +279,8 @@ export function BallotSources({
   /** Detail pages share one recovery action with the language row. */
   showRecovery?: boolean;
 }) {
-  const { t: tx } = useAppTranslation();
+  const { t: tx, language } = useAppTranslation();
+  const [checkedAt] = useState(Date.now);
 
   const missing = contentKind === "enrichment-unavailable";
   return (
@@ -297,11 +298,13 @@ export function BallotSources({
       ) : (
         <BallotDisclosure
           title={tx("Content sources")}
-          detail={`${citations.length} reference${citations.length === 1 ? "" : "s"}`}
+          detail={tx("evidence.referenceCount", { count: citations.length })}
         >
           {citations.map((citation, index) => (
             <View key={`${citation.field}-${index}`} style={s.citation}>
-              <Text style={s.label}>{citationFieldLabel(citation.field)}</Text>
+              <Text style={s.label}>
+                {citationFieldLabel(citation.field, language)}
+              </Text>
               <Text style={s.secondary}>
                 {citation.tier === "ai_generated"
                   ? tx("AI-generated explanation")
@@ -313,10 +316,14 @@ export function BallotSources({
                 label={citation.sourceName}
                 url={citation.sourceUrl}
               />
-              <Text style={s.secondary}>{verificationLabel(citation)}</Text>
-              {freshnessLabel(citation) && (
+              <Text style={s.secondary}>
+                {verificationLabel(citation, language)}
+              </Text>
+              {freshnessLabel(citation, checkedAt, language) && (
                 <View>
-                  <Text style={s.secondary}>{freshnessLabel(citation)}</Text>
+                  <Text style={s.secondary}>
+                    {freshnessLabel(citation, checkedAt, language)}
+                  </Text>
                   {(citation.conflicting === true ||
                     citation.staleAfter !== undefined) && (
                     <ElectionOfficeLink />
@@ -354,7 +361,7 @@ export function BallotLanguages({
   officialOfficeUrl?: string;
   showRecovery?: boolean;
 }) {
-  const { t: tx } = useAppTranslation();
+  const { t: tx, language } = useAppTranslation();
 
   const verified = verifiedLanguages(items);
   return (
@@ -383,7 +390,9 @@ export function BallotLanguages({
               label={item.citation.sourceName}
               url={item.citation.sourceUrl}
             />
-            <Text style={s.secondary}>{verificationLabel(item.citation)}</Text>
+            <Text style={s.secondary}>
+              {verificationLabel(item.citation, language)}
+            </Text>
           </View>
         ))}
         {showRecovery &&

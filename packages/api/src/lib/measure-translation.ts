@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import { contextMoneySchema } from "@acme/validators";
+
 import { collectSegments } from "./content-translation";
 
 // Display copies only. Legal text, quotations, attribution, links and publication
@@ -35,6 +37,8 @@ export const MEASURE_FIELDS = [
   "contextualExplanation.tradeoffs.*.text",
   "contextualExplanation.unknowns.*.claim.text",
   "contextualExplanation.magnitude.*.amount.text",
+  "contextualExplanation.magnitude.*.period",
+  "contextualExplanation.review.findings",
   "contextualExplanation.magnitude.*.comparison.text",
   "contextualExplanation.history.*.finding.text",
   "contextualExplanation.history.*.followThrough.text",
@@ -44,6 +48,24 @@ export const MEASURE_FIELDS = [
   "contextualExplanation.scenarios.*.claim.text",
   "contextualExplanation.questions.*.question",
   "contextualExplanation.questions.*.path.text",
+  ...[
+    "takeaway",
+    "affectedProvisions.*",
+    "conditions.*",
+    ...["neither", "onlyFirst", "onlySecond", "both"].flatMap((scenario) => [
+      `scenarios.${scenario}`,
+      `compact.scenarios.${scenario}.title`,
+      `compact.scenarios.${scenario}.consequence`,
+    ]),
+    "compact.measures.*",
+    "compact.takeaway",
+    "compact.provisions.*",
+    "compact.conflictScopes.condition",
+    "compact.conflictScopes.scopes.*",
+    ...["firstMore", "secondMore", "equal"].map(
+      (key) => `compact.bothPassComparisons.${key}`,
+    ),
+  ].map((path) => `relationships.*.${path}.text`),
 ] as const;
 export const GRAPH_FIELDS = [
   "measure.title",
@@ -60,8 +82,6 @@ export const GRAPH_FIELDS = [
   "nodes.*.context.period",
   "nodes.*.context.scope",
   "nodes.*.context.limitation",
-  "nodes.*.context.money.*.comparison.reason",
-  "nodes.*.context.money.*.comparison.denominator.name",
   "edges.*.why",
 ] as const;
 
@@ -77,7 +97,11 @@ export function measureSegments(
       "measure",
     ),
     ...(scope === "reader"
-      ? collectSegments(graph, GRAPH_FIELDS, "graph")
+      ? [
+          ...collectSegments(graph, GRAPH_FIELDS, "graph"),
+          ...moneyDisplaySegments(measure, "measure"),
+          ...moneyDisplaySegments(graph, "graph"),
+        ]
       : []),
   ];
 }
@@ -92,4 +116,52 @@ export function measureTranslationId(
     .update(`billion:measure:${electionDate}:${number}:${scope}`)
     .digest("hex");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+/** Only run on already-published explanations, after their validation gates. */
+export function withMoneyDisplay<T>(value: T): T {
+  const copy = structuredClone(value);
+  const visit = (item: unknown) => {
+    if (!item || typeof item !== "object") return;
+    const money = contextMoneySchema.safeParse(item);
+    if (money.success) {
+      const { nominal, scope, comparison } = money.data;
+      Object.assign(item, {
+        display: {
+          nominal,
+          period: scope.period,
+          jurisdiction: scope.jurisdiction,
+          ...(comparison.state === "available"
+            ? { denominatorName: comparison.denominator.name }
+            : { reason: comparison.reason }),
+        },
+      });
+      return;
+    }
+    for (const child of Object.values(item)) visit(child);
+  };
+  visit(copy);
+  return copy;
+}
+function moneyDisplaySegments(
+  value: unknown,
+  prefix: string,
+): { key: string; text: string }[] {
+  if (!value || typeof value !== "object") return [];
+  const money = contextMoneySchema.safeParse(value);
+  if (money.success)
+    return collectSegments(
+      value,
+      [
+        "display.nominal",
+        "display.period",
+        "display.jurisdiction",
+        "display.reason",
+        "display.denominatorName",
+      ],
+      prefix,
+    );
+  return Object.entries(value).flatMap(([key, child]) =>
+    moneyDisplaySegments(child, `${prefix}.${key}`),
+  );
 }
