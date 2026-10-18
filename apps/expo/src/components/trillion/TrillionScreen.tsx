@@ -13,7 +13,6 @@ import { ReaderTools } from "~/components/ReaderTools";
 import { useArticleSpeech } from "~/hooks/useArticleSpeech";
 import { useMeasureTranslation } from "~/hooks/useMeasureTranslation";
 import { DigestPalette as P } from "~/styles";
-import { queryClient, trpc } from "~/utils/api";
 import { graphSpeechChunks } from "~/utils/measure-speech";
 import TrillionReader from "./dom/TrillionReader";
 import { TrillionLoading } from "./TrillionLoading";
@@ -129,9 +128,6 @@ function ReaderHost({ graph, view, ballot }: TrillionScreenProps) {
                 await Linking.openURL(url);
               }}
               onOpenMeasure={(number) => {
-                void queryClient.prefetchQuery(
-                  trpc.civic.getTrillion.queryOptions({ number }),
-                );
                 router.push({
                   pathname: "/proposition-detail",
                   params: { number },

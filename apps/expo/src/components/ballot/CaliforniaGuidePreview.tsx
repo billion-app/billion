@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -19,6 +19,7 @@ import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader, Segmented } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { useIdleMeasurePreloading } from "~/hooks/useIdleMeasurePreloading";
 import { useLanguage } from "~/hooks/useLanguage";
 import { useMeasureTranslation } from "~/hooks/useMeasureTranslation";
 import { translateAppLabel } from "~/i18n/app-strings";
@@ -31,7 +32,7 @@ import {
   fontEditorial,
   DigestPalette as P,
 } from "~/styles";
-import { queryClient, trpc } from "~/utils/api";
+import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { guideCandidateRoute } from "~/utils/candidate-explainer";
 import {
@@ -146,10 +147,6 @@ function MeasureRow({ measure: originalMeasure }: { measure: Measure }) {
     : originalMeasure;
   const router = useRouter();
   const official = splitOfficialTitle(measure.title);
-  const prefetch = () =>
-    void queryClient.prefetchQuery(
-      trpc.civic.getTrillion.queryOptions({ number: measure.number }),
-    );
   return (
     <TouchableOpacity
       accessibilityRole="button"
@@ -163,7 +160,6 @@ function MeasureRow({ measure: originalMeasure }: { measure: Measure }) {
         .join(". ")}
       accessibilityHint={tx("Opens the proposition detail")}
       activeOpacity={0.8}
-      onPressIn={prefetch}
       onPress={() => router.push(propositionDetailRoute(measure.number))}
       style={s.row}
     >
@@ -222,12 +218,29 @@ export function CaliforniaGuidePreview({
   const [tab, setTab] = useState<GuideTab>("candidates");
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const guide = query.isError ? undefined : query.data;
+  const measureNumbers = useMemo(
+    () => guide?.measures.map((measure) => measure.number) ?? [],
+    [guide?.measures],
+  );
+  const preloading = useIdleMeasurePreloading(
+    measureNumbers,
+    tab === "measures",
+  );
   const hasBoldedTitles = !!guide?.measures.some((m) => m.displayTitle);
   return (
-    <View style={{ flex: 1, backgroundColor: P.canvas }}>
+    <View
+      style={{ flex: 1, backgroundColor: P.canvas }}
+      onTouchStart={preloading.onTouchStart}
+      onTouchEnd={preloading.onTouchEnd}
+      onTouchCancel={preloading.onTouchCancel}
+    >
       <NavHeader title={tx("California guide")} large onBack={onBack} />
       <ScrollView
         ref={guideScroll}
+        onScrollBeginDrag={preloading.onScrollBegin}
+        onScrollEndDrag={preloading.onScrollEndDrag}
+        onMomentumScrollBegin={preloading.onScrollBegin}
+        onMomentumScrollEnd={preloading.onMomentumScrollEnd}
         contentContainerStyle={s.screen}
         showsVerticalScrollIndicator={false}
       >
