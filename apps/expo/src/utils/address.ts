@@ -1,20 +1,4 @@
-/**
- * Voter-address formatting for the native location path.
- *
- * Kept out of `AddressAutocomplete` so the platform differences are unit
- * testable without mounting React Native: iOS fills the discrete fields
- * (Apple's CLGeocoder), while Android's system geocoder usually returns only
- * one composed address line in `formattedAddress` and leaves `city` null.
- * Building from the discrete fields alone therefore degrades to raw
- * coordinates on many Android devices, which is why the composed line wins
- * when the OS provides it.
- */
-
-/**
- * Only the fields this module reads, all optional, so tests can pass plain
- * objects. `Location.LocationGeocodedAddress` satisfies it structurally.
- */
-export interface GeocodedPlacemark {
+interface GeocodedPlacemark {
   streetNumber?: string | null;
   street?: string | null;
   city?: string | null;
@@ -27,8 +11,6 @@ export interface GeocodedPlacemark {
 }
 
 function clean(value: string | null | undefined): string | undefined {
-  // Whitespace-only input collapses to undefined too; `??` would keep the
-  // spaces and reintroduce the empty segments this helper exists to drop.
   const trimmed = value?.trim();
   if (!trimmed) return undefined;
   return trimmed;

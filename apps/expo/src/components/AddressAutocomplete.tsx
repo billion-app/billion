@@ -1,16 +1,3 @@
-/**
- * Address field with native device-location capture, then Civic lookup.
- *
- * GPS is the fast path: one native permission prompt, one fix, handed to the
- * operating system's geocoder for a mailing address. Typed entry stays as the
- * equal-path fallback — GPS gives you where you are, not necessarily where
- * you're *registered*, so the field never treats the fix as the final answer
- * and never blocks typing.
- *
- * Google Places autocomplete is gone from this surface: suggestions required a
- * billed server key, and the native path resolves the same need with no key
- * and no per-keystroke network round-trip.
- */
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -73,7 +60,6 @@ export function AddressAutocomplete({
 
   const captureLocation = async () => {
     const address = await resolveAddress();
-    // The hook already set the error state we render below.
     if (address) setInput(address);
   };
 

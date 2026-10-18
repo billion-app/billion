@@ -1,17 +1,3 @@
-/**
- * KeyDatesSection — the election date, and only the election date.
- *
- * This section previously rendered a "Register by" row computed as
- * electionDay-15, alongside the real Election Day. That was pure offset
- * arithmetic — no source, no hedging, and styled identically to the date we
- * actually get from Google Civic. The offset approximates one California
- * cycle and is wrong for most jurisdictions and most years, so it has been
- * removed rather than relabelled. The optional `earlyVoteStart` row was also
- * dropped: without per-jurisdiction sourcing it invited the same treatment.
- *
- * Voting deadlines belong on the How to Vote screen (#272), which shows an
- * explicit "not published" state when Billion has no sourced date.
- */
 import { StyleSheet } from "react-native";
 
 import { Text, View } from "~/components/Themed";

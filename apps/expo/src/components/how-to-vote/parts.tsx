@@ -1,13 +1,3 @@
-/**
- * Shared atoms for the How to Vote screen.
- *
- * These are the pieces the design spec calls out as reusable: the status chip
- * (icon + word + colour, in that order of importance), the fact row, the
- * numbered checklist, the location row, and the official-source footer.
- *
- * Status is never communicated by colour alone — every chip carries a word and
- * an icon so the screen survives greyscale, colour-blindness, and VoiceOver.
- */
 import { Linking, StyleSheet, TouchableOpacity, View } from "react-native";
 
 import type { Address, PollingLocation } from "@acme/api";
@@ -36,32 +26,26 @@ const TONE_BORDER: Record<MethodChip["tone"], string> = {
   negative: "rgba(239,68,68,0.34)",
 };
 
-/* ---------- StatusChip ---------- */
-
 export function StatusChip({ chip }: { chip: MethodChip }) {
   const color = TONE_COLOR[chip.tone];
   return (
     <View style={[s.chip, { borderColor: TONE_BORDER[chip.tone] }]}>
-      <Icon name={chip.icon as IconName} size={11} color={color} />
+      <Icon name={chip.icon} size={11} color={color} />
       <Text style={[s.chipText, { color }]}>{chip.label}</Text>
     </View>
   );
 }
-
-/* ---------- FactRow — deadlines, requirements, registration ---------- */
 
 export function FactRow({
   icon,
   iconColor = colors.textSecondary,
   label,
   value,
-  action,
 }: {
   icon: IconName;
   iconColor?: string;
   label: string;
   value?: string;
-  action?: { label: string; onPress: () => void };
 }) {
   return (
     <View style={s.factRow}>
@@ -70,20 +54,9 @@ export function FactRow({
         <Text style={s.factLabel}>{label}</Text>
         {value ? <Text style={s.factValue}>{value}</Text> : null}
       </View>
-      {action && (
-        <TouchableOpacity
-          onPress={action.onPress}
-          hitSlop={10}
-          activeOpacity={0.7}
-        >
-          <Text style={s.factAction}>{action.label}</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
-
-/* ---------- StepList — numbered checklist ---------- */
 
 export function StepList({ steps }: { steps: VotingStep[] }) {
   return (
@@ -105,10 +78,8 @@ export function StepList({ steps }: { steps: VotingStep[] }) {
   );
 }
 
-/* ---------- LocationRow ---------- */
-
 /** Open the platform maps app with the location as a search query. */
-export function openDirections(loc: PollingLocation) {
+function openDirections(loc: PollingLocation) {
   const q = encodeURIComponent(
     [loc.name ?? loc.address.locationName, formatCivicAddress(loc.address)]
       .filter(Boolean)
@@ -117,7 +88,7 @@ export function openDirections(loc: PollingLocation) {
   void Linking.openURL(`https://maps.apple.com/?q=${q}`);
 }
 
-export function LocationRow({
+function LocationRow({
   loc,
   accent,
 }: {
@@ -204,8 +175,6 @@ export function LocationList({
   );
 }
 
-/* ---------- LinkRow — an explicit, labelled hand-off out of the app ---------- */
-
 export function LinkRow({
   label,
   url,
@@ -234,8 +203,6 @@ export function LinkRow({
   );
 }
 
-/* ---------- UnavailableNote — a named gap, never a silent one ---------- */
-
 export function UnavailableNote({
   title,
   body,
@@ -259,16 +226,7 @@ export function UnavailableNote({
   );
 }
 
-/* ---------- SourceFooter — the last card on every state ---------- */
-
-export function SourceFooter({
-  source,
-  note,
-}: {
-  source?: OfficialSource;
-  /** Overrides the default verification line (e.g. "Last checked …"). */
-  note?: string;
-}) {
+export function SourceFooter({ source }: { source?: OfficialSource }) {
   return (
     <Card style={s.source}>
       <View style={s.sourceHead}>
@@ -279,8 +237,8 @@ export function SourceFooter({
         {source?.name ?? "Your state or county election office"}
       </Text>
       <Text style={s.sourceVerified}>
-        {note ??
-          "Use your election office's site for current voting information. Confirm deadlines and location details there before making your plan."}
+        Use your election office's site for current voting information. Confirm
+        deadlines and location details there before making your plan.
       </Text>
       <LinkRow
         label="Open the election office site"
@@ -321,12 +279,6 @@ const s = StyleSheet.create({
     lineHeight: 18,
     color: colors.textSecondary,
     marginTop: 1,
-  },
-  factAction: {
-    fontFamily: fontBody.semibold,
-    fontSize: 13,
-    color: colors.bill,
-    paddingLeft: 8,
   },
 
   steps: { gap: 13 },

@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableDelayedExpansion
+setlocal
 
 REM ---------------------------------------------------------------------------
 REM Launch the Billion dev servers and open the installed development build on a
@@ -89,6 +89,8 @@ if "%INSTALLED%"=="" (
     set "REBUILD=1"
   )
 )
+
+if /i "%~1"=="rebuild" set "REBUILD=1"
 
 if defined REBUILD (
   echo [warn] A native build is needed before the current JS can run.

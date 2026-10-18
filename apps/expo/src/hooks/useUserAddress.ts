@@ -56,13 +56,11 @@ export function useUserAddress() {
 
   const setAddress = useCallback(async (newAddress: string) => {
     await sessionStorage.setItemAsync(ADDRESS_KEY, newAddress);
-    setAddressState(newAddress);
     publish(newAddress);
   }, []);
 
   const clearAddress = useCallback(async () => {
     await sessionStorage.deleteItemAsync(ADDRESS_KEY);
-    setAddressState(null);
     publish(null);
   }, []);
 

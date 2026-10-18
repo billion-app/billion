@@ -29,10 +29,3 @@ export function monthDay(dateString: string, locale = "en-US"): string {
     ...(/^\d{4}-\d{2}-\d{2}$/.test(dateString) ? { timeZone: "UTC" } : {}),
   });
 }
-
-// NOTE: `shiftDays` used to live here. Its only callers were ElectionHero and
-// KeyDatesSection, which used it to synthesize registration and vote-by-mail
-// deadlines as fixed offsets from Election Day and render them as fact. Those
-// dates are jurisdiction-specific and were never sourced, so both callers and
-// this helper are gone. Deadlines belong to an official source or to the
-// "not published" state on How to Vote — not to arithmetic.

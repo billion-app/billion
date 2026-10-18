@@ -1,18 +1,4 @@
-/**
- * Voting-logistics derivation — the "how do I cast my ballot" model behind the
- * How to Vote screen.
- *
- * Everything here is derived from returned election data. Nothing
- * is inferred from the election date: this module deliberately has no
- * "registration closes 15 days before" style arithmetic, because a deadline we
- * computed is not a deadline any authority published. Where we don't have a
- * fact, the model says so (`status: "unknown"`) and the UI renders an honest
- * "not published" variant instead of a guess.
- *
- * See also `~/utils/elections` for ballot-content classification. This module
- * is strictly logistics.
- */
-
+/** Derive voting logistics from returned data; never infer deadlines from Election Day. */
 import type {
   AdministrationBody,
   Address as CivicAddress,
@@ -32,20 +18,11 @@ export type VotingMethodId =
   | "earlyInPerson"
   | "electionDay";
 
-/**
- * How usable a method is right now.
- *
- * `unknown` is load-bearing and must never collapse into `unavailable`: the
- * former means "the county hasn't published this yet", the latter means "an
- * official source says this isn't offered". Telling a voter a method doesn't
- * exist when we simply don't know is the exact failure this screen exists to
- * avoid.
- */
-export type MethodStatus =
+type MethodStatus =
   | "available" // usable today
   | "upcoming" // published start date is in the future
   | "closed" // published end date has passed
-  | "unknown" // offered, but the county hasn't published the details
+  | "unknown" // the feed does not provide enough information
   | "limited"; // offered in a reduced form (e.g. in person during a mail-only election)
 
 export interface MethodChip {
@@ -70,11 +47,8 @@ export interface VotingMethod {
    * Omitted for providers that supply links without location details.
    */
   steps: VotingStep[];
-  /** The authority page these steps summarize. Gates `steps` entirely. */
+  /** Official page offered alongside the general checklist. */
   instructionsUrl?: string;
-  /** Published window for the method, when the feed carried one. */
-  startDate?: string;
-  endDate?: string;
 }
 
 export interface VotingStep {
@@ -293,8 +267,6 @@ function dropBoxMethod(
         ? countLabel(locations.length, "location", "locations")
         : "Location details unavailable",
     locations,
-    startDate: start,
-    endDate: end,
     steps: !instructionsUrl
       ? []
       : [
@@ -342,8 +314,6 @@ function earlyMethod(
         ? countLabel(locations.length, "early vote site", "early vote sites")
         : "Location details unavailable",
     locations,
-    startDate: start,
-    endDate: end,
     steps: !instructionsUrl
       ? []
       : [
