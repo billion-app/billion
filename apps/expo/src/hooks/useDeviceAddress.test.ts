@@ -18,15 +18,16 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-function harness() {
+function harness({ servicesEnabled = true, permissionGranted = true } = {}) {
   const fix = deferred<{
-    location: { coords: { latitude: number; longitude: number } } | null;
-    error: "denied" | "failed" | "unavailable" | null;
+    coords: { latitude: number; longitude: number };
   }>();
   const geocode = deferred<Parameters<typeof formatPlacemark>[0][]>();
   const state: unknown[] = [];
   let cleanup: (() => void) | undefined;
   let geocodeCalls = 0;
+  let permissionCalls = 0;
+  let fixCalls = 0;
   const react = {
     useState(initial: unknown) {
       const index = state.length;
@@ -66,17 +67,20 @@ function harness() {
       if (name === "react") return react;
       if (name === "expo-location")
         return {
+          Accuracy: { Balanced: 3 },
+          hasServicesEnabledAsync: () => Promise.resolve(servicesEnabled),
+          requestForegroundPermissionsAsync: () => {
+            permissionCalls++;
+            return Promise.resolve({ granted: permissionGranted });
+          },
+          getCurrentPositionAsync: () => {
+            fixCalls++;
+            return fix.promise;
+          },
           reverseGeocodeAsync: () => {
             geocodeCalls++;
             return geocode.promise;
           },
-        };
-      if (name === "~/hooks/useDeviceLocation")
-        return {
-          useDeviceLocation: () => ({
-            request: () => fix.promise,
-            locating: false,
-          }),
         };
       if (name === "~/utils/address") return { formatPlacemark };
       throw new Error(`Unexpected hook dependency: ${name}`);
@@ -89,11 +93,10 @@ function harness() {
     state,
     unmount: () => cleanup?.(),
     geocodeCalls: () => geocodeCalls,
+    permissionCalls: () => permissionCalls,
+    fixCalls: () => fixCalls,
     async finishFix() {
-      fix.resolve({
-        location: { coords: { latitude: 38.5, longitude: -121.5 } },
-        error: null,
-      });
+      fix.resolve({ coords: { latitude: 38.5, longitude: -121.5 } });
       await setImmediate();
     },
   };
@@ -110,6 +113,7 @@ const placemark = {
 test("manual edit cancels a pending GPS result before reverse geocoding", async () => {
   const app = harness();
   const result = app.hook.resolve();
+  await setImmediate();
   app.hook.cancel();
   await app.finishFix();
   assert.equal(await result, null);
@@ -137,7 +141,7 @@ for (const response of ["empty", "rejected"] as const) {
     if (response === "empty") app.geocode.resolve([]);
     else app.geocode.reject(new Error("geocoder unavailable"));
     assert.equal(await result, null);
-    assert.deepEqual(app.state, [false, "address-unavailable"]);
+    assert.deepEqual(app.state, [null, "address-unavailable"]);
   });
 }
 
@@ -147,27 +151,48 @@ test("a usable native placemark resolves to a street address", async () => {
   await app.finishFix();
   app.geocode.resolve([placemark]);
   assert.equal(await result, "123 Oak St, Sacramento, CA 95814");
-  assert.deepEqual(app.state, [false, null]);
+  assert.deepEqual(app.state, [null, null]);
 });
 
-for (const error of ["denied", "failed", "unavailable"] as const) {
-  test(`manual editing clears a ${error} location failure`, async () => {
-    const app = harness();
-    const result = app.hook.resolve();
-    app.fix.resolve({ location: null, error });
-    assert.equal(await result, null);
-    assert.deepEqual(app.state, [false, error]);
-    app.hook.cancel();
-    assert.deepEqual(app.state, [false, null]);
-  });
-
-  test(`cancelled location request cannot publish a late ${error} failure`, async () => {
-    const app = harness();
-    const result = app.hook.resolve();
-    app.hook.cancel();
-    app.fix.resolve({ location: null, error });
-    assert.equal(await result, null);
-    assert.deepEqual(app.state, [false, null]);
+for (const [options, reason] of [
+  [{ servicesEnabled: false }, "unavailable"],
+  [{ permissionGranted: false }, "denied"],
+] as const) {
+  test(`${reason} location stops before requesting a fix`, async () => {
+    const app = harness(options);
+    assert.equal(await app.hook.resolve(), null);
+    assert.equal(app.fixCalls(), 0);
     assert.equal(app.geocodeCalls(), 0);
+    if (reason === "unavailable") assert.equal(app.permissionCalls(), 0);
+    assert.deepEqual(app.state, [null, reason]);
   });
 }
+
+test("cancelling during the service check prevents a permission prompt", async () => {
+  const app = harness();
+  const result = app.hook.resolve();
+  app.hook.cancel();
+  assert.equal(await result, null);
+  assert.equal(app.permissionCalls(), 0);
+  assert.deepEqual(app.state, [null, null]);
+});
+
+test("a GPS failure is cleared by cancellation and cannot return later", async () => {
+  const app = harness();
+  const result = app.hook.resolve();
+  await setImmediate();
+  app.hook.cancel();
+  app.fix.reject(new Error("GPS failed"));
+  assert.equal(await result, null);
+  assert.deepEqual(app.state, [null, null]);
+});
+
+test("a GPS failure offers retry without attempting geocoding", async () => {
+  const app = harness();
+  const result = app.hook.resolve();
+  await setImmediate();
+  app.fix.reject(new Error("GPS failed"));
+  assert.equal(await result, null);
+  assert.equal(app.geocodeCalls(), 0);
+  assert.deepEqual(app.state, [null, "failed"]);
+});

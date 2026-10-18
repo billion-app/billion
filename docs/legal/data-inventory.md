@@ -1,13 +1,12 @@
 # Billion — Verified Data Inventory & App Store Privacy Answers
 
-**Scope:** PR #414 release candidate, including the native-location changes from #494 (iOS app
+**Scope:** Billion iOS app (
 `app.billion-news.billion`, ASC app ID `6761675243`) and the marketing/legal website
 `billion-news.app`.
 
 **Review owner:** thatxliner (project owner, `thatxliner@gmail.com`)
-**Reviewed:** 2026-07-24 full inventory; onboarding and content preferences rechecked 2026-09-14 against `main`
-**Location disclosure review:** October 18, 2026, against the final PR #414 flow
-**Privacy policy effective date ("Last updated"):** October 18, 2026
+**Reviewed:** 2026-07-24 full inventory; onboarding and content preferences rechecked 2026-09-14; address/location flow and disclosures rechecked 2026-10-18. Other historical findings below have not been re-audited.
+**Legal effective date ("Last updated"):** October 18, 2026
 
 This is the single source of truth that the legal copy (`/terms`, `/privacy`, in-app
 `settings/terms`) and the App Store Connect privacy answers are derived from. If any of
@@ -18,21 +17,21 @@ all three stay in agreement.
 
 ## 1. How the release actually behaves (verified in code)
 
-| Area                    | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Evidence                                                                                                                                                                                                                                   |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Accounts                | **No usable account or sign-in flow exists in the app.** Onboarding shows a “Save your workspace” sheet, but its Apple, Google, and email controls only show a coming-soon message. “Explore first” is the working exit. Better Auth remains wired server-side but is not reachable from production app UI. Core reading does not require an account.                                                                                                                                                                                                                                          | `apps/expo/src/components/onboarding/ClaimWorkspaceSheet.tsx`; `packages/auth/src/index.ts`; `packages/api/src/router/auth.ts`                                                                                                             |
-| Content preferences     | First-run onboarding stores completion, government vectors, sectors, derived topic labels, alert choices, and account-prompt dismissal as JSON in AsyncStorage under `billion.onboarding.v1`. If an authenticated session already exists, it also upserts topics and content types into the account's `user_preference` row. The Feed does not currently filter or rank cards from these values, and the alert choices do not schedule delivery.                                                                                                                                               | `apps/expo/src/utils/onboarding-store.ts`; `apps/expo/src/components/onboarding/OnboardingFlow.tsx`; `packages/api/src/router/user.ts`; `packages/db/src/schema.ts`                                                                        |
-| Analytics SDK           | **PostHog is the only analytics/telemetry SDK.** No Sentry, Firebase, Segment, Amplitude, ad SDKs, Facebook SDK, AppsFlyer/Adjust/Branch, and no IDFA/AppTrackingTransparency. US cloud (`https://us.i.posthog.com`).                                                                                                                                                                                                                                                                                                                                                                          | `apps/expo/package.json`; `apps/expo/src/config/posthog.ts`; `apps/expo/.env`                                                                                                                                                              |
-| PostHog config          | `captureAppLifecycleEvents: true`; autocapture `captureTouches: true` / `captureScreens: false`, `propsToCapture: ["testID"]`. Manual `screen()` on every navigation. `identify()` is called only when a user exists — which never happens (no sign-in), so events stay tied to the random install ID.                                                                                                                                                                                                                                                                                         | `apps/expo/src/app/_layout.tsx`                                                                                                                                                                                                            |
-| Identifiers             | PostHog's randomly generated, persistent per-install **`distinct_id`** (a Device ID), plus automatic device/app properties: device type/model/manufacturer, OS + version, app name/version/build, locale, time zone, and emulator status. PostHog Cloud derives approximate **city-level location from the request IP** by default. **No advertising identifier.** Events tied to this ID are linked to the installation/device under Apple's App Privacy definition, even though they are not tied to a name or email.                                                                        | PostHog RN defaults; `expo-device`, `expo-application`, `expo-localization`                                                                                                                                                                |
-| Event content           | Events include what you read and search: `article_viewed` sends `content_title`/`content_id`, and `content_searched` sends the **raw query text**. `onboarding_complete` sends selected government vectors, sectors, and instant/evening alert choices. Saves, filters, ballot interactions, and feedback events are also recorded.                                                                                                                                                                                                                                                            | `apps/expo/src/app/article-detail.tsx`; `(tabs)/index.tsx`; `components/onboarding/OnboardingFlow.tsx`                                                                                                                                     |
-| Election address        | **Typed by the user, or resolved from a one-shot device location fix.** `AddressAutocomplete` offers "Use my location": `expo-location` asks for foreground permission once, takes a single fix, and hands the coordinate to the OS geocoder for a street address — no background tracking, no watch loop. The voter can always type instead, and the committed address is stored on-device in the iOS Keychain via `expo-secure-store`. Only the confirmed address text is sent to the backend. Failed geocoding asks for manual entry; it does not submit coordinates.                       | `apps/expo/src/hooks/useDeviceLocation.ts`; `apps/expo/src/components/AddressAutocomplete.tsx`; `apps/expo/src/utils/address.ts`; `apps/expo/src/utils/client-storage.ts`; `app.config.base.json` (foreground-only `expo-location` plugin) |
-| Address → third parties | **No third party receives address text to autocomplete it any more** — the Google Places path is deleted, and the device fix is resolved by the OS geocoder, which may use platform-provider servers. A confirmed address is forwarded to **Democracy Works** for ballot lookup and the **Google Civic Information API** for district lookup. **Open States does not receive the street address**; the backend uses public Open States state-level data after Google resolves the relevant divisions. The `voter_address_set` analytics event sends only `{ is_update }`, **not** the address. | `packages/api/src/lib/civic.ts`, `lib/elected-officials.ts`; `(tabs)/elections.tsx`                                                                                                                                                        |
-| Address retention       | Server caches lookup **results** in `CivicApiCache` keyed by **SHA-256 of the normalized address** (not the raw address). TTLs: voter info 24h, divisions 30d, elections 7d. The cached response body may contain normalized address components. Expiry prevents reuse, not deletion: no scheduled cleanup removes expired rows, which can remain until replaced or deleted. The cache is not joined to an app account or the PostHog installation ID, but a physical address is inherently identifying and is treated as linked under Apple's App Privacy definition.                         | `packages/api/src/lib/civic.ts` (`hashAddress`, `getCache`/`setCache`, `CACHE_TTL`)                                                                                                                                                        |
-| Feedback                | The production Feedback tab opens **Google Forms** for bug/feature feedback and the user's mail client for content issues or direct email. Prefilled details can include the message, category, app version/build, platform, and OS version. Email feedback also exposes the sender address and standard email headers. The otherwise hidden Settings feedback route can submit the same core fields through the backend and **Resend**.                                                                                                                                                       | `apps/expo/src/app/(tabs)/feedback.tsx`; `apps/expo/src/utils/feedback-form.ts`; `apps/expo/src/app/settings/feedback.tsx`; `packages/api/src/router/feedback.ts`                                                                          |
-| Website mailing list    | `billion-news.app` collects an email via `/api/waitlist`, stored as a **Resend contact** in the General updates segment/topic with a confirmation email. Website also runs PostHog (`posthog-js`). This is a **website** flow — not part of the iOS app's data collection.                                                                                                                                                                                                                                                                                                                     | `apps/nextjs/src/app/_components/waitlist-form.tsx`; `apps/nextjs/src/app/api/waitlist/route.ts`                                                                                                                                           |
-| Error diagnostics       | No dedicated crash SDK. PostHog automatic exception capture is disabled in the production project, and session replay is not enabled. One handled failure to open an original-source URL is sent with `captureException`. Lifecycle events record install/update/open/active/background state, not launch time, hang rate, energy use, or other performance measurements.                                                                                                                                                                                                                      | `apps/expo/src/app/article-detail.tsx`; production PostHog remote config verified 2026-07-24                                                                                                                                               |
-| Data sold               | No. No data brokers, no advertising, no cross-app tracking.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | —                                                                                                                                                                                                                                          |
+| Area                    | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Evidence                                                                                                                                                                                                                                  |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accounts                | **No usable account or sign-in flow exists in the app.** Onboarding shows a “Save your workspace” sheet, but its Apple, Google, and email controls only show a coming-soon message. “Explore first” is the working exit. Better Auth remains wired server-side but is not reachable from production app UI. Core reading does not require an account.                                                                                                                                                                                                                                                                                                                                   | `apps/expo/src/components/onboarding/ClaimWorkspaceSheet.tsx`; `packages/auth/src/index.ts`; `packages/api/src/router/auth.ts`                                                                                                            |
+| Content preferences     | First-run onboarding stores completion, government vectors, sectors, derived topic labels, alert choices, and account-prompt dismissal as JSON in AsyncStorage under `billion.onboarding.v1`. If an authenticated session already exists, it also upserts topics and content types into the account's `user_preference` row. The Feed does not currently filter or rank cards from these values, and the alert choices do not schedule delivery.                                                                                                                                                                                                                                        | `apps/expo/src/utils/onboarding-store.ts`; `apps/expo/src/components/onboarding/OnboardingFlow.tsx`; `packages/api/src/router/user.ts`; `packages/db/src/schema.ts`                                                                       |
+| Analytics SDK           | **PostHog is the only analytics/telemetry SDK.** No Sentry, Firebase, Segment, Amplitude, ad SDKs, Facebook SDK, AppsFlyer/Adjust/Branch, and no IDFA/AppTrackingTransparency. US cloud (`https://us.i.posthog.com`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `apps/expo/package.json`; `apps/expo/src/config/posthog.ts`; `apps/expo/.env`                                                                                                                                                             |
+| PostHog config          | `captureAppLifecycleEvents: true`; autocapture `captureTouches: true` / `captureScreens: false`, `propsToCapture: ["testID"]`. Manual `screen()` on every navigation. `identify()` is called only when a user exists — which never happens (no sign-in), so events stay tied to the random install ID.                                                                                                                                                                                                                                                                                                                                                                                  | `apps/expo/src/app/_layout.tsx`                                                                                                                                                                                                           |
+| Identifiers             | PostHog's randomly generated, persistent per-install **`distinct_id`** (a Device ID), plus automatic device/app properties: device type/model/manufacturer, OS + version, app name/version/build, locale, time zone, and emulator status. PostHog Cloud derives approximate **city-level location from the request IP** by default. **No advertising identifier.** Events tied to this ID are linked to the installation/device under Apple's App Privacy definition, even though they are not tied to a name or email.                                                                                                                                                                 | PostHog RN defaults; `expo-device`, `expo-application`, `expo-localization`                                                                                                                                                               |
+| Event content           | Events include what you read and search: `article_viewed` sends `content_title`/`content_id`, and `content_searched` sends the **raw query text**. `onboarding_complete` sends selected government vectors, sectors, and instant/evening alert choices. Saves, filters, ballot interactions, and feedback events are also recorded.                                                                                                                                                                                                                                                                                                                                                     | `apps/expo/src/app/article-detail.tsx`; `(tabs)/index.tsx`; `components/onboarding/OnboardingFlow.tsx`                                                                                                                                    |
+| Election address        | **Typed by the user, or resolved from a one-shot device location fix.** `AddressAutocomplete` offers "Use my location": `expo-location` asks for foreground permission once, takes a single fix, and hands the coordinate to the OS geocoder for a street address — no background tracking, no watch loop. The voter can always type instead, and the confirmed address is stored on-device in the iOS Keychain via `expo-secure-store`. Keychain data may survive uninstall/reinstall; clearing the address in Settings removes the local saved value. Only the confirmed address text is sent to the backend. Failed geocoding asks for manual entry; it does not submit coordinates. | `apps/expo/src/hooks/useDeviceAddress.ts`; `apps/expo/src/components/AddressAutocomplete.tsx`; `apps/expo/src/utils/address.ts`; `apps/expo/src/utils/client-storage.ts`; `app.config.base.json` (foreground-only `expo-location` plugin) |
+| Address → third parties | **No third party receives address text to autocomplete it any more** — the Google Places path is deleted, and the device fix is passed to the OS geocoder, which may send coordinates to Apple or another device geocoding provider under its own privacy terms. A confirmed address is forwarded to **Democracy Works** for ballot lookup and the **Google Civic Information API** for district lookup. **Open States does not receive the street address**; the backend uses public Open States state-level data after Google resolves the relevant divisions. The `voter_address_set` analytics event sends only `{ is_update }`, **not** the address.                               | `packages/api/src/lib/civic.ts`, `lib/elected-officials.ts`; `(tabs)/elections.tsx`                                                                                                                                                       |
+| Address retention       | Server caches lookup **results** in `CivicApiCache` keyed by **SHA-256 of the normalized address** (not the raw address). Address-based freshness windows: voter info 24h and divisions 30d. Cached responses can contain the submitted address (Democracy Works) or normalized address components. Expired rows are excluded from cache reads, not automatically deleted; clearing the device address does not remove server caches. The cache is not joined to an app account or the PostHog installation ID, but a physical address is inherently identifying and is treated as linked under Apple's App Privacy definition.                                                         | `packages/api/src/lib/civic.ts` (`hashAddress`, `getCached`/`setCache`, `CACHE_TTL`)                                                                                                                                                      |
+| Feedback                | The production Feedback tab opens **Google Forms** for bug/feature feedback and the user's mail client for content issues or direct email. Prefilled details can include the message, category, app version/build, platform, and OS version. Email feedback also exposes the sender address and standard email headers. The otherwise hidden Settings feedback route can submit the same core fields through the backend and **Resend**.                                                                                                                                                                                                                                                | `apps/expo/src/app/(tabs)/feedback.tsx`; `apps/expo/src/utils/feedback-form.ts`; `apps/expo/src/app/settings/feedback.tsx`; `packages/api/src/router/feedback.ts`                                                                         |
+| Website mailing list    | `billion-news.app` collects an email via `/api/waitlist`, stored as a **Resend contact** in the General updates segment/topic with a confirmation email. Website also runs PostHog (`posthog-js`). This is a **website** flow — not part of the iOS app's data collection.                                                                                                                                                                                                                                                                                                                                                                                                              | `apps/nextjs/src/app/_components/waitlist-form.tsx`; `apps/nextjs/src/app/api/waitlist/route.ts`                                                                                                                                          |
+| Error diagnostics       | No dedicated crash SDK. PostHog automatic exception capture is disabled in the production project, and session replay is not enabled. One handled failure to open an original-source URL is sent with `captureException`. Lifecycle events record install/update/open/active/background state, not launch time, hang rate, energy use, or other performance measurements.                                                                                                                                                                                                                                                                                                               | `apps/expo/src/app/article-detail.tsx`; production PostHog remote config verified 2026-07-24                                                                                                                                              |
+| Data sold               | No. No data brokers, no advertising, no cross-app tracking.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | —                                                                                                                                                                                                                                         |
 
 ### Processors (sub-processors)
 
@@ -40,10 +39,8 @@ all three stay in agreement.
 - **Resend** — transactional/marketing email: feedback delivery + mailing-list confirmation and audience management.
 - **Google Forms** — guided bug and feature feedback.
 - **Democracy Works** — confirmed address → ballot lookup.
-- **Google Civic Information API** — confirmed address → district lookup.
-- **OS geocoder** — device coordinates → suggested address; may use platform-provider
-  servers. On iOS this uses Apple’s Core Location geocoder. No address autocomplete
-  request is sent to Billion or Google Places.
+- **Google Civic Information API** — confirmed address → district lookup. No address text is sent for autocomplete.
+- **Operating-system geocoding service** — optional current coordinates → draft street address. The service may send coordinates to Apple or another device geocoding provider; this is not a guarantee of on-device processing. Billion does not send raw coordinates to its backend or analytics or persist them.
 - **Open States** (Plural Policy) — public representative data; the user's street address is
   not sent to Open States.
 
@@ -65,7 +62,7 @@ HTTPS** (verified 2026-07-24).
 | **Support URL** (required)        | `https://billion-news.app/support` |
 | Marketing URL (optional)          | `https://billion-news.app`         |
 
-Reachability (acceptance criterion — "reachable over public HTTPS"):
+Historical reachability checks from 2026-07-24 (recheck before release):
 
 - `https://billion-news.app/privacy` → 200, "Privacy Policy" ✓ (route live)
 - `https://billion-news.app/terms` → 200, "Terms of Service" ✓ (route live)
@@ -74,16 +71,16 @@ Reachability (acceptance criterion — "reachable over public HTTPS"):
 - In-app (dev only): `Settings → Privacy → Read full Privacy Policy`, and
   `Settings → About Billion → Privacy policy / Terms of service`
 
-> ⚠️ **The Settings tab is hidden in release builds** (`(tabs)/_layout.tsx` sets
+> **Historical July 2026 navigation finding:** The Settings tab was hidden in release builds (`(tabs)/_layout.tsx` sets
 > `href: __DEV__ ? undefined : null`, and `TabBar.tsx` skips it when `!__DEV__`). Settings was
 > the only route into the legal copy, so before the Feedback-tab link above, Terms and Privacy
 > were unreachable in production. Keep a legal entry point on a tab that ships, or this
 > acceptance criterion silently regresses.
 
-> **Release publishing:** the October 18, 2026 policy is checked in with this PR.
-> Deploy the website copy before submitting the location-enabled binary to App Review,
-> then verify the public `/privacy` page shows this date and the location explanation.
-> PR readiness does not publish the policy or update App Store Connect.
+> **Release step:** Deploy the revised website policy before submitting the native-location
+> build to App Review. Recheck that the public privacy page shows “Last updated October 18,
+> 2026” and matches the label. Source changes do not publish the policy or update App Store
+> Connect; neither external action was performed as part of the October 18 disclosure fix.
 
 > These URL fields are stored in `apps/expo/store.config.json` and can be synced with
 > `eas metadata:push` (see §5).
@@ -103,7 +100,8 @@ itself identifying. The absence of an app account does not make those types unli
 | Apple data type                         | Purpose           | Linked | Tracking | Why (source)                                                                                                                                |
 | --------------------------------------- | ----------------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Contact Info → Email Address**        | App Functionality | Yes    | No       | A user who chooses an email feedback path sends us their sender address. See optional-disclosure note below.                                |
-| **Contact Info → Physical Address**     | App Functionality | Yes    | No       | The registered address is used for civic lookup; cached responses may retain normalized components.                                         |
+| **Contact Info → Physical Address**     | App Functionality | Yes    | No       | Confirmed addresses are used for civic lookup; cached responses may retain the submitted address or normalized components.                  |
+| **Location → Precise Location**         | App Functionality | Yes    | No       | A confirmed street address derived from a current location fix can reveal precise location and be retained in lookup responses.             |
 | **Location → Coarse Location**          | Analytics         | Yes    | No       | PostHog derives approximate city-level location from IP and stores it with the installation ID.                                             |
 | **User Content → Customer Support**     | App Functionality | Yes    | No       | Feedback messages go through Google Forms, email, or the backend/Resend path; email feedback links the message to the sender.               |
 | **Search History**                      | Analytics         | Yes    | No       | `content_searched` sends the raw query text to PostHog with the installation ID.                                                            |
@@ -111,46 +109,33 @@ itself identifying. The absence of an app account does not make those types unli
 | **Usage Data → Product Interaction**    | Analytics         | Yes    | No       | Screens, article opens, taps, filters, onboarding selections, ballot interactions, and feedback events are stored with the installation ID. |
 | **Diagnostics → Other Diagnostic Data** | App Functionality | Yes    | No       | A handled source-opening error and its context are sent to PostHog with the installation ID.                                                |
 
-**Explicitly NOT collected by the iOS app:** Name, Phone Number, User ID; Precise Location /
-GPS coordinates (OS access is described below); Payment, Financial, Purchases, Credit info; Health & Fitness; Contacts; Browsing History;
+**Explicitly NOT collected by the iOS app:** Name, Phone Number, User ID; Payment, Financial, Purchases, Credit info; Health & Fitness; Contacts; Browsing History;
 Audio; Photos/Videos; Sensitive Info (including political affiliation — viewing civic content
 does not establish the user's political opinion); Advertising Data / IDFA; Crash Data; and
 Performance Data.
 
-### Native location assessment — October 18, 2026
+### Location classification (reviewed 2026-10-18)
 
-The optional foreground permission can provide a precise device fix. It feeds only
-`Location.reverseGeocodeAsync` in `useDeviceAddress`; the pinned iOS Expo implementation
-uses Apple's `CLGeocoder.reverseGeocodeLocation`. The OS geocoder may contact Apple servers:
-this is **not** a promise that geocoding stays entirely on-device. Billion receives no raw
-device coordinates, including on failure. The voter reviews and confirms the suggested
-address before civic lookup; saved addresses use native secure storage or web local storage. iOS Keychain entries
-can survive reinstall, so clearing the address explicitly is the reliable removal path
-([Expo SecureStore documentation](https://docs.expo.dev/versions/latest/sdk/securestore/)).
+Declare **Precise Location**, **App Functionality**, **Linked: Yes**, **Tracking: No**.
+This supersedes the earlier #414 assessment that classified only Physical Address.
+The retained derived location matters independently of the raw-coordinate path.
+This is a conservative application of [Apple's App Privacy definitions](https://developer.apple.com/app-store/app-privacy-details/):
+precision describes the information, not just its coordinate encoding. Although raw GPS
+coordinates are only passed to the OS geocoder and never sent to Billion's servers or
+analytics, a confirmed street address derived from that fix can itself reveal a precise
+current location. Lookup responses retain that address beyond the immediate request.
+Apple's guidance excludes collection by Apple frameworks themselves; the retained derived
+address is the basis for this classification, not the permission prompt alone.
 
-[Apple's App Privacy guidance](https://developer.apple.com/app-store/app-privacy-details/)
-separates device access from collection, excludes Apple's own framework/service collection
-from the developer's answers, and assesses derived data sent off-device separately.
-Accordingly, this iOS flow does **not** add Precise Location to the eight declarations in
-§3 or `app.config.base.json`. The confirmed derived address remains **Physical Address**;
-PostHog's IP-derived location remains **Coarse Location / Analytics**. This assessment applies
-to the verified iOS implementation, not every platform geocoder's practices.
-
-The website policy and English, Spanish and Simplified Chinese app copy now explain
-permission, one foreground fix, possible platform-server geocoding, address confirmation,
-manual entry, actual lookup providers, retention and permission revocation. They remove the
-retired Google Places flow and the false claim that GPS is never accessed.
-
-No new App Store Connect data category is required by this change. The current ASC account
-answers were not inspected or edited in this review; §5 remains the release checklist for
-checking the published label. Reassess the manifest, ASC answers and policy together if raw
-coordinates later reach Billion or another non-Apple service, enter analytics or are retained.
+The checked-in manifest, website policy, and in-app English, Spanish, and Chinese copy
+now reflect this assessment. The App Store Connect questionnaire and deployed public policy
+remain release steps (§2 and §5); this document does not assert they have been updated.
 
 ### Disclosure notes
 
 1. **Physical Address.** Declare it. Although the raw address is used to service the civic
-   feature and the cache key is a one-way hash, cached response data may contain normalized
-   address components. Cache validity is at most 30 days, but expiry only filters reads; it does not delete rows. No scheduled deletion currently runs. Because the address itself can identify a person or
+   feature and the cache key is a one-way hash, cached response data may contain the submitted address or normalized
+   address components. The 24-hour/30-day freshness windows do not enforce deletion. Because the address itself can identify a person or
    household, answer **Linked: Yes**.
 
 2. **Coarse Location (IP).** The recommended answer above **matches current behavior** (PostHog
@@ -172,7 +157,7 @@ query text (send only length/filter) to drop **Search History** from the label.
 
 ## 4. Apple Privacy Manifest & Required-Reason APIs (verify after `expo prebuild`)
 
-`apps/expo/app.config.base.json` declares the same eight collected-data types listed in §3.
+`apps/expo/app.config.base.json` declares the same nine collected-data types listed in §3.
 Expo writes those declarations into `apps/expo/ios/billion/PrivacyInfo.xcprivacy` during
 prebuild. After `just build ios`, confirm:
 
@@ -185,18 +170,18 @@ prebuild. After `just build ios`, confirm:
 
 ---
 
-## 5. App Store Connect release checklist
+## 5. App Store Connect release checklist (requires Apple credentials)
 
-An authorized release owner checks these values in App Store Connect:
+Complete these external updates before submitting the native-location build:
 
 1. **App Privacy → Privacy Policy URL:** set `https://billion-news.app/privacy`.
 2. **App Information → Support URL:** set `https://billion-news.app/support`. (Optional
    Marketing URL: `https://billion-news.app`.)
-3. **App Privacy → Data Collection:** answer "Yes", then enter exactly the eight types in §3
+3. **App Privacy → Data Collection:** answer "Yes", then enter exactly the nine types in §3
    with the listed purposes; for each set _Linked to You = Yes_ and _Used to Track You = No_.
    If deliberately relying on Apple's optional support-data exception, omit Email Address and
    Customer Support together and record the decision in §3.
-4. **App Privacy → confirm** the label preview shows **no** "Data Used to Track You" section.
+4. **App Privacy → confirm** the label preview includes **Precise Location** under data linked to you for app functionality and shows **no** "Data Used to Track You" section.
 5. Cross-check the published label against `https://billion-news.app/privacy` so they agree
    (acceptance criterion).
 

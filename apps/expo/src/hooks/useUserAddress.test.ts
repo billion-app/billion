@@ -123,3 +123,16 @@ test("mounted readers follow writes and removals, while unmounted readers unsubs
   await editor.setAddress("third address");
   assert.deepEqual(reader.mounted.state, [null, false]);
 });
+
+test("a completed save updates remaining readers after the editor unmounts", async () => {
+  const app = harness();
+  const editor = app.mount();
+  const reader = app.mount();
+  await app.finishRead(0, "old address");
+  await app.finishRead(1, "old address");
+  const save = editor.setAddress("new address");
+  editor.mounted.cleanup?.();
+  await save;
+  assert.deepEqual(editor.mounted.state, ["old address", false]);
+  assert.deepEqual(reader.mounted.state, ["new address", false]);
+});

@@ -1,18 +1,4 @@
-/**
- * Voting-logistics derivation — the "how do I cast my ballot" model behind the
- * How to Vote screen.
- *
- * Locations and authority links are derived from the ballot response. Nothing
- * is inferred from the election date: this module deliberately has no
- * "registration closes 15 days before" style arithmetic, because a deadline we
- * computed is not a deadline any authority published. Where we don't have a
- * fact, the model says so (`status: "unknown"`) and the UI renders an honest
- * missing-details variant instead of a guess.
- *
- * See also `~/utils/elections` for ballot-content classification. This module
- * is strictly logistics.
- */
-
+/** Derive voting logistics from returned data; never infer deadlines from Election Day. */
 import type {
   AdministrationBody,
   Address as CivicAddress,

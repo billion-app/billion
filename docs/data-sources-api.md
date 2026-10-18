@@ -240,8 +240,7 @@ import { SOS_RESULTS_HOME } from "@acme/api/clients/ca-sos-results";
 
 **Source:** Native device location via `expo-location`, plus typed entry
 
-**Entry points:** `apps/expo/src/hooks/useDeviceLocation.ts` (permission + fix),
-`apps/expo/src/hooks/useDeviceAddress.ts` (fix → lookup address),
+**Entry points:** `apps/expo/src/hooks/useDeviceAddress.ts` (permission, fix, and reverse geocoding),
 `apps/expo/src/components/AddressAutocomplete.tsx` (shared field)
 
 **Auth:** none — OS permission prompt instead of an API key
