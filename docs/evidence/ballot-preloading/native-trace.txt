@@ -1,0 +1,172 @@
+ INFO  PRELOAD_AUDIT pause tab true
+ INFO  PRELOAD_AUDIT pause blur false
+ INFO  PRELOAD_AUDIT pause background false
+ INFO  PRELOAD_AUDIT pause tab true
+ INFO  PRELOAD_AUDIT pause touch true
+ INFO  PRELOAD_AUDIT pause touch false
+ INFO  PRELOAD_AUDIT pause tab false
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.690166
+ INFO  PRELOAD_AUDIT begin 1
+ LOG   >> query  #10 civic.getTrillion  {"input": {"number": "1"}}
+ INFO  PRELOAD_AUDIT pause touch true
+ INFO  PRELOAD_AUDIT pause touch false
+ LOG   >> query  #12 civic.getTrillion  {"input": {"number": "3"}}
+ INFO  PRELOAD_AUDIT pause blur true
+ INFO  PRELOAD_AUDIT pause touch false
+ INFO  PRELOAD_AUDIT pause scroll false
+ INFO  PRELOAD_AUDIT pause scroll false
+ INFO  PRELOAD_AUDIT end 1
+ INFO  PRELOAD_AUDIT pause scroll false
+ INFO  PRELOAD_AUDIT pause blur false
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.98275
+ INFO  PRELOAD_AUDIT begin 2
+ LOG   >> query  #13 civic.getTrillion  {"input": {"number": "2"}}
+ INFO  PRELOAD_AUDIT end 2
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.991167
+ INFO  PRELOAD_AUDIT begin 3
+ INFO  PRELOAD_AUDIT end 3
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.997541
+ INFO  PRELOAD_AUDIT begin 4
+ LOG   >> query  #14 civic.getTrillion  {"input": {"number": "4"}}
+ INFO  PRELOAD_AUDIT end 4
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.990333
+ INFO  PRELOAD_AUDIT begin 5
+ LOG   >> query  #15 civic.getTrillion  {"input": {"number": "5"}}
+ INFO  PRELOAD_AUDIT end 5
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.990583
+ INFO  PRELOAD_AUDIT begin 37
+ LOG   >> query  #16 civic.getTrillion  {"input": {"number": "37"}}
+ INFO  PRELOAD_AUDIT end 37
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.98875
+ INFO  PRELOAD_AUDIT begin 38
+ LOG   >> query  #17 civic.getTrillion  {"input": {"number": "38"}}
+ INFO  PRELOAD_AUDIT end 38
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.99225
+ INFO  PRELOAD_AUDIT begin 39
+ LOG   >> query  #18 civic.getTrillion  {"input": {"number": "39"}}
+ INFO  PRELOAD_AUDIT end 39
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.993334
+ INFO  PRELOAD_AUDIT begin 40
+ LOG   >> query  #19 civic.getTrillion  {"input": {"number": "40"}}
+ INFO  PRELOAD_AUDIT end 40
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.991875
+ INFO  PRELOAD_AUDIT begin 41
+ LOG   >> query  #20 civic.getTrillion  {"input": {"number": "41"}}
+ INFO  PRELOAD_AUDIT end 41
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.986458
+ INFO  PRELOAD_AUDIT begin 42
+ LOG   >> query  #21 civic.getTrillion  {"input": {"number": "42"}}
+ INFO  PRELOAD_AUDIT end 42
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.99225
+ INFO  PRELOAD_AUDIT begin 43
+ LOG   >> query  #22 civic.getTrillion  {"input": {"number": "43"}}
+ INFO  PRELOAD_AUDIT end 43
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.993375
+ INFO  PRELOAD_AUDIT begin 44
+ LOG   >> query  #23 civic.getTrillion  {"input": {"number": "44"}}
+ INFO  PRELOAD_AUDIT end 44
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.991584
+ INFO  PRELOAD_AUDIT begin 45
+ LOG   >> query  #24 civic.getTrillion  {"input": {"number": "45"}}
+ INFO  PRELOAD_AUDIT end 45
+ INFO  PRELOAD_AUDIT pause touch true
+ INFO  PRELOAD_AUDIT pause touch false
+ INFO  PRELOAD_AUDIT pause blur true
+ INFO  PRELOAD_AUDIT pause touch false
+ INFO  PRELOAD_AUDIT pause scroll false
+ INFO  PRELOAD_AUDIT pause scroll false
+ INFO  PRELOAD_AUDIT pause scroll false
+ INFO  PRELOAD_AUDIT pause blur false
+ INFO  PRELOAD_AUDIT pause touch true
+ INFO  PRELOAD_AUDIT pause touch false
+ INFO  PRELOAD_AUDIT pause tab true
+ INFO  PRELOAD_AUDIT pause blur false
+ INFO  PRELOAD_AUDIT pause background false
+ INFO  PRELOAD_AUDIT pause tab false
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.991875
+ INFO  PRELOAD_AUDIT begin 1
+ LOG   >> query  #27 civic.getTrillion  {"input": {"number": "1"}}
+ INFO  PRELOAD_AUDIT end 1
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.989833
+ INFO  PRELOAD_AUDIT begin 2
+ LOG   >> query  #28 civic.getTrillion  {"input": {"number": "2"}}
+ INFO  PRELOAD_AUDIT end 2
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.992292
+ INFO  PRELOAD_AUDIT begin 3
+ LOG   >> query  #29 civic.getTrillion  {"input": {"number": "3"}}
+ INFO  PRELOAD_AUDIT end 3
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.992833
+ INFO  PRELOAD_AUDIT begin 4
+ LOG   >> query  #30 civic.getTrillion  {"input": {"number": "4"}}
+ INFO  PRELOAD_AUDIT end 4
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.992292
+ INFO  PRELOAD_AUDIT begin 5
+ LOG   >> query  #31 civic.getTrillion  {"input": {"number": "5"}}
+ INFO  PRELOAD_AUDIT end 5
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.991667
+ INFO  PRELOAD_AUDIT begin 37
+ LOG   >> query  #32 civic.getTrillion  {"input": {"number": "37"}}
+ INFO  PRELOAD_AUDIT end 37
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.990917
+ INFO  PRELOAD_AUDIT begin 38
+ LOG   >> query  #33 civic.getTrillion  {"input": {"number": "38"}}
+ INFO  PRELOAD_AUDIT end 38
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.99
+ INFO  PRELOAD_AUDIT begin 39
+ LOG   >> query  #34 civic.getTrillion  {"input": {"number": "39"}}
+ INFO  PRELOAD_AUDIT end 39
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.990458
+ INFO  PRELOAD_AUDIT begin 40
+ LOG   >> query  #35 civic.getTrillion  {"input": {"number": "40"}}
+ INFO  PRELOAD_AUDIT end 40
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.991208
+ INFO  PRELOAD_AUDIT begin 41
+ LOG   >> query  #36 civic.getTrillion  {"input": {"number": "41"}}
+ INFO  PRELOAD_AUDIT end 41
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.990709
+ INFO  PRELOAD_AUDIT begin 42
+ LOG   >> query  #37 civic.getTrillion  {"input": {"number": "42"}}
+ INFO  PRELOAD_AUDIT end 42
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.991041
+ INFO  PRELOAD_AUDIT begin 43
+ LOG   >> query  #38 civic.getTrillion  {"input": {"number": "43"}}
+ INFO  PRELOAD_AUDIT end 43
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.99175
+ INFO  PRELOAD_AUDIT begin 44
+ LOG   >> query  #39 civic.getTrillion  {"input": {"number": "44"}}
+ INFO  PRELOAD_AUDIT end 44
+ INFO  PRELOAD_AUDIT scheduled
+ INFO  PRELOAD_AUDIT idle 49.992209
+ INFO  PRELOAD_AUDIT begin 45
+ LOG   >> query  #40 civic.getTrillion  {"input": {"number": "45"}}
+ INFO  PRELOAD_AUDIT end 45
+ INFO  PRELOAD_AUDIT pause blur true
+ INFO  PRELOAD_AUDIT pause touch false
+ INFO  PRELOAD_AUDIT pause scroll false
