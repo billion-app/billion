@@ -178,18 +178,18 @@ export default function ContestDetailScreen() {
     citations?: string;
   }>();
 
-  const localization = useBallotTranslation(
-    params.translationReference,
-    ballotIdentityFromRoute(params.translationIdentity) ?? {
-      kind: "contest",
-      title: params.office,
-      candidates: parseRouteArray<CandidateParam>(
-        params.candidates,
-        ["name"],
-        [],
-      ).map((candidate) => candidate.name),
-    },
-  );
+  const localization = useBallotTranslation(params.translationReference, {
+    kind: "contest",
+    title:
+      ballotIdentityFromRoute(params.translationIdentity)?.title === ""
+        ? ""
+        : params.office,
+    candidates: parseRouteArray<CandidateParam>(
+      params.candidates,
+      ["name"],
+      [],
+    ).map((candidate) => candidate.name),
+  });
   const candidates = useMemo(
     () =>
       parseRouteArray<CandidateParam>(
@@ -384,10 +384,7 @@ export default function ContestDetailScreen() {
           </View>
         )}
         <OfficeRole
-          office={localization.text(
-            params.translationTitleField ?? "office",
-            params.office,
-          )}
+          office={params.office}
           state={params.state}
           districtId={params.districtId}
         />

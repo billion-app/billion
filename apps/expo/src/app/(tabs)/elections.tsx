@@ -41,6 +41,7 @@ import {
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import {
+  ballotContestRoute,
   ballotElectionDate,
   ballotElectionOptions,
   contestBallotCitations,
@@ -53,34 +54,6 @@ import {
 } from "~/utils/elections";
 
 type BallotTab = "candidates" | "measures";
-
-/** Build the /measure-detail route params for a measure contest. */
-function measureRoute(m: Contest) {
-  return {
-    pathname: "/measure-detail" as const,
-    params: {
-      translationIdentity: JSON.stringify({
-        kind: "measure",
-        title: m.referendumTitle ?? m.office ?? m.ballotTitle ?? "",
-        candidates: m.candidates?.map((candidate) => candidate.name) ?? [],
-      }),
-      translationReference: m.translationReference ?? "",
-      referendumTitle: m.referendumTitle ?? "",
-      referendumSubtitle: m.referendumSubtitle ?? "",
-      referendumProStatement: m.referendumProStatement ?? "",
-      referendumConStatement: m.referendumConStatement ?? "",
-      referendumText: m.referendumText ?? "",
-      referendumUrl: m.referendumUrl ?? "",
-      summary: m.summary ?? "",
-      summaryLong: m.summaryLong ?? m.summary ?? "",
-      summaryIsAiGenerated: m.summaryIsAiGenerated ? "true" : "false",
-      fiscalImpact: m.fiscalImpact ?? "",
-      proArguments: JSON.stringify(m.proArguments ?? []),
-      conArguments: JSON.stringify(m.conArguments ?? []),
-      citations: JSON.stringify(contestBallotCitations(m)),
-    },
-  };
-}
 
 /** Short label for the most authoritative source backing a measure. */
 function topSourceLabel(m: Contest, t: AppTranslate): string | null {
@@ -729,7 +702,9 @@ function ElectionsLive({
               measure={m}
               expanded={expandedMeasures.has(i)}
               onToggle={() => toggleMeasure(i, m)}
-              onReadMore={() => router.push(measureRoute(m))}
+              onReadMore={() =>
+                router.push(ballotContestRoute(m, undefined, language))
+              }
             />
           ))}
         </View>

@@ -55,7 +55,7 @@ export function ballotIdentityFromRoute(
     return {
       kind: parsed.kind,
       title: parsed.title,
-      candidates: parsed.candidates as string[],
+      candidates: parsed.candidates,
     };
   } catch {
     return undefined;

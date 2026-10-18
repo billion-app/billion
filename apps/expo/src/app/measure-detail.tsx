@@ -63,14 +63,15 @@ export default function MeasureDetailScreen() {
     conArguments: string;
     citations: string;
   }>();
-  const localization = useBallotTranslation(
-    original.translationReference,
-    ballotIdentityFromRoute(original.translationIdentity) ?? {
-      kind: "measure",
-      title: original.referendumTitle,
-      candidates: [],
-    },
-  );
+  const localization = useBallotTranslation(original.translationReference, {
+    kind: "measure",
+    title:
+      ballotIdentityFromRoute(original.translationIdentity)?.title === ""
+        ? ""
+        : original.referendumTitle,
+    candidates:
+      ballotIdentityFromRoute(original.translationIdentity)?.candidates ?? [],
+  });
   const params = {
     ...original,
     referendumTitle: localization.text(
