@@ -8,8 +8,10 @@ import type {
 import { translateApp } from "~/i18n/app-strings";
 import { resolveType } from "~/styles";
 import { isStateJurisdiction, jurisdictionText } from "~/utils/jurisdiction";
+import { translateCardMetadata } from "./card-metadata";
 
 export interface ContentItem {
+  translationState?: "original" | "pending" | "translated" | "unavailable";
   id: string;
   title: string;
   description: string;
@@ -43,8 +45,8 @@ function stateBillTag(
 
 /**
  * Map API content onto a card, preserving legislative status and context.
- * Bill status and chamber are source text and stay as published; the type
- * label and place name follow `language`.
+ * Known lifecycle and chamber labels follow the locale; identifiers and names
+ * retain their original values.
  */
 export function toCardItem(
   item: ContentItem,
@@ -65,11 +67,16 @@ export function toCardItem(
     title: item.title,
     gist: item.description,
     status: isBill
-      ? (item.billStatus ?? statusLabel("bill", language))
+      ? (translateCardMetadata(item.billStatus, language) ??
+        statusLabel("bill", language))
       : statusLabel(item.type, language),
     activityAt: isBill ? item.activityAt : undefined,
     meta: isStateBill
-      ? [item.chamber && `${stateName} ${item.chamber}`, item.sponsor]
+      ? [
+          item.chamber &&
+            `${stateName} ${translateCardMetadata(item.chamber, language)}`,
+          item.sponsor,
+        ]
           .filter(Boolean)
           .join(" · ")
       : undefined,

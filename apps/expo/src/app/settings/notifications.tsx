@@ -21,6 +21,7 @@ import {
 } from "~/styles";
 import { prependAlert, TEST_ALERT } from "~/utils/alert-history";
 import { trpc, trpcClient } from "~/utils/api";
+import { cardTranslationPolling } from "~/utils/card-translation";
 import { deliveryNote, scheduleLocalAlert } from "~/utils/local-notification";
 import {
   formatClock,
@@ -38,7 +39,10 @@ export default function NotificationsScreen() {
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const featured = useQuery(
-    trpc.content.getFeaturedBills.queryOptions({ jurisdiction: "federal" }),
+    trpc.content.getFeaturedBills.queryOptions(
+      { jurisdiction: "federal", language },
+      { refetchInterval: cardTranslationPolling },
+    ),
   );
 
   const setPref = (patch: Partial<NotificationPrefs>) => {

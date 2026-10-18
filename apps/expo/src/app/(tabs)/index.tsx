@@ -18,6 +18,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import type { ContentItem } from "~/utils/content";
 import type { FeaturedBillItem } from "~/utils/featured-bills";
+import { CardTranslationNotice } from "~/components/CardTranslationNotice";
 import { EmptySearchMark } from "~/components/digest/CraftMarks";
 import { DigestHome } from "~/components/DigestHome";
 import { ProfileMarkButton } from "~/components/DigestProfileMark";
@@ -45,6 +46,7 @@ import {
   fontDisplay,
 } from "~/styles";
 import { queryClient, trpc, trpcClient } from "~/utils/api";
+import { cardTranslationPolling } from "~/utils/card-translation";
 import { toCardItem } from "~/utils/content";
 import { daysUntil, isWithinDays } from "~/utils/dates";
 import { electionsAreLive } from "~/utils/elections-live";
@@ -141,9 +143,10 @@ export function BrowseCatalog() {
     isFetchingNextPage,
   } = useInfiniteQuery(
     trpc.content.getByType.infiniteQueryOptions(
-      { type: filter, limit: PAGE_SIZE, jurisdiction },
+      { type: filter, limit: PAGE_SIZE, jurisdiction, language },
       {
         initialCursor: 0,
+        refetchInterval: cardTranslationPolling,
         getNextPageParam: (lastPage) => lastPage.nextCursor,
       },
     ),
@@ -161,25 +164,30 @@ export function BrowseCatalog() {
   const isSearching = debouncedQuery.trim().length >= MIN_SEARCH_LENGTH;
   const showFeatured = !isSearching && (filter === "all" || filter === "bill");
   const featuredQuery = useQuery({
-    ...trpc.content.getFeaturedBills.queryOptions({ jurisdiction }),
+    ...trpc.content.getFeaturedBills.queryOptions({ jurisdiction, language }),
     enabled: showFeatured,
+    refetchInterval: cardTranslationPolling,
   });
   const searchQuery = useQuery({
     ...trpc.content.search.queryOptions({
       query: debouncedQuery,
+      language,
       type: filter,
       jurisdiction,
     }),
     enabled: isSearching,
+    refetchInterval: cardTranslationPolling,
   });
   const otherSearchQuery = useQuery({
     ...trpc.content.search.queryOptions({
       query: debouncedQuery,
+      language,
       type: filter,
       jurisdiction: otherJurisdiction,
       limit: 3,
     }),
     enabled: isSearching,
+    refetchInterval: cardTranslationPolling,
   });
 
   const featuredBills = useMemo(
@@ -223,6 +231,7 @@ export function BrowseCatalog() {
       if (isSearching) {
         const input = {
           query: debouncedQuery,
+          language,
           type: filter,
           jurisdiction,
         };
@@ -232,7 +241,12 @@ export function BrowseCatalog() {
           refreshedItems,
         );
       } else {
-        const input = { type: filter, limit: PAGE_SIZE, jurisdiction };
+        const input = {
+          type: filter,
+          limit: PAGE_SIZE,
+          jurisdiction,
+          language,
+        };
         const firstPage = await trpcClient.content.getByType.query({
           ...input,
           cursor: 0,
@@ -328,6 +342,22 @@ export function BrowseCatalog() {
                 clearButtonMode="while-editing"
                 returnKeyType="search"
                 style={{ marginTop: 18, marginBottom: 8 }}
+              />
+            </View>
+
+            <View style={{ paddingHorizontal: 16 }}>
+              <CardTranslationNotice
+                isError={
+                  !!listError ||
+                  (showFeatured && !!featuredQuery.error) ||
+                  (isSearching && !!otherSearchQuery.error)
+                }
+                items={[
+                  ...items,
+                  ...(showFeatured ? featuredBills : []),
+                  ...(isSearching ? (otherSearchQuery.data ?? []) : []),
+                ]}
+                onRetry={() => void handleRefresh()}
               />
             </View>
 

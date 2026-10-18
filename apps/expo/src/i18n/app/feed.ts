@@ -2,6 +2,75 @@
 import type { Catalog } from "./types";
 
 export const feedStrings = {
+  "card.metadata.0": { en: "Senate", es: "Senado", zh: "参议院" },
+  "card.metadata.1": {
+    en: "House",
+    es: "Cámara de Representantes",
+    zh: "众议院",
+  },
+  "card.metadata.2": { en: "Assembly", es: "Asamblea", zh: "众议院" },
+  "card.metadata.3": { en: "Enacted", es: "Promulgada", zh: "已成为法律" },
+  "card.metadata.4": { en: "Vetoed", es: "Vetada", zh: "已否决" },
+  "card.metadata.5": { en: "Failed", es: "No aprobada", zh: "未通过" },
+  "card.metadata.6": { en: "Withdrawn", es: "Retirada", zh: "已撤回" },
+  "card.metadata.7": {
+    en: "Agreed to by both chambers",
+    es: "Aprobada por ambas cámaras",
+    zh: "两院已同意",
+  },
+  "card.metadata.8": {
+    en: "Agreed to in House",
+    es: "Aprobada en la Cámara de Representantes",
+    zh: "众议院已同意",
+  },
+  "card.metadata.9": {
+    en: "Agreed to in Senate",
+    es: "Aprobada en el Senado",
+    zh: "参议院已同意",
+  },
+  "card.metadata.10": {
+    en: "Passed House",
+    es: "Aprobada en la Cámara de Representantes",
+    zh: "众议院已通过",
+  },
+  "card.metadata.11": {
+    en: "Passed Senate",
+    es: "Aprobada en el Senado",
+    zh: "参议院已通过",
+  },
+  "card.metadata.12": {
+    en: "Passed both chambers",
+    es: "Aprobada por ambas cámaras",
+    zh: "两院已通过",
+  },
+  "card.metadata.13": { en: "Passed", es: "Aprobada", zh: "已通过" },
+  "card.metadata.14": {
+    en: "Presented to governor",
+    es: "Presentada al gobernador",
+    zh: "已送交州长",
+  },
+  "card.metadata.15": {
+    en: "Enrolled",
+    es: "Preparada para la firma",
+    zh: "已完成正式誊录",
+  },
+  "card.metadata.16": {
+    en: "Passed committee",
+    es: "Aprobada en comisión",
+    zh: "委员会已通过",
+  },
+  "card.metadata.17": { en: "Proposed", es: "Propuesta", zh: "提案" },
+  "card.metadata.18": {
+    en: "Referred to committee",
+    es: "Remitida a comisión",
+    zh: "已交委员会审议",
+  },
+  "card.metadata.19": { en: "Introduced", es: "Presentada", zh: "已提出" },
+  "card.metadata.20": {
+    en: "Reported by committee",
+    es: "Informada por la comisión",
+    zh: "委员会已报告",
+  },
   "greeting.morning": {
     en: "Good Morning",
     es: "Buenos días",

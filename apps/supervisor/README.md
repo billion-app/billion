@@ -212,6 +212,8 @@ translations lazily as readers request them; deploy the matching worker before
 a bounded backfill. Monetary units are localized while preserving their exact
 value, and quoted amounts remain verbatim.
 
+Card headlines and summaries use the separate `translate-card-v1` prompt/cache version. Deploy a worker containing that prompt before serving newly queued card translations; an older worker’s result is rejected even if it copied the latest source hash. Reader translations retain their own version.
+
 Source quotations and citations retain the protection rules in
 [article generation](../../docs/article-generation.md).
 
