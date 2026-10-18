@@ -4,12 +4,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
 import type { IconName } from "~/components/ui";
+import type { AppTranslate } from "~/i18n/app-strings";
 import type { StringKey } from "~/i18n/strings";
 import { SettingsCrest } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
 import { Kicker, SettingsRow, TabScreen } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useLanguage } from "~/hooks/useLanguage";
 import { useOnboarding } from "~/hooks/useOnboarding";
+import { useUserAddress } from "~/hooks/useUserAddress";
 import { LANGUAGE_OPTIONS } from "~/i18n/language";
 import {
   DigestSpace,
@@ -18,6 +21,7 @@ import {
   DigestPalette as P,
 } from "~/styles";
 import { getAppVersion } from "~/utils/app-version";
+import { shortAddress } from "~/utils/voting";
 
 interface Item {
   icon: IconName;
@@ -27,9 +31,22 @@ interface Item {
 }
 
 function buildGroups(
+  address: string | null,
   t: (key: StringKey) => string,
+  tx: AppTranslate,
 ): { title: string; items: Item[] }[] {
   return [
+    {
+      title: tx("location.title"),
+      items: [
+        {
+          icon: "pin",
+          label: address ? tx("location.change") : tx("location.set"),
+          sub: address ? shortAddress(address) : tx("location.registered"),
+          route: "/settings/location" as Href,
+        },
+      ],
+    },
     {
       title: t("settings.alerts"),
       items: [
@@ -82,9 +99,11 @@ function buildGroups(
 }
 
 export default function SettingsScreen() {
+  const { t: tx } = useAppTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const onboarding = useOnboarding();
+  const { address } = useUserAddress();
   const { language, t } = useLanguage();
   const languageName =
     LANGUAGE_OPTIONS.find((option) => option.id === language)?.nativeName ??
@@ -117,7 +136,7 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {buildGroups(t).map((g) => (
+      {buildGroups(address, t, tx).map((g) => (
         <View key={g.title} style={s.section}>
           <Kicker style={s.sectionKicker}>{g.title}</Kicker>
           {g.items.map((it, i) => (

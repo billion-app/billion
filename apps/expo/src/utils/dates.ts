@@ -29,10 +29,3 @@ export function monthDay(dateString: string, locale = "en-US"): string {
     ...(/^\d{4}-\d{2}-\d{2}$/.test(dateString) ? { timeZone: "UTC" } : {}),
   });
 }
-
-/** ISO date string `days` before/after the given date. */
-export function shiftDays(dateString: string, days: number): string {
-  const d = new Date(dateString);
-  d.setDate(d.getDate() + days);
-  return d.toISOString();
-}

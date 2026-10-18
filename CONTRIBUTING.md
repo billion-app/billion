@@ -122,6 +122,8 @@ For documentation-only changes, check links, command names, and formatting on th
 pnpm exec prettier --check README.md CONTRIBUTING.md docs/architecture.md
 ```
 
+Keep screenshots, review logs, and temporary PR writeups outside version control. Use the ignored `docs/pr-assets/` directory or a directory outside the checkout, and share review evidence through PR attachments. Do not add PR-specific evidence folders or comment drafts to the merge diff; put reusable regression checks in the relevant test suite.
+
 Describe what changed and how you verified it in the PR. When behavior changes, update its guide and retain links to the relevant code. Prefer explaining the data flow over copying entire interfaces or dependency version lists into prose.
 
 ### Notification delivery integration test

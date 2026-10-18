@@ -11,7 +11,7 @@ import {
   DigestPalette as P,
 } from "~/styles";
 
-const LAST_UPDATED = "2026-09-23";
+const LAST_UPDATED = "2026-10-18";
 const CONTACT_EMAIL = "thatxliner@gmail.com";
 
 type Section = readonly [title: AppStringKey, body: AppStringKey];

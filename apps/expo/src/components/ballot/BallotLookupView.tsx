@@ -36,6 +36,10 @@ import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogi
 import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
+  deviceLocationMessage,
+  useDeviceAddress,
+} from "~/hooks/useDeviceAddress";
+import {
   DigestHair,
   fontBody,
   fontEditorial,
@@ -151,13 +155,32 @@ export function BallotLookupView(props: BallotLookupViewProps) {
       : props.data;
   const model = data ? ballotModel(data) : undefined;
   const elections = ballotElectionOptions(props.discovery, data);
-  const submit = () => {
-    const valid = validateBallotAddress(draft);
+  const commitDraft = (next: string) => {
+    cancelLocation();
+    const valid = validateBallotAddress(next);
     setInvalid(!valid);
     if (valid) {
       setEditing(false);
-      props.onAddress(draft.trim());
+      props.onAddress(next.trim());
     }
+  };
+  const submit = () => commitDraft(draft);
+  // Native fix is a shortcut into the same field and validation, not a
+  // separate lookup path — the voter can still type their residence.
+  const {
+    resolve: resolveAddress,
+    cancel: cancelLocation,
+    error: locationError,
+    locating: locatingAddress,
+    resolving: resolvingAddress,
+  } = useDeviceAddress();
+  const locatingFromDevice = locatingAddress || resolvingAddress;
+  const locationMessage = deviceLocationMessage(locationError, tx);
+  const captureLocation = async () => {
+    const next = await resolveAddress();
+    if (!next) return;
+    setDraft(next);
+    setInvalid(false);
   };
   const officeUrl = data ? ballotOfficeUrl(data) : undefined;
   const evidence =
@@ -371,7 +394,10 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               placeholder={tx("Street, city, state, ZIP")}
               placeholderTextColor="rgba(255,255,255,0.70)"
               value={draft}
-              onChangeText={setDraft}
+              onChangeText={(value) => {
+                cancelLocation();
+                setDraft(value);
+              }}
               onSubmitEditing={submit}
               returnKeyType="search"
               autoFocus={!!props.address}
@@ -386,6 +412,33 @@ export function BallotLookupView(props: BallotLookupViewProps) {
             )}
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel={tx("address.useLocation")}
+              accessibilityState={{
+                disabled: locatingFromDevice,
+                busy: locatingFromDevice,
+              }}
+              disabled={locatingFromDevice}
+              onPress={() => void captureLocation()}
+              style={[s.deviceButton, locatingFromDevice && s.deviceButtonBusy]}
+            >
+              {locatingFromDevice ? (
+                <ActivityIndicator color={P.inkOnNight} />
+              ) : (
+                <Icon name="pin" size={18} color={P.primary} />
+              )}
+              <Text style={s.deviceButtonText}>
+                {locatingFromDevice
+                  ? tx("address.finding")
+                  : tx("address.useLocation")}
+              </Text>
+            </Pressable>
+            {locationMessage && (
+              <Text accessibilityRole="alert" style={s.secondary}>
+                {locationMessage}
+              </Text>
+            )}
+            <Pressable
+              accessibilityRole="button"
               onPress={submit}
               style={s.primaryButton}
             >
@@ -395,6 +448,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               <Pressable
                 accessibilityRole="button"
                 onPress={() => {
+                  cancelLocation();
                   setDraft(props.address);
                   setInvalid(false);
                   setEditing(false);
@@ -884,6 +938,23 @@ const s = StyleSheet.create({
     backgroundColor: P.inkOnNight,
     alignItems: "center",
     justifyContent: "center",
+  },
+  deviceButton: {
+    minHeight: 48,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: P.quiet,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  deviceButtonBusy: { opacity: 0.7 },
+  deviceButtonText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+    color: P.inkOnNight,
   },
   primaryText: { fontFamily: fontBody.semibold, fontSize: 13, color: P.canvas },
   input: {

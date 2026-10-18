@@ -1,6 +1,3 @@
-/**
- * Address field with Places autocomplete, then Civic lookup.
- */
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -10,19 +7,20 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { PinMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
-import { useDebounced } from "~/hooks/useDebounce";
+import {
+  deviceLocationMessage,
+  useDeviceAddress,
+} from "~/hooks/useDeviceAddress";
 import { DigestHair, DigestPalette, fontBody } from "~/styles";
-import { trpc } from "~/utils/api";
 
 interface AddressAutocompleteProps {
   /** Initial text to seed the field (e.g. the currently stored address). */
   initialValue?: string;
-  /** Commit a final address (suggestion tap or Look Up press). */
+  /** Commit the address after the voter confirms it. */
   onSubmit: (address: string) => void;
   /**
    * Optional field hint. Pass `null` to hide — Elections empty state carries
@@ -31,21 +29,8 @@ interface AddressAutocompleteProps {
    */
   hint?: string | null;
   autoFocus?: boolean;
-  /** Menu/sheet field: type and pick. No Look Up chrome. */
+  /** Menu/sheet field: type and commit. No Look Up chrome. */
   inline?: boolean;
-}
-
-/**
- * RFC-4122 v4 UUID, used as a Places session token to bundle one address
- * entry's autocomplete calls (+ the closing details call) into a single
- * billed session. Inline to avoid a uuid/crypto dependency.
- */
-function uuidv4(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = Math.floor(Math.random() * 16);
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
 }
 
 export function AddressAutocomplete({
@@ -58,96 +43,58 @@ export function AddressAutocomplete({
   const { t } = useAppTranslation();
   const hint = hintProp === undefined ? t("address.defaultHint") : hintProp;
   const [input, setInput] = useState(initialValue);
-  // Closed right after a pick so the dropdown doesn't reopen on the
-  // programmatic setInput; reopened as soon as the user types again.
-  const [open, setOpen] = useState(false);
-  // One token per address-entry; regenerated after each committed pick.
-  const [sessionToken, setSessionToken] = useState(uuidv4);
-  const debouncedQuery = useDebounced(input, 250);
-
-  const suggestionsQuery = useQuery({
-    ...trpc.places.autocomplete.queryOptions({
-      query: debouncedQuery,
-      sessionToken,
-    }),
-    enabled: open && debouncedQuery.trim().length >= 3,
-    retry: false,
-  });
-
-  // Closes the billing session and returns the full formatted address (with
-  // ZIP, which the prediction omits). Null on the mock path → use the raw text.
-  const detailsMutation = useMutation(trpc.places.details.mutationOptions());
-
-  const suggestions = suggestionsQuery.data ?? [];
-  const showDropdown =
-    open &&
-    !detailsMutation.isPending &&
-    input.trim().length >= 3 &&
-    (suggestions.length > 0 || suggestionsQuery.isFetching);
+  const {
+    resolve: resolveAddress,
+    cancel: cancelLocation,
+    locating,
+    resolving,
+    error: locationError,
+  } = useDeviceAddress();
 
   const commit = (address: string) => {
-    setOpen(false);
+    cancelLocation();
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setInput(address);
-    setSessionToken(uuidv4()); // fresh token for the next entry
     onSubmit(address);
   };
 
-  const pick = async (sug: { description: string; placeId: string }) => {
-    setOpen(false);
-    try {
-      const full = await detailsMutation.mutateAsync({
-        placeId: sug.placeId,
-        sessionToken,
-      });
-      commit(full ?? sug.description);
-    } catch {
-      // Details failed (e.g. network) — fall back to the prediction text.
-      commit(sug.description);
-    }
+  const captureLocation = async () => {
+    const address = await resolveAddress();
+    if (address) setInput(address);
   };
 
-  const pending = (
-    <View style={inline ? s.dropdownInline : s.dropdown}>
-      <View style={inline ? s.suggestionInline : s.suggestion}>
-        <ActivityIndicator size="small" color={DigestPalette.spark} />
-        {inline ? null : (
-          <Text style={s.suggestionText}>{t("address.confirming")}</Text>
-        )}
-      </View>
-    </View>
-  );
+  const locationMessage = deviceLocationMessage(locationError, t);
+  const locationStatus =
+    resolving && !inline ? (
+      <Text style={s.statusText}>{t("address.confirming")}</Text>
+    ) : locationMessage ? (
+      <Text accessibilityRole="alert" style={s.statusText}>
+        {locationMessage}
+      </Text>
+    ) : null;
 
-  const suggestionList = (
-    <View style={inline ? s.dropdownInline : s.dropdown}>
-      {suggestions.map((sug, i) => (
-        <TouchableOpacity
-          key={sug.placeId}
-          style={[
-            inline ? s.suggestionInline : s.suggestion,
-            i > 0 && (inline ? s.suggestionBorderInline : s.suggestionBorder),
-          ]}
-          activeOpacity={0.7}
-          onPress={() => void pick(sug)}
-        >
-          {inline ? null : <PinMark size={14} color={DigestPalette.quiet} />}
-          <Text
-            style={inline ? s.suggestionTextInline : s.suggestionText}
-            numberOfLines={1}
-          >
-            {sug.description}
-          </Text>
-        </TouchableOpacity>
-      ))}
-      {suggestions.length === 0 && suggestionsQuery.isFetching && (
-        <View style={inline ? s.suggestionInline : s.suggestion}>
-          <ActivityIndicator size="small" color={DigestPalette.quiet} />
-          {inline ? null : (
-            <Text style={s.suggestionText}>{t("address.searching")}</Text>
-          )}
-        </View>
+  const gpsButton = (
+    <TouchableOpacity
+      style={[s.gpsBtn, locating && s.gpsBtnBusy]}
+      disabled={locating || resolving}
+      onPress={() => void captureLocation()}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={t("address.useLocation")}
+      accessibilityState={{
+        disabled: locating || resolving,
+        busy: locating || resolving,
+      }}
+    >
+      {locating || resolving ? (
+        <ActivityIndicator size="small" color={DigestPalette.spark} />
+      ) : (
+        <>
+          <PinMark size={14} color={DigestPalette.spark} />
+          <Text style={s.gpsText}>{t("address.useLocation")}</Text>
+        </>
       )}
-    </View>
+    </TouchableOpacity>
   );
 
   if (inline) {
@@ -159,9 +106,9 @@ export function AddressAutocomplete({
           accessibilityLabel={t("address.placeholder")}
           placeholderTextColor={DigestPalette.quiet}
           value={input}
-          onChangeText={(text) => {
-            setOpen(true);
-            setInput(text);
+          onChangeText={(value) => {
+            cancelLocation();
+            setInput(value);
           }}
           autoComplete="street-address"
           textContentType="fullStreetAddress"
@@ -172,11 +119,8 @@ export function AddressAutocomplete({
             if (next) commit(next);
           }}
         />
-        {detailsMutation.isPending
-          ? pending
-          : showDropdown
-            ? suggestionList
-            : null}
+        {gpsButton}
+        {locationStatus}
       </View>
     );
   }
@@ -195,9 +139,9 @@ export function AddressAutocomplete({
             accessibilityLabel={t("address.registeredPlaceholder")}
             placeholderTextColor={DigestHair.inkMuted}
             value={input}
-            onChangeText={(text) => {
-              setOpen(true);
-              setInput(text);
+            onChangeText={(value) => {
+              cancelLocation();
+              setInput(value);
             }}
             autoComplete="street-address"
             textContentType="fullStreetAddress"
@@ -206,19 +150,16 @@ export function AddressAutocomplete({
         </View>
         <TouchableOpacity
           style={[s.btn, !input.trim() && s.btnOff]}
-          disabled={!input.trim() || detailsMutation.isPending}
-          onPress={() => input.trim() && commit(input.trim())}
+          disabled={!input.trim()}
           accessibilityRole="button"
-          accessibilityState={{
-            disabled: !input.trim() || detailsMutation.isPending,
-          }}
+          onPress={() => input.trim() && commit(input.trim())}
         >
           <Text style={s.btnText}>{t("address.lookUp")}</Text>
         </TouchableOpacity>
       </View>
 
-      {detailsMutation.isPending && pending}
-      {showDropdown && suggestionList}
+      {gpsButton}
+      {locationStatus}
     </View>
   );
 }
@@ -233,22 +174,6 @@ const s = StyleSheet.create({
     color: DigestPalette.inkOnNight,
     fontFamily: fontBody.semibold,
     fontSize: 15,
-  },
-  dropdownInline: {
-    marginTop: 2,
-  },
-  suggestionInline: {
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-  },
-  suggestionBorderInline: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: DigestHair.cardBorder,
-  },
-  suggestionTextInline: {
-    fontFamily: fontBody.regular,
-    fontSize: 14,
-    color: DigestPalette.quiet,
   },
   hint: {
     fontFamily: fontBody.regular,
@@ -283,29 +208,30 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: DigestPalette.inkOnNight,
   },
-  dropdown: {
+  gpsBtn: {
     marginTop: 10,
-    backgroundColor: DigestPalette.stone,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: DigestHair.menuBorder,
-    borderRadius: 18,
-    overflow: "hidden",
-  },
-  suggestion: {
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    gap: 7,
+    minHeight: 40,
+    paddingHorizontal: 14,
+    borderRadius: 9999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
+    backgroundColor: DigestPalette.stone,
   },
-  suggestionBorder: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: DigestHair.cardBorder,
-  },
-  suggestionText: {
-    fontFamily: fontBody.medium,
+  gpsBtnBusy: { opacity: 0.7 },
+  gpsText: {
+    fontFamily: fontBody.semibold,
     fontSize: 14,
     color: DigestPalette.inkOnNight,
-    flex: 1,
+  },
+  statusText: {
+    fontFamily: fontBody.regular,
+    fontSize: 12.5,
+    color: DigestPalette.inkOnNight,
+    marginTop: 8,
+    lineHeight: 17,
   },
 });

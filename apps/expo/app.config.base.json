@@ -49,6 +49,14 @@
           ]
         },
         {
+          "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePreciseLocation",
+          "NSPrivacyCollectedDataTypeLinked": true,
+          "NSPrivacyCollectedDataTypeTracking": false,
+          "NSPrivacyCollectedDataTypePurposes": [
+            "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+          ]
+        },
+        {
           "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeCoarseLocation",
           "NSPrivacyCollectedDataTypeLinked": true,
           "NSPrivacyCollectedDataTypeTracking": false,
@@ -136,6 +144,15 @@
     ],
     "expo-build-properties",
     "expo-font",
-    "expo-notifications"
+    "expo-notifications",
+    [
+      "expo-location",
+      {
+        "locationWhenInUsePermission": "Billion uses your current location to fill an address. Confirm your registered voting address before looking up election information.",
+        "locationAlwaysPermission": false,
+        "locationAlwaysAndWhenInUsePermission": false,
+        "isAndroidBackgroundLocationEnabled": false
+      }
+    ]
   ]
 }

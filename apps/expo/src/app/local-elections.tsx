@@ -15,7 +15,7 @@ import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { DigestPalette, fontBody, fontDisplay } from "~/styles";
 import { trpc } from "~/utils/api";
-import { earliestEarlyVoteStart, isCaliforniaState } from "~/utils/elections";
+import { isCaliforniaState } from "~/utils/elections";
 import { electionsAreLive } from "~/utils/elections-live";
 import { BallotExperience } from "./ballot";
 
@@ -112,12 +112,7 @@ export default function LocalElectionsScreen() {
         )}
 
         {calendarElection && (
-          <KeyDatesSection
-            electionDate={calendarElection.electionDay}
-            earlyVoteStart={earliestEarlyVoteStart(
-              voterInfoQuery.data?.earlyVoteSites,
-            )}
-          />
+          <KeyDatesSection electionDate={calendarElection.electionDay} />
         )}
 
         <RepsSection address={address} enabled={hasVerifiedCaliforniaAddress} />
