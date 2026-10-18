@@ -9,6 +9,7 @@ import {
 } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui/Icon";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestRadii,
   fontBody,
@@ -58,6 +59,8 @@ function MarkingExample({
 }: {
   instructions: ContestInstructions;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const diagram = instructionDiagram(instructions);
   const { fontScale } = useWindowDimensions();
   const [availableWidth, setAvailableWidth] = useState(0);
@@ -70,7 +73,7 @@ function MarkingExample({
       style={s.example}
       onLayout={(event) => setAvailableWidth(event.nativeEvent.layout.width)}
     >
-      <Text style={s.metadata}>Example only · not your ballot</Text>
+      <Text style={s.metadata}>{tx("Example only · not your ballot")}</Text>
       {showDiagram ? (
         <View
           accessible
@@ -122,6 +125,8 @@ export function ContestMarking({
   instructions?: ContestInstructions;
   scope: ContestInstructions["scope"];
 }) {
+  const { t: tx, language } = useAppTranslation();
+
   const verified = applicableInstructions(instructions, scope);
   return (
     <View style={s.card}>
@@ -129,32 +134,34 @@ export function ContestMarking({
         <View style={s.headingIcon} aria-hidden accessibilityElementsHidden>
           <Icon name="doc" size={16} color={P.primary} />
         </View>
-        <Text style={s.kicker}>How to mark your ballot</Text>
+        <Text style={s.kicker}>{tx("How to mark your ballot")}</Text>
       </View>
       <Text accessibilityRole="header" style={s.answer}>
         {verified
-          ? selectionLabel(verified)
-          : "Check your official sample ballot"}
+          ? selectionLabel(verified, language)
+          : tx("Check your official sample ballot")}
       </Text>
       <Text style={s.body}>
         {verified
           ? verified.marking
-          : "Billion hasn’t verified marking instructions for this contest."}
+          : tx(
+              "Billion hasn’t verified marking instructions for this contest.",
+            )}
       </Text>
       {verified ? (
         <>
           <View style={s.details}>
             <Detail
               key={`${verified.scope.contestId}:example`}
-              title="See a marking example"
+              title={tx("See a marking example")}
             >
               <MarkingExample instructions={verified} />
             </Detail>
             {(
               [
-                ["Write-in instructions", verified.writeIns],
-                ["If you mark too many choices", verified.overvotes],
-                ["Leaving this contest blank", verified.blankContest],
+                [tx("Write-in instructions"), verified.writeIns],
+                [tx("If you mark too many choices"), verified.overvotes],
+                [tx("Leaving this contest blank"), verified.blankContest],
               ] as const
             ).map(([title, text]) =>
               text ? (
@@ -168,27 +175,31 @@ export function ContestMarking({
             )}
             <Detail
               key={`${verified.scope.contestId}:details`}
-              title="Sources & details"
+              title={tx("Sources & details")}
             >
               <Text style={s.metadata}>{verified.source.authority}</Text>
               <View style={s.source}>
                 <SourceLink
-                  label="Official instructions"
+                  label={tx("Official instructions")}
                   prominence="primary"
                   url={verified.source.url}
                 />
               </View>
-              <Text style={s.body}>Voting system: {verified.system}</Text>
+              <Text style={s.body}>
+                {tx("Voting system: {value1}", { value1: verified.system })}
+              </Text>
               {verified.electionStage && (
                 <View style={s.section}>
                   <Text accessibilityRole="header" style={s.detailLabel}>
-                    About this election
+                    {tx("About this election")}
                   </Text>
                   <Text style={s.body}>{verified.electionStage}</Text>
                 </View>
               )}
               <Text style={s.metadata}>
-                Reviewed {verified.source.reviewedAt}
+                {tx("Reviewed {value1}", {
+                  value1: verified.source.reviewedAt,
+                })}
               </Text>
             </Detail>
           </View>
@@ -197,7 +208,7 @@ export function ContestMarking({
         <ElectionOfficeLink prominence="primary" />
       )}
       <Text style={s.metadata}>
-        Vote on your official ballot. Billion does not submit votes.
+        {tx("Vote on your official ballot. Billion does not submit votes.")}
       </Text>
     </View>
   );

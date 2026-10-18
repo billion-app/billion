@@ -44,6 +44,8 @@ import * as WebBrowser from "expo-web-browser";
 import Markdown from "@ronradtke/react-native-markdown-display";
 
 import type { IconName } from "./Icon";
+import type { StringKey } from "~/i18n/strings";
+import { useLanguage } from "~/hooks/useLanguage";
 import {
   colors,
   darkTheme,
@@ -116,25 +118,25 @@ export interface BillBriefData {
   }[];
 }
 
-const CHANGE_KIND_LABEL: Record<BriefChangeKind, string> = {
-  creates: "CREATES",
-  repeals: "REPEALS",
-  expands: "EXPANDS",
-  restricts: "RESTRICTS",
-  requires: "REQUIRES",
-  waives: "WAIVES",
-  funds: "FUNDS",
-  transfers: "TRANSFERS",
+const CHANGE_KIND_LABEL: Record<BriefChangeKind, StringKey> = {
+  creates: "readerUi.creates",
+  repeals: "readerUi.repeals",
+  expands: "readerUi.expands",
+  restricts: "readerUi.restricts",
+  requires: "readerUi.requires",
+  waives: "readerUi.waives",
+  funds: "readerUi.funds",
+  transfers: "readerUi.transfers",
 };
 
 const DIRECTION: Record<
   BillBriefData["affected"][number]["direction"],
-  { icon: IconName; label: string; color: string }
+  { icon: IconName; label: StringKey; color: string }
 > = {
-  gains: { icon: "arrowUp", label: "Gains", color: "#55D6BE" },
-  loses: { icon: "arrowDown", label: "Loses", color: "#FF9575" },
-  mixed: { icon: "minus", label: "Mixed", color: "#B8A1FF" },
-  unclear: { icon: "help", label: "Unclear", color: "#F4C95D" },
+  gains: { icon: "arrowUp", label: "readerUi.gains", color: "#55D6BE" },
+  loses: { icon: "arrowDown", label: "readerUi.loses", color: "#FF9575" },
+  mixed: { icon: "minus", label: "readerUi.mixed", color: "#B8A1FF" },
+  unclear: { icon: "help", label: "readerUi.unclear", color: "#F4C95D" },
 };
 
 /* ---------- Inline emphasis — useful phrases, not whole paragraphs ---------- */
@@ -199,6 +201,7 @@ function Hook({
   legalStatus: BillBriefData["legalStatus"];
   accent: string;
 }) {
+  const { t: tr } = useLanguage();
   const [expanded, setExpanded] = useState(false);
   const shortText = summary ?? text;
   const hasExtendedVersion = shortText !== text;
@@ -212,10 +215,12 @@ function Hook({
         <View style={[s.summaryIcon, { backgroundColor: `${accent}28` }]}>
           <Icon name="sparkle" size={16} color={accent} />
         </View>
-        <Text style={s.summaryTitle}>The short version</Text>
+        <Text style={s.summaryTitle}>{tr("readerUi.shortVersion")}</Text>
         <View style={[s.summaryStatus, { borderColor: `${accent}66` }]}>
           <Text style={[s.summaryStatusText, { color: accent }]}>
-            {legalStatus === "enacted" ? "LAW" : "PROPOSAL"}
+            {legalStatus === "enacted"
+              ? tr("readerUi.law")
+              : tr("readerUi.proposal")}
           </Text>
         </View>
       </View>
@@ -230,11 +235,15 @@ function Hook({
           accessibilityRole="button"
           accessibilityState={{ expanded }}
           accessibilityLabel={
-            expanded ? "Hide the extended summary" : "Read the extended summary"
+            expanded
+              ? tr("readerUi.hideExtendedA11y")
+              : tr("readerUi.readExtendedA11y")
           }
         >
           <Text style={[s.summaryToggleText, { color: accent }]}>
-            {expanded ? "Hide extended version" : "Read extended version"}
+            {expanded
+              ? tr("readerUi.hideExtended")
+              : tr("readerUi.readExtended")}
           </Text>
           <View style={expanded ? s.chevFlip : undefined}>
             <Icon name="chevD" size={14} color={accent} />
@@ -243,7 +252,7 @@ function Hook({
       ) : null}
       {expanded ? (
         <View style={s.extendedSummary} testID="brief-hook">
-          <Text style={s.extendedSummaryLabel}>EXTENDED VERSION</Text>
+          <Text style={s.extendedSummaryLabel}>{tr("readerUi.extended")}</Text>
           <EmphasizedText style={s.extendedSummaryText}>{text}</EmphasizedText>
         </View>
       ) : null}
@@ -259,6 +268,7 @@ function WhyNotBefore({
   context: NonNullable<BillBriefData["whyNotBefore"]>;
   accent: string;
 }) {
+  const { t: tr } = useLanguage();
   const [open, setOpen] = useState(false);
   const sources = [
     ...new Map(
@@ -280,18 +290,14 @@ function WhyNotBefore({
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         accessibilityLabel={
-          open
-            ? "Hide why this was not implemented before"
-            : "Explain why this was not implemented before"
+          open ? tr("readerUi.hideHistory") : tr("readerUi.showHistory")
         }
       >
         <View style={[s.contextIcon, { backgroundColor: `${accent}28` }]}>
           <Icon name="clock" size={15} color={accent} />
         </View>
         <View style={s.contextHeadingCopy}>
-          <Text style={s.contextTitle}>
-            Why wasn&apos;t this implemented before?
-          </Text>
+          <Text style={s.contextTitle}>{tr("readerUi.history")}</Text>
         </View>
         <View style={open ? s.chevFlip : undefined}>
           <Icon name="chevD" size={16} color={accent} />
@@ -328,7 +334,7 @@ function WhyNotBefore({
           ))}
 
           <View style={s.contextSources}>
-            <Text style={s.contextSourcesTitle}>Sources</Text>
+            <Text style={s.contextSourcesTitle}>{tr("readerUi.sources")}</Text>
             {sources.map((source, index) => (
               <TouchableOpacity
                 key={source.url}
@@ -336,7 +342,10 @@ function WhyNotBefore({
                 activeOpacity={0.7}
                 onPress={() => void WebBrowser.openBrowserAsync(source.url)}
                 accessibilityRole="link"
-                accessibilityLabel={`Open source ${index + 1}: ${source.title}`}
+                accessibilityLabel={tr("readerUi.openSourceNumber", {
+                  number: index + 1,
+                  title: source.title,
+                })}
               >
                 <Text style={[s.contextSourceNumber, { color: accent }]}>
                   [{index + 1}]
@@ -369,6 +378,7 @@ function QuoteDisclosure({
   accent: string;
   onViewSource?: (quote: BriefQuote) => void;
 }) {
+  const { t: tr } = useLanguage();
   const [open, setOpen] = useState(false);
   return (
     <View style={s.quoteWrap}>
@@ -379,12 +389,14 @@ function QuoteDisclosure({
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         accessibilityLabel={
-          open ? "Hide the source text" : "Show the source text"
+          open ? tr("readerUi.hideSource") : tr("readerUi.showSource")
         }
       >
         <Icon name="quote" size={11} color={colors.textSecondary} />
         <Text style={s.quoteToggleText}>
-          {quote.locator ? `In the text · ${quote.locator}` : "In the text"}
+          {quote.locator
+            ? `${tr("readerUi.inText")} · ${quote.locator}`
+            : tr("readerUi.inText")}
         </Text>
         <View style={open ? s.chevFlip : undefined}>
           <Icon name="chevD" size={13} color={colors.textSecondary} />
@@ -401,9 +413,13 @@ function QuoteDisclosure({
           activeOpacity={0.78}
           onPress={() => onViewSource(quote)}
           accessibilityRole="button"
-          accessibilityLabel={`View source${quote.locator ? ` at ${quote.locator}` : ""}`}
+          accessibilityLabel={
+            quote.locator
+              ? tr("readerUi.viewSourceAt", { locator: quote.locator })
+              : tr("readerUi.viewSource")
+          }
         >
-          <Text style={s.viewSourceText}>View source</Text>
+          <Text style={s.viewSourceText}>{tr("readerUi.viewSource")}</Text>
           <Icon name="arrowRight" size={13} color={colors.white} />
         </TouchableOpacity>
       ) : null}
@@ -421,6 +437,7 @@ function Changes({
   accent: string;
   onViewSource?: (quote: BriefQuote) => void;
 }) {
+  const { t: tr } = useLanguage();
   const { width: screenWidth } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
   const cardWidth = Math.max(260, Math.min(screenWidth - 64, 390));
@@ -453,7 +470,7 @@ function Changes({
             <View style={s.changeHead}>
               <View style={[s.kindChip, { borderColor: accent }]}>
                 <Text style={[s.kindChipText, { color: accent }]}>
-                  {CHANGE_KIND_LABEL[c.kind]}
+                  {tr(CHANGE_KIND_LABEL[c.kind])}
                 </Text>
               </View>
               <Text style={s.changeIndex}>
@@ -469,13 +486,13 @@ function Changes({
                 contentFit="cover"
                 transition={180}
                 accessible
-                accessibilityLabel={`Photograph illustrating: ${c.title}`}
+                accessibilityLabel={tr("readerUi.photo", { title: c.title })}
               />
             ) : null}
 
             <View style={s.deltaStack}>
               <View style={s.deltaBefore}>
-                <Text style={s.deltaLabel}>NOW</Text>
+                <Text style={s.deltaLabel}>{tr("readerUi.now")}</Text>
                 <EmphasizedText style={s.deltaText}>{c.before}</EmphasizedText>
               </View>
               <View style={s.deltaTransition}>
@@ -484,7 +501,7 @@ function Changes({
                 />
                 <Icon name="arrowDown" size={13} color={accent} />
                 <Text style={[s.deltaTransitionText, { color: accent }]}>
-                  THE PROPOSAL CHANGES THIS
+                  {tr("readerUi.proposalChanges")}
                 </Text>
               </View>
               <View
@@ -496,7 +513,7 @@ function Changes({
                   },
                 ]}
               >
-                <Text style={s.deltaLabel}>UNDER THIS BILL</Text>
+                <Text style={s.deltaLabel}>{tr("readerUi.underBill")}</Text>
                 <EmphasizedText style={[s.deltaText, s.deltaTextAfter]}>
                   {c.after}
                 </EmphasizedText>
@@ -529,8 +546,11 @@ function Changes({
           ))}
           <Text style={s.changePagerText}>
             {activeIndex < changes.length - 1
-              ? `Change ${activeIndex + 1} of ${changes.length} · Swipe for more`
-              : `Change ${activeIndex + 1} of ${changes.length}`}
+              ? `${tr("readerUi.changeCount", { current: activeIndex + 1, total: changes.length })} · ${tr("readerUi.swipeMore")}`
+              : tr("readerUi.changeCount", {
+                  current: activeIndex + 1,
+                  total: changes.length,
+                })}
           </Text>
         </View>
       ) : null}
@@ -540,6 +560,7 @@ function Changes({
 
 /* ---------- Affected — who this lands on ---------- */
 function Affected({ affected }: { affected: BillBriefData["affected"] }) {
+  const { t: tr } = useLanguage();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   return (
     <View style={s.affectedList} testID="brief-affected">
@@ -584,7 +605,7 @@ function Affected({ affected }: { affected: BillBriefData["affected"] }) {
                   ]}
                 >
                   <Text style={[s.affectedDirection, { color: outcomeColor }]}>
-                    {d.label}
+                    {tr(d.label)}
                   </Text>
                 </View>
               </View>
@@ -604,7 +625,9 @@ function Affected({ affected }: { affected: BillBriefData["affected"] }) {
                     accessibilityState={{ expanded: open }}
                   >
                     <Text style={[s.affectedMoreText, { color: outcomeColor }]}>
-                      {open ? "Hide context" : "Why this matters"}
+                      {open
+                        ? tr("readerUi.hideContext")
+                        : tr("readerUi.whyMatters")}
                     </Text>
                     <View style={open ? s.chevFlip : undefined}>
                       <Icon name="chevD" size={13} color={outcomeColor} />
@@ -635,12 +658,13 @@ function Unknowns({
   unknowns: string[];
   accent: string;
 }) {
+  const { t: tr } = useLanguage();
   if (unknowns.length === 0) return null;
   return (
     <View style={s.unknownCard} testID="brief-unknowns">
       <View style={s.unknownHead}>
         <Icon name="help" size={15} color={colors.textSecondary} />
-        <Text style={s.unknownTitle}>What the text doesn&apos;t settle</Text>
+        <Text style={s.unknownTitle}>{tr("readerUi.unknowns")}</Text>
       </View>
       <View style={s.unknownList}>
         {unknowns.map((u, i) => (
@@ -664,6 +688,7 @@ function Terms({
   terms: BillBriefData["terms"];
   accent: string;
 }) {
+  const { t: tr } = useLanguage();
   if (terms.length === 0) return null;
   return (
     <View style={s.termSection} testID="brief-key-terms">
@@ -672,8 +697,8 @@ function Terms({
           <Icon name="book" size={15} color={accent} />
         </View>
         <View style={s.termHeadingCopy}>
-          <Text style={s.termTitle}>Key terms</Text>
-          <Text style={s.termSubtitle}>Know these before you read further</Text>
+          <Text style={s.termTitle}>{tr("readerUi.terms")}</Text>
+          <Text style={s.termSubtitle}>{tr("readerUi.termsSub")}</Text>
         </View>
       </View>
       <View style={s.termList}>
@@ -708,6 +733,7 @@ function FurtherReading({
   reading: NonNullable<BillBriefData["reading"]>;
   accent: string;
 }) {
+  const { t: tr } = useLanguage();
   const [deepDiveOpen, setDeepDiveOpen] = useState(false);
   const markdownStyles = getMarkdownStyles(darkTheme);
   if (!deepDive && reading.length === 0) return null;
@@ -727,21 +753,23 @@ function FurtherReading({
             activeOpacity={0.75}
             onPress={() => setDeepDiveOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel={`Read Billion explainer: ${deepDive.title}`}
+            accessibilityLabel={tr("readerUi.readExplainer", {
+              title: deepDive.title,
+            })}
           >
             <View style={[s.readingIcon, { backgroundColor: `${accent}28` }]}>
               <Icon name="sparkle" size={16} color={accent} />
             </View>
             <View style={s.readingCopy}>
               <Text style={[s.readingPublisher, { color: accent }]}>
-                BILLION EXPLAINER
+                {tr("readerUi.explainer")}
               </Text>
               <Text style={s.deepDiveTitle}>{deepDive.title}</Text>
               <EmphasizedText style={s.readingWhy}>
                 {deepDive.dek}
               </EmphasizedText>
               <Text style={[s.readingAction, { color: accent }]}>
-                Read the full explainer
+                {tr("readerUi.fullExplainer")}
               </Text>
             </View>
             <Icon name="chevR" size={17} color={accent} />
@@ -755,7 +783,10 @@ function FurtherReading({
             activeOpacity={0.75}
             onPress={() => openExternal(item.url)}
             accessibilityRole="link"
-            accessibilityLabel={`Read ${item.title} from ${item.publisher}`}
+            accessibilityLabel={tr("readerUi.readPublisher", {
+              title: item.title,
+              publisher: item.publisher,
+            })}
           >
             <View style={s.readingIcon}>
               <Icon name="external" size={15} color={colors.textSecondary} />
@@ -793,15 +824,15 @@ function FurtherReading({
             <View style={s.modalHead}>
               <View>
                 <Text style={[s.modalKicker, { color: accent }]}>
-                  BILLION EXPLAINER
+                  {tr("readerUi.explainer")}
                 </Text>
-                <Text style={s.modalBrand}>Go beyond the brief</Text>
+                <Text style={s.modalBrand}>{tr("readerUi.beyondBrief")}</Text>
               </View>
               <TouchableOpacity
                 style={s.modalClose}
                 onPress={() => setDeepDiveOpen(false)}
                 accessibilityRole="button"
-                accessibilityLabel="Close explainer"
+                accessibilityLabel={tr("readerUi.closeExplainer")}
               >
                 <Icon name="close" size={20} color={colors.white} />
               </TouchableOpacity>
@@ -817,7 +848,9 @@ function FurtherReading({
 
               {reading.length > 0 ? (
                 <View style={s.modalSources}>
-                  <Text style={s.modalSourcesTitle}>Continue with sources</Text>
+                  <Text style={s.modalSourcesTitle}>
+                    {tr("readerUi.continueSources")}
+                  </Text>
                   {reading.map((item) => (
                     <TouchableOpacity
                       key={item.url}
@@ -863,6 +896,7 @@ export function BillBrief({
   dualLens?: ReactNode;
   onViewSource?: (quote: BriefQuote) => void;
 }) {
+  const { t: tr } = useLanguage();
   // Keep fast refresh safe while a screen still holds a pre-v5 brief in memory.
   const reading = data.reading ?? [];
 
@@ -879,28 +913,28 @@ export function BillBrief({
       ) : null}
       <Terms terms={data.terms} accent={accent} />
 
-      <BlockTitle>What would change</BlockTitle>
+      <BlockTitle>{tr("readerUi.changes")}</BlockTitle>
       <Changes
         changes={data.changes}
         accent={accent}
         onViewSource={onViewSource}
       />
 
-      <BlockTitle>Who it lands on</BlockTitle>
+      <BlockTitle>{tr("readerUi.affected")}</BlockTitle>
       <Affected affected={data.affected} />
 
       <Unknowns unknowns={data.unknowns} accent={accent} />
 
       {dualLens ? (
         <View style={s.lensSection}>
-          <BlockTitle>How people make the case</BlockTitle>
+          <BlockTitle>{tr("readerUi.arguments")}</BlockTitle>
           {dualLens}
         </View>
       ) : null}
 
       {data.deepDive || reading.length > 0 ? (
         <>
-          <BlockTitle>Keep reading</BlockTitle>
+          <BlockTitle>{tr("readerUi.keepReading")}</BlockTitle>
           <FurtherReading
             deepDive={data.deepDive}
             reading={reading}

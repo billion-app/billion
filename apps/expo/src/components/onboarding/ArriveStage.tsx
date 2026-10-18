@@ -17,6 +17,7 @@ import Animated, {
 import { BlurView } from "expo-blur";
 
 import { GoldBillionMark } from "~/components/GoldBillionMark";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestRadii,
   fontBody,
@@ -27,20 +28,9 @@ import {
 const SLIDE = Easing.bezier(0.22, 1, 0.36, 1);
 const SPRING = { dampingRatio: 0.78, duration: 520 } as const;
 
-const INSTANT = [
-  { time: "now", title: "A bill you saved moved.", body: "See what changed." },
-  {
-    time: "now",
-    title: "Something changed in California.",
-    body: "Here’s what it means.",
-  },
-] as const;
-
-const EVENING = {
-  time: "7:00 PM",
-  title: "While you were away",
-  body: "3 things changed.",
-};
+/** The evening brief's delivery hour, shown in the reader's clock format. */
+const EVENING_HOUR = 19;
+const EVENING_SAMPLE_COUNT = 3;
 
 export function ArriveStage({
   active,
@@ -55,12 +45,33 @@ export function ArriveStage({
   onInstant: () => void;
   onEvening: () => void;
 }) {
+  const { t, formatTime } = useAppTranslation();
   const idle = !instant && !evening;
+  const eveningAt = new Date(2000, 0, 1, EVENING_HOUR, 0);
+  const instantBanners = [
+    {
+      time: t("onboarding.arriveNow"),
+      title: t("onboarding.arriveSavedTitle"),
+      body: t("onboarding.arriveSavedBody"),
+    },
+    {
+      time: t("onboarding.arriveNow"),
+      title: t("onboarding.arrivePlaceTitle", { place: t("place.ca.name") }),
+      body: t("onboarding.arrivePlaceBody"),
+    },
+  ];
+  const eveningBanner = {
+    time: formatTime(eveningAt),
+    title: t("onboarding.arriveEveningTitle"),
+    body: t("onboarding.arriveEveningBody", { count: EVENING_SAMPLE_COUNT }),
+  };
 
   return (
     <View style={s.root}>
-      <Text style={s.headline}>When it lands.</Text>
-      <Text style={s.dek}>Pick how the brief finds you. Quietly.</Text>
+      <Text style={s.headline} accessibilityRole="header">
+        {t("onboarding.arriveHeadline")}
+      </Text>
+      <Text style={s.dek}>{t("onboarding.arriveDek")}</Text>
 
       <View style={s.stage}>
         {idle ? (
@@ -71,14 +82,16 @@ export function ArriveStage({
             <View style={s.copy}>
               <View style={s.top}>
                 <Text style={s.app}>BILLION</Text>
-                <Text style={s.time}>here</Text>
+                <Text style={s.time}>{t("onboarding.arriveHere")}</Text>
               </View>
-              <Text style={s.ghostTitle}>Your brief lands here.</Text>
-              <Text style={s.body}>Tap a cadence below.</Text>
+              <Text style={s.ghostTitle}>
+                {t("onboarding.arriveGhostTitle")}
+              </Text>
+              <Text style={s.body}>{t("onboarding.arriveGhostBody")}</Text>
             </View>
           </View>
         ) : null}
-        {INSTANT.map((n, i) => (
+        {instantBanners.map((n, i) => (
           <Banner
             key={`i-${i}`}
             show={active && instant}
@@ -93,21 +106,23 @@ export function ArriveStage({
           show={active && evening}
           delay={instant ? 380 : 80}
           stack={instant ? 2 : 0}
-          time={EVENING.time}
-          title={EVENING.title}
-          body={EVENING.body}
+          time={eveningBanner.time}
+          title={eveningBanner.title}
+          body={eveningBanner.body}
         />
       </View>
 
       <Choice
-        title="When it moves"
-        hint="Saved bills & new executive orders you follow"
+        title={t("onboarding.instantTitle")}
+        hint={t("onboarding.instantHint")}
         selected={instant}
         onPress={onInstant}
       />
       <Choice
-        title="Once, at 7"
-        hint="One brief. That’s it."
+        title={t("onboarding.eveningTitle", {
+          time: formatTime(eveningAt, { hour: "numeric" }),
+        })}
+        hint={t("onboarding.eveningHint")}
         selected={evening}
         onPress={onEvening}
       />
@@ -129,8 +144,9 @@ function Choice({
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
+      accessibilityRole="checkbox"
+      accessibilityLabel={`${title}. ${hint}`}
+      accessibilityState={{ checked: selected }}
       style={[s.card, selected && s.cardOn]}
     >
       <View style={{ flex: 1 }}>

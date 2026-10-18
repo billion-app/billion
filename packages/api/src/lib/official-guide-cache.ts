@@ -8,6 +8,8 @@ export const CA_OFFICIAL_GUIDE_SOURCE =
   "California Secretary of State Official Voter Information Guide";
 export const CA_GENERAL_ELECTION_DATE = "2026-11-03";
 const text = z.string().min(1).max(30_000);
+/** Official titles run long; this bounds the formatted copy, markers included. */
+export const DISPLAY_TITLE_MAX = 400;
 const GUIDE_HOSTS = ["voterguide.sos.ca.gov", "vig.cdn.sos.ca.gov"];
 const httpsUrl = (hosts: readonly string[]) =>
   z
@@ -36,6 +38,14 @@ export const officialGuidePayloadSchema = z.object({
       z.object({
         number: z.string().regex(/^\d+[A-Z]?$/),
         title: text,
+        /**
+         * The official title in sentence case with one `**key phrase**`,
+         * minus its legal label. The scraper rejects any formatting that
+         * changes the official words; it is not part of the guide hash.
+         */
+        displayTitle: z.string().min(1).max(DISPLAY_TITLE_MAX).optional(),
+        /** Prompt version that formatted `displayTitle`; reuse requires a match. */
+        displayTitlePrompt: z.string().max(40).optional(),
         sourceUrl: url,
         officialSummary: text.optional(),
         voteMeaningYes: text.optional(),

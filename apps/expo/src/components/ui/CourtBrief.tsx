@@ -11,6 +11,7 @@ import {
 import type { RouterOutputs } from "@acme/api";
 
 import type { BriefQuote } from "./BillBrief";
+import { useLanguage } from "~/hooks/useLanguage";
 import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
 import { courtSourceQuote } from "~/utils/source-passage";
 import { DefinedText } from "./DefinedText";
@@ -25,40 +26,40 @@ type Point = CourtBriefData["action"];
 
 const PROCEEDING = {
   emergency_order: {
-    badge: "TEMPORARY",
-    label: "Emergency order",
-    detail: "Temporary decision while the case continues",
+    badge: "readerUi.temporary",
+    label: "readerUi.emergencyOrder",
+    detail: "readerUi.temporaryDetail",
   },
   order: {
-    badge: "ORDER",
-    label: "Court order",
-    detail: "Scope limited to the request before the court",
+    badge: "readerUi.order",
+    label: "readerUi.courtOrder",
+    detail: "readerUi.orderDetail",
   },
   merits_opinion: {
-    badge: "DECISION",
-    label: "Full decision",
-    detail: "The court decided the legal questions before it",
+    badge: "readerUi.decision",
+    label: "readerUi.fullDecision",
+    detail: "readerUi.decisionDetail",
   },
   unknown: {
-    badge: "SCOPE UNCLEAR",
-    label: "Court filing",
-    detail: "The procedural scope is not established",
+    badge: "readerUi.scopeUnclear",
+    label: "readerUi.filing",
+    detail: "readerUi.scopeDetail",
   },
 } as const;
 
 const REASON = {
-  holding: "HOLDING",
-  court_reasoning: "COURT REASONING",
-  party_argument: "PARTY ARGUMENT",
-  allegation: "ALLEGATION",
+  holding: "readerUi.holding",
+  court_reasoning: "readerUi.reasoning",
+  party_argument: "readerUi.partyArgument",
+  allegation: "readerUi.allegation",
 } as const;
 
 const OPINION = {
-  majority: { label: "COURT'S MAIN OPINION", color: "#55D6BE" },
-  per_curiam: { label: "COURT OPINION · UNSIGNED", color: "#55D6BE" },
-  concurrence: { label: "AGREES · CONCURRENCE", color: "#B8A1FF" },
-  dissent: { label: "DISAGREES · DISSENT", color: "#FF9575" },
-  unknown: { label: "OPINION", color: "#F4C95D" },
+  majority: { label: "readerUi.majority", color: "#55D6BE" },
+  per_curiam: { label: "readerUi.perCuriam", color: "#55D6BE" },
+  concurrence: { label: "readerUi.concurrence", color: "#B8A1FF" },
+  dissent: { label: "readerUi.dissent", color: "#FF9575" },
+  unknown: { label: "readerUi.opinion", color: "#F4C95D" },
 } as const;
 
 function BlockTitle({ children }: { children: string }) {
@@ -74,6 +75,7 @@ function QuoteDisclosure({
   accent: string;
   onViewSource?: (quote: BriefQuote) => void;
 }) {
+  const { t: tr } = useLanguage();
   const [open, setOpen] = useState(false);
   if (!point.quote) return null;
 
@@ -88,12 +90,14 @@ function QuoteDisclosure({
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         accessibilityLabel={
-          open ? "Hide the source text" : "Show the source text"
+          open ? tr("readerUi.hideSource") : tr("readerUi.showSource")
         }
       >
         <Icon name="quote" size={11} color={colors.textSecondary} />
         <Text style={s.quoteToggleText}>
-          {quote.locator ? `In the text · ${quote.locator}` : "In the text"}
+          {quote.locator
+            ? `${tr("readerUi.inText")} · ${quote.locator}`
+            : tr("readerUi.inText")}
         </Text>
         <View style={open ? s.chevFlip : undefined}>
           <Icon name="chevD" size={13} color={colors.textSecondary} />
@@ -110,9 +114,13 @@ function QuoteDisclosure({
           activeOpacity={0.78}
           onPress={() => onViewSource(quote)}
           accessibilityRole="button"
-          accessibilityLabel={`View source${quote.locator ? ` at ${quote.locator}` : ""}`}
+          accessibilityLabel={
+            quote.locator
+              ? tr("readerUi.viewSourceAt", { locator: quote.locator })
+              : tr("readerUi.viewSource")
+          }
         >
-          <Text style={s.viewSourceText}>View source</Text>
+          <Text style={s.viewSourceText}>{tr("readerUi.viewSource")}</Text>
           <Icon name="arrowRight" size={13} color={colors.white} />
         </TouchableOpacity>
       ) : null}
@@ -121,6 +129,7 @@ function QuoteDisclosure({
 }
 
 function SourcePills({ data, point }: { data: CourtBriefData; point: Point }) {
+  const { t: tr } = useLanguage();
   return (
     <View style={s.sourcePills}>
       {point.documentIds.map((id) => {
@@ -132,14 +141,16 @@ function SourcePills({ data, point }: { data: CourtBriefData; point: Point }) {
             style={s.sourcePill}
             activeOpacity={0.7}
             accessibilityRole="link"
-            accessibilityLabel={`Open source ${id}`}
+            accessibilityLabel={tr("readerUi.openSourceId", { id })}
             onPress={() => void Linking.openURL(source.url)}
           >
             <Icon name="doc" size={11} color={colors.textSecondary} />
             <Text style={s.sourcePillText}>
               {data.criminalCaseStatus
-                ? "Docket source"
-                : `Source ${id.replace("document-", "")}`}
+                ? tr("readerUi.docketSource")
+                : tr("readerUi.sourceNumber", {
+                    number: id.replace("document-", ""),
+                  })}
             </Text>
             <Icon name="external" size={10} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -194,10 +205,11 @@ function OpinionsSection({
   accent: string;
   onViewSource?: (quote: BriefQuote) => void;
 }) {
+  const { t: tr } = useLanguage();
   if (!data.opinions.length) return null;
   return (
     <>
-      <BlockTitle>Separate opinions</BlockTitle>
+      <BlockTitle>{tr("readerUi.separateOpinions")}</BlockTitle>
       <View style={s.cardList} testID="court-brief-opinions">
         {data.opinions.map((opinion, index) => {
           const treatment = OPINION[opinion.kind];
@@ -208,10 +220,10 @@ function OpinionsSection({
             >
               <View style={s.opinionHead}>
                 <Text style={[s.opinionKind, { color: treatment.color }]}>
-                  {treatment.label}
+                  {tr(treatment.label)}
                 </Text>
                 <Text style={s.opinionAuthor}>
-                  {opinion.author ?? "Author not established"}
+                  {opinion.author ?? tr("readerUi.unknownAuthor")}
                 </Text>
               </View>
               <DefinedText
@@ -241,14 +253,15 @@ function UnknownsCard({
   data: CourtBriefData;
   accent: string;
 }) {
+  const { t: tr } = useLanguage();
   return (
     <View style={s.unknownCard} testID="court-brief-unknowns">
       <View style={s.unknownHead}>
         <Icon name="help" size={15} color={colors.textSecondary} />
         <Text style={s.unknownTitle}>
           {data.criminalCaseStatus
-            ? "What the docket doesn’t show"
-            : "What the ruling doesn’t settle"}
+            ? tr("readerUi.docketUnknowns")
+            : tr("readerUi.rulingUnknowns")}
         </Text>
       </View>
       <View style={s.unknownList}>
@@ -271,16 +284,16 @@ function UnknownsCard({
 }
 
 function OfficialDocuments({ data }: { data: CourtBriefData }) {
+  const { t: tr } = useLanguage();
   return (
     <>
       <BlockTitle>
-        {data.criminalCaseStatus ? "Docket source" : "Source material"}
+        {data.criminalCaseStatus
+          ? tr("readerUi.docketSource")
+          : tr("readerUi.sourceMaterial")}
       </BlockTitle>
       {data.criminalCaseStatus ? (
-        <Text style={s.scopeDetail}>
-          A docket can list filings without providing their contents. This link
-          opens the archive’s docket snapshot.
-        </Text>
+        <Text style={s.scopeDetail}>{tr("readerUi.docketNote")}</Text>
       ) : null}
       <View style={s.documentList} testID="court-brief-sources">
         {data.sources.map((source, index) => (
@@ -289,7 +302,7 @@ function OfficialDocuments({ data }: { data: CourtBriefData }) {
             style={s.documentCard}
             activeOpacity={0.75}
             accessibilityRole="link"
-            accessibilityLabel={`Open source ${source.id}`}
+            accessibilityLabel={tr("readerUi.openSourceId", { id: source.id })}
             onPress={() => void Linking.openURL(source.url)}
           >
             <View style={s.documentIcon}>
@@ -297,12 +310,14 @@ function OfficialDocuments({ data }: { data: CourtBriefData }) {
             </View>
             <View style={s.documentCopy}>
               <Text style={s.documentEyebrow}>
-                {data.criminalCaseStatus ? "LINKED DOCKET" : "LINKED SOURCE"}
+                {data.criminalCaseStatus
+                  ? tr("readerUi.linkedDocket")
+                  : tr("readerUi.linkedSource")}
               </Text>
               <Text style={s.documentTitle}>
                 {data.criminalCaseStatus
-                  ? `Docket snapshot ${index + 1}`
-                  : `Document ${index + 1}`}
+                  ? tr("readerUi.docketNumber", { number: index + 1 })
+                  : tr("readerUi.documentNumber", { number: index + 1 })}
               </Text>
               <Text style={s.documentUrl} numberOfLines={1}>
                 {source.url}
@@ -329,15 +344,23 @@ export function CourtBrief({
   onViewSource?: (quote: BriefQuote) => void;
   includeOpinions?: boolean;
 }) {
+  const { t: tr } = useLanguage();
+  const template = PROCEEDING[data.proceeding];
   const proceeding = data.criminalCaseStatus
     ? {
         badge: /^pending$/i.test(data.criminalCaseStatus)
-          ? "PENDING CASE"
-          : "CRIMINAL CASE",
-        label: "Criminal docket",
-        detail: `Archive status: ${data.criminalCaseStatus}. Read the docket for recorded court activity.`,
+          ? tr("readerUi.pendingCase")
+          : tr("readerUi.criminalCase"),
+        label: tr("readerUi.criminalDocket"),
+        detail: tr("readerUi.archiveStatus", {
+          status: data.criminalCaseStatus,
+        }),
       }
-    : PROCEEDING[data.proceeding];
+    : {
+        badge: tr(template.badge),
+        label: tr(template.label),
+        detail: tr(template.detail),
+      };
 
   return (
     <View testID="court-brief" style={s.root}>
@@ -349,7 +372,7 @@ export function CourtBrief({
           <View style={[s.summaryIcon, { backgroundColor: `${accent}28` }]}>
             <Icon name="sparkle" size={16} color={accent} />
           </View>
-          <Text style={s.summaryTitle}>The short version</Text>
+          <Text style={s.summaryTitle}>{tr("readerUi.shortVersion")}</Text>
           <View style={[s.summaryStatus, { borderColor: `${accent}66` }]}>
             <Text style={[s.summaryStatusText, { color: accent }]}>
               {proceeding.badge}
@@ -380,10 +403,10 @@ export function CourtBrief({
           <Text style={s.scopeMeta}>
             {data.court} · {data.docket}
             {data.latestDocketDate
-              ? ` · Latest docket entry ${data.latestDocketDate}`
+              ? ` · ${tr("readerUi.latestDocket", { date: data.latestDocketDate })}`
               : data.decisionDate
                 ? ` · ${data.decisionDate}`
-                : " · Date unknown"}
+                : tr("readerUi.dateUnknown")}
           </Text>
         </View>
       </View>
@@ -392,15 +415,15 @@ export function CourtBrief({
         <View style={s.definitionHint} testID="court-brief-definition-hint">
           <Icon name="book" size={13} color={accent} />
           <Text style={s.definitionHintText}>
-            Tap any blue legal term for a plain-language definition.
+            {tr("readerUi.definitionHint")}
           </Text>
         </View>
       ) : null}
 
       <BlockTitle>
         {data.criminalCaseStatus
-          ? "What the docket records"
-          : "What the court did"}
+          ? tr("readerUi.docketRecords")
+          : tr("readerUi.courtDid")}
       </BlockTitle>
       <View style={[s.rulingCard, { borderLeftColor: accent }]}>
         <View style={s.rulingHead}>
@@ -408,7 +431,9 @@ export function CourtBrief({
             <Icon name="check" size={15} color={accent} />
           </View>
           <Text style={s.rulingLabel}>
-            {data.criminalCaseStatus ? "CASE UPDATE" : "THE RULING"}
+            {data.criminalCaseStatus
+              ? tr("readerUi.caseUpdate")
+              : tr("readerUi.ruling")}
           </Text>
         </View>
         <DefinedText
@@ -420,8 +445,8 @@ export function CourtBrief({
         <View style={s.postureBlock}>
           <Text style={s.postureLabel}>
             {data.criminalCaseStatus
-              ? "CASE POSTURE"
-              : "WHAT THE COURT WAS DECIDING"}
+              ? tr("readerUi.posture")
+              : tr("readerUi.courtDeciding")}
           </Text>
           <DefinedText
             text={data.posture}
@@ -440,7 +465,7 @@ export function CourtBrief({
 
       {data.questions.length ? (
         <>
-          <BlockTitle>Questions before the court</BlockTitle>
+          <BlockTitle>{tr("readerUi.questions")}</BlockTitle>
           <View style={s.numberedList} testID="court-brief-questions">
             {data.questions.map((question, index) => (
               <View key={index} style={s.numberedRow}>
@@ -466,8 +491,8 @@ export function CourtBrief({
         <>
           <BlockTitle>
             {data.criminalCaseStatus
-              ? "What the record says"
-              : "How the court got there"}
+              ? tr("readerUi.recordSays")
+              : tr("readerUi.courtReasoning")}
           </BlockTitle>
           <View style={s.cardList} testID="court-brief-reasoning">
             {data.reasoning.map((reason, index) => (
@@ -476,7 +501,7 @@ export function CourtBrief({
                 data={data}
                 point={reason}
                 accent={accent}
-                label={REASON[reason.kind]}
+                label={tr(REASON[reason.kind])}
                 onViewSource={onViewSource}
               />
             ))}
@@ -486,7 +511,7 @@ export function CourtBrief({
 
       {data.effects.length ? (
         <>
-          <BlockTitle>Who it lands on</BlockTitle>
+          <BlockTitle>{tr("readerUi.affected")}</BlockTitle>
           <View style={s.cardList} testID="court-brief-effects">
             {data.effects.map((effect, index) => {
               const ordered = effect.certainty === "court_order";
@@ -530,7 +555,9 @@ export function CourtBrief({
                       ]}
                     >
                       <Text style={[s.effectChipText, { color: outcomeColor }]}>
-                        {ordered ? "ORDERED" : "POSSIBLE"}
+                        {ordered
+                          ? tr("readerUi.ordered")
+                          : tr("readerUi.possible")}
                       </Text>
                     </View>
                   </View>
@@ -565,7 +592,7 @@ export function CourtBrief({
 
       {dualLens ? (
         <View style={s.lensSection}>
-          <BlockTitle>How people make the case</BlockTitle>
+          <BlockTitle>{tr("readerUi.arguments")}</BlockTitle>
           {dualLens}
         </View>
       ) : null}
@@ -585,6 +612,7 @@ export function CourtOpinions({
   accent?: string;
   onViewSource?: (quote: BriefQuote) => void;
 }) {
+  const { t: tr } = useLanguage();
   return (
     <View style={s.root} testID="court-opinions">
       <View style={[s.opinionsIntro, { borderLeftColor: accent }]}>
@@ -592,11 +620,10 @@ export function CourtOpinions({
           <Icon name="message" size={16} color={accent} />
         </View>
         <View style={s.opinionsIntroCopy}>
-          <Text style={s.opinionsIntroTitle}>Read the opinions</Text>
-          <Text style={s.opinionsIntroText}>
-            Separate writings explain why individual justices agreed or
-            disagreed. They do not change what the court ordered.
+          <Text style={s.opinionsIntroTitle}>
+            {tr("readerUi.readOpinions")}
           </Text>
+          <Text style={s.opinionsIntroText}>{tr("readerUi.opinionsNote")}</Text>
           <Text style={s.scopeMeta}>
             {data.court} · {data.docket}
           </Text>

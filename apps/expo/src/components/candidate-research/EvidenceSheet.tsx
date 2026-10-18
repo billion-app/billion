@@ -14,6 +14,7 @@ import type { CandidateBrief } from "@acme/validators";
 
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { fontEditorial, hair, DigestPalette as P, planes } from "~/styles";
 import { focusControl, s, Segments } from "./ResearchUI";
 
@@ -33,6 +34,8 @@ export function EvidenceSheet({
   onClose: () => void;
   fictional: boolean;
 }) {
+  const { t: tx, locale: appLocale } = useAppTranslation();
+
   const [index, setIndex] = useState("0");
   const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
@@ -91,7 +94,7 @@ export function EvidenceSheet({
               accessibilityRole="header"
               style={[largeText ? s.label : s.heading, { flex: 1 }]}
             >
-              {largeText ? "Source" : selection.title}
+              {largeText ? tx("Source") : selection.title}
             </Text>
             <Pressable
               ref={done}
@@ -99,7 +102,7 @@ export function EvidenceSheet({
               onPress={dismiss}
               style={styles.done}
             >
-              <Text style={s.link}>Done</Text>
+              <Text style={s.link}>{tx("Done")}</Text>
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={styles.body}>
@@ -112,7 +115,7 @@ export function EvidenceSheet({
               <Segments
                 options={sources.map((_, i) => ({
                   value: String(i),
-                  label: `Source ${i + 1}`,
+                  label: tx("Source {value1}", { value1: i + 1 }),
                 }))}
                 value={index}
                 onChange={setIndex}
@@ -124,8 +127,8 @@ export function EvidenceSheet({
                   {source.origin === "candidate"
                     ? "CANDIDATE'S OWN WORDS"
                     : source.origin === "primary_record"
-                      ? "ORIGINAL RECORD"
-                      : "INDEPENDENT REPORTING"}
+                      ? tx("ORIGINAL RECORD")
+                      : tx("INDEPENDENT REPORTING")}
                   {fictional ? " · FICTIONAL" : ""}
                 </Text>
                 <Text accessibilityRole="header" style={s.heading}>
@@ -141,42 +144,47 @@ export function EvidenceSheet({
                 </View>
                 {source.shows && (
                   <View style={s.point}>
-                    <Text style={s.label}>What it shows</Text>
+                    <Text style={s.label}>{tx("What it shows")}</Text>
                     <Text style={s.body}>{source.shows}</Text>
                   </View>
                 )}
                 {source.limits && (
                   <View style={s.point}>
-                    <Text style={s.label}>What it doesn’t</Text>
+                    <Text style={s.label}>{tx("What it doesn’t")}</Text>
                     <Text style={s.body}>{source.limits}</Text>
                   </View>
                 )}
                 <View style={s.rule}>
                   {fictional ? (
                     <Text selectable style={s.muted}>
-                      {source.url} · example URL
+                      {tx("{value1} · example URL", { value1: source.url })}
                     </Text>
                   ) : (
                     <SourceLink label={source.url} url={source.url} />
                   )}
                   {!fictional && source.filingUrl && (
                     <SourceLink
-                      label="View original filing"
+                      label={tx("View original filing")}
                       url={source.filingUrl}
                     />
                   )}
                   <Text style={s.muted}>
-                    Retrieved{" "}
-                    {new Date(source.retrievedAt).toLocaleDateString("en-US", {
-                      timeZone: "UTC",
+                    {tx("Retrieved {value1}", {
+                      value1: new Date(source.retrievedAt).toLocaleDateString(
+                        appLocale,
+                        {
+                          timeZone: "UTC",
+                        },
+                      ),
                     })}
                   </Text>
                 </View>
               </>
             ) : (
               <Text style={s.body}>
-                This source is unavailable. Please return to the candidate and
-                try again.
+                {tx(
+                  "This source is unavailable. Please return to the candidate and try again.",
+                )}
               </Text>
             )}
           </ScrollView>

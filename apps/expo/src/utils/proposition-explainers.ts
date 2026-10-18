@@ -19,3 +19,6 @@ export function submittedGuideArguments(
     (argument) => !/^NO ARGUMENT (?:FOR|AGAINST)\b/i.test(argument.text.trim()),
   );
 }
+
+/** Shared with the guide scraper, which formats titles from the same split. */
+export { splitOfficialTitle } from "@acme/validators";

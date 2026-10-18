@@ -86,6 +86,14 @@
     "./lib/candidate-research-store": {
       "types": "./dist/lib/candidate-research-store.d.ts",
       "default": "./src/lib/candidate-research-store.ts"
+    },
+    "./lib/content-translation": {
+      "types": "./dist/lib/content-translation.d.ts",
+      "default": "./src/lib/content-translation.ts"
+    },
+    "./lib/content-translation-store": {
+      "types": "./dist/lib/content-translation-store.d.ts",
+      "default": "./src/lib/content-translation-store.ts"
     }
   },
   "license": "MIT",

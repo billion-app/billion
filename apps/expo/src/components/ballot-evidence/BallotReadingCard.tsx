@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import type { IconName } from "~/components/ui/Icon";
 import { Icon } from "~/components/ui/Icon";
 import { Segmented } from "~/components/ui/Segmented";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   fontBody,
   fontEditorial,
@@ -52,6 +53,8 @@ function ReadingToggle({
   onPress: () => void;
   extended?: boolean;
 }) {
+  const { t: tx } = useAppTranslation();
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -61,10 +64,10 @@ function ReadingToggle({
     >
       <Text style={s.actionText}>
         {expanded
-          ? "Show less"
+          ? tx("Show less")
           : extended
-            ? "Read extended summary"
-            : "Read full text"}
+            ? tx("Read extended summary")
+            : tx("Read full text")}
       </Text>
       <Icon name={expanded ? "chevD" : "chevR"} size={14} color={P.primary} />
     </Pressable>
@@ -91,6 +94,8 @@ export function BallotReadingCard({
   icon?: IconName;
   accent?: boolean;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const [expanded, setExpanded] = useState(false);
   const hasExtended = !!extendedText && extendedText !== text;
   return (
@@ -124,7 +129,7 @@ export function BallotReadingCard({
         )}
         {hasExtended && expanded && (
           <View style={s.extended}>
-            <Text style={s.kicker}>EXTENDED SUMMARY</Text>
+            <Text style={s.kicker}>{tx("EXTENDED SUMMARY")}</Text>
             <BallotReadingText text={extendedText} />
           </View>
         )}
@@ -139,6 +144,8 @@ export function BallotAiDisclosure({
 }: {
   label?: string;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const [expanded, setExpanded] = useState(false);
   return (
     <View style={s.provenance}>
@@ -149,7 +156,9 @@ export function BallotAiDisclosure({
         style={s.provenanceRow}
       >
         <Icon name="sparkle" size={17} color={P.primary} />
-        <Text style={s.provenanceText}>{label} · Check the source</Text>
+        <Text style={s.provenanceText}>
+          {tx("{value1} · Check the source", { value1: label })}
+        </Text>
         <Icon
           name={expanded ? "chevD" : "chevR"}
           size={14}
@@ -158,8 +167,9 @@ export function BallotAiDisclosure({
       </Pressable>
       {expanded && (
         <Text style={s.provenanceDetail}>
-          This is an AI-generated explanation, not the original source text.
-          Compare it with the original and the sources below.
+          {tx(
+            "This is an AI-generated explanation, not the original source text. Compare it with the original and the sources below.",
+          )}
         </Text>
       )}
     </View>
@@ -189,6 +199,8 @@ export function BallotReadingMode<T extends string>({
 }
 
 export function BallotBiography({ text }: { text: string }) {
+  const { t: tx } = useAppTranslation();
+
   const [expanded, setExpanded] = useState(false);
   return (
     <View style={s.card}>
@@ -202,8 +214,8 @@ export function BallotBiography({ text }: { text: string }) {
           <Icon name="user" size={16} color={P.inkOnNight} />
         </View>
         <View style={{ flex: 1, gap: 3 }}>
-          <Text style={s.heading}>About the candidate</Text>
-          <Text style={s.contextHint}>Biography</Text>
+          <Text style={s.heading}>{tx("About the candidate")}</Text>
+          <Text style={s.contextHint}>{tx("Biography")}</Text>
         </View>
         <Icon
           name={expanded ? "chevD" : "chevR"}

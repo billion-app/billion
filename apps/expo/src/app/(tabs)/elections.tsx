@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { Contest } from "@acme/api";
 
+import type { AppTranslate } from "~/i18n/app-strings";
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
 import {
   BallotStatusNotice,
@@ -28,6 +29,7 @@ import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogisticsSection";
 import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import { posthog } from "~/config/posthog";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import {
   colors,
@@ -77,12 +79,14 @@ function measureRoute(m: Contest) {
 }
 
 /** Short label for the most authoritative source backing a measure. */
-function topSourceLabel(m: Contest): string | null {
+function topSourceLabel(m: Contest, t: AppTranslate): string | null {
   const sources = contestBallotCitations(m);
   const official = sources.find((src) => src.official);
   const src = official ?? sources[0];
   if (!src) return null;
-  return src.official ? `Official · ${src.sourceName}` : src.sourceName;
+  return src.official
+    ? t("elections.officialSource", { source: src.sourceName })
+    : src.sourceName;
 }
 
 /** Expandable card for a single ballot measure (statewide or local). */
@@ -97,12 +101,16 @@ function MeasureCard({
   onToggle: () => void;
   onReadMore: () => void;
 }) {
+  const { t } = useAppTranslation();
+  const sourceLabel = topSourceLabel(m, t);
   return (
     <Card style={{ padding: 18 }}>
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={onToggle}
         style={s.measureHeader}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
       >
         <Text style={[s.measureTitle, { marginBottom: 0, flex: 1 }]}>
           {m.referendumTitle}
@@ -119,12 +127,12 @@ function MeasureCard({
           {m.summaryIsAiGenerated && (
             <View style={s.aiChip}>
               <Icon name="sparkle" size={11} color={colors.yellow[500]} />
-              <Text style={s.aiChipText}>AI-generated summary</Text>
+              <Text style={s.aiChipText}>{t("elections.aiSummary")}</Text>
             </View>
           )}
           {m.fiscalImpact ? (
             <View style={s.fiscalRow}>
-              <Text style={s.fiscalLabel}>Fiscal impact</Text>
+              <Text style={s.fiscalLabel}>{t("elections.fiscalImpact")}</Text>
               <Text style={s.fiscalValue} numberOfLines={3}>
                 {m.fiscalImpact}
               </Text>
@@ -136,7 +144,9 @@ function MeasureCard({
                 style={[s.stanceDot, { backgroundColor: colors.green[500] }]}
               />
               <View style={{ flex: 1 }}>
-                <Text style={s.stanceLabel}>Supporters argue</Text>
+                <Text style={s.stanceLabel}>
+                  {t("elections.supportersArgue")}
+                </Text>
                 <Text style={s.stanceText}>{m.referendumProStatement}</Text>
               </View>
             </View>
@@ -147,7 +157,9 @@ function MeasureCard({
                 style={[s.stanceDot, { backgroundColor: colors.red[500] }]}
               />
               <View style={{ flex: 1 }}>
-                <Text style={s.stanceLabel}>Opponents argue</Text>
+                <Text style={s.stanceLabel}>
+                  {t("elections.opponentsArgue")}
+                </Text>
                 <Text style={s.stanceText}>{m.referendumConStatement}</Text>
               </View>
             </View>
@@ -158,9 +170,9 @@ function MeasureCard({
             onPress={onReadMore}
           >
             <Icon name="doc" size={15} color={colors.bill} />
-            <Text style={s.readMoreText}>Read full measure</Text>
+            <Text style={s.readMoreText}>{t("elections.readFullMeasure")}</Text>
           </TouchableOpacity>
-          {topSourceLabel(m) ? (
+          {sourceLabel ? (
             <View style={s.sourceChip}>
               <Icon
                 name={
@@ -172,7 +184,7 @@ function MeasureCard({
                 color={colors.textSecondary}
               />
               <Text style={s.sourceChipText} numberOfLines={1}>
-                {topSourceLabel(m)}
+                {sourceLabel}
               </Text>
             </View>
           ) : null}
@@ -207,6 +219,7 @@ export default function ElectionsScreen() {
 
 function DevelopmentElections() {
   const [scenario, setScenario] = useState("full");
+  const { t } = useAppTranslation();
   return (
     <ElectionsLive
       key={scenario}
@@ -214,7 +227,7 @@ function DevelopmentElections() {
       devControls={
         <View>
           <Text style={{ color: "rgba(255,255,255,0.70)", fontSize: 12 }}>
-            Development · synthetic ballot scenarios
+            {t("elections.devScenarios")}
           </Text>
           <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
             {["live", "full", "partial", "empty", "error"].map((value) => (
@@ -250,18 +263,21 @@ function CaliforniaElectionEntry({
   onLookup: () => void;
 }) {
   const router = useRouter();
+  const { language, t } = useAppTranslation();
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const guide = query.isError ? undefined : query.data;
 
   return (
-    <TabScreen title="Elections">
+    <TabScreen title={t("elections.tabTitle")}>
       <View style={s.entry}>
         <Text style={s.entryKicker}>
           {guide
-            ? `${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`
-            : "CALIFORNIA STATEWIDE GUIDE"}
+            ? t("elections.entry.kickerGeneral", {
+                date: ballotElectionDate(guide.electionDate, language),
+              })
+            : t("elections.entry.kickerGuide")}
         </Text>
-        <Text style={s.entryTitle}>Voting in California?</Text>
+        <Text style={s.entryTitle}>{t("elections.entry.title")}</Text>
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="How to vote. Mail, drop box, early voting, or Election Day."
@@ -307,36 +323,34 @@ function CaliforniaElectionEntry({
               <Icon name="book" size={18} color={colors.bill} />
             </View>
             <Text accessibilityRole="header" style={s.entryGuideTitle}>
-              The statewide guide
+              {t("elections.entry.guideTitle")}
             </Text>
           </View>
-          <Text style={s.entryBody}>
-            Read official candidate statements and statewide propositions.
-          </Text>
-          <Text style={s.entryNoteText}>
-            Statewide information, not your personal ballot.
-          </Text>
+          <Text style={s.entryBody}>{t("elections.entry.guideBody")}</Text>
+          <Text style={s.entryNoteText}>{t("elections.entry.guideNote")}</Text>
           {query.isPending ? (
             <View style={s.entryButton}>
               <Text accessibilityLiveRegion="polite" style={s.entryButtonText}>
-                Loading statewide preview…
+                {t("elections.entry.loading")}
               </Text>
               <ActivityIndicator color={colors.bill} />
             </View>
           ) : guide ? (
             <TouchableOpacity
               accessibilityRole="button"
-              accessibilityLabel="Explore the California statewide guide"
+              accessibilityLabel={t("elections.entry.exploreA11y")}
               activeOpacity={0.8}
               onPress={onExplore}
               style={s.entryButton}
             >
-              <Text style={s.entryButtonText}>Explore the guide</Text>
+              <Text style={s.entryButtonText}>
+                {t("elections.entry.explore")}
+              </Text>
               <Icon name="arrowRight" size={16} color={colors.bill} />
             </TouchableOpacity>
           ) : (
             <SourceLink
-              label="Read California’s official guide"
+              label={t("elections.entry.officialGuide")}
               url="https://voterguide.sos.ca.gov/"
               prominence="primary"
             />
@@ -344,7 +358,7 @@ function CaliforniaElectionEntry({
         </Card>
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel="Explore candidate research"
+          accessibilityLabel={t("elections.entry.researchA11y")}
           onPress={() => router.push("/candidate-research")}
           style={s.entryTool}
         >
@@ -352,16 +366,18 @@ function CaliforniaElectionEntry({
             <Icon name="users" size={18} color={colors.bill} />
           </View>
           <View style={{ flex: 1, gap: 4 }}>
-            <Text style={s.entryGuideTitle}>Candidate research</Text>
+            <Text style={s.entryGuideTitle}>
+              {t("elections.entry.research")}
+            </Text>
             <Text style={s.entryNoteText}>
-              Records, promises and reported funding.
+              {t("elections.entry.researchNote")}
             </Text>
           </View>
           <Icon name="chevR" size={18} color={colors.bill} />
         </TouchableOpacity>
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel="Learn how elections work"
+          accessibilityLabel={t("elections.entry.processA11y")}
           onPress={() => router.push("/election-process")}
           style={s.entryTool}
         >
@@ -374,9 +390,11 @@ function CaliforniaElectionEntry({
             <Icon name="users" size={18} color={colors.bill} />
           </View>
           <View style={{ flex: 1, gap: 4 }}>
-            <Text style={s.entryGuideTitle}>How elections work</Text>
+            <Text style={s.entryGuideTitle}>
+              {t("elections.entry.process")}
+            </Text>
             <Text style={s.entryNoteText}>
-              Primaries, nominations and your vote.
+              {t("elections.entry.processNote")}
             </Text>
           </View>
           <Icon name="chevR" size={16} color={colors.bill} />
@@ -395,9 +413,9 @@ function CaliforniaElectionEntry({
             <Icon name="bookmark" size={18} color={colors.bill} />
           </View>
           <View style={{ flex: 1, gap: 4 }}>
-            <Text style={s.entryGuideTitle}>Your saved notes</Text>
+            <Text style={s.entryGuideTitle}>{t("elections.entry.notes")}</Text>
             <Text style={s.entryNoteText}>
-              Private reading notes on this device.
+              {t("elections.entry.notesNote")}
             </Text>
           </View>
           <Icon name="chevR" size={16} color={colors.bill} />
@@ -405,7 +423,7 @@ function CaliforniaElectionEntry({
         <TouchableOpacity
           accessibilityRole="button"
           onPress={onLookup}
-          accessibilityLabel="Find my official ballot through my election office"
+          accessibilityLabel={t("elections.entry.lookupA11y")}
           style={s.entryTool}
         >
           <View
@@ -417,8 +435,10 @@ function CaliforniaElectionEntry({
             <Icon name="pin" size={18} color={colors.bill} />
           </View>
           <View style={{ flex: 1, gap: 4 }}>
-            <Text style={s.entryGuideTitle}>Find my official ballot</Text>
-            <Text style={s.entryNoteText}>Through your election office.</Text>
+            <Text style={s.entryGuideTitle}>{t("elections.entry.lookup")}</Text>
+            <Text style={s.entryNoteText}>
+              {t("elections.entry.lookupNote")}
+            </Text>
           </View>
           <Icon name="arrowRight" size={16} color={colors.bill} />
         </TouchableOpacity>
@@ -432,6 +452,7 @@ function ElectionsLive({
   devControls,
 }: { previewAddress?: string; devControls?: ReactNode } = {}) {
   const router = useRouter();
+  const { language, t } = useAppTranslation();
   const { address: savedAddress } = useUserAddress();
   const [lookupAddress, setLookupAddress] = useState<string>();
   const storedAddress = lookupAddress ?? previewAddress ?? savedAddress;
@@ -521,11 +542,11 @@ function ElectionsLive({
   const phase = electionPhase(selected?.electionDay);
   const measures = contests.filter((c: Contest) => c.referendumTitle);
   const candidateContests = contests.filter((c: Contest) => !c.referendumTitle);
-  const candidateGroups = groupContestsByLevel(candidateContests);
+  const candidateGroups = groupContestsByLevel(candidateContests, language);
 
   return (
     <TabScreen
-      title="Your Ballot"
+      title={t("elections.yourBallot")}
       contentStyle={{ gap: 24 }}
       headerExtra={
         <>
@@ -549,13 +570,17 @@ function ElectionsLive({
             <View style={s.addrCard}>
               <Icon name="pin" size={19} color={colors.bill} />
               <View style={s.addrBody}>
-                <Text style={s.addrKicker}>VOTING ADDRESS</Text>
+                <Text style={s.addrKicker}>{t("elections.votingAddress")}</Text>
                 <Text style={s.addrText} numberOfLines={1}>
                   {storedAddress}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setEditing(true)}>
-                <Text style={s.addrEdit}>Edit</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t("elections.editAddressA11y")}
+                onPress={() => setEditing(true)}
+              >
+                <Text style={s.addrEdit}>{t("common.edit")}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -565,10 +590,7 @@ function ElectionsLive({
       {!hasAddress && (
         <View style={s.section}>
           <Card>
-            <Text style={s.empty}>
-              Enter your registered address above to load the election and
-              ballot for where you vote.
-            </Text>
+            <Text style={s.empty}>{t("elections.enterAddress")}</Text>
           </Card>
         </View>
       )}
@@ -585,14 +607,13 @@ function ElectionsLive({
         <View style={s.section}>
           <Card>
             <Text accessibilityRole="alert" style={s.empty}>
-              The provider returned a different election. Choose another
-              election or retry to load the ballot you selected.
+              {t("elections.mismatch")}
             </Text>
             <TouchableOpacity
               accessibilityRole="button"
               onPress={() => void voterInfoQuery.refetch()}
             >
-              <Text style={s.readMoreText}>Retry selected ballot</Text>
+              <Text style={s.readMoreText}>{t("elections.retrySelected")}</Text>
             </TouchableOpacity>
           </Card>
         </View>
@@ -600,10 +621,7 @@ function ElectionsLive({
       {unsupportedState && (
         <View style={s.section}>
           <Card>
-            <Text style={s.empty}>
-              We only cover California elections right now. Support for your
-              state is coming soon.
-            </Text>
+            <Text style={s.empty}>{t("elections.unsupportedState")}</Text>
           </Card>
         </View>
       )}
@@ -657,7 +675,7 @@ function ElectionsLive({
 
       {!editing && elections.length > 1 && (
         <View style={s.section}>
-          <Kicker>Elections</Kicker>
+          <Kicker>{t("elections.tabTitle")}</Kicker>
           {elections.map((election) => (
             <TouchableOpacity
               key={election.id}
@@ -677,14 +695,14 @@ function ElectionsLive({
         <View style={[s.section, { gap: 8 }]}>
           <Text style={s.empty}>
             {data.provider.addressScope === "statewide_only"
-              ? "Statewide contests only. Local races and measures may be missing."
+              ? t("elections.scope.statewideOnly")
               : data.provider.addressScope === "unknown"
-                ? "Address coverage unconfirmed. These contests may not match your address."
-                : "Coverage may be incomplete."}
+                ? t("elections.scope.unknown")
+                : t("elections.scope.incomplete")}
           </Text>
           <SourceLink
             label={
-              isPreview ? "Synthetic development fixture" : "Democracy Works"
+              isPreview ? t("elections.syntheticFixture") : "Democracy Works"
             }
             url={data.provider.sourceUrl}
           />
@@ -699,12 +717,14 @@ function ElectionsLive({
             options={[
               {
                 id: "candidates",
-                label: `Candidates ${candidateContests.length}`,
+                label: t("elections.candidatesTab", {
+                  count: candidateContests.length,
+                }),
                 icon: "vote",
               },
               {
                 id: "measures",
-                label: `Measures ${measures.length}`,
+                label: t("elections.measuresTab", { count: measures.length }),
                 icon: "scale",
               },
             ]}
@@ -717,7 +737,7 @@ function ElectionsLive({
         <View style={[s.section, { gap: 20 }]}>
           {candidateGroups.length === 0 && (
             <Card>
-              <Text style={s.empty}>No candidate contests on this ballot.</Text>
+              <Text style={s.empty}>{t("elections.noCandidateContests")}</Text>
             </Card>
           )}
           {candidateGroups.map((group) => (
@@ -735,10 +755,10 @@ function ElectionsLive({
 
       {contests.length > 0 && tab === "measures" && (
         <View style={[s.section, { gap: 14 }]}>
-          <Kicker>Ballot measures</Kicker>
+          <Kicker>{t("elections.ballotMeasures")}</Kicker>
           {measures.length === 0 && (
             <Card>
-              <Text style={s.empty}>No measures supplied for this ballot.</Text>
+              <Text style={s.empty}>{t("elections.noMeasures")}</Text>
             </Card>
           )}
           {measures.map((m, i) => (
@@ -761,10 +781,7 @@ function ElectionsLive({
         !voterInfoQuery.isError && (
           <View style={s.section}>
             <Card>
-              <Text style={s.empty}>
-                Contest information is unavailable for this address. Check your
-                election office for the official ballot.
-              </Text>
+              <Text style={s.empty}>{t("elections.noContests")}</Text>
             </Card>
           </View>
         )}

@@ -1,6 +1,7 @@
 import { ScrollView, Text } from "react-native";
 
 import type { VotingLogisticsData } from "~/utils/voting-logistics";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { sp, typography, useTheme } from "~/styles";
 import { VotingLogisticsSection } from "./VotingLogisticsSection";
 
@@ -71,6 +72,8 @@ export const votingLogisticsFixture: VotingLogisticsData = {
 
 /** Mount in a temporary local route to review all states without live data. */
 export function VotingLogisticsPreview() {
+  const { t: tx } = useAppTranslation();
+
   const { theme } = useTheme();
   return (
     <ScrollView
@@ -78,7 +81,7 @@ export function VotingLogisticsPreview() {
       contentContainerStyle={{ padding: sp[4] }}
     >
       <Text style={[typography.h2, { color: theme.foreground }]}>
-        Synthetic voting logistics preview
+        {tx("Synthetic voting logistics preview")}
       </Text>
       <VotingLogisticsSection status="ready" data={votingLogisticsFixture} />
       <VotingLogisticsSection status="ready" data={{ mailOnly: true }} />

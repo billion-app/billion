@@ -1,13 +1,17 @@
 /** Shared shape + helpers for backend content items (bills, orders, cases). */
 import type { ContentCardItem } from "~/components/ui";
+import type { AppLanguage } from "~/i18n/language";
 import type {
   ContentJurisdiction,
   JurisdictionCode,
 } from "~/utils/jurisdiction";
+import { translateApp } from "~/i18n/app-strings";
 import { resolveType } from "~/styles";
-import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
+import { isStateJurisdiction, jurisdictionText } from "~/utils/jurisdiction";
+import { translateCardMetadata } from "./card-metadata";
 
 export interface ContentItem {
+  translationState?: "original" | "pending" | "translated" | "unavailable";
   id: string;
   title: string;
   description: string;
@@ -24,12 +28,9 @@ export interface ContentItem {
   sessionLabel?: string;
 }
 
-const STATUS_LABEL: Record<ContentItem["type"], string> = {
-  bill: "Legislation",
-  government_content: "Executive action",
-  court_case: "Court case",
-  general: "Briefing",
-};
+function statusLabel(type: ContentItem["type"], language: AppLanguage) {
+  return translateApp(language, `card.status.${type}`);
+}
 
 /** Map a backend content item onto the props a ContentCard expects. */
 function stateBillTag(
@@ -42,13 +43,18 @@ function stateBillTag(
   return showJurisdiction ? match[2] : `${match[1]} ${match[2]}`;
 }
 
-/** Map API content onto a card, preserving legislative status and context. */
+/**
+ * Map API content onto a card, preserving legislative status and context.
+ * Known lifecycle and chamber labels follow the locale; identifiers and names
+ * retain their original values.
+ */
 export function toCardItem(
   item: ContentItem,
-  options: { showJurisdiction?: boolean } = {},
+  options: { showJurisdiction?: boolean; language?: AppLanguage } = {},
 ): ContentCardItem {
+  const language = options.language ?? "en";
   const stateName = isStateJurisdiction(item.jurisdiction)
-    ? JURISDICTIONS[item.jurisdiction].name
+    ? jurisdictionText(item.jurisdiction, language).name
     : undefined;
   const isBill = item.type === "bill";
   const isStateBill = isBill && !!stateName;
@@ -61,11 +67,16 @@ export function toCardItem(
     title: item.title,
     gist: item.description,
     status: isBill
-      ? (item.billStatus ?? STATUS_LABEL.bill)
-      : STATUS_LABEL[item.type],
+      ? (translateCardMetadata(item.billStatus, language) ??
+        statusLabel("bill", language))
+      : statusLabel(item.type, language),
     activityAt: isBill ? item.activityAt : undefined,
     meta: isStateBill
-      ? [item.chamber && `${stateName} ${item.chamber}`, item.sponsor]
+      ? [
+          item.chamber &&
+            `${stateName} ${translateCardMetadata(item.chamber, language)}`,
+          item.sponsor,
+        ]
           .filter(Boolean)
           .join(" · ")
       : undefined,

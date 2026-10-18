@@ -36,6 +36,7 @@ import { webUrl } from "~/components/ballot-evidence/model";
 import { ContestMarking } from "~/components/ballot-marking/ContestMarking";
 import { OfficeRole } from "~/components/office-role/OfficeRole";
 import { Card, Icon, NavHeader } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   DigestRadii,
@@ -100,6 +101,8 @@ function partyLabel(party?: string): string {
  * render it directly without tabs.
  */
 function CandidateStatement({ cand }: { cand: CandidateParam }) {
+  const { t: tx } = useAppTranslation();
+
   const hasSummary = !!cand.statementSummary?.trim();
   const hasVerbatim = !!cand.statement?.trim();
   const summaryIsAi =
@@ -124,8 +127,8 @@ function CandidateStatement({ cand }: { cand: CandidateParam }) {
           value={mode}
           onChange={setMode}
           options={[
-            { value: "summary", label: "Summary" },
-            { value: "verbatim", label: "Original statement" },
+            { value: "summary", label: tx("Summary") },
+            { value: "verbatim", label: tx("Original statement") },
           ]}
         />
       )}
@@ -134,7 +137,9 @@ function CandidateStatement({ cand }: { cand: CandidateParam }) {
         accent={showingSummary}
         icon={showingSummary ? (summaryIsAi ? "sparkle" : "book") : "doc"}
         title={
-          showingSummary ? "Statement summary" : "Original candidate statement"
+          showingSummary
+            ? tx("Statement summary")
+            : tx("Original candidate statement")
         }
         label={
           showingSummary && summaryIsAi ? <BallotAiDisclosure /> : undefined
@@ -146,6 +151,8 @@ function CandidateStatement({ cand }: { cand: CandidateParam }) {
 }
 
 export default function ContestDetailScreen() {
+  const { t: tx, language: uiLanguage } = useAppTranslation();
+
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
   const params = useLocalSearchParams<{
@@ -210,7 +217,9 @@ export default function ContestDetailScreen() {
       () => setContactError(undefined),
       () =>
         setContactError(
-          `Could not open ${label}. Tap the contact again to retry.`,
+          tx("Could not open {value1}. Tap the contact again to retry.", {
+            value1: label,
+          }),
         ),
     );
   };
@@ -296,7 +305,7 @@ export default function ContestDetailScreen() {
     <View style={s.screen}>
       <NavHeader
         key={fontScale}
-        title="Candidates"
+        title={tx("Candidates")}
         tone="dark"
         onBack={() => router.back()}
       />
@@ -314,11 +323,11 @@ export default function ContestDetailScreen() {
           {[
             params.districtName,
             params.electionDate
-              ? ballotElectionDate(params.electionDate)
-              : "Election date unavailable",
+              ? ballotElectionDate(params.electionDate, uiLanguage)
+              : tx("Election date unavailable"),
             params.electionStage?.trim()
               ? params.electionStage.trim()
-              : "Election stage unavailable",
+              : tx("Election stage unavailable"),
           ]
             .filter(Boolean)
             .join(" · ")}
@@ -326,11 +335,12 @@ export default function ContestDetailScreen() {
         {candidates.length > 0 && (
           <View style={{ marginTop: 12, gap: 4 }}>
             <Text style={s.district}>
-              This list may be incomplete. Confirm whether this race is on your
-              ballot with your election office.
+              {tx(
+                "This list may be incomplete. Confirm whether this race is on your ballot with your election office.",
+              )}
             </Text>
             <SourceLink
-              label="Find your election office"
+              label={tx("Find your election office")}
               url="https://www.usa.gov/state-election-office"
             />
           </View>
@@ -364,8 +374,8 @@ export default function ContestDetailScreen() {
             >
               <Text style={s.websiteTitle}>
                 {showRoleDescription
-                  ? "Hide ballot office description"
-                  : "Ballot office description"}
+                  ? tx("Hide ballot office description")
+                  : tx("Ballot office description")}
               </Text>
               <Icon
                 name={showRoleDescription ? "chevD" : "chevR"}
@@ -385,16 +395,19 @@ export default function ContestDetailScreen() {
           {(candidates.length > 0 || filtering) && (
             <Text accessibilityRole="header" style={s.readingLabel}>
               {filtering
-                ? `${filtered.length} of ${candidates.length} names shown`
-                : `Candidates · ${candidates.length}`}
+                ? tx("{value1} of {value2} names shown", {
+                    value1: filtered.length,
+                    value2: candidates.length,
+                  })
+                : tx("Candidates · {value1}", { value1: candidates.length })}
             </Text>
           )}
 
           {candidates.length > 5 && (
             <View style={s.filters}>
               <TextInput
-                accessibilityLabel="Search candidates"
-                placeholder="Search candidates"
+                accessibilityLabel={tx("Search candidates")}
+                placeholder={tx("Search candidates")}
                 placeholderTextColor="rgba(255,255,255,0.70)"
                 style={s.search}
                 value={query}
@@ -412,7 +425,7 @@ export default function ContestDetailScreen() {
                   style={[s.filterOption, hasStatementOnly && s.filterSelected]}
                   onPress={() => setHasStatementOnly((v) => !v)}
                 >
-                  <Text style={s.filterText}>Has statement</Text>
+                  <Text style={s.filterText}>{tx("Has statement")}</Text>
                 </Pressable>
                 {partyOptions.length > 1 &&
                   partyOptions.map((p) => (
@@ -428,7 +441,11 @@ export default function ContestDetailScreen() {
                         setActiveParty((cur) => (cur === p ? null : p))
                       }
                     >
-                      <Text style={s.filterText}>{p}</Text>
+                      <Text style={s.filterText}>
+                        {p === "Party unavailable"
+                          ? tx("Party unavailable")
+                          : p}
+                      </Text>
                     </Pressable>
                   ))}
               </View>
@@ -439,13 +456,14 @@ export default function ContestDetailScreen() {
             <View style={s.emptyState}>
               <Text accessibilityRole="header" style={s.emptyTitle}>
                 {candidates.length
-                  ? "No candidates match your filters."
-                  : "Candidate details unavailable"}
+                  ? tx("No candidates match your filters.")
+                  : tx("Candidate details unavailable")}
               </Text>
               {!candidates.length && (
                 <Text style={s.candBio}>
-                  Billion has no candidate details for this contest. Check your
-                  election office for the official candidate list.
+                  {tx(
+                    "Billion has no candidate details for this contest. Check your election office for the official candidate list.",
+                  )}
                 </Text>
               )}
               {candidates.length ? (
@@ -460,7 +478,7 @@ export default function ContestDetailScreen() {
                   }}
                 >
                   <Text style={[s.statementTabText, { color: P.canvas }]}>
-                    Clear filters
+                    {tx("Clear filters")}
                   </Text>
                 </Pressable>
               ) : (
@@ -477,19 +495,19 @@ export default function ContestDetailScreen() {
               const contactRows = [
                 candidateUrl && {
                   icon: "globe" as const,
-                  label: "Website",
+                  label: tx("Website"),
                   value: candidateUrl,
                   onPress: () => openContact(candidateUrl, "website"),
                 },
                 cand.phone && {
                   icon: "message" as const,
-                  label: "Phone",
+                  label: tx("Phone"),
                   value: cand.phone,
                   onPress: () => openContact(`tel:${cand.phone}`, "phone"),
                 },
                 cand.email && {
                   icon: "edit" as const,
-                  label: "Email",
+                  label: tx("Email"),
                   value: cand.email,
                   onPress: () => openContact(`mailto:${cand.email}`, "email"),
                 },
@@ -512,7 +530,7 @@ export default function ContestDetailScreen() {
                     accessibilityLabel={[
                       cand.name,
                       cand.party,
-                      cand.incumbent ? "Incumbent" : undefined,
+                      cand.incumbent ? tx("Incumbent") : undefined,
                       candidateStatusLabel(cand.ballotStatus),
                     ]
                       .filter(Boolean)
@@ -537,7 +555,9 @@ export default function ContestDetailScreen() {
                         <Text style={s.candName}>{cand.name}</Text>
                         {cand.incumbent ? (
                           <View style={s.incumbentBadge}>
-                            <Text style={s.incumbentText}>Incumbent</Text>
+                            <Text style={s.incumbentText}>
+                              {tx("Incumbent")}
+                            </Text>
                           </View>
                         ) : null}
                       </View>
@@ -555,47 +575,52 @@ export default function ContestDetailScreen() {
                       color={P.quiet}
                     />
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={tx("Open {value1} candidate page", {
+                      value1: cand.name,
+                    })}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/candidate-detail",
+                        params: {
+                          name: cand.name,
+                          office: params.office,
+                          state: params.state,
+                          electionDate: params.electionDate,
+                          electionStage: params.electionStage,
+                          ballotSourceName: params.ballotSourceName,
+                          ballotSourceUrl: params.ballotSourceUrl,
+                          ballotFetchedAt: params.ballotFetchedAt,
+                          districtId: params.districtId,
+                          district: params.districtName,
+                          roles: params.roles,
+                          levels: params.levels,
+                          candidate: JSON.stringify(cand),
+                        },
+                      })
+                    }
+                    style={s.fieldGuideAction}
+                  >
+                    <Text
+                      style={[
+                        s.websiteTitle,
+                        { color: P.spark, textDecorationLine: "underline" },
+                      ]}
+                    >
+                      {tx("Research this candidate")}
+                    </Text>
+                    <Icon name="arrowRight" size={16} color={P.spark} />
+                  </TouchableOpacity>
                   {open && (
                     <View style={s.candBody}>
-                      <TouchableOpacity
-                        accessibilityRole="button"
-                        accessibilityLabel={`Open ${cand.name} candidate page`}
-                        onPress={() =>
-                          router.push({
-                            pathname: "/candidate-detail",
-                            params: {
-                              name: cand.name,
-                              office: params.office,
-                              state: params.state,
-                              electionDate: params.electionDate,
-                              electionStage: params.electionStage,
-                              ballotSourceName: params.ballotSourceName,
-                              ballotSourceUrl: params.ballotSourceUrl,
-                              ballotFetchedAt: params.ballotFetchedAt,
-                              districtId: params.districtId,
-                              district: params.districtName,
-                              candidate: JSON.stringify(cand),
-                            },
-                          })
-                        }
-                        style={s.contactRow}
-                      >
-                        <Text style={[s.websiteTitle, { color: P.inkOnNight }]}>
-                          Open candidate page
-                        </Text>
-                        <Icon
-                          name="arrowRight"
-                          size={16}
-                          color={P.inkOnNight}
-                        />
-                      </TouchableOpacity>
                       <CandidateStatement cand={cand} />
                       {cand.biography ? (
                         <BallotBiography text={cand.biography} />
                       ) : null}
                       {!hasStatement && (
                         <Text style={s.noContact}>
-                          Statement unavailable to Billion.
+                          {tx("Statement unavailable to Billion.")}
                         </Text>
                       )}
                       {contactRows.length > 0 &&
@@ -603,7 +628,7 @@ export default function ContestDetailScreen() {
                           <TouchableOpacity
                             key={row.label}
                             accessibilityRole="link"
-                            accessibilityLabel={`${row.label === "Website" ? "Candidate website" : row.label}: ${row.value}`}
+                            accessibilityLabel={`${row.label === tx("Website") ? tx("Candidate website") : row.label}: ${row.value}`}
                             style={[s.contactRow, s.contactAction]}
                             onPress={row.onPress}
                             activeOpacity={0.7}
@@ -616,23 +641,23 @@ export default function ContestDetailScreen() {
                             <View style={{ flex: 1 }}>
                               <Text
                                 style={
-                                  row.label === "Website"
+                                  row.label === tx("Website")
                                     ? s.websiteTitle
                                     : s.contactLabel
                                 }
                               >
-                                {row.label === "Website"
-                                  ? "Candidate website"
+                                {row.label === tx("Website")
+                                  ? tx("Candidate website")
                                   : row.label}
                               </Text>
                               <Text
                                 style={
-                                  row.label === "Website"
+                                  row.label === tx("Website")
                                     ? s.websiteHost
                                     : [s.contactValue, { color: P.badgeIndigo }]
                                 }
                               >
-                                {row.label === "Website"
+                                {row.label === tx("Website")
                                   ? websiteLabel(row.value)
                                   : row.value}
                               </Text>
@@ -680,8 +705,8 @@ export default function ContestDetailScreen() {
           </Text>
         )}
         <BallotDisclosure
-          title="Sources & updates"
-          detail="Ballot source and retrieval date"
+          title={tx("Sources & updates")}
+          detail={tx("Ballot source and retrieval date")}
         >
           <BallotProvenanceRows
             sourceName={params.ballotSourceName}
@@ -717,6 +742,14 @@ const s = StyleSheet.create({
     letterSpacing: 1.4,
     textTransform: "uppercase",
     marginBottom: 8,
+  },
+  fieldGuideAction: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingHorizontal: 14,
   },
   office: {
     fontFamily: fontEditorial.bold,
@@ -817,7 +850,7 @@ const s = StyleSheet.create({
     lineHeight: 21,
     color: P.inkOnNight,
   },
-  candidateSection: { gap: 18 },
+  candidateSection: { gap: 8 },
   readingLabel: {
     fontFamily: fontEditorial.bold,
     fontSize: 16,

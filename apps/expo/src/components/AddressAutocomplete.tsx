@@ -23,6 +23,7 @@ import {
 
 import { PinMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   deviceLocationMessage,
   useDeviceAddress,
@@ -45,15 +46,16 @@ interface AddressAutocompleteProps {
   inline?: boolean;
 }
 
-const DEFAULT_HINT = "Enter your address to see what's on your ballot.";
 
 export function AddressAutocomplete({
   initialValue = "",
   onSubmit,
-  hint = DEFAULT_HINT,
+  hint: hintProp,
   autoFocus = true,
   inline = false,
 }: AddressAutocompleteProps) {
+  const { t } = useAppTranslation();
+  const hint = hintProp === undefined ? t("address.defaultHint") : hintProp;
   const [input, setInput] = useState(initialValue);
   const {
     resolve: resolveAddress,
@@ -107,7 +109,8 @@ export function AddressAutocomplete({
       <View>
         <TextInput
           style={s.inputInline}
-          placeholder="Address"
+          placeholder={t("address.placeholder")}
+          accessibilityLabel={t("address.placeholder")}
           placeholderTextColor={DigestPalette.quiet}
           value={input}
           onChangeText={setInput}
@@ -136,7 +139,8 @@ export function AddressAutocomplete({
           </View>
           <TextInput
             style={s.input}
-            placeholder="Registered address"
+            placeholder={t("address.registeredPlaceholder")}
+            accessibilityLabel={t("address.registeredPlaceholder")}
             placeholderTextColor={DigestHair.inkMuted}
             value={input}
             onChangeText={setInput}
@@ -149,8 +153,12 @@ export function AddressAutocomplete({
           style={[s.btn, !input.trim() && s.btnOff]}
           disabled={!input.trim() || resolving}
           onPress={() => input.trim() && commit(input.trim())}
+          accessibilityRole="button"
+          accessibilityState={{
+            disabled: !input.trim() || resolving,
+          }}
         >
-          <Text style={s.btnText}>Look Up</Text>
+          <Text style={s.btnText}>{t("address.lookUp")}</Text>
         </TouchableOpacity>
       </View>
 

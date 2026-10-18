@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { AppState } from "react-native";
 
 import { relativeActivity } from "~/utils/relative-activity";
+import { useLanguage } from "./useLanguage";
 
 const DAY_MS = 86_400_000;
 
 /** Keep a relative legislative date current while its screen remains open. */
 export function useRelativeActivity(value: Date | undefined) {
+  const { language } = useLanguage();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -33,5 +35,5 @@ export function useRelativeActivity(value: Date | undefined) {
     return () => clearTimeout(timeout);
   }, [now, value]);
 
-  return relativeActivity(value, now);
+  return relativeActivity(value, now, language);
 }

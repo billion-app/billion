@@ -133,7 +133,7 @@ void test("staged generation plans, expands, checks leans, and passes the gate",
   assert.equal(calls.filter((c) => c === "summary").length, 1);
   assert.equal(result.calls, calls.length);
   // The skeleton comes from code, so the branches and disputes always attach.
-  assert.equal(result.graph.nodes.filter((n) => n.kind === "branch").length, 4);
+  assert.equal(result.graph.nodes.filter((n) => n.kind === "branch").length, 5);
   assert.ok(
     result.graph.edges.some((e) => e.type === "crux" && e.to === "root"),
   );
@@ -146,7 +146,7 @@ void test("staged generation plans, expands, checks leans, and passes the gate",
     (e) => e.type === "weighs" && e.from === flip.from && e.to === flip.to,
   );
   assert.equal(fixed?.stance, "for");
-  assert.equal(result.graph.generation.promptVersion, "trillion-staged-v1");
+  assert.equal(result.graph.generation.promptVersion, "trillion-staged-v2");
 });
 
 void test("the staged budget is checked against the plan before expanding", async () => {

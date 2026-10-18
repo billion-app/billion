@@ -16,6 +16,7 @@ import type { InlineDefinition } from "~/components/ui/DefinedText";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui";
 import { DefinedText } from "~/components/ui/DefinedText";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   fontBody,
   fontDisplay,
@@ -67,7 +68,7 @@ export function Action({
 export function EvidenceAction({
   ids,
   title,
-  label = "Evidence & context",
+  label: suppliedLabel,
   open,
 }: {
   ids: string[];
@@ -75,6 +76,9 @@ export function EvidenceAction({
   label?: string;
   open: EvidenceOpener;
 }) {
+  const { t: tx } = useAppTranslation();
+  const label = suppliedLabel ?? tx("Evidence & context");
+
   const ref = useRef<View>(null);
   return (
     <Pressable

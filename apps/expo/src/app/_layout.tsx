@@ -4,7 +4,13 @@
 import { useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Font from "expo-font";
-import { Stack, useGlobalSearchParams, usePathname } from "expo-router";
+import {
+  DefaultTheme,
+  Stack,
+  ThemeProvider,
+  useGlobalSearchParams,
+  usePathname,
+} from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 // Albert Sans fonts
@@ -38,6 +44,7 @@ import { PushSync } from "~/components/PushSync";
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { UpdatePrompt } from "~/components/UpdatePrompt";
 import { posthog } from "~/config/posthog";
+import { useLanguage } from "~/hooks/useLanguage";
 import { useTheme } from "~/styles";
 import { queryClient } from "~/utils/api";
 import { authClient } from "~/utils/auth";
@@ -80,6 +87,11 @@ hideExpoToolsFab();
  * and wants dark ones. A screen that switches to a paper surface belongs here.
  */
 const PAPER_ROUTES = new Set(["/article-detail"]);
+// iOS rounds the moving screens during a push, exposing the navigator beneath.
+const NAVIGATION_THEME = {
+  ...DefaultTheme,
+  colors: { ...DefaultTheme.colors, background: "#0E1530" },
+};
 
 function statusBarStyleFor(pathname: string): "light" | "dark" {
   return PAPER_ROUTES.has(pathname) ? "dark" : "light";
@@ -103,6 +115,15 @@ function PostHogAuthSync() {
 // This is the main layout of the app
 // It wraps your pages with the providers they need
 export default function RootLayout() {
+  const { language } = useLanguage();
+  useEffect(() => {
+    const webDocument = (
+      globalThis as { document?: { documentElement: { lang: string } } }
+    ).document;
+    if (webDocument)
+      webDocument.documentElement.lang =
+        language === "zh" ? "zh-Hans" : language;
+  }, [language]);
   const { theme } = useTheme();
   const pathname = usePathname();
   const params = useGlobalSearchParams();
@@ -193,18 +214,26 @@ export default function RootLayout() {
         }}
       >
         <PostHogAuthSync />
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: {
-                backgroundColor: theme.background,
-              },
-            }}
-          >
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="(onboarding)" />
-          </Stack>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#0E1530" }}>
+          <ThemeProvider value={NAVIGATION_THEME}>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: {
+                  backgroundColor: theme.background,
+                },
+              }}
+            >
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="(onboarding)" />
+              <Stack.Screen
+                name="proposition-detail"
+                options={{
+                  contentStyle: { backgroundColor: "#0E1530" },
+                }}
+              />
+            </Stack>
+          </ThemeProvider>
           <OnboardingGate />
           <NotificationTapHandler />
           <PushSync />

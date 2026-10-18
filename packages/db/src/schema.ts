@@ -1205,6 +1205,56 @@ export const ContentLens = pgTable(
 );
 
 /**
+ * Machine translations of Billion-authored reader text, one row per content
+ * item and language. `sourceHash` covers the English input, so a regenerated
+ * brief or explainer makes the row stale instead of serving an old reading.
+ * Source text (quotes, original documents) is never stored here.
+ */
+export const ContentTranslation = pgTable(
+  "content_translation",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contentType: t.varchar({ length: 20 }).notNull(), // "bill" | "government_content" | "court_case"
+    contentId: t.uuid().notNull(),
+    language: t.varchar({ length: 16 }).notNull(), // "es" | "zh"
+    sourceHash: t.varchar({ length: 64 }).notNull(),
+    payload: t.jsonb().notNull(),
+    modelVersion: t.varchar({ length: 80 }).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueContentTranslation: unique().on(table.contentId, table.language),
+  }),
+).enableRLS();
+
+/** Durable reader requests, processed privately on big-mac. No public policies. */
+export const ContentTranslationRequest = pgTable(
+  "content_translation_request",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contentType: t.varchar({ length: 20 }).notNull(),
+    contentId: t.uuid().notNull(),
+    language: t.varchar({ length: 16 }).notNull(),
+    sourceHash: t.varchar({ length: 64 }).notNull(),
+    segments: t.jsonb().$type<{ key: string; text: string }[]>().notNull(),
+    requestedAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    availableAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    attempts: t.integer().default(0).notNull(),
+    claimId: t.uuid(),
+  }),
+  (table) => ({
+    uniqueContentTranslationRequest: unique().on(
+      table.contentId,
+      table.language,
+    ),
+    translationRequestAvailable: index().on(table.availableAt),
+  }),
+).enableRLS();
+
+/**
  * Generated header artwork. Only the immutable Supabase Storage path and its
  * checksum live in Postgres. The image bytes never consume database space.
  */

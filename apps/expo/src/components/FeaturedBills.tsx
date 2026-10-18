@@ -11,6 +11,7 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import type { FeaturedBillItem } from "~/utils/featured-bills";
 import { Text } from "~/components/Themed";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestPalette,
   DigestRadii,
@@ -38,7 +39,8 @@ function FeaturedBillCard({
   onPress: () => void;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
-  const card = toCardItem(item, { showJurisdiction: true });
+  const { language } = useAppTranslation();
+  const card = toCardItem(item, { showJurisdiction: true, language });
   const imageSource = contentImageSource(item.imageUri ?? item.thumbnailUrl);
 
   return (
@@ -47,7 +49,12 @@ function FeaturedBillCard({
       activeOpacity={0.86}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={featuredBillAccessibilityLabel(item, index, total)}
+      accessibilityLabel={featuredBillAccessibilityLabel(
+        item,
+        index,
+        total,
+        language,
+      )}
       testID="featured-bill-card"
     >
       <View style={s.artwork}>
@@ -91,10 +98,11 @@ function FeaturedBillCard({
 }
 
 function FeaturedBillsSkeleton({ width }: { width: number }) {
+  const { t } = useAppTranslation();
   return (
     <View
       style={s.skeletonRow}
-      accessibilityLabel="Loading featured bills"
+      accessibilityLabel={t("browse.loadingFeatured")}
       accessibilityRole="progressbar"
     >
       {[0, 1].map((index) => (

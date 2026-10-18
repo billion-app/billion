@@ -24,6 +24,7 @@ import {
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { Icon, NavHeader } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   fontBody,
   fontDisplay,
@@ -35,6 +36,8 @@ import {
 import { parseRouteArray } from "~/utils/route-array";
 
 export default function MeasureDetailScreen() {
+  const { t: tx } = useAppTranslation();
+
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
   const [mode, setMode] = useState<"overview" | "original">("overview");
@@ -120,7 +123,7 @@ export default function MeasureDetailScreen() {
     <View style={s.screen}>
       <NavHeader
         key={fontScale}
-        title="Measure"
+        title={tx("Measure")}
         tone="dark"
         onBack={() => router.back()}
       />
@@ -133,22 +136,23 @@ export default function MeasureDetailScreen() {
             value={showingOriginal ? "original" : "overview"}
             onChange={setMode}
             options={[
-              { value: "overview", label: "Overview" },
-              { value: "original", label: "Original text" },
+              { value: "overview", label: tx("Overview") },
+              { value: "original", label: tx("Original text") },
             ]}
           />
         )}
         {!showingOriginal && !params.referendumText && sourceUrl && (
-          <SourceLink label="Read original source" url={sourceUrl} />
+          <SourceLink label={tx("Read original source")} url={sourceUrl} />
         )}
         {!hasContent ? (
           <View style={s.emptyCard}>
             <Text accessibilityRole="header" style={s.emptyTitle}>
-              Measure details unavailable
+              {tx("Measure details unavailable")}
             </Text>
             <Text style={s.emptyBody}>
-              Billion has no text or analysis for this measure. Check your
-              election office for the official measure information.
+              {tx(
+                "Billion has no text or analysis for this measure. Check your election office for the official measure information.",
+              )}
             </Text>
             <ElectionOfficeLink prominence="primary" />
           </View>
@@ -157,7 +161,7 @@ export default function MeasureDetailScreen() {
             {summary ? (
               <BallotReadingCard
                 inset
-                title="Measure overview"
+                title={tx("Measure overview")}
                 icon={summaryIsAi ? "sparkle" : "book"}
                 accent
                 text={summary}
@@ -166,32 +170,34 @@ export default function MeasureDetailScreen() {
               />
             ) : (
               <Text style={s.secondary}>
-                A summary is unavailable to Billion.
+                {tx("A summary is unavailable to Billion.")}
               </Text>
             )}
             {params.fiscalImpact && (
               <BallotReadingCard
                 inset
-                title="Fiscal impact"
+                title={tx("Fiscal impact")}
                 icon="trendingUp"
                 text={params.fiscalImpact}
                 label={
                   isGenerated("fiscalImpact") ? (
-                    <BallotAiDisclosure label="AI-generated explanation" />
+                    <BallotAiDisclosure
+                      label={tx("AI-generated explanation")}
+                    />
                   ) : undefined
                 }
               />
             )}
             {pros.length > 0 && (
               <ArgumentCard
-                title="Arguments in favor"
+                title={tx("Arguments in favor")}
                 args={pros}
                 generated={isGenerated("proArguments")}
               />
             )}
             {cons.length > 0 && (
               <ArgumentCard
-                title="Arguments against"
+                title={tx("Arguments against")}
                 args={cons}
                 generated={isGenerated("conArguments")}
               />
@@ -201,13 +207,13 @@ export default function MeasureDetailScreen() {
           <>
             {sourceUrl && (
               <SourceLink
-                label="Open original source"
+                label={tx("Open original source")}
                 url={sourceUrl}
                 prominence="primary"
               />
             )}
             <BallotReadingCard
-              title="Original measure text"
+              title={tx("Original measure text")}
               text={params.referendumText}
             />
           </>
@@ -230,6 +236,8 @@ function ArgumentCard({
   args: MeasureArgumentRef[];
   generated: boolean;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const [expanded, setExpanded] = useState(false);
   return (
     <View style={s.argumentCard}>
@@ -257,7 +265,9 @@ function ArgumentCard({
       </Pressable>
       {expanded && (
         <View style={s.argumentBody}>
-          {generated && <BallotAiDisclosure label="AI-generated explanation" />}
+          {generated && (
+            <BallotAiDisclosure label={tx("AI-generated explanation")} />
+          )}
           <View style={{ gap: sp[4] }}>
             {args.map((arg, index) => (
               <View key={index} style={{ gap: sp[2] }}>

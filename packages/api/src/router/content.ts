@@ -29,6 +29,7 @@ import { toBillTimelineActions } from "../lib/bill-actions";
 import { billDiscoveryCondition } from "../lib/bill-discovery";
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
 import { projectBillStatus } from "../lib/bill-status";
+import { localizeContentCards } from "../lib/card-translation";
 import {
   billJurisdiction,
   displaySessionLabel,
@@ -38,6 +39,13 @@ import {
   officialSourceLabel,
   parseStateBillNumber,
 } from "../lib/content-jurisdiction";
+import {
+  applySegments,
+  hashReaderSource,
+  readerTranslationSource,
+  TRANSLATION_LANGUAGES,
+} from "../lib/content-translation";
+import { getTranslations } from "../lib/content-translation-store";
 import { getFederalOfficialByName } from "../lib/elected-officials";
 import {
   FEATURED_BILL_LIMIT,
@@ -236,6 +244,176 @@ async function getBrief(
   };
 }
 
+/**
+ * The reader payload for one content item. Shared by `getById` and
+ * `getTranslation`, which overlays translated prose on this English record.
+ */
+async function loadContentDetail(input: {
+  id: string;
+  supportsMassachusetts?: boolean;
+}) {
+  // Try to find in bills
+  const bill = await db
+    .select()
+    .from(Bill)
+    .where(eq(Bill.id, input.id))
+    .limit(1);
+  if (bill[0]) {
+    const b = bill[0];
+    const jurisdiction = billJurisdiction(b.sourceWebsite, b.billNumber);
+    if (jurisdiction === "ma" && !input.supportsMassachusetts)
+      throw new TRPCError({ code: "NOT_FOUND" });
+    const stateIdentity = parseStateBillNumber(b.billNumber);
+    const sponsorIdentity = b.sponsor
+      ? parseBillSponsor(b.sponsor, jurisdiction)
+      : undefined;
+    // The people export is a network fetch, so run it alongside the other
+    // per-bill lookups and treat a miss as "no headshot" rather than an
+    // error — the card falls back to initials.
+    const [official, lensData, brief] = await Promise.all([
+      sponsorIdentity && jurisdiction === "federal"
+        ? getFederalOfficialByName(
+            sponsorIdentity.name,
+            b.chamber,
+            sponsorIdentity.state,
+          ).catch(() => undefined)
+        : undefined,
+      getLensData(b.id, "bill"),
+      getBrief(b.id, "bill"),
+    ]);
+    const sponsor = sponsorIdentity
+      ? {
+          ...sponsorIdentity,
+          role: sponsorRole(b.chamber, jurisdiction),
+          imageUrl: official?.image,
+        }
+      : undefined;
+    const [result] = await attachContentImages([
+      {
+        id: b.id,
+        title: b.title,
+        createdAt: b.createdAt,
+        updatedAt: b.updatedAt ?? b.createdAt,
+        description: billDescription(b.description, b.summary),
+        type: "bill" as const,
+        isAIGenerated: !!b.aiGeneratedArticle,
+        thumbnailUrl: b.thumbnailUrl ?? undefined,
+        billNumber: b.billNumber,
+        jurisdiction,
+        jurisdictionCode: jurisdictionCode(jurisdiction),
+        sessionLabel: displaySessionLabel(
+          jurisdiction,
+          stateIdentity?.sessionLabel,
+        ),
+        sourceLabel: officialSourceLabel(jurisdiction),
+        sponsor,
+        articleContent:
+          b.aiGeneratedArticle ?? b.fullText ?? "No content available",
+        originalContent: b.fullText ?? "Full text not available",
+        url: b.url,
+        actions: toBillTimelineActions(b.actions ?? []),
+        status: projectBillStatus(b),
+        lensData,
+        brief,
+      },
+    ]);
+    if (!result) throw new Error(`Failed to decorate bill ${b.id}`);
+    return result;
+  }
+
+  // Try to find in government content
+  const content = await db
+    .select()
+    .from(GovernmentContent)
+    .where(eq(GovernmentContent.id, input.id))
+    .limit(1);
+  if (content[0]) {
+    const c = content[0];
+    const [result] = await attachContentImages([
+      {
+        id: c.id,
+        title: c.title,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt ?? c.createdAt,
+        description: c.description ?? "",
+        type: "government_content" as const,
+        isAIGenerated: !!c.aiGeneratedArticle,
+        thumbnailUrl: c.thumbnailUrl ?? undefined,
+        billNumber: undefined,
+        articleContent:
+          c.aiGeneratedArticle ?? c.fullText ?? "No content available",
+        originalContent: c.fullText ?? "Full text not available",
+        url: c.url,
+        officialUrl: c.federalRegisterUrl ?? undefined,
+        lensData: await getLensData(c.id, "government_content"),
+      },
+    ]);
+    if (!result) {
+      throw new Error(`Failed to decorate government content ${c.id}`);
+    }
+    return result;
+  }
+
+  // Try to find in court cases
+  const courtCase = await db
+    .select()
+    .from(CourtCase)
+    .where(eq(CourtCase.id, input.id))
+    .limit(1);
+  if (courtCase[0]) {
+    const c = courtCase[0];
+    const [briefRows, lensData] = await Promise.all([
+      db
+        .select()
+        .from(ContentBrief)
+        .where(
+          and(
+            eq(ContentBrief.contentId, c.id),
+            eq(ContentBrief.contentType, "court_case"),
+          ),
+        )
+        .limit(1),
+      getLensData(c.id, "court_case"),
+    ]);
+    const [storedBrief] = briefRows;
+    const courtBrief =
+      storedBrief?.contentHash === c.contentHash
+        ? parseCourtBriefRecord(storedBrief.brief, c.contentHash)
+        : null;
+    const [result] = await attachContentImages([
+      {
+        id: c.id,
+        title: c.title,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt ?? c.createdAt,
+        description: c.description ?? "",
+        type: "court_case" as const,
+        isAIGenerated: !!courtBrief || !!c.aiGeneratedArticle,
+        thumbnailUrl: c.thumbnailUrl ?? undefined,
+        billNumber: undefined,
+        articleContent:
+          c.aiGeneratedArticle ?? c.fullText ?? "No content available",
+        originalContent: c.fullText ?? "Full text not available",
+        url: c.url,
+        courtBrief,
+        lensData,
+        jurisdiction: courtJurisdiction(c.url),
+        jurisdictionCode: jurisdictionCode(courtJurisdiction(c.url)),
+      },
+    ]);
+    if (!result) throw new Error(`Failed to decorate court case ${c.id}`);
+    return result;
+  }
+
+  // A typed code rather than a bare Error: the public share page turns
+  // this one case into a 404 and has to let every other failure through
+  // to the logs, which it cannot do if they all look alike.
+  throw new TRPCError({
+    code: "NOT_FOUND",
+    message: `Content with id ${input.id} not found`,
+  });
+}
+
 // Helper function to get thumbnail URL for any content
 export async function getThumbnailForContent(
   id: string,
@@ -290,6 +468,9 @@ const ContentCardSchema = z.object({
   sponsor: z.string().optional(),
   sessionLabel: z.string().optional(),
   sourceLabel: z.string().optional(),
+  translationState: z
+    .enum(["original", "pending", "translated", "unavailable"])
+    .optional(),
 });
 
 export type ContentCard = z.infer<typeof ContentCardSchema>;
@@ -433,6 +614,7 @@ export const contentRouter = {
     .input(
       z.object({
         jurisdiction: z.enum(JURISDICTIONS).default("federal"),
+        language: z.enum(["en", ...TRANSLATION_LANGUAGES]).default("en"),
       }),
     )
     .query(async ({ input }) => {
@@ -519,7 +701,9 @@ export const contentRouter = {
           featuredPosition: index + 1,
         }));
 
-        return await attachContentImages(cards);
+        return await attachContentImages(
+          await localizeContentCards(cards, input.language),
+        );
       } catch (error) {
         console.error("Unable to load featured bills", error);
         return [];
@@ -550,6 +734,7 @@ export const contentRouter = {
         limit: z.number().int().min(1).max(50).default(20),
         cursor: z.number().int().min(0).optional(),
         jurisdiction: z.enum(JURISDICTIONS).default("federal"),
+        language: z.enum(["en", ...TRANSLATION_LANGUAGES]).default("en"),
       }),
     )
     .query(async ({ input }) => {
@@ -656,7 +841,9 @@ export const contentRouter = {
         );
 
         return {
-          items: await attachContentImages(items),
+          items: await attachContentImages(
+            await localizeContentCards(items, input.language),
+          ),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -678,7 +865,9 @@ export const contentRouter = {
         const page = hasMore ? bills.slice(0, limit) : bills;
         const items: ContentCard[] = page.map(toBillCard);
         return {
-          items: await attachContentImages(items),
+          items: await attachContentImages(
+            await localizeContentCards(items, input.language),
+          ),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -706,7 +895,9 @@ export const contentRouter = {
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
         return {
-          items: await attachContentImages(items),
+          items: await attachContentImages(
+            await localizeContentCards(items, input.language),
+          ),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -735,7 +926,9 @@ export const contentRouter = {
         jurisdictionCode: jurisdictionCode(jurisdiction),
       }));
       return {
-        items: await attachContentImages(items),
+        items: await attachContentImages(
+          await localizeContentCards(items, input.language),
+        ),
         nextCursor: hasMore ? cursor + limit : undefined,
       };
     }),
@@ -754,6 +947,7 @@ export const contentRouter = {
           .optional(),
         limit: z.number().int().min(1).max(50).default(20),
         jurisdiction: z.enum(JURISDICTIONS).default("federal"),
+        language: z.enum(["en", ...TRANSLATION_LANGUAGES]).default("en"),
       }),
     )
     .query(async ({ input }) => {
@@ -795,7 +989,9 @@ export const contentRouter = {
           .orderBy(desc(billRank))
           .limit(limit);
         const items: ContentCard[] = bills.map(toBillCard);
-        return await attachContentImages(items);
+        return await attachContentImages(
+          await localizeContentCards(items, input.language),
+        );
       }
 
       if (type === "government_content" || type === "general") {
@@ -814,7 +1010,9 @@ export const contentRouter = {
           isAIGenerated: false,
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
-        return await attachContentImages(items);
+        return await attachContentImages(
+          await localizeContentCards(items, input.language),
+        );
       }
 
       if (type === "court_case") {
@@ -835,7 +1033,9 @@ export const contentRouter = {
           jurisdiction,
           jurisdictionCode: jurisdictionCode(jurisdiction),
         }));
-        return await attachContentImages(items);
+        return await attachContentImages(
+          await localizeContentCards(items, input.language),
+        );
       }
 
       // "all" — union matches from all three tables, re-ranked together.
@@ -940,7 +1140,9 @@ export const contentRouter = {
                   : "US",
             },
       );
-      return await attachContentImages(items);
+      return await attachContentImages(
+        await localizeContentCards(items, input.language),
+      );
     }),
 
   // Get detailed content by ID from database
@@ -954,171 +1156,76 @@ export const contentRouter = {
       }),
     )
     .query(async ({ input }) => {
-      // Try to find in bills
-      const bill = await db
-        .select()
-        .from(Bill)
-        .where(eq(Bill.id, input.id))
-        .limit(1);
-      if (bill[0]) {
-        const b = bill[0];
-        const jurisdiction = billJurisdiction(b.sourceWebsite, b.billNumber);
-        if (jurisdiction === "ma" && !input.supportsMassachusetts)
-          throw new TRPCError({ code: "NOT_FOUND" });
-        const stateIdentity = parseStateBillNumber(b.billNumber);
-        const sponsorIdentity = b.sponsor
-          ? parseBillSponsor(b.sponsor, jurisdiction)
-          : undefined;
-        // The people export is a network fetch, so run it alongside the other
-        // per-bill lookups and treat a miss as "no headshot" rather than an
-        // error — the card falls back to initials.
-        const [official, lensData, brief] = await Promise.all([
-          sponsorIdentity && jurisdiction === "federal"
-            ? getFederalOfficialByName(
-                sponsorIdentity.name,
-                b.chamber,
-                sponsorIdentity.state,
-              ).catch(() => undefined)
-            : undefined,
-          getLensData(b.id, "bill"),
-          getBrief(b.id, "bill"),
-        ]);
-        const sponsor = sponsorIdentity
-          ? {
-              ...sponsorIdentity,
-              role: sponsorRole(b.chamber, jurisdiction),
-              imageUrl: official?.image,
-            }
-          : undefined;
-        const [result] = await attachContentImages([
-          {
-            id: b.id,
-            title: b.title,
-            createdAt: b.createdAt,
-            updatedAt: b.updatedAt ?? b.createdAt,
-            description: billDescription(b.description, b.summary),
-            type: "bill" as const,
-            isAIGenerated: !!b.aiGeneratedArticle,
-            thumbnailUrl: b.thumbnailUrl ?? undefined,
-            billNumber: b.billNumber,
-            jurisdiction,
-            jurisdictionCode: jurisdictionCode(jurisdiction),
-            sessionLabel: displaySessionLabel(
-              jurisdiction,
-              stateIdentity?.sessionLabel,
-            ),
-            sourceLabel: officialSourceLabel(jurisdiction),
-            sponsor,
-            articleContent:
-              b.aiGeneratedArticle ?? b.fullText ?? "No content available",
-            originalContent: b.fullText ?? "Full text not available",
-            url: b.url,
-            actions: toBillTimelineActions(b.actions ?? []),
-            status: projectBillStatus(b),
-            lensData,
-            brief,
-          },
-        ]);
-        if (!result) throw new Error(`Failed to decorate bill ${b.id}`);
-        return result;
-      }
+      const detail = await loadContentDetail(input);
+      return {
+        ...detail,
+        translationSourceHash: hashReaderSource(
+          readerTranslationSource(detail),
+        ),
+      };
+    }),
 
-      // Try to find in government content
-      const content = await db
-        .select()
-        .from(GovernmentContent)
-        .where(eq(GovernmentContent.id, input.id))
-        .limit(1);
-      if (content[0]) {
-        const c = content[0];
-        const [result] = await attachContentImages([
-          {
-            id: c.id,
-            title: c.title,
-            createdAt: c.createdAt,
-            updatedAt: c.updatedAt ?? c.createdAt,
-            description: c.description ?? "",
-            type: "government_content" as const,
-            isAIGenerated: !!c.aiGeneratedArticle,
-            thumbnailUrl: c.thumbnailUrl ?? undefined,
-            billNumber: undefined,
-            articleContent:
-              c.aiGeneratedArticle ?? c.fullText ?? "No content available",
-            originalContent: c.fullText ?? "Full text not available",
-            url: c.url,
-            officialUrl: c.federalRegisterUrl ?? undefined,
-            lensData: await getLensData(c.id, "government_content"),
-          },
-        ]);
-        if (!result) {
-          throw new Error(`Failed to decorate government content ${c.id}`);
-        }
-        return result;
+  // Spanish or Chinese reading of the reader payload. Only Billion-authored
+  // prose is translated; quotes, original text, and citations stay as
+  // written. The client renders English first and swaps this in.
+  getTranslation: publicProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        language: z.enum(TRANSLATION_LANGUAGES),
+        sourceHash: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
+        supportsMassachusetts: z.boolean().optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      const detail = await loadContentDetail(input);
+      const source = readerTranslationSource(detail);
+      const sourceHash = hashReaderSource(source);
+      if (input.sourceHash && input.sourceHash !== sourceHash) {
+        return {
+          status: "stale" as const,
+          language: input.language,
+          sourceHash,
+        };
       }
-
-      // Try to find in court cases
-      const courtCase = await db
-        .select()
-        .from(CourtCase)
-        .where(eq(CourtCase.id, input.id))
-        .limit(1);
-      if (courtCase[0]) {
-        const c = courtCase[0];
-        const [briefRows, lensData] = await Promise.all([
-          db
-            .select()
-            .from(ContentBrief)
-            .where(
-              and(
-                eq(ContentBrief.contentId, c.id),
-                eq(ContentBrief.contentType, "court_case"),
-              ),
-            )
-            .limit(1),
-          getLensData(c.id, "court_case"),
-        ]);
-        const [storedBrief] = briefRows;
-        const courtBrief =
-          storedBrief?.contentHash === c.contentHash
-            ? parseCourtBriefRecord(storedBrief.brief, c.contentHash)
-            : null;
-        const [result] = await attachContentImages([
-          {
-            id: c.id,
-            title: c.title,
-            createdAt: c.createdAt,
-            updatedAt: c.updatedAt ?? c.createdAt,
-            description: c.description ?? "",
-            type: "court_case" as const,
-            isAIGenerated: !!courtBrief || !!c.aiGeneratedArticle,
-            thumbnailUrl: c.thumbnailUrl ?? undefined,
-            billNumber: undefined,
-            articleContent:
-              c.aiGeneratedArticle ?? c.fullText ?? "No content available",
-            originalContent: c.fullText ?? "Full text not available",
-            url: c.url,
-            courtBrief,
-            lensData,
-            jurisdiction: courtJurisdiction(c.url),
-            jurisdictionCode: jurisdictionCode(courtJurisdiction(c.url)),
-          },
-        ]);
-        if (!result) throw new Error(`Failed to decorate court case ${c.id}`);
-        return result;
-      }
-
-      // A typed code rather than a bare Error: the public share page turns
-      // this one case into a 404 and has to let every other failure through
-      // to the logs, which it cannot do if they all look alike.
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: `Content with id ${input.id} not found`,
+      const brief = "brief" in detail ? detail.brief : null;
+      const courtBrief = "courtBrief" in detail ? detail.courtBrief : null;
+      const translations = await getTranslations({
+        contentId: detail.id,
+        contentType: detail.type,
+        language: input.language,
+        source,
       });
+      if (!translations) {
+        return {
+          status: "unavailable" as const,
+          language: input.language,
+          sourceHash,
+        };
+      }
+      return {
+        status: "translated" as const,
+        language: input.language,
+        sourceHash,
+        title: translations.title ?? detail.title,
+        description: translations.description ?? detail.description,
+        articleContent: translations.articleContent ?? null,
+        brief: applySegments(brief, translations, "brief"),
+        courtBrief: applySegments(courtBrief, translations, "courtBrief"),
+      };
     }),
 
   // Profile and related legislation for the member who formally sponsored a bill.
   getSponsorProfile: publicProcedure
-    .input(z.object({ billId: z.string().uuid() }))
+    .input(
+      z.object({
+        billId: z.string().uuid(),
+        language: z.enum(["en", ...TRANSLATION_LANGUAGES]).default("en"),
+      }),
+    )
     .query(async ({ input }) => {
       const [bill] = await db
         .select()
@@ -1175,16 +1282,20 @@ export const contentRouter = {
           imageUrl: official?.image,
         },
         sourceUrl: bill.url,
-        sponsoredBills: sponsoredBills.map((item) => ({
-          id: item.id,
-          title: item.title,
-          description: billDescription(item.description, item.summary),
-          billNumber: item.billNumber,
-          status: projectBillStatus(item),
-          thumbnailUrl: item.thumbnailUrl,
-          imageUri: item.imageUri,
-          introducedDate: item.introducedDate?.toISOString(),
-        })),
+        sponsoredBills: await localizeContentCards(
+          sponsoredBills.map((item) => ({
+            type: "bill" as const,
+            id: item.id,
+            title: item.title,
+            description: billDescription(item.description, item.summary),
+            billNumber: item.billNumber,
+            status: projectBillStatus(item),
+            thumbnailUrl: item.thumbnailUrl,
+            imageUri: item.imageUri,
+            introducedDate: item.introducedDate?.toISOString(),
+          })),
+          input.language,
+        ),
       };
     }),
 
@@ -1194,7 +1305,12 @@ export const contentRouter = {
   // anyone has an account, which means the list screen arrives holding ids
   // and no session — it needs a way to turn them into something renderable.
   byIds: publicProcedure
-    .input(z.object({ ids: z.array(z.string().uuid()).max(200) }))
+    .input(
+      z.object({
+        ids: z.array(z.string().uuid()).max(200),
+        language: z.enum(["en", ...TRANSLATION_LANGUAGES]).default("en"),
+      }),
+    )
     .query(async ({ input }) => {
       if (input.ids.length === 0) return { items: [] };
 
@@ -1268,7 +1384,11 @@ export const contentRouter = {
         .map((id) => byId.get(id))
         .filter((item) => item != null);
 
-      return { items: await attachContentImages(ordered) };
+      return {
+        items: await attachContentImages(
+          await localizeContentCards(ordered, input.language),
+        ),
+      };
     }),
 
   // --- Saved Articles ---

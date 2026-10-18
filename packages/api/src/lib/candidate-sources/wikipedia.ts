@@ -160,7 +160,9 @@ function pickPhoto(page: WikiPage): string | undefined {
   const url = page.thumbnail?.source ?? page.original?.source;
   if (!url) return undefined;
   // Only surface real https image URLs.
-  return /^https:\/\/.+\.(jpe?g|png|gif|webp)$/i.test(url) ? url : undefined;
+  return /^https:\/\/.+\.(jpe?g|png|gif|webp)(\?.*)?$/i.test(url)
+    ? url
+    : undefined;
 }
 
 /**

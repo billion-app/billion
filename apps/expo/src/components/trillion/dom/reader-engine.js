@@ -16,6 +16,11 @@ import {
   forceY,
 } from "d3-force";
 
+import { contextMoneyPresentation } from "@acme/validators/budget-context-presentation";
+
+import { readerLabel } from "./reader-labels";
+import { afterReaderPaint } from "./reader-ready";
+
 const d3 = { forceLink, forceManyBody, forceSimulation, forceX, forceY };
 
 const MONTH_SLUG = [
@@ -32,20 +37,6 @@ const MONTH_SLUG = [
   "november",
   "december",
 ];
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
 
 /**
  * Mount the reader into `root`.
@@ -59,6 +50,13 @@ const FONTS =
   "https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap";
 
 export function mountTrillionReader(root, graph, options = {}) {
+  const tr = (key, values) =>
+    readerLabel(options.language ?? "en", key, values);
+  const esc = (s) =>
+    String(s ?? "").replace(
+      /[&<>"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+    );
   // One reader per root: a new graph replaces the old reader entirely, so no
   // stale listener or animation can act on cards that no longer exist.
   root.__trillion?.destroy();
@@ -70,29 +68,52 @@ export function mountTrillionReader(root, graph, options = {}) {
         signal: lifetime.signal,
       }),
   });
-  // Billion's typefaces; the app's native fonts are not visible inside a web view.
-  if (
-    ![...document.querySelectorAll("link[rel=stylesheet]")].some((l) =>
+  // The native skeleton stays until this stylesheet, its fonts, and the first paint settle.
+  let fontLink = [...document.querySelectorAll("link[rel=stylesheet]")].find(
+    (l) =>
       l.href.startsWith("https://fonts.googleapis.com/css2?family=Albert+Sans"),
-    )
-  ) {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = FONTS;
-    document.head.appendChild(link);
-  }
+  );
+  const fontsStylesheet = new Promise((resolve) => {
+    if (fontLink?.sheet || fontLink?.dataset.trillionFonts === "settled")
+      return resolve();
+    const existing = !!fontLink;
+    fontLink ??= document.createElement("link");
+    const settled = () => {
+      fontLink.dataset.trillionFonts = "settled";
+      resolve();
+    };
+    fontLink.addEventListener("load", settled, { once: true });
+    fontLink.addEventListener("error", settled, { once: true });
+    if (!existing) {
+      fontLink.dataset.trillionFonts = "loading";
+      fontLink.rel = "stylesheet";
+      fontLink.href = FONTS;
+      document.head.appendChild(fontLink);
+    } else if (fontLink.dataset.trillionFonts !== "loading") {
+      // A parser-loaded stylesheet may already have failed before this mount.
+      if (document.readyState === "complete") settled();
+      else window.addEventListener("load", settled, { once: true });
+    }
+  });
   const [year, month, day] = graph.electionDate.split("-").map(Number);
-  const eyebrow = `California · ${MONTHS[month - 1]} ${day}, ${year}`;
-  const recordTitle = `Proposition ${graph.measure.number} · The debate`;
+  const locale =
+    options.language === "zh"
+      ? "zh-CN"
+      : options.language === "es"
+        ? "es-US"
+        : "en-US";
+  const eyebrow = `${tr("California")} · ${new Date(Date.UTC(year, month - 1, day)).toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`;
+  const recordTitle = tr("Proposition {number} · The debate", {
+    number: graph.measure.number,
+  });
   root.classList.add("trillion-root");
   root.innerHTML = `
       <div class="app">
-        <section class="canvas" aria-label="Argument map">
+        <section class="canvas" aria-label="${esc(tr("Argument map"))}">
           <div class="canvas-head">
-            <div class="eyebrow">Map</div>
+            <div class="eyebrow">${tr("Map")}</div>
             <p>
-              Drag cards to pull the web around. Pinch, scroll, or use the
-              buttons to zoom.
+              ${tr("Drag cards to pull the web around. Pinch, scroll, or use the buttons to zoom.")}
             </p>
           </div>
           <div id="canvas-slot"></div>
@@ -100,7 +121,7 @@ export function mountTrillionReader(root, graph, options = {}) {
 
         <main class="reader" id="reader">
           <header class="top">
-            <button class="back" id="back" aria-label="Back" type="button">
+            <button class="back" id="back" aria-label="${esc(tr("Back"))}" type="button">
               <svg
                 width="18"
                 height="18"
@@ -125,7 +146,7 @@ export function mountTrillionReader(root, graph, options = {}) {
             id="notice"
             type="button"
             aria-expanded="false"
-            aria-label="Show details about Billion AI authorship"
+            aria-label="${esc(tr("Show details about Billion AI authorship"))}"
           >
             <span class="notice-icon"
               ><svg
@@ -141,8 +162,8 @@ export function mountTrillionReader(root, graph, options = {}) {
             ></span>
             <span class="notice-body">
               <span class="notice-head"
-                ><span class="notice-title">AI-written · Check the sources</span
-                ><span class="notice-action">Details</span
+                ><span class="notice-title">${tr("AI-written · Check the sources")}</span
+                ><span class="notice-action">${tr("Details")}</span
                 ><svg
                   class="chev"
                   width="14"
@@ -158,14 +179,11 @@ export function mountTrillionReader(root, graph, options = {}) {
                   <path d="M6 9l6 6 6-6" /></svg
               ></span>
               <span class="notice-text" hidden
-                >Built from the official voter guide. Quotes are checked word
-                for word against it; the disputed questions, leans, and link
-                explanations are AI analysis no person has checked yet. Tap any
-                quote to open its source.</span
+                >${tr("Built from the official voter guide. Quotes are checked word for word against it; the disputed questions, leans, and link explanations are AI analysis no person has checked yet. Tap any quote to open its source.")}</span
               >
             </span>
           </button>
-          <nav class="crumbs" id="crumbs" aria-label="Your path"></nav>
+          <nav class="crumbs" id="crumbs" aria-label="${esc(tr("Your path"))}"></nav>
           <div id="page"></div>
         </main>
       </div>
@@ -175,11 +193,11 @@ export function mountTrillionReader(root, graph, options = {}) {
           class="map"
           id="map"
           role="group"
-          aria-label="Argument map. The list has the same connections."
+          aria-label="${esc(tr("Argument map. The list has the same connections."))}"
         >
           <div class="map-full-head">
-            <h2>Map</h2>
-            <button class="close" type="button" id="map-close">Close</button>
+            <h2>${tr("Map")}</h2>
+            <button class="close" type="button" id="map-close">${tr("Close")}</button>
           </div>
           <div id="cy"></div>
           <button type="button" class="map-more" id="map-more" hidden></button>
@@ -188,14 +206,14 @@ export function mountTrillionReader(root, graph, options = {}) {
             ← Go back to main case
           </button>
           <div class="legend" aria-hidden="true">
-            <span style="--c: var(--rel-for)"><i></i>supports · favors yes</span>
+            <span style="--c: var(--rel-for)"><i></i>${tr("supports · favors yes")}</span>
             <span style="--c: var(--rel-against)"
-              ><i></i>challenges · favors no</span
+              ><i></i>${tr("challenges · favors no")}</span
             >
             <span style="--c: var(--rel-mixed)"
-              ><i></i>qualifies · both ways</span
+              ><i></i>${tr("qualifies · both ways")}</span
             >
-            <span style="--c: var(--rel-question)"><i></i>asks</span>
+            <span style="--c: var(--rel-question)"><i></i>${tr("asks")}</span>
           </div>
           <div class="map-tools">
             <button type="button" class="map-ring" id="map-ring">
@@ -216,12 +234,12 @@ export function mountTrillionReader(root, graph, options = {}) {
                   stroke-dasharray="3 1.5"
                 />
               </svg>
-              Whole debate
+              ${tr("Whole debate")}
             </button>
-            <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
-            <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
-            <button type="button" id="zoom-fit" aria-label="Fit map">⤢</button>
-            <button type="button" class="expand" id="map-expand">Expand</button>
+            <button type="button" id="zoom-in" aria-label="${esc(tr("Zoom in"))}">+</button>
+            <button type="button" id="zoom-out" aria-label="${esc(tr("Zoom out"))}">−</button>
+            <button type="button" id="zoom-fit" aria-label="${esc(tr("Fit map"))}">⤢</button>
+            <button type="button" class="expand" id="map-expand">${tr("Expand")}</button>
           </div>
         </div>
       </div>
@@ -246,11 +264,11 @@ export function mountTrillionReader(root, graph, options = {}) {
     const ballotSide = (locator = "") => {
       const l = locator.toLowerCase();
       if (/rebuttal to (the )?argument in favor/.test(l))
-        return "Opponents' rebuttal";
+        return tr("Opponents' rebuttal");
       if (/rebuttal to (the )?argument against/.test(l))
-        return "Supporters' rebuttal";
-      if (/argument against/.test(l)) return "Opponents' argument";
-      if (/argument in favor/.test(l)) return "Supporters' argument";
+        return tr("Supporters' rebuttal");
+      if (/argument against/.test(l)) return tr("Opponents' argument");
+      if (/argument in favor/.test(l)) return tr("Supporters' argument");
       return null;
     };
     const nodes = {};
@@ -270,21 +288,23 @@ export function mountTrillionReader(root, graph, options = {}) {
           label:
             s.role === "legal-text"
               ? s.number === G.measure.number
-                ? "Measure text"
-                : `Prop ${s.number} text`
+                ? tr("Measure text")
+                : tr("Prop {number} text", { number: s.number })
               : s.role === "official-analysis"
-                ? "Legislative Analyst"
+                ? tr("Legislative Analyst")
                 : s.role === "precedent"
-                  ? `Past record · ${s.title.split(":")[0]}`
-                  : "Official arguments",
+                  ? tr("Past record · {title}", {
+                      title: s.title.split(":")[0],
+                    })
+                  : tr("Official arguments"),
           locator: q.locator,
           url: s.url,
         };
       else if (BILLION.has(n.kind))
         source = {
           generated: true,
-          label: "Generated by Billion",
-          locator: "Written by Billion",
+          label: tr("Generated by Billion"),
+          locator: tr("Written by Billion"),
         };
       nodes[n.id] = {
         kind: KIND[n.kind] ?? n.kind,
@@ -293,6 +313,8 @@ export function mountTrillionReader(root, graph, options = {}) {
         body: n.body,
         note: n.note,
         dispute: n.dispute,
+        highlight: n.highlight,
+        context: n.context,
         record: n.record,
         quote: n.quotes.length
           ? n.quotes.map((x) => x.text).join(" … ")
@@ -338,42 +360,42 @@ export function mountTrillionReader(root, graph, options = {}) {
   const PREVIEW = 4; // rows per tab before "Show more"
 
   const KIND = {
-    root: "Main case",
-    branch: "Start here",
-    text: "Measure text",
-    finding: "Measure findings",
-    analysis: "Legislative Analyst",
-    argument: "Ballot argument",
-    generated: "Generated by Billion",
-    question: "Open question",
-    reader: "Reader contribution",
-    global: "Shared claim",
-    record: "Other record",
-    fact: "Fact",
-    crux: "Where people disagree",
-    precedent: "Past record",
+    root: tr("Main case"),
+    branch: tr("Start here"),
+    text: tr("Measure text"),
+    finding: tr("Measure findings"),
+    analysis: tr("Legislative Analyst"),
+    argument: tr("Ballot argument"),
+    generated: tr("Generated by Billion"),
+    question: tr("Open question"),
+    reader: tr("Reader contribution"),
+    global: tr("Shared claim"),
+    record: tr("Other record"),
+    fact: tr("Fact"),
+    crux: tr("Where people disagree"),
+    precedent: tr("Past record"),
   };
   const IN = {
-    supports: "Backs this up",
-    challenges: "Challenges this",
-    qualifies: "Qualifies this",
-    appliesTo: "Applies here",
-    asks: "Asks about this",
-    answers: "Answers this",
-    conflicts: "Conflicts with this",
-    crux: "Disputed question",
+    supports: tr("Backs this up"),
+    challenges: tr("Challenges this"),
+    qualifies: tr("Qualifies this"),
+    appliesTo: tr("Applies here"),
+    asks: tr("Asks about this"),
+    answers: tr("Answers this"),
+    conflicts: tr("Conflicts with this"),
+    crux: tr("Disputed question"),
   };
   const OUT = {
-    supports: "Backs up",
-    challenges: "Challenges",
-    qualifies: "Qualifies",
-    appliesTo: "Applies to",
-    asks: "Asks about",
-    answers: "Answers",
-    conflicts: "Conflicts with",
-    detail: "Part of",
-    part: "Part of",
-    crux: "Disputed under",
+    supports: tr("Backs up"),
+    challenges: tr("Challenges"),
+    qualifies: tr("Qualifies"),
+    appliesTo: tr("Applies to"),
+    asks: tr("Asks about"),
+    answers: tr("Answers"),
+    conflicts: tr("Conflicts with"),
+    detail: tr("Part of"),
+    part: tr("Part of"),
+    crux: tr("Disputed under"),
   };
   const SHORT = {
     supports: "backs up",
@@ -402,9 +424,9 @@ export function mountTrillionReader(root, graph, options = {}) {
   // An argument under a disputed question carries its lean toward the vote as a color and a word.
   // The label names the vote, because under a yes/no question "Leans no" reads as an answer to it.
   const LEAN = {
-    for: `Argues Yes on ${graph.measure.number}`,
-    against: `Argues No on ${graph.measure.number}`,
-    mixed: "Cuts both ways",
+    for: tr("Argues Yes on {number}", { number: graph.measure.number }),
+    against: tr("Argues No on {number}", { number: graph.measure.number }),
+    mixed: tr("Cuts both ways"),
   };
   // Leans toward the vote have their own colors, so green and red only ever
   // mean backing up or challenging another card.
@@ -413,12 +435,13 @@ export function mountTrillionReader(root, graph, options = {}) {
     e.type === "weighs" ? VOTE_TONE[e.stance] : TONE[e.type];
   const inLabel = (e) => (e.type === "weighs" ? LEAN[e.stance] : IN[e.type]);
   const outLabel = (e) => (e.type === "weighs" ? LEAN[e.stance] : OUT[e.type]);
-  const short = (e) => (e.type === "weighs" ? LEAN[e.stance] : SHORT[e.type]);
+  const short = (e) =>
+    e.type === "weighs" ? LEAN[e.stance] : tr(SHORT[e.type]);
   const DISPUTE = {
-    facts: "Disputed facts",
-    values: "Values debate",
-    reading: "Disputed reading of the text",
-    legal: "Depends on courts and other measures",
+    facts: tr("Disputed facts"),
+    values: tr("Values debate"),
+    reading: tr("Disputed reading of the text"),
+    legal: tr("Depends on courts and other measures"),
   };
   const TONE_HEX = {
     for: "#55D6BE",
@@ -443,13 +466,9 @@ export function mountTrillionReader(root, graph, options = {}) {
   const incoming = (id) => F.edges.filter((e) => e.to === id);
   const outgoing = (id) => F.edges.filter((e) => e.from === id);
   const visible = (id) => N[id] && !N[id].hidden;
-  const esc = (s) =>
-    String(s ?? "").replace(
-      /[&<>"]/g,
-      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
-    );
   // Titles mark one or two key phrases with **, as bill briefs do; plain text drops the marks.
-  const titleOf = (id) => (N[id].title || "(untitled)").replaceAll("**", "");
+  const titleOf = (id) =>
+    (N[id].title || tr("(untitled)")).replaceAll("**", "");
   // Defined terms show in blue, as in Billion's bill briefs; tapping one explains it.
   const TERMS = new Map(
     (graph.terms || []).map((t) => [t.term.toLowerCase(), t]),
@@ -462,12 +481,17 @@ export function mountTrillionReader(root, graph, options = {}) {
       if (!TERM_FORMS.has(form)) TERM_FORMS.set(form, key);
   }
   for (const key of TERMS.keys()) TERM_FORMS.set(key, key);
+  // Han terms do not have spaces between words; Latin terms still need boundaries.
+  const termBoundary =
+    options.language === "zh"
+      ? "[\\p{Script=Latin}\\p{N}_]"
+      : "[\\p{L}\\p{N}_]";
   const termPattern = TERM_FORMS.size
     ? new RegExp(
-        `(?<![\\p{L}\\p{N}_])(${[...TERM_FORMS.keys()]
+        `(?<!${termBoundary})(${[...TERM_FORMS.keys()]
           .sort((a, b) => b.length - a.length)
           .map((t) => esc(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-          .join("|")})(?![\\p{L}\\p{N}_])`,
+          .join("|")})(?!${termBoundary})`,
         "giu",
       )
     : null;
@@ -497,20 +521,26 @@ export function mountTrillionReader(root, graph, options = {}) {
     return html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   };
   function openTerm(key) {
-    const t = TERMS.get(key);
-    if (!t) return;
+    currentSheet = {
+      kind: "term",
+      termIndex: (graph.terms || []).findIndex(
+        (term) => term.term.toLowerCase() === key,
+      ),
+    };
+    const term = TERMS.get(key);
+    if (!term) return;
     openSheet(
-      `<p class="meta" style="margin:0 0 4px">What this means</p>
-      <h2 id="sheet-title">${esc(t.term)}</h2>
-      <p class="body">${esc(t.plain).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}</p>
-      <p class="counts">Billion's plain-language explanation.</p>
-      <div class="actions"><button class="btn ghost" type="button" data-close>Close</button></div>`,
+      `<p class="meta" style="margin:0 0 4px">${tr("What this means")}</p>
+      <h2 id="sheet-title">${esc(term.term)}</h2>
+      <p class="body">${esc(term.plain).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}</p>
+      <p class="counts">${tr("Billion's plain-language explanation.")}</p>
+      <div class="actions"><button class="btn ghost" type="button" data-close>${tr("Close")}</button></div>`,
       true,
     );
   }
-  const titleHtml = (id) => emphasize(N[id].title || "(untitled)");
+  const titleHtml = (id) => emphasize(N[id].title || tr("(untitled)"));
   const cardTitle = (id) =>
-    esc(N[id].title || "(untitled)").replace(
+    esc(N[id].title || tr("(untitled)")).replace(
       /\*\*(.+?)\*\*/g,
       "<strong>$1</strong>",
     );
@@ -543,10 +573,10 @@ export function mountTrillionReader(root, graph, options = {}) {
     const open = args.filter((e) => rank(e.from) === 0).length;
     const sides = new Set(args.map((e) => e.stance));
     const state = open
-      ? `${open} unanswered`
+      ? tr("{count} unanswered", { count: open })
       : sides.has("for") && sides.has("against")
-        ? "Contested"
-        : "Few arguments yet";
+        ? tr("Contested")
+        : tr("Few arguments yet");
     return { open, state, text: `${DISPUTE[N[id].dispute]} · ${state}` };
   }
   // Everything in the record that nobody has responded to yet.
@@ -568,15 +598,19 @@ export function mountTrillionReader(root, graph, options = {}) {
       return [
         {
           key: "basics",
-          label: "Basics",
+          label: tr("Basics"),
           tone: "neutral",
           items: inc
             .filter((e) => e.type === "part")
+            .sort(
+              (a, b) =>
+                Number(b.from === "b-before") - Number(a.from === "b-before"),
+            )
             .map((e) => ({ e, dir: "in" })),
         },
         {
           key: "disagree",
-          label: "Disputes",
+          label: tr("Disputes"),
           tone: "neutral",
           items: inc
             .filter((e) => e.type === "crux")
@@ -585,17 +619,17 @@ export function mountTrillionReader(root, graph, options = {}) {
         },
         {
           key: "open",
-          label: "Unanswered",
+          label: tr("Unanswered"),
           tone: "question",
           items: unanswered(),
-          empty: "Everything here has at least one response.",
+          empty: tr("Everything here has at least one response."),
         },
       ];
     if (N[id].kind === "crux")
       return [
         {
           key: "args",
-          label: "Arguments",
+          label: tr("Arguments"),
           tone: "neutral",
           items: ranked(
             inc.filter((e) => e.type === "weighs"),
@@ -604,13 +638,13 @@ export function mountTrillionReader(root, graph, options = {}) {
         },
         {
           key: "resp",
-          label: "Questions about this",
+          label: tr("Questions about this"),
           tone: "question",
           items: ranked(
             inc.filter((e) => RESP.has(e.type)),
             "in",
           ),
-          empty: "No one has questioned how this dispute is framed.",
+          empty: tr("No one has questioned how this dispute is framed."),
         },
       ];
     const cats = [];
@@ -618,7 +652,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     if (kids.length)
       cats.push({
         key: "inside",
-        label: "Inside",
+        label: tr("Inside"),
         tone: "neutral",
         // The measure's own text first, then its findings, then the Analyst, keeping the
         // drafted order (most important first) within each.
@@ -630,31 +664,33 @@ export function mountTrillionReader(root, graph, options = {}) {
     if (N[id].kind !== "branch") {
       cats.push({
         key: "resp",
-        label: "Responses",
+        label: tr("Responses"),
         tone: "against",
         items: ranked(
           inc.filter((e) => RESP.has(e.type)),
           "in",
         ),
-        empty: "No one has challenged, qualified, or questioned this yet.",
+        empty: tr("No one has challenged, qualified, or questioned this yet."),
       });
       cats.push({
         key: "rests",
-        label: "Rests on",
+        label: tr("Rests on"),
         tone: "for",
         items: ranked(
           inc.filter((e) => RESTS.has(e.type)),
           "in",
         ),
         empty: ["text", "finding"].includes(N[id].kind)
-          ? "This is the measure's own wording. Inspect the source to read it in context."
-          : "No supporting evidence or reasons have been linked yet.",
+          ? tr(
+              "This is the measure's own wording. Inspect the source to read it in context.",
+            )
+          : tr("No supporting evidence or reasons have been linked yet."),
       });
     }
     if (out.length)
       cats.push({
         key: "used",
-        label: "Used in",
+        label: tr("Used in"),
         tone: "applies",
         items: out.map((e) => ({ e, dir: "out" })),
       });
@@ -672,13 +708,29 @@ export function mountTrillionReader(root, graph, options = {}) {
   }
 
   // ── State ───────────────────────────────────────────────────────────
+  const navigationKey = `${graph.electionDate}:${graph.measure.number}:${graph.revision}`;
   let path = [{ t: "node", id: ROOT }];
   let tab = defaultTab(ROOT);
   const shown = new Set(); // tabs expanded past the preview, keyed focus:tab
   let direction = "in";
   let view = options.view === "map" ? "map" : "list"; // the reader's choice persists while navigating
+  const previous = options.navigation;
+  let restoring = false;
+  if (
+    previous?.key === navigationKey &&
+    previous.path?.[0]?.id === ROOT &&
+    previous.path.every((step) =>
+      step.t === "node" ? !!N[step.id] : step.t === "edge" && !!E[step.id],
+    )
+  ) {
+    restoring = true;
+    for (const key of previous.shown ?? []) shown.add(key);
+    path = previous.path.map((step) => ({ ...step }));
+    tab = previous.tab;
+    view = previous.view === "map" ? "map" : "list";
+  }
   const viewsHtml = () =>
-    `<div class="views" role="group" aria-label="Show as"><button type="button" data-view="list" aria-pressed="${view === "list"}">List</button><button type="button" data-view="map" aria-pressed="${view === "map"}">Map</button></div>`;
+    `<div class="views" role="group" aria-label="${esc(tr("Show as"))}"><button type="button" data-view="list" aria-pressed="${view === "list"}">${tr("List")}</button><button type="button" data-view="map" aria-pressed="${view === "map"}">${tr("Map")}</button></div>`;
   const cur = () => path[path.length - 1];
   const focusId = () => (cur().t === "edge" ? E[cur().id].to : cur().id);
   const activeCat = () =>
@@ -735,10 +787,10 @@ export function mountTrillionReader(root, graph, options = {}) {
 
   function srcLabel(n) {
     const s = n.source || {};
-    if (s.handle) return `${s.handle} · prototype example`;
+    if (s.handle) return `${s.handle} · ${tr("Prototype example")}`;
     if (n.kind === "argument") return s.label;
     if (n.kind === "global")
-      return `Shared claim · used in ${n.usedIn} other records (example count)`;
+      return `${tr("Shared claim")} · ${tr("Used in {count} other records (example count)", { count: n.usedIn })}`;
     return s.label || KIND[n.kind];
   }
 
@@ -756,12 +808,18 @@ export function mountTrillionReader(root, graph, options = {}) {
     }
     const props = (set) => {
       const n = [...set].sort();
-      return `Prop${n.length > 1 ? "s" : ""} ${n.length > 1 ? `${n.slice(0, -1).join(", ")} and ${n.at(-1)}` : n[0]}`;
+      return tr("Propositions {numbers}", {
+        numbers: n.join(options.language === "zh" ? "、" : ", "),
+      });
     };
     for (const n of conflicts) affects.delete(n);
     return [
-      conflicts.size ? `Conflicts with ${props(conflicts)}` : "",
-      affects.size ? `Affects ${props(affects)}` : "",
+      conflicts.size
+        ? tr("Conflicts with {measures}", { measures: props(conflicts) })
+        : "",
+      affects.size
+        ? tr("Affects {measures}", { measures: props(affects) })
+        : "",
     ]
       .filter(Boolean)
       .join(" · ");
@@ -773,7 +831,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     const rel = dir === "in" ? inLabel(e) : outLabel(e);
     const open =
       dir === "in" && rank(otherId) === 0
-        ? `<span class="badge-open">Unanswered</span>`
+        ? `<span class="badge-open">${tr("Unanswered")}</span>`
         : "";
     const about = measureLink(otherId);
     const chip = KIDS.has(e.type)
@@ -782,17 +840,27 @@ export function mountTrillionReader(root, graph, options = {}) {
         : about
           ? `<span class="relchip static r-mixed">${esc(about)}</span>`
           : ""
-      : `<button class="relchip" type="button" data-edge="${e.id}" aria-label="${esc(rel)}. Open this link">${esc(rel)} ›</button>`;
+      : `<button class="relchip" type="button" data-edge="${e.id}" aria-label="${esc(tr("{label}. Open this link", { label: rel }))}">${esc(rel)} ›</button>`;
     return `<div class="row r-${tone(e)}${o.kind === "global" ? " is-global" : ""}">
-      <div class="rowhead">${chip}<span class="src">${esc(srcLabel(o))}</span></div>
+      <div class="rowhead">${chip}<span class="src">${esc(srcLabel(o))}${o.context ? ` · ${esc(o.context.period)}` : ""}</span></div>
       <button class="go" type="button" data-node="${otherId}">
         <span class="t">${cardTitle(otherId)}${open}</span>
+        ${
+          o.context
+            ? `<span class="context-row-limit">${esc(o.context.limitation)}</span>${o.context.money
+                .map((m) => {
+                  const p = contextMoneyPresentation(m, options.language);
+                  return `<span class="context-row-limit">${esc(p.comparison)} · ${esc(m.scope.period)}</span>`;
+                })
+                .join("")}`
+            : ""
+        }
       </button>
     </div>`;
   }
 
   function tabsHtml(cats) {
-    return `<div class="tabs" role="tablist" aria-label="Connections">${cats
+    return `<div class="tabs" role="tablist" aria-label="${esc(tr("Connections"))}">${cats
       .map(
         (c) =>
           `<button class="tab r-${c.tone}" role="tab" type="button" data-tab="${c.key}" aria-selected="${c.key === tab}" aria-controls="tabpanel">${c.tone !== "neutral" ? '<span class="dot"></span>' : ""}${esc(c.label)} <span class="n">${c.items.length}</span></button>`,
@@ -804,11 +872,34 @@ export function mountTrillionReader(root, graph, options = {}) {
     if (!cat) return "";
     const key = `${id}:${cat.key}`;
     let body;
-    if (cat.key === "basics") {
+    if (id === "b-before" && cat.key === "inside") {
+      const topics = {
+        baseline: "Existing rules",
+        history: "Past results",
+        budget: "Money in context",
+      };
+      body = Object.entries(topics)
+        .map(([topic, label]) => {
+          const items = cat.items.filter(
+            ({ e }) =>
+              N[e.from].context?.topic === topic ||
+              e.from === `context-gap-${topic}`,
+          );
+          return items.length
+            ? `<section class="context-group"><h2>${tr(label)}</h2><div class="rows">${items.map(row).join("")}</div></section>`
+            : "";
+        })
+        .join("");
+      const other = cat.items.filter(
+        ({ e }) => !N[e.from].context && !e.from.startsWith("context-gap-"),
+      );
+      if (other.length)
+        body += `<div class="rows">${other.map(row).join("")}</div>`;
+    } else if (cat.key === "basics") {
       body = `<div class="tiles">${cat.items
         .map(({ e }) => {
           const k = incoming(e.from).filter((x) => KIDS.has(x.type)).length;
-          return `<button class="tile" type="button" data-node="${e.from}"><span class="t">${esc(N[e.from].title)}</span><span class="n">${isActBranch(e.from) && graph.jurisdiction === "CA" ? (k ? `Voting basics · ${k} more` : "Voting basics") : `${k} item${k === 1 ? "" : "s"}`}</span></button>`;
+          return `<button class="tile" type="button" data-node="${e.from}"><span class="t">${esc(N[e.from].title)}</span><span class="n">${isActBranch(e.from) && graph.jurisdiction === "CA" ? (k ? tr("Voting basics · {count} more", { count: k }) : tr("Voting basics")) : tr("{count} items", { count: k })}</span></button>`;
         })
         .join("")}</div>`;
     } else if (cat.key === "disagree") {
@@ -817,9 +908,10 @@ export function mountTrillionReader(root, graph, options = {}) {
           // The chip names the kind of disagreement; how far it has got is secondary.
           const st = cruxState(e.from);
           const k = incoming(e.from).filter((x) => x.type === "weighs").length;
-          return `<div class="row ${N[e.from].dispute === "values" ? "r-values values-dispute" : "r-question"}"><span class="relchip static">${esc(DISPUTE[N[e.from].dispute])}</span>
+          const selected = !!N[e.from].highlight;
+          return `<div class="row dispute-row ${selected ? "is-highlighted r-neutral" : N[e.from].dispute === "values" ? "r-values" : "r-question"}${N[e.from].dispute === "values" ? " values-dispute" : ""}">${selected ? `<span class="selection-label">${tr("Question worth weighing")}</span>` : ""}<span class="relchip static">${esc(DISPUTE[N[e.from].dispute])}</span>
           <button class="go" type="button" data-node="${e.from}"><span class="t">${cardTitle(e.from)}</span>
-          <span class="src">${esc(st.state)} · ${k} argument${k === 1 ? "" : "s"}</span></button></div>`;
+          <span class="src">${esc(st.state)} · ${tr("{count} arguments", { count: k })}</span></button>${highlightReason(e.from)}</div>`;
         })
         .join("")}</div>`;
     } else if (cat.key === "open") {
@@ -828,55 +920,62 @@ export function mountTrillionReader(root, graph, options = {}) {
             .map(
               ({
                 e,
-              }) => `<div class="row r-question"><span class="relchip static">Unanswered</span>
+              }) => `<div class="row r-question"><span class="relchip static">${tr("Unanswered")}</span>
           <button class="go" type="button" data-node="${e.from}"><span class="t">${cardTitle(e.from)}</span>
-          <span class="src">${esc(srcLabel(N[e.from]))} · on “${esc(titleOf(e.to))}”</span></button></div>`,
+          <span class="src">${esc(srcLabel(N[e.from]))} · ${esc(tr("on “{title}”", { title: titleOf(e.to) }))}</span></button></div>`,
             )
             .join("")}</div>`
         : `<p class="empty">${esc(cat.empty)}</p>`;
     } else if (!cat.items.length) {
-      body = `<p class="empty">${esc(cat.empty || "Nothing here yet.")}</p>`;
+      body = `<p class="empty">${esc(cat.empty || tr("Nothing here yet."))}</p>`;
     } else {
       const rows = shown.has(key) ? cat.items : cat.items.slice(0, PREVIEW);
       const rest = cat.items.length - rows.length;
-      body = `<div class="rows">${rows.map(row).join("")}</div>${rest > 0 ? `<button class="more" type="button" data-more="${key}">Show ${rest} more</button>` : ""}`;
+      body = `<div class="rows">${rows.map(row).join("")}</div>${rest > 0 ? `<button class="more" type="button" data-more="${key}">${tr("Show {count} more", { count: rest })}</button>` : ""}`;
     }
     return `<section class="section" id="tabpanel" role="tabpanel">${body}</section>`;
   }
 
-  // The generator lists disputed questions most consequential first. The first
-  // is shown under the summary in the Yes-to-No colors, unlabeled: the color
-  // draws the eye without Billion declaring which disagreement matters most.
+  // Explicit editorial selections survive only while their evidence does.
   function disputeIds() {
     return Object.keys(N).filter((id) => N[id].kind === "crux");
   }
   function disputeOrder(id) {
-    return disputeIds().indexOf(id);
+    return N[id].highlight?.rank ?? 10 + disputeIds().indexOf(id);
   }
-  function disputeSides(id) {
-    const args = incoming(id).filter((x) => x.type === "weighs");
-    const yes = args.filter((x) => x.stance === "for").length;
-    const no = args.filter((x) => x.stance === "against").length;
-    const both = args.filter((x) => x.stance === "mixed").length;
-    return { yes, no, both, total: args.length };
+  function highlightReason(id) {
+    const h = N[id].highlight;
+    if (!h) return "";
+    return `<details class="selection-reason"><summary>${tr("Why this question?")}</summary>
+      <p>${esc(h.reason)}</p><p class="meta">${tr("Selected by Billion AI \u00b7 an editorial judgment")}</p>
+      <div class="selection-evidence">${h.evidence.map((e, i) => `<button type="button" class="linkish" data-node="${e}">${N[e].context ? `${tr("Evidence {number}", { number: i + 1 })} · ${esc(srcLabel(N[e]))}` : esc(titleOf(e))} ›</button>`).join("")}</div></details>`;
   }
-  function leadDisputeHtml() {
-    const id = disputeIds().find(
-      (c) => visible(c) && incoming(ROOT).some((e) => e.from === c),
-    );
-    if (!id) return "";
-    const d = disputeSides(id);
-    const sides = [
-      d.yes ? `${d.yes} Yes` : "",
-      d.no ? `${d.no} No` : "",
-      d.both ? `${d.both} both ways` : "",
-    ]
-      .filter(Boolean)
-      .join(", ");
-    return `<button class="pinned-dispute" type="button" data-node="${id}">
-      <span class="pd-title">${cardTitle(id)}</span>
-      <span class="pd-meta">${d.total} argument${d.total === 1 ? "" : "s"}${sides ? ` · ${sides}` : ""} ›</span>
-    </button>`;
+  function contextHtml(id) {
+    const c = N[id].context;
+    if (!c) return "";
+    return `<aside class="decision-context" aria-label="${esc(tr("Evidence context"))}">
+      <p class="context-scope">${esc(c.period)} · ${esc(c.scope)}</p>
+      <p class="context-limit"><strong>${tr("Limits of this evidence")}</strong><br>${esc(c.limitation)}</p>
+      ${c.money
+        .map((money) => {
+          const p = contextMoneyPresentation(money, options.language);
+          const citations =
+            money.comparison.state === "available"
+              ? money.comparison.denominator.evidence
+                  .map((e) => {
+                    const source = graph.sources.find(
+                      (s) => s.id === e.sourceId,
+                    );
+                    return source
+                      ? `<a href="${esc(source.url)}" target="_blank" rel="noopener">${esc(source.title || tr("Legislative Analyst"))} · ${esc(e.locator)}</a>`
+                      : "";
+                  })
+                  .join(" · ")
+              : "";
+          return `<div class="context-money"><strong>${esc(p.nominal)}</strong><p>${esc(p.comparison)}</p><p class="meta">${esc(p.scope)}</p>${p.reason ? `<p>${esc(p.reason)}</p>` : ""}${citations ? `<p class="meta">${tr("Comparison source")}: ${citations}</p>` : ""}</div>`;
+        })
+        .join("")}
+    </aside>`;
   }
 
   // Reader tools drawn as line icons; filled when on.
@@ -894,64 +993,67 @@ export function mountTrillionReader(root, graph, options = {}) {
     if (n.quote || ["root", "branch", "record", "crux"].includes(n.kind))
       return "";
     const grounded = incoming(id).some((e) => RESTS.has(e.type));
-    return `<div class="evidence-gap"><span class="gap-mark" aria-hidden="true">“</span><span><strong class="evidence-warning">No source quote</strong>${grounded ? "" : ' · <span class="evidence-warning">No link to supporting evidence</span>'}</span></div>`;
+    return `<div class="evidence-gap"><span class="gap-mark" aria-hidden="true">“</span><span><strong class="evidence-warning">${tr("No source quote")}</strong>${grounded ? "" : ` · <span class="evidence-warning">${tr("No link to supporting evidence")}</span>`}</span></div>`;
   }
   function claimTools(id) {
     if (["root", "branch", "record"].includes(N[id].kind)) return "";
     const flag = flags[id];
     return `<div class="claim-tools">
-      <button class="tool${saved.has(id) ? " is-on" : ""}" type="button" data-save="${id}" aria-pressed="${saved.has(id)}">${ICON.bookmark}<span class="sr">Save as a decisive argument</span></button>
-      <button class="tool${flag ? " is-on has-label" : ""}" type="button" data-flag="${id}" aria-haspopup="dialog">${ICON.flag}${flag ? `<span><span class="sr">Your flag: </span>${esc(flag)}</span>` : '<span class="sr">Flag an argument fault</span>'}</button>
+      <button class="tool${saved.has(id) ? " is-on" : ""}" type="button" data-save="${id}" aria-pressed="${saved.has(id)}">${ICON.bookmark}<span class="sr">${tr("Save as a decisive argument")}</span></button>
+      <button class="tool${flag ? " is-on has-label" : ""}" type="button" data-flag="${id}" aria-haspopup="dialog">${ICON.flag}${flag ? `<span>${esc(tr("Your flag: {flag}", { flag: tr(flag) }))}</span>` : `<span class="sr">${tr("Flag an argument fault")}</span>`}</button>
     </div>`;
   }
   const FAULTS = [
-    ["Unsupported premise", "Leans on a claim nobody has backed up."],
-    ["Does not follow", "The conclusion doesn't come from the reasons."],
+    ["Unsupported premise", tr("Leans on a claim nobody has backed up.")],
+    ["Does not follow", tr("The conclusion doesn't come from the reasons.")],
     [
       "Misrepresents the argument",
-      "Answers a weaker version of what was said.",
+      tr("Answers a weaker version of what was said."),
     ],
-    ["Personal attack", "Goes after people, not the reasoning."],
-    ["False choice", "Offers two options when there are more."],
+    ["Personal attack", tr("Goes after people, not the reasoning.")],
+    ["False choice", tr("Offers two options when there are more.")],
   ];
   function openFlag(id) {
+    currentSheet = { kind: "flag", id };
     const current = flags[id];
-    openSheet(`<div class="sheet-head"><h2 id="sheet-title">Flag an argument fault</h2><button class="close" type="button" data-close>Close</button></div>
+    openSheet(`<div class="sheet-head"><h2 id="sheet-title">${tr("Flag an argument fault")}</h2><button class="close" type="button" data-close>${tr("Close")}</button></div>
       <p class="flag-target">${cardTitle(id)}</p>
-      <div class="fault-list" role="group" aria-label="Fault">${FAULTS.map(
+      <div class="fault-list" role="group" aria-label="${esc(tr("Fault"))}">${FAULTS.map(
         ([label, why]) =>
-          `<button class="fault-choice" type="button" data-fault="${label}" data-target="${id}" aria-pressed="${current === label}"><span class="fc-text"><span class="fc-name">${label}</span><span class="fc-why">${why}</span></span>${current === label ? ICON.check : ""}</button>`,
+          `<button class="fault-choice" type="button" data-fault="${label}" data-target="${id}" aria-pressed="${current === label}"><span class="fc-text"><span class="fc-name">${tr(label)}</span><span class="fc-why">${why}</span></span>${current === label ? ICON.check : ""}</button>`,
       ).join("")}</div>
-      <p class="flag-note">Your own assessment, kept on this device. Disagreeing on values isn't a fault.</p>
-      ${current ? `<button class="linkish flag-clear" type="button" data-fault="Clear flag" data-target="${id}">Remove flag</button>` : ""}`);
+      <p class="flag-note">${tr("Your own assessment, kept on this device. Disagreeing on values isn't a fault.")}</p>
+      ${current ? `<button class="linkish flag-clear" type="button" data-fault="Clear flag" data-target="${id}">${tr("Remove flag")}</button>` : ""}`);
   }
   function focusCard(id) {
     const n = N[id];
     const src = n.source || {};
     if (id === ROOT)
-      return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}</article>${leadDisputeHtml()}`;
+      return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}${N["b-before"] ? `<button class="linkish before-link" type="button" data-node="b-before">${tr("What was it like before?")} ›</button>` : ""}</article>`;
     const meta = [
       `<span class="kind${n.dispute === "values" ? " is-values" : ""}">${esc(n.kind === "reader" ? src.label : n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</span>`,
     ];
     if (src.handle)
       meta.push(
-        `<span>${esc(src.handle)}</span><span class="example">Prototype example</span>`,
+        `<span>${esc(src.handle)}</span><span class="example">${tr("Prototype example")}</span>`,
       );
 
     if (n.kind === "global")
       meta.push(
-        `<span>Used in ${n.usedIn} other records (example count)</span>`,
+        `<span>${tr("Used in {count} other records (example count)", { count: n.usedIn })}</span>`,
       );
 
     return `<article class="focus">
       <div class="meta">${meta.join("")}</div>
       <h1 tabindex="-1" class="${n.title.includes("**") ? "stmt" : ""}">${titleHtml(id)}</h1>
       ${n.body ? `<p class="body">${esc(n.body)}</p>` : ""}
-      ${n.quote ? `<blockquote class="quote">“${esc(n.quote)}”<footer><span>${esc(src.locator)}</span><button class="linkish" type="button" data-source="${id}">Inspect source</button></footer></blockquote>` : evidenceGap(id)}
+      ${contextHtml(id)}
+      ${n.kind === "crux" ? highlightReason(id) : ""}
+      ${n.quote ? `<blockquote class="quote">“${esc(n.quote)}”<footer><span>${esc(src.locator)}</span><button class="linkish" type="button" data-source="${id}">${tr("Inspect source")}</button></footer></blockquote>` : evidenceGap(id)}
       ${n.note ? `<p class="note">${esc(n.note)}</p>` : ""}
-      ${src.signers && n.quote ? `<p class="note">Signed by ${esc(src.signers)}</p>` : ""}
-      ${n.kind === "record" ? `<p class="note">A separate record with its own graph.</p>` : ""}
-      ${n.duplicateOf ? `<div class="dup"><strong>Possible duplicate</strong><span>This looks like <button class="linkish" type="button" data-node="${n.duplicateOf}">${esc(titleOf(n.duplicateOf))}</button>. Duplicates may be merged later, keeping each wording and its context.</span></div>` : ""}
+      ${src.signers && n.quote ? `<p class="note">${esc(tr("Signed by {names}", { names: src.signers }))}</p>` : ""}
+      ${n.kind === "record" ? `<p class="note">${tr("A separate record with its own graph.")}</p>` : ""}
+      ${n.duplicateOf ? `<div class="dup"><strong>${tr("Possible duplicate")}</strong><span>${tr("This looks like")} <button class="linkish" type="button" data-node="${n.duplicateOf}">${esc(titleOf(n.duplicateOf))}</button>. ${tr("Duplicates may be merged later, keeping each wording and its context.")}</span></div>` : ""}
       ${claimTools(id)}
     </article>`;
   }
@@ -962,19 +1064,19 @@ export function mountTrillionReader(root, graph, options = {}) {
     const by = !e.by
       ? ""
       : e.by === "generated"
-        ? `<span>Written by Billion AI</span>`
-        : `<span>${esc(e.by)}</span><span class="example">Prototype example</span>`;
+        ? `<span>${tr("Written by Billion AI")}</span>`
+        : `<span>${esc(e.by)}</span><span class="example">${tr("Prototype example")}</span>`;
     const card = (id) =>
       `<div class="row r-neutral"><button class="go" type="button" data-node="${id}"><span class="t">${cardTitle(id)}</span><span class="src">${esc(srcLabel(N[id]))}</span></button></div>`;
     const heading =
       e.type === "weighs"
-        ? `Why does this ${esc(short(e))}?`
-        : `Why does this ${esc(short(e))} that?`;
+        ? esc(tr("Why does this {relation}?", { relation: short(e) }))
+        : esc(tr("Why does this {relation} that?", { relation: short(e) }));
     return `<article class="focus r-${tone(e)}">
-        <div class="meta"><span class="kind">Link</span>${by}</div>
+        <div class="meta"><span class="kind">${tr("Link")}</span>${by}</div>
         <h1 tabindex="-1">${heading}</h1>
         <div class="edge-pair">${card(e.from)}<div class="arrow">↓ ${esc(short(e))}</div>${card(e.to)}</div>
-        <p class="body">${esc(e.why || "The connection has not been explained.")}</p>
+        <p class="body">${esc(e.why || tr("The connection has not been explained."))}</p>
       </article>
       ${viewsHtml()}${view === "map" ? '<div id="phone-slot"></div>' : ""}
       <section class="section foot"${view === "map" ? " hidden" : ""}>
@@ -984,12 +1086,12 @@ export function mountTrillionReader(root, graph, options = {}) {
               .map(
                 (
                   r,
-                ) => `<div class="row r-against"><span class="relchip static">Challenges this step</span>
+                ) => `<div class="row r-against"><span class="relchip static">${tr("Challenges this step")}</span>
           <button class="go" type="button" data-node="${r.from}"><span class="t">${titleHtml(r.from)}</span><span class="src">${esc(srcLabel(N[r.from]))}</span></button>
           <div class="why">${esc(N[r.from].body)}</div></div>`,
               )
               .join("")}</div>`
-          : `<p class="empty">No one has challenged this step yet. You can accept both claims and still dispute the link between them.</p>`
+          : `<p class="empty">${tr("No one has challenged this step yet. You can accept both claims and still dispute the link between them.")}</p>`
       }</section>`;
   }
 
@@ -999,9 +1101,9 @@ export function mountTrillionReader(root, graph, options = {}) {
       .map((p, i) => {
         const label =
           p.t === "edge"
-            ? `Link: ${short(E[p.id])}`
+            ? tr("Link: {relation}", { relation: short(E[p.id]) })
             : i === 0
-              ? "← Main case"
+              ? `← ${tr("Main case")}`
               : titleOf(p.id);
         return `<button class="crumb" type="button" data-crumb="${i}"${i === path.length - 1 ? ' aria-current="page"' : ""}>${esc(label)}</button>`;
       })
@@ -1017,10 +1119,10 @@ export function mountTrillionReader(root, graph, options = {}) {
     const cats = categories(ROOT);
     const n = (k) => cats.find((c) => c.key === k).items.length;
     return `<section class="door">
-      <p class="door-t">The debate starts here, not ends.</p>
+      <p class="door-t">${tr("The debate starts here, not ends.")}</p>
       <div class="door-actions">
-        ${tab !== "disagree" ? `<button class="btn ghost" type="button" data-tab="disagree">Disputes (${n("disagree")})</button>` : ""}
-        ${tab !== "open" ? `<button class="btn ghost" type="button" data-tab="open">Unanswered (${n("open")})</button>` : ""}
+        ${tab !== "disagree" ? `<button class="btn ghost" type="button" data-tab="disagree">${tr("Disputes")} (${n("disagree")})</button>` : ""}
+        ${tab !== "open" ? `<button class="btn ghost" type="button" data-tab="open">${tr("Unanswered")} (${n("open")})</button>` : ""}
       </div>
     </section>`;
   }
@@ -1075,6 +1177,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     return `M${p(r1, a0)}A${r1} ${r1} 0 ${large} 1 ${p(r1, a1)}L${p(r0, a1)}A${r0} ${r0} 0 ${large} 0 ${p(r0, a0)}Z`;
   }
   function openRing() {
+    currentSheet = { kind: "ring" };
     const onPath = new Set(path.filter((p) => p.t === "node").map((p) => p.id));
     onPath.add(focusId());
     const slices = [];
@@ -1120,15 +1223,15 @@ export function mountTrillionReader(root, graph, options = {}) {
       .filter((t) => t.id !== focusId());
     openSheet(
       `<div class="ring-sheet">
-          <div class="sheet-head"><h2 id="sheet-title">The whole debate</h2><button class="close" type="button" data-close>Close</button></div>
-          <svg viewBox="-64 -64 128 128" role="img" aria-label="Ring map of the disputed questions, the arguments under them, and the responses.">
+          <div class="sheet-head"><h2 id="sheet-title">${tr("The whole debate")}</h2><button class="close" type="button" data-close>${tr("Close")}</button></div>
+          <svg viewBox="-64 -64 128 128" role="img" aria-label="${esc(tr("Ring map of the disputed questions, the arguments under them, and the responses."))}">
             ${slices.join("")}
-            <circle r="18" fill="#D4AF37" data-peek="${ROOT}" tabindex="0" role="button" aria-label="Main case"${focusId() === ROOT ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>Main case</title></circle>
+            <circle r="18" fill="#D4AF37" data-peek="${ROOT}" tabindex="0" role="button" aria-label="${esc(tr("Main case"))}"${focusId() === ROOT ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>${tr("Main case")}</title></circle>
           </svg>
-          <p class="ov-hover is-empty" id="ov-hover" aria-live="polite">Drag over slices to explore · Tap to open</p>
-          <p class="ring-key">${cruxes.length} disputes · ${args} arguments · ${unanswered().length} unanswered. Wider slices have more debate.</p>
-          <p class="ring-legend"><span style="--c:#B8A1FF"><i></i>Values debate</span><span style="--c:#7A7F96"><i></i>Facts, text or law</span></p>
-          ${thin.map((t) => `<button type="button" class="thin" data-peek="${t.id}">Least explored: ${esc(N[t.id].label || titleOf(t.id))} ›</button>`).join("")}
+          <p class="ov-hover is-empty" id="ov-hover" aria-live="polite">${tr("Drag over slices to explore · Tap to open")}</p>
+          <p class="ring-key">${tr("{disputes} disputes · {arguments} arguments · {unanswered} unanswered. Wider slices have more debate.", { disputes: cruxes.length, arguments: args, unanswered: unanswered().length })}</p>
+          <p class="ring-legend"><span style="--c:#B8A1FF"><i></i>${tr("Values debate")}</span><span style="--c:#7A7F96"><i></i>${tr("Facts, text or law")}</span></p>
+          ${thin.map((t) => `<button type="button" class="thin" data-peek="${t.id}">${esc(tr("Least explored: {title}", { title: N[t.id].label || titleOf(t.id) }))} ›</button>`).join("")}
           </div>`,
       true,
     );
@@ -1138,11 +1241,11 @@ export function mountTrillionReader(root, graph, options = {}) {
   function summaryHtml() {
     const sm = graph.summary;
     if (!sm) return "";
-    return `<section class="summary" aria-label="What it does">
-      <p class="summary-k">What it does</p>
+    return `<section class="summary" aria-label="${esc(tr("What it does"))}">
+      <p class="summary-k">${tr("What it does")}</p>
       <p class="summary-t">${emphasize(sm.text)}</p>
-      ${sm.more ? `<details class="summary-more"><summary>Read more</summary><p>${emphasize(sm.more)}</p></details>` : ""}
-      <button class="linkish" type="button" data-summary-sources>From the measure text · ${sm.quotes.length} ${sm.quotes.length === 1 ? "quote" : "quotes"}</button>
+      ${sm.more ? `<details class="summary-more"><summary>${tr("Read more")}</summary><p>${emphasize(sm.more)}</p></details>` : ""}
+      <button class="linkish" type="button" data-summary-sources>${tr("From the measure text")} · ${tr("{count} quotes", { count: sm.quotes.length })}</button>
       ${backgroundHtml()}
     </section>`;
   }
@@ -1151,25 +1254,26 @@ export function mountTrillionReader(root, graph, options = {}) {
   function backgroundHtml() {
     const bg = graph.background;
     if (!bg) return "";
-    return `<details class="summary-more background"><summary>New to this? How it works today</summary>
+    return `<details class="summary-more background"><summary>${tr("New to this? How it works today")}</summary>
       <p>${emphasize(bg.text)}</p>
-      <button class="linkish" type="button" data-summary-sources="background">From the Legislative Analyst · ${bg.quotes.length} ${bg.quotes.length === 1 ? "quote" : "quotes"}</button>
+      <button class="linkish" type="button" data-summary-sources="background">${tr("From the Legislative Analyst")} · ${tr("{count} quotes", { count: bg.quotes.length })}</button>
     </details>`;
   }
   function openSummarySources(which) {
+    currentSheet = { kind: "summary", id: which };
     const bg = which === "background";
     const part = bg ? graph.background : graph.summary;
     const sources = Object.fromEntries(graph.sources.map((s) => [s.id, s]));
     const url = sources[part.quotes[0].sourceId]?.url;
-    openSheet(`<div class="sheet-head"><h2 id="sheet-title">${bg ? "What the Legislative Analyst says" : "What the measure says"}</h2><button class="close" type="button" data-close>Close</button></div>
+    openSheet(`<div class="sheet-head"><h2 id="sheet-title">${tr(bg ? "What the Legislative Analyst says" : "What the measure says")}</h2><button class="close" type="button" data-close>${tr("Close")}</button></div>
       ${part.quotes
         .map(
           (q) =>
             `<blockquote class="quote">“${esc(q.text)}”<footer><span>${esc(q.locator)}</span></footer></blockquote>`,
         )
         .join("")}
-      <p class="empty" style="margin-top:12px">${bg ? "Billion wrote this background; these are the passages of the Legislative Analyst's nonpartisan analysis it rests on, matched word for word." : "Billion wrote the summary; these are the passages of the measure it rests on, matched word for word."}</p>
-      ${url ? `<div class="actions"><a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener">${bg ? "Open the analysis" : "Open the measure text"}</a></div>` : ""}`);
+      <p class="empty" style="margin-top:12px">${tr(bg ? "Billion wrote this background; these are the passages of the Legislative Analyst's nonpartisan analysis it rests on, matched word for word." : "Billion wrote the summary; these are the passages of the measure it rests on, matched word for word.")}</p>
+      ${url ? `<div class="actions"><a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener">${tr(bg ? "Open the analysis" : "Open the measure text")}</a></div>` : ""}`);
   }
 
   // ── How can I act: voting basics, always present, never generated ────────
@@ -1181,7 +1285,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     if (graph.jurisdiction !== "CA") return "";
     const [y, m, d] = graph.electionDate.split("-").map(Number);
     const day = (offset) =>
-      new Date(Date.UTC(y, m - 1, d + offset)).toLocaleDateString("en-US", {
+      new Date(Date.UTC(y, m - 1, d + offset)).toLocaleDateString(locale, {
         weekday: "long",
         month: "long",
         day: "numeric",
@@ -1193,25 +1297,28 @@ export function mountTrillionReader(root, graph, options = {}) {
     const MAIL =
       "https://www.sos.ca.gov/elections/voter-registration/vote-mail";
     const src = (href) =>
-      ` <a class="fact-src" href="${href}" target="_blank" rel="noopener">Source</a>`;
+      ` <a class="fact-src" href="${href}" target="_blank" rel="noopener">${tr("Source")}</a>`;
     const links = [
-      ["Check your registration", "https://voterstatus.sos.ca.gov/"],
-      ["Register to vote", "https://registertovote.ca.gov/"],
+      [tr("Check your registration"), "https://voterstatus.sos.ca.gov/"],
+      [tr("Register to vote"), "https://registertovote.ca.gov/"],
       [
-        "Find a drop box or voting location",
+        tr("Find a drop box or voting location"),
         "https://caearlyvoting.sos.ca.gov/",
       ],
-      ["Track your mail ballot", "https://california.ballottrax.net/voter/"],
+      [
+        tr("Track your mail ballot"),
+        "https://california.ballottrax.net/voter/",
+      ],
     ];
-    return `<section class="voting" aria-label="Voting in California">
-      <p class="summary-k">Voting in California</p>
+    return `<section class="voting" aria-label="${esc(tr("Voting in California"))}">
+      <p class="summary-k">${tr("Voting in California")}</p>
       <ul class="voting-facts">
-        <li><strong>Election day:</strong> ${day(0)}. Polls are open 7 a.m. to 8 p.m.${src(KEY_DATES)}</li>
-        <li><strong>Register by ${day(-15)}.</strong> After that, you can still register "conditionally" and vote a provisional ballot at your county elections office.${src(REGISTER)}</li>
-        <li><strong>Voting by mail:</strong> every active registered voter is mailed a ballot. Mail it postmarked by election day (it must arrive within 7 days), or drop it off by 8 p.m. on election day.${src(MAIL)}</li>
+        <li>${tr("Election day: {date}. Polls are open 7 a.m. to 8 p.m.", { date: day(0) })}${src(KEY_DATES)}</li>
+        <li>${tr("Register by {date}. After that, you can still register conditionally and vote a provisional ballot at your county elections office.", { date: day(-15) })}${src(REGISTER)}</li>
+        <li>${tr("Voting by mail: every active registered voter is mailed a ballot. Mail it postmarked by election day (it must arrive within 7 days), or drop it off by 8 p.m. on election day.")}${src(MAIL)}</li>
       </ul>
       <div class="voting-links">${links.map(([label, href]) => `<a href="${href}" target="_blank" rel="noopener">${label} ›</a>`).join("")}</div>
-      <p class="voting-src">From the California Secretary of State. Not part of the debate.</p>
+      <p class="voting-src">${tr("From the California Secretary of State. Not part of the debate.")}</p>
     </section>`;
   }
 
@@ -1219,11 +1326,11 @@ export function mountTrillionReader(root, graph, options = {}) {
   function savedHtml() {
     if (!saved.size) return "";
     return `<section class="saved-arguments" aria-labelledby="saved-head">
-      <h2 id="saved-head">${ICON.bookmark}Saved on this device</h2>
+      <h2 id="saved-head">${ICON.bookmark}${tr("Saved on this device")}</h2>
       <div class="rows">${[...saved]
         .map(
           (id) =>
-            `<div class="row r-saved"><button class="go" type="button" data-node="${id}"><span class="t">${cardTitle(id)}</span><span class="src">${esc(cardMeta(id))}${flags[id] ? ` · Your flag: ${esc(flags[id])}` : ""}</span></button></div>`,
+            `<div class="row r-saved"><button class="go" type="button" data-node="${id}"><span class="t">${cardTitle(id)}</span><span class="src">${esc(cardMeta(id))}${flags[id] ? ` · ${esc(tr("Your flag: {flag}", { flag: tr(flags[id]) }))}` : ""}</span></button></div>`,
         )
         .join("")}</div>
     </section>`;
@@ -1363,7 +1470,7 @@ export function mountTrillionReader(root, graph, options = {}) {
   }
   function cardMeta(id) {
     const n = N[id];
-    if (id === ROOT) return "Main case";
+    if (id === ROOT) return tr("Main case");
     if (n.kind === "crux") return cruxState(id).text;
     return srcLabel(n);
   }
@@ -1424,7 +1531,7 @@ export function mountTrillionReader(root, graph, options = {}) {
   function initMap() {
     if (!cytoscape) {
       $("#cy").innerHTML =
-        `<p class="empty" style="padding:16px">The map couldn't load. The list has the same connections.</p>`;
+        `<p class="empty" style="padding:16px">${tr("The map couldn't load. The list has the same connections.")}</p>`;
       return;
     }
     const ease = {
@@ -1819,7 +1926,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     const extra =
       cur().t === "node" ? (activeCat()?.items.length ?? 0) - MAP_MAX : 0;
     $("#map-more").hidden = extra <= 0;
-    $("#map-more").textContent = `+${extra} more in List`;
+    $("#map-more").textContent = tr("+{count} more in List", { count: extra });
     for (const [id, { edge }] of hints) {
       nodes.add(id);
       edges.add(edge);
@@ -2051,6 +2158,8 @@ export function mountTrillionReader(root, graph, options = {}) {
 
   // ── Sheets: source and composer ─────────────────────────────────────
   let lastTrigger = null;
+  let currentSheet = null;
+  let composerReuse = null;
   function openSheet(html, light = false) {
     lastTrigger = document.activeElement;
     $("#layer").innerHTML =
@@ -2062,6 +2171,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     reportBack();
   }
   function closeSheet() {
+    currentSheet = null;
     $("#layer").innerHTML = "";
     cy?.elements(".peeked").removeClass("peeked");
     document
@@ -2088,6 +2198,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     return `<div class="rel" style="--tone:${TONE_HEX[tone(e)]}">${esc(label)}</div>`;
   }
   function peekNode(id, fromRing = false) {
+    currentSheet = { kind: "node", id, fromRing };
     const n = N[id];
     const src = n.source || {};
     // Show what is inside, not just how much: the first few cards of its opening tab.
@@ -2107,110 +2218,125 @@ export function mountTrillionReader(root, graph, options = {}) {
           })
           .join(
             "",
-          )}${open.items.length > 3 ? `<p class="inside-more">+${open.items.length - 3} more</p>` : ""}</div>`
+          )}${open.items.length > 3 ? `<p class="inside-more">${tr("+{count} more", { count: open.items.length - 3 })}</p>` : ""}</div>`
       : "";
     const here = id === focusId();
     cardEls.get(id)?.classList.add("peeked");
     openSheet(
       `${relationTo(id)}
-          <p class="meta" style="margin:0 0 6px">${esc(id === ROOT ? "Main case" : n.kind === "reader" ? src.label : n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</p>
+          <p class="meta" style="margin:0 0 6px">${esc(id === ROOT ? tr("Main case") : n.kind === "reader" ? src.label : n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</p>
           <h2 id="sheet-title" class="${N[id].title?.includes("**") ? "stmt" : ""}">${titleHtml(id)}</h2>
           ${n.body ? `<p class="body">${esc(n.body)}</p>` : ""}
-          ${n.quote ? `<blockquote class="quote"><span class="clamp">“${esc(n.quote)}”</span><footer><span>${esc(src.locator)}</span></footer></blockquote>` : ""}
+          ${contextHtml(id)}
+      ${n.kind === "crux" ? highlightReason(id) : ""}
+      ${n.quote ? `<blockquote class="quote"><span class="clamp">“${esc(n.quote)}”</span><footer><span>${esc(src.locator)}</span></footer></blockquote>` : ""}
           ${inside}
-          ${fromRing ? `<button class="linkish" type="button" data-ring style="margin:0 0 10px">‹ Back to the whole debate</button>` : ""}<div class="actions">${here ? `<button class="btn ghost" type="button" data-close>You're here · Close</button>` : `<button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-node="${id}">Go to this ›</button>`}</div>`,
+          ${fromRing ? `<button class="linkish" type="button" data-ring style="margin:0 0 10px">‹ ${tr("Back to the whole debate")}</button>` : ""}<div class="actions">${here ? `<button class="btn ghost" type="button" data-close>${tr("You're here · Close")}</button>` : `<button class="btn ghost" type="button" data-close>${tr("Close")}</button><button class="btn primary" type="button" data-node="${id}">${tr("Go to this")} ›</button>`}</div>`,
       true,
     );
   }
   // Structural links carry no written reason, so say in plain words what the link means.
   const STRUCTURE = {
-    part: "One of the four basics every record starts from.",
-    detail: "Part of what this section covers.",
-    crux: "One of the questions people disagree about on this measure.",
+    part: tr("One of the four basics every record starts from."),
+    detail: tr("Part of what this section covers."),
+    crux: tr("One of the questions people disagree about on this measure."),
   };
   function endCard(id, role) {
     return `<button type="button" class="end" data-peek="${id}"><span class="end-role">${role}</span><span class="end-title">${cardTitle(id)}</span><span class="end-meta">${esc(cardMeta(id))}</span></button>`;
   }
   function peekEdge(eid) {
+    currentSheet = { kind: "edge", id: eid };
     const e = E[eid];
     cy?.$id(eid).addClass("peeked");
     const label = e.type === "weighs" ? LEAN[e.stance] : OUT[e.type];
     const why = e.why || STRUCTURE[e.type] || "";
     openSheet(
-      `<div class="rel" style="--tone:${TONE_HEX[tone(e)]}">The link · ${esc(label)}</div>
+      `<div class="rel" style="--tone:${TONE_HEX[tone(e)]}">${esc(tr("The link · {label}", { label }))}</div>
           <h2 id="sheet-title">${esc(label)} “${esc(N[e.to].label || titleOf(e.to))}”</h2>
-          <div class="ends">${endCard(e.from, "From")}<span class="end-arrow" style="color:${TONE_HEX[tone(e)]}" aria-hidden="true">↓ ${esc(label)}</span>${endCard(e.to, "To")}</div>
-          ${why ? `<p class="why"><strong>${e.why ? "Why the link holds" : "What this link means"}</strong>${esc(why)}</p>` : ""}
-          ${e.why ? `<p class="counts">A link is its own claim: it can be challenged even if both cards are true.</p>` : ""}
-          <div class="actions"><button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-edge="${eid}">Open this link ›</button></div>`,
+          <div class="ends">${endCard(e.from, tr("From"))}<span class="end-arrow" style="color:${TONE_HEX[tone(e)]}" aria-hidden="true">↓ ${esc(label)}</span>${endCard(e.to, tr("To"))}</div>
+          ${why ? `<p class="why"><strong>${tr(e.why ? "Why the link holds" : "What this link means")}</strong>${esc(why)}</p>` : ""}
+          ${e.why ? `<p class="counts">${tr("A link is its own claim: it can be challenged even if both cards are true.")}</p>` : ""}
+          <div class="actions"><button class="btn ghost" type="button" data-close>${tr("Close")}</button><button class="btn primary" type="button" data-edge="${eid}">${tr("Open this link")} ›</button></div>`,
       true,
     );
   }
 
   function openSource(id) {
+    currentSheet = { kind: "source", id };
     const n = N[id];
     const s = n.source;
-    openSheet(`<div class="sheet-head"><h2 id="sheet-title">${esc(s.label)}</h2><button class="close" type="button" data-close>Close</button></div>
-      <p class="meta" style="margin:0 0 10px">${esc(s.locator)}</p>
-      <blockquote class="quote">“${esc(n.quote)}”</blockquote>
-      ${s.signers ? `<p class="note" style="margin-top:12px">Signed by ${esc(s.signers)}</p>` : ""}
-      <p class="empty" style="margin-top:12px">Billion matched this passage to the official document. A matched quote shows what the source says. It does not show that a claim built on it is correct.</p>
-      ${s.url ? `<div class="actions"><a class="btn ghost" href="${esc(s.url)}" target="_blank" rel="noopener">Open official source</a></div>` : ""}`);
+    const original = graph.nodes.find((node) => node.id === id);
+    const passages = original?.quotes
+      .map((q) => {
+        const source = graph.sources.find((x) => x.id === q.sourceId);
+        return `<blockquote class="quote">“${esc(q.text)}”<footer>${esc(source?.title || (source?.role === "official-analysis" ? tr("Legislative Analyst") : tr("Official source")))} · ${esc(q.locator)}</footer></blockquote>
+        ${source ? `<p><a class="linkish" href="${esc(source.url)}" target="_blank" rel="noopener">${tr("Open official source")}</a></p>` : ""}`;
+      })
+      .join("");
+    openSheet(`<div class="sheet-head"><h2 id="sheet-title">${tr("Source passages")}</h2><button class="close" type="button" data-close>${tr("Close")}</button></div>
+      ${passages || `<blockquote class="quote">“${esc(n.quote)}”</blockquote>`}
+      ${s.signers ? `<p class="note" style="margin-top:12px">${esc(tr("Signed by {names}", { names: s.signers }))}</p>` : ""}
+      <p class="empty" style="margin-top:12px">${tr("Billion matched these passages to the official documents. A matched quote shows what the source says. It does not show that a claim built on it is correct.")}</p>`);
   }
 
   const ACTIONS = [
-    { v: "supports", label: "A reason", verb: "supports", tone: "for" },
+    { v: "supports", label: tr("A reason"), verb: "supports", tone: "for" },
     {
       v: "challenges",
-      label: "A challenge",
+      label: tr("A challenge"),
       verb: "challenges",
       tone: "against",
     },
     {
       v: "qualifies",
-      label: "A condition",
+      label: tr("A condition"),
       verb: "qualifies",
       tone: "mixed",
     },
     {
       v: "asks",
-      label: "A question",
+      label: tr("A question"),
       verb: "asks about",
       tone: "question",
     },
   ];
-  function openComposer() {
+  function openComposer(draft) {
+    currentSheet = { kind: "composer" };
     const c = cur();
     const targetText =
       c.t === "edge"
-        ? `The link: “${titleOf(E[c.id].from)}” ${short(E[c.id])} “${titleOf(E[c.id].to)}”`
+        ? tr("The link: “{from}” {relation} “{to}”", {
+            from: titleOf(E[c.id].from),
+            relation: short(E[c.id]),
+            to: titleOf(E[c.id].to),
+          })
         : titleOf(c.id);
-    openSheet(`<div class="sheet-head"><h2 id="sheet-title">Add to the argument</h2><button class="close" type="button" data-close>Cancel</button></div>
-      <div class="field"><span>You're responding to</span><div class="target">${esc(targetText)}</div></div>
-      <fieldset class="field" style="border:0;padding:0;margin-inline:0"><legend style="font-size:13px;font-weight:700;padding:0;margin-bottom:6px">What are you adding?</legend>
+    openSheet(`<div class="sheet-head"><h2 id="sheet-title">${tr("Add to the argument")}</h2><button class="close" type="button" data-close>${tr("Cancel")}</button></div>
+      <div class="field"><span>${tr("You're responding to")}</span><div class="target">${esc(targetText)}</div></div>
+      <fieldset class="field" style="border:0;padding:0;margin-inline:0"><legend style="font-size:13px;font-weight:700;padding:0;margin-bottom:6px">${tr("What are you adding?")}</legend>
         <div class="seg">${ACTIONS.map((a, i) => `<label class="r-${a.tone}"><input type="radio" name="act" id="act-${a.v}" value="${a.v}"${i === 1 ? " checked" : ""}><span>${a.label}</span></label>`).join("")}</div>
       </fieldset>
-      <label class="field" for="claim"><span>Your claim or question</span>
-        <textarea id="claim" placeholder="One statement. Split independent points into separate contributions."></textarea>
-        <small>Already said? Reuse the existing claim so the debate stays in one place.</small>
+      <label class="field" for="claim"><span>${tr("Your claim or question")}</span>
+        <textarea id="claim" placeholder="${esc(tr("One statement. Split independent points into separate contributions."))}"></textarea>
+        <small>${tr("Already said? Reuse the existing claim so the debate stays in one place.")}</small>
       </label>
       <div class="similar" id="similar"></div>
-      <label class="field" for="why"><span>Why does it connect?</span>
-        <textarea id="why" placeholder="Explain how this bears on the target. Readers will argue with this explanation."></textarea>
+      <label class="field" for="why"><span>${tr("Why does it connect?")}</span>
+        <textarea id="why" placeholder="${esc(tr("Explain how this bears on the target. Readers will argue with this explanation."))}"></textarea>
       </label>
-      <label class="field" for="src"><span>Source (optional)</span>
-        <input type="text" id="src" placeholder="Link and the exact passage or page">
-        <small>Leave blank rather than guess. Unsourced claims are labeled as unsourced.</small>
+      <label class="field" for="src"><span>${tr("Source (optional)")}</span>
+        <input type="text" id="src" placeholder="${esc(tr("Link and the exact passage or page"))}">
+        <small>${tr("Leave blank rather than guess. Unsourced claims are labeled as unsourced.")}</small>
       </label>
       <p class="error" id="err" hidden></p>
-      <div class="actions"><button class="btn primary" type="button" id="preview">Preview</button></div>
+      <div class="actions"><button class="btn primary" type="button" id="preview">${tr("Preview")}</button></div>
       <div id="preview-box"></div>`);
-    let reuse = null;
+    composerReuse = null;
     const claim = $("#claim"),
       sim2 = $("#similar");
     const words = (s) => new Set(s.toLowerCase().match(/[a-z0-9$]{4,}/g) || []);
     claim.addEventListener("input", () => {
-      reuse = null;
+      composerReuse = null;
       const w = words(claim.value);
       if (w.size < 2) {
         sim2.innerHTML = "";
@@ -2228,11 +2354,11 @@ export function mountTrillionReader(root, graph, options = {}) {
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3);
       sim2.innerHTML = hits.length
-        ? `<small style="color:var(--quiet)">Similar claims already here</small>` +
+        ? `<small style="color:var(--quiet)">${tr("Similar claims already here")}</small>` +
           hits
             .map(
               ([id]) =>
-                `<div class="s"><span>${esc(titleOf(id))}</span><button type="button" data-reuse="${id}">Reuse</button></div>`,
+                `<div class="s"><span>${esc(titleOf(id))}</span><button type="button" data-reuse="${id}">${tr("Reuse")}</button></div>`,
             )
             .join("")
         : "";
@@ -2240,35 +2366,50 @@ export function mountTrillionReader(root, graph, options = {}) {
     sim2.addEventListener("click", (ev) => {
       const id = ev.target.dataset.reuse;
       if (!id) return;
-      reuse = id;
+      composerReuse = id;
       claim.value = titleOf(id);
-      sim2.innerHTML = `<div class="dup"><strong>Reusing an existing claim</strong><span>Its original attribution stays. Explain why it applies to this target.</span></div>`;
+      sim2.innerHTML = `<div class="dup"><strong>${tr("Reusing an existing claim")}</strong><span>${tr("Its original attribution stays. Explain why it applies to this target.")}</span></div>`;
     });
     $("#preview").addEventListener("click", () => {
       const act = document.querySelector('input[name="act"]:checked').value;
       const missing = !claim.value.trim()
-        ? "Write the claim or question you're adding."
+        ? tr("Write the claim or question you're adding.")
         : act !== "asks" && !$("#why").value.trim()
-          ? "Explain why it connects. A link without a reason can't be examined."
+          ? tr(
+              "Explain why it connects. A link without a reason can't be examined.",
+            )
           : "";
       $("#err").hidden = !missing;
       $("#err").textContent = missing;
       if (missing) return;
       const a = ACTIONS.find((x) => x.v === act);
       $("#preview-box").innerHTML = `<div class="preview">
-          <div class="meta"><span class="kind">Reader contribution</span><span>you</span>${reuse ? "<span>· reusing an existing claim</span>" : ""}</div>
+          <div class="meta"><span class="kind">${tr("Reader contribution")}</span><span>${tr("you")}</span>${composerReuse ? `<span>· ${tr("reusing an existing claim")}</span>` : ""}</div>
           <div style="font:600 16px/1.35 var(--display)">${esc(claim.value)}</div>
-          <div class="r-${a.tone}"><span class="relchip static">${esc(a.verb)}</span> <span class="meta" style="display:inline">${esc(targetText)}</span></div>
+          <div class="r-${a.tone}"><span class="relchip static">${esc(tr(a.verb))}</span> <span class="meta" style="display:inline">${esc(targetText)}</span></div>
           ${$("#why").value.trim() ? `<p class="body" style="margin:0">${esc($("#why").value)}</p>` : ""}
-          <p class="empty">Public once published, attributed to your account. In this prototype nothing is published or saved.</p>
-          <div class="actions" style="margin-top:4px"><button class="btn ghost" type="button" data-close>Keep editing later</button><button class="btn primary" type="button" id="publish">Publish contribution</button></div>
+          <p class="empty">${tr("Public once published, attributed to your account. In this prototype nothing is published or saved.")}</p>
+          <div class="actions" style="margin-top:4px"><button class="btn ghost" type="button" data-close>${tr("Keep editing later")}</button><button class="btn primary" type="button" id="publish">${tr("Publish contribution")}</button></div>
         </div>`;
       $("#publish").addEventListener("click", () => {
         closeSheet();
-        toast("Simulated. Nothing was published.");
+        toast(tr("Simulated. Nothing was published."));
       });
       $("#publish").focus();
     });
+    if (draft) {
+      claim.value = draft.claim;
+      $("#why").value = draft.why;
+      $("#src").value = draft.source;
+      const choice = ACTIONS.find((action) => action.v === draft.action);
+      if (choice) $("#act-" + choice.v).checked = true;
+      claim.dispatchEvent(new Event("input"));
+      composerReuse = draft.reuse;
+      if (composerReuse && N[composerReuse]) {
+        sim2.innerHTML = `<div class="dup"><strong>${tr("Reusing an existing claim")}</strong><span>${tr("Its original attribution stays. Explain why it applies to this target.")}</span></div>`;
+      }
+      if (draft.preview) $("#preview").click();
+    }
   }
   function toast(msg) {
     const t = document.createElement("div");
@@ -2299,8 +2440,12 @@ export function mountTrillionReader(root, graph, options = {}) {
       const on = saved.has(id);
       void persistLocal().then(
         () =>
-          toast(on ? "Saved on this device" : "Removed from saved arguments"),
-        () => toast("Could not save on this device. Please try again."),
+          toast(
+            on
+              ? tr("Saved on this device")
+              : tr("Removed from saved arguments"),
+          ),
+        () => toast(tr("Could not save on this device. Please try again.")),
       );
       render(false);
     } else if (t.dataset.flag) openFlag(t.dataset.flag);
@@ -2308,7 +2453,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       if (t.dataset.fault === "Clear flag") delete flags[t.dataset.target];
       else flags[t.dataset.target] = t.dataset.fault;
       void persistLocal().catch(() =>
-        toast("Could not save on this device. Please try again."),
+        toast(tr("Could not save on this device. Please try again.")),
       );
       closeSheet();
       render(false);
@@ -2351,7 +2496,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     out.classList.toggle("is-empty", !t);
     out.textContent = t
       ? titleOf(t.dataset.peek)
-      : "Drag over slices to explore · Tap to open";
+      : tr("Drag over slices to explore · Tap to open");
   });
   let ringDrag = null;
   let ringScrubbed = false;
@@ -2507,11 +2652,11 @@ export function mountTrillionReader(root, graph, options = {}) {
     $("#notice").setAttribute(
       "aria-label",
       open
-        ? "Hide details about Billion AI authorship"
-        : "Show details about Billion AI authorship",
+        ? tr("Hide details about Billion AI authorship")
+        : tr("Show details about Billion AI authorship"),
     );
     $("#notice .notice-text").hidden = !open;
-    $("#notice .notice-action").textContent = open ? "Hide" : "Details";
+    $("#notice .notice-action").textContent = open ? tr("Hide") : tr("Details");
   });
   // Mockup controls: jump straight to the states worth reviewing.
   function jump(j) {
@@ -2563,12 +2708,48 @@ export function mountTrillionReader(root, graph, options = {}) {
     render(false);
   };
   start();
-  document.fonts?.ready.then(() => {
-    if (!lifetime.signal.aborted) {
+  // Rebuild translated chrome, then restore transient reading state. This state
+  // stays in memory only and is accepted solely for the same graph revision.
+  if (restoring) {
+    const sheet = previous.sheet;
+    const restore = {
+      term: () => {
+        const term = graph.terms?.[sheet.termIndex];
+        if (term) openTerm(term.term.toLowerCase());
+      },
+      flag: () => N[sheet.id] && openFlag(sheet.id),
+      ring: () => openRing(),
+      summary: () => openSummarySources(sheet.id),
+      node: () => N[sheet.id] && peekNode(sheet.id, sheet.fromRing),
+      edge: () => E[sheet.id] && peekEdge(sheet.id),
+      source: () => N[sheet.id] && openSource(sheet.id),
+      composer: () => openComposer(previous.draft),
+    };
+    if (sheet) restore[sheet.kind]?.();
+    page.querySelectorAll("details").forEach((detail, index) => {
+      detail.open = previous.details?.includes(index) ?? false;
+    });
+    if (previous.fullMap) setFull(true);
+    $("#reader").scrollTop = previous.scroll ?? 0;
+    const sheetElement = $("#layer .sheet");
+    if (sheetElement) sheetElement.scrollTop = previous.sheetScroll ?? 0;
+  }
+  void afterReaderPaint(
+    fontsStylesheet,
+    lifetime.signal,
+    () => {
       cy?.resize();
       fitView();
-    }
-  });
+      options.onReady?.();
+    },
+    () => {
+      document.documentElement.style.setProperty("--display", "Georgia, serif");
+      document.documentElement.style.setProperty(
+        "--body",
+        "system-ui, sans-serif",
+      );
+    },
+  );
   // In the app, external links open in the system browser.
   listen(root).addEventListener("click", (ev) => {
     const a = ev.target.closest?.("a[href^='http']");
@@ -2586,7 +2767,32 @@ export function mountTrillionReader(root, graph, options = {}) {
     delete root.__trillion;
   }
   reportBack();
-  const api = { jump, goBack, destroy };
+  const getNavigation = () => ({
+    key: navigationKey,
+    path: path.map((step) => ({ ...step })),
+    tab,
+    view,
+    shown: [...shown],
+    details: [...page.querySelectorAll("details")].flatMap((detail, index) =>
+      detail.open ? [index] : [],
+    ),
+    scroll: $("#reader").scrollTop,
+    sheetScroll: $("#layer .sheet")?.scrollTop ?? 0,
+    sheet: currentSheet,
+    fullMap: mapEl.classList.contains("full"),
+    draft:
+      currentSheet?.kind === "composer"
+        ? {
+            claim: $("#claim").value,
+            why: $("#why").value,
+            source: $("#src").value,
+            action: $("input[name='act']:checked").value,
+            reuse: composerReuse,
+            preview: !!$("#preview-box .preview"),
+          }
+        : undefined,
+  });
+  const api = { jump, goBack, getNavigation, destroy };
   root.__trillion = api;
   return api;
 }

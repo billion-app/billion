@@ -16,13 +16,13 @@ export function daysUntil(dateString: string): number {
   return diffDays;
 }
 
-export function formatDate(dateString: string): string {
+export function formatDate(dateString: string, locale = "en-US"): string {
   const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", {
-    ...(/^\d{4}-\d{2}-\d{2}$/.test(dateString) ? { timeZone: "UTC" } : {}),
+  return date.toLocaleDateString(locale, {
     weekday: "short",
     month: "short",
     day: "numeric",
+    ...(/^\d{4}-\d{2}-\d{2}$/.test(dateString) ? { timeZone: "UTC" } : {}),
   });
 }
 
@@ -32,8 +32,8 @@ export function isWithinDays(dateString: string, days: number): boolean {
 }
 
 /** Short "Nov 4" style label. */
-export function monthDay(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", {
+export function monthDay(dateString: string, locale = "en-US"): string {
+  return new Date(dateString).toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     ...(/^\d{4}-\d{2}-\d{2}$/.test(dateString) ? { timeZone: "UTC" } : {}),

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { DigestPalette as P, sp, typography } from "~/styles";
 import { PrivatePreparation } from "./PrivatePreparation";
 
@@ -13,6 +14,8 @@ export function PreparationFixture({
   hideControls?: boolean;
   initialScenario?: "ballot" | "changed" | "other" | "archive" | "paired";
 }) {
+  const { t: tx } = useAppTranslation();
+
   const [scenario, setScenario] = useState<
     "ballot" | "changed" | "other" | "archive" | "paired"
   >(initialScenario);
@@ -42,7 +45,7 @@ export function PreparationFixture({
                 style={{ padding: sp[3] }}
               >
                 <Text style={[typography.body, { color: P.inkOnNight }]}>
-                  {value} fixture
+                  {tx("{value1} fixture", { value1: value })}
                 </Text>
               </Pressable>
             ),

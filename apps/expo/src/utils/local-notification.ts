@@ -7,6 +7,8 @@
  */
 
 import type { NotificationPrefs } from "./notification-prefs";
+import type { AppLanguage } from "~/i18n/language";
+import { translateApp } from "~/i18n/app-strings";
 import { formatClock, nextDeliveryAt } from "./notification-prefs";
 
 export interface LocalAlertPayload {
@@ -282,24 +284,31 @@ export async function scheduleLocalAlert(
 export function deliveryNote(
   result: ScheduleLocalAlertResult,
   prefs: Pick<NotificationPrefs, "quietEndMin">,
+  language: AppLanguage = "en",
 ): string {
   if (!result.ok) {
     if (result.reason === "denied") {
-      return "Notifications are off on this phone.";
+      return translateApp(language, "notify.denied");
     }
     if (result.detail?.includes("not in this binary")) {
-      return "This Dev Client needs a rebuild before it can send alerts.";
+      return translateApp(language, "notify.rebuild");
     }
     return result.detail
-      ? `Could not send the alert. ${result.detail}`
-      : "This build cannot send lock-screen alerts yet.";
+      ? translateApp(language, "notify.sendFailedDetail", {
+          detail: result.detail,
+        })
+      : translateApp(language, "notify.cannotSend");
   }
   if (result.test) {
-    return `Lock the phone (Cmd+L). It arrives in ${TEST_DELAY_SECONDS} seconds. Long-press the banner for the navy card.`;
+    return translateApp(language, "notify.testArrives", {
+      count: TEST_DELAY_SECONDS,
+    });
   }
   const now = new Date();
   if (result.when.getTime() > now.getTime() + 500) {
-    return `Quiet hours \u2014 it will wait until ${formatClock(prefs.quietEndMin)}.`;
+    return translateApp(language, "notify.quietWait", {
+      time: formatClock(prefs.quietEndMin, language),
+    });
   }
-  return "Sent to the lock screen. Tap it to open.";
+  return translateApp(language, "notify.sentLock");
 }

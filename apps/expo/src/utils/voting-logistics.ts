@@ -1,5 +1,8 @@
 import type { PollingLocation, VoterInfoResponse } from "@acme/api";
 
+import type { AppLanguage } from "~/i18n/language";
+import { translateApp } from "~/i18n/app-strings";
+import { formatDate, localeTag } from "~/i18n/format";
 import { webUrl } from "./web-url";
 
 export const votingWebUrl: (value?: string) => string | undefined = webUrl;
@@ -17,17 +20,20 @@ export type VotingLogisticsData = Pick<
   Partial<Pick<VoterInfoResponse, "election">>;
 
 const guidanceTitles = {
-  mailing_starts: "Mailing begins by",
-  early_voting: "Early voting",
-  drop_off: "Ballot drop-off",
-  registration: "Registration",
-  conditional_registration: "Conditional registration",
-  election_day: "Election Day",
-  mail_return: "Mail ballot receipt deadline",
+  mailing_starts: "voting.guidance.mailing_starts",
+  early_voting: "voting.guidance.early_voting",
+  drop_off: "voting.guidance.drop_off",
+  registration: "voting.guidance.registration",
+  conditional_registration: "voting.guidance.conditional_registration",
+  election_day: "voting.guidance.election_day",
+  mail_return: "voting.guidance.mail_return",
 } as const;
 
 /** Only show guidance for the selected election; keep official date wording intact. */
-export function votingGuidance(data: VotingLogisticsData) {
+export function votingGuidance(
+  data: VotingLogisticsData,
+  language: AppLanguage = "en",
+) {
   const guidance = data.officialVotingGuidance;
   if (!guidance || guidance.electionDate !== data.election?.electionDay)
     return undefined;
@@ -37,7 +43,7 @@ export function votingGuidance(data: VotingLogisticsData) {
     .filter((item) => item.dateText.trim() && item.text.trim())
     .map((item) => ({
       ...item,
-      title: guidanceTitles[item.kind],
+      title: translateApp(language, guidanceTitles[item.kind]),
       links: item.links.flatMap((link) => {
         const url = votingWebUrl(link.url);
         return url ? [{ label: link.label, url }] : [];
@@ -46,7 +52,7 @@ export function votingGuidance(data: VotingLogisticsData) {
   const fetched = new Date(guidance.fetchedAt);
   const retrievedLabel = Number.isNaN(fetched.getTime())
     ? undefined
-    : fetched.toLocaleString("en-US", {
+    : fetched.toLocaleString(localeTag(language), {
         month: "short",
         day: "numeric",
         year: "numeric",
@@ -65,7 +71,10 @@ const clean = (value?: string) => {
   return trimmed === "" ? undefined : trimmed;
 };
 
-export function describeVotingLocation(location: PollingLocation) {
+export function describeVotingLocation(
+  location: PollingLocation,
+  language: AppLanguage = "en",
+) {
   const address = location.address;
   const cityState = [clean(address.city), clean(address.state)]
     .filter(Boolean)
@@ -80,41 +89,67 @@ export function describeVotingLocation(location: PollingLocation) {
     .join(", ");
   return {
     name:
-      clean(location.name) ?? clean(address.locationName) ?? "Voting location",
-    address: addressText || "Address not supplied.",
-    sources: (location.sources ?? []).map((source) => ({
-      label: `${clean(source.name) ?? "Unnamed source"}${source.official === true ? " (official)" : " (official status not confirmed)"}`,
-      url: votingWebUrl(source.url),
-    })),
+      clean(location.name) ??
+      clean(address.locationName) ??
+      translateApp(language, "voting.locationFallback"),
+    address: addressText || translateApp(language, "voting.addressMissing"),
+    sources: (location.sources ?? []).map((source) => {
+      const name =
+        clean(source.name) ?? translateApp(language, "voting.unnamedSource");
+      return {
+        label: translateApp(
+          language,
+          source.official === true
+            ? "voting.sourceOfficial"
+            : "voting.sourceUnconfirmed",
+          { name },
+        ),
+        url: votingWebUrl(source.url),
+      };
+    }),
   };
 }
 
-export function votingLocationGroups(data: VotingLogisticsData) {
+export function votingLocationGroups(
+  data: VotingLogisticsData,
+  language: AppLanguage = "en",
+) {
   return [
     {
-      title: "Election Day",
+      kind: "election_day" as const,
+      title: translateApp(language, "voting.guidance.election_day"),
       locations: data.pollingLocations ?? [],
     },
-    { title: "Early voting", locations: data.earlyVoteSites ?? [] },
     {
-      title: "Ballot drop-off",
+      kind: "early_voting" as const,
+      title: translateApp(language, "voting.guidance.early_voting"),
+      locations: data.earlyVoteSites ?? [],
+    },
+    {
+      kind: "drop_off" as const,
+      title: translateApp(language, "voting.guidance.drop_off"),
       locations: data.dropOffLocations ?? [],
     },
   ];
 }
 
 /** Use supplied lookup URLs without inferring their authority from the container field. */
-export function votingInformationLinks(data: VotingLogisticsData) {
+export function votingInformationLinks(
+  data: VotingLogisticsData,
+  language: AppLanguage = "en",
+) {
   const links: { label: string; office: string; url: string }[] = [];
   let mailUrl: string | undefined;
   let locationUrl: string | undefined;
+  const t = (key: Parameters<typeof translateApp>[1], name?: string) =>
+    translateApp(language, key, name === undefined ? undefined : { name });
   const fields = [
-    ["votingLocationFinderUrl", "Find voting locations"],
-    ["electionRegistrationUrl", "Registration information"],
-    ["absenteeVotingInfoUrl", "Absentee and mail voting information"],
-    ["ballotInfoUrl", "Ballot information"],
-    ["electionInfoUrl", "Election information"],
-    ["electionRulesUrl", "Voting rules"],
+    ["votingLocationFinderUrl", t("voting.link.findLocations")],
+    ["electionRegistrationUrl", t("voting.link.registration")],
+    ["absenteeVotingInfoUrl", t("voting.link.absentee")],
+    ["ballotInfoUrl", t("voting.link.ballot")],
+    ["electionInfoUrl", t("voting.link.election")],
+    ["electionRulesUrl", t("voting.link.rules")],
   ] as const;
   type Region = NonNullable<VotingLogisticsData["state"]>[number];
   function visit(region: Region) {
@@ -126,14 +161,16 @@ export function votingInformationLinks(data: VotingLogisticsData) {
       const sourceNames = region.sources
         ?.map((source) => {
           const name = clean(source.name);
-          return name && source.official === true ? `${name} (official)` : name;
+          return name && source.official === true
+            ? t("voting.sourceOfficial", name)
+            : name;
         })
         .filter(Boolean)
         .join(", ");
       const office =
         clean(body.name) ??
-        (sourceNames ? `Via ${sourceNames}` : clean(region.name)) ??
-        "Voting information";
+        (sourceNames ? t("voting.via", sourceNames) : clean(region.name)) ??
+        t("voting.information");
       if (!url) continue;
       if (field === "absenteeVotingInfoUrl") mailUrl ??= url;
       if (field === "votingLocationFinderUrl") locationUrl ??= url;
@@ -141,8 +178,7 @@ export function votingInformationLinks(data: VotingLogisticsData) {
       if (existing) {
         // A single office page may serve several purposes. Keep one action and
         // use a broad label rather than silently advertising only one purpose.
-        if (existing.label !== label)
-          existing.label = "Voting information website";
+        if (existing.label !== label) existing.label = t("voting.link.website");
       } else {
         links.push({ label, office, url });
       }
@@ -159,15 +195,15 @@ export function votingInformationLinks(data: VotingLogisticsData) {
 }
 
 /** Format strict calendar dates without shifting a supplied date across time zones. */
-export function votingDateLabel(value: string) {
+export function votingDateLabel(value: string, language: AppLanguage = "en") {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const date = new Date(`${value}T12:00:00Z`);
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value)
     return value;
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  return formatDate(
+    language,
+    date,
+    { month: "short", day: "numeric", year: "numeric" },
+    { calendar: true },
+  );
 }

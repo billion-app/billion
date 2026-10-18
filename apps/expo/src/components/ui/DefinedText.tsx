@@ -12,6 +12,7 @@ import {
 } from "react-native";
 
 import type { DefinedTextPart, InlineDefinition } from "./defined-text";
+import { useLanguage } from "~/hooks/useLanguage";
 import { fontBody, hair, DigestPalette as P, planes } from "~/styles";
 import { splitDefinedText } from "./defined-text";
 
@@ -31,6 +32,7 @@ export function DefinedText({
   accent?: string;
   style: StyleProp<TextStyle>;
 }) {
+  const { t: tr } = useLanguage();
   const { fontScale } = useWindowDimensions();
   const [selection, setSelection] = useState<{
     term: string;
@@ -92,8 +94,8 @@ export function DefinedText({
               }}
               style={{ color: P.linkOnNight, textDecorationLine: "underline" }}
               accessibilityRole="button"
-              accessibilityLabel={`Define ${term.term}`}
-              accessibilityHint="Shows a short definition below this paragraph"
+              accessibilityLabel={tr("readerUi.define", { term: term.term })}
+              accessibilityHint={tr("readerUi.defineHint")}
               accessibilityState={{ expanded }}
               aria-expanded={expanded}
               onPress={() => {
@@ -124,11 +126,13 @@ export function DefinedText({
             </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Close definition of ${open.term}`}
+              accessibilityLabel={tr("readerUi.closeDefinition", {
+                term: open.term,
+              })}
               onPress={close}
               style={s.close}
             >
-              <Text style={s.closeText}>Close</Text>
+              <Text style={s.closeText}>{tr("readerUi.close")}</Text>
             </Pressable>
           </View>
           <Text key={fontScale} style={s.plain}>

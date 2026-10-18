@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Linking, Platform, StyleSheet, View } from "react-native";
+import Animated, { FadeOut, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -7,20 +8,50 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { PublicTrillionGraph } from "@acme/validators";
 
 import type { TrillionReaderHandle } from "./dom/TrillionReader";
+import { ListenBar } from "~/components/ListenBar";
+import { ReaderTools } from "~/components/ReaderTools";
+import { useArticleSpeech } from "~/hooks/useArticleSpeech";
+import { useMeasureTranslation } from "~/hooks/useMeasureTranslation";
+import { DigestPalette as P } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
+import { graphSpeechChunks } from "~/utils/measure-speech";
 import TrillionReader from "./dom/TrillionReader";
 import { TrillionLoading } from "./TrillionLoading";
 
 /** Full-screen host for the reader; the web view draws its own header. */
-export function TrillionScreen({
-  graph,
-  view,
-  ballot,
-}: {
+interface TrillionScreenProps {
   graph: PublicTrillionGraph;
   view?: "list" | "map";
   ballot?: string[];
-}) {
+}
+
+export function TrillionScreen(props: TrillionScreenProps) {
+  return (
+    <ReaderHost
+      key={`${props.graph.electionDate}.${props.graph.measure.number}`}
+      {...props}
+    />
+  );
+}
+
+function ReaderHost({ graph, view, ballot }: TrillionScreenProps) {
+  const [ready, setReady] = useState(false);
+  const translation = useMeasureTranslation(
+    graph.measure.number,
+    graph.revision,
+  );
+  const displayedGraph = translation.translation?.graph ?? graph;
+  const spokenLanguage = translation.translation ? translation.language : "en";
+  const chunks = useMemo(
+    () => graphSpeechChunks(displayedGraph, spokenLanguage),
+    [displayedGraph, spokenLanguage],
+  );
+  const speech = useArticleSpeech({
+    chunks,
+    language: spokenLanguage,
+    mode: "explainer",
+    contentId: `${graph.electionDate}:${graph.measure.number}`,
+  });
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -63,41 +94,88 @@ export function TrillionScreen({
   }, [backInside]);
   return (
     <View style={[s.screen, { paddingTop: insets.top }]}>
-      {stored?.key === storageKey ? (
-        <TrillionReader
-          key={storageKey}
-          localState={stored.value}
-          onLocalState={async (value) => {
-            await AsyncStorage.setItem(storageKey, value);
-          }}
-          ref={reader}
-          graph={graph}
-          view={view}
-          ballot={ballot}
-          onExit={() => Promise.resolve(router.back())}
-          onOpenUrl={async (url) => {
-            await Linking.openURL(url);
-          }}
-          onOpenMeasure={(number) => {
-            void queryClient.prefetchQuery(
-              trpc.civic.getTrillion.queryOptions({ number }),
-            );
-            router.push({
-              pathname: "/proposition-detail",
-              params: { number },
-            });
-            return Promise.resolve();
-          }}
-          onBackState={(inside) => Promise.resolve(setBackInside(inside))}
-          dom={{
-            style: s.web,
-            bounces: false,
-            contentInsetAdjustmentBehavior: "never",
-          }}
-        />
-      ) : (
-        <TrillionLoading />
-      )}
+      <ReaderTools
+        speech={speech}
+        state={translation.state}
+        onRetry={translation.retry}
+      />
+      <View style={s.web}>
+        <View
+          style={s.web}
+          accessibilityElementsHidden={!ready}
+          importantForAccessibility={ready ? "auto" : "no-hide-descendants"}
+          pointerEvents={ready ? "auto" : "none"}
+        >
+          {stored?.key === storageKey && (
+            <TrillionReader
+              key={storageKey}
+              localState={stored.value}
+              onReady={() => Promise.resolve(setReady(true))}
+              onLocalState={async (value) => {
+                await AsyncStorage.setItem(storageKey, value);
+              }}
+              ref={reader}
+              graph={displayedGraph}
+              language={translation.language}
+              translationKey={
+                translation.translation?.sourceHash
+                  ? `${translation.language}:${translation.translation.sourceHash}`
+                  : "en"
+              }
+              view={view}
+              ballot={ballot}
+              onExit={() => Promise.resolve(router.back())}
+              onOpenUrl={async (url) => {
+                await Linking.openURL(url);
+              }}
+              onOpenMeasure={(number) => {
+                void queryClient.prefetchQuery(
+                  trpc.civic.getTrillion.queryOptions({ number }),
+                );
+                router.push({
+                  pathname: "/proposition-detail",
+                  params: { number },
+                });
+                return Promise.resolve();
+              }}
+              onBackState={(inside) => Promise.resolve(setBackInside(inside))}
+              dom={{
+                style: s.web,
+                // The DOM document paints before reader.css arrives with its bundle.
+                injectedJavaScriptBeforeContentLoaded: `
+              document.documentElement.style.backgroundColor = '#0E1530';
+              document.documentElement.style.colorScheme = 'dark';
+              true;
+            `,
+                bounces: false,
+                contentInsetAdjustmentBehavior: "never",
+              }}
+            />
+          )}
+        </View>
+        {!ready && (
+          <Animated.View
+            style={StyleSheet.absoluteFill}
+            exiting={FadeOut.duration(140).reduceMotion(ReduceMotion.System)}
+          >
+            <TrillionLoading
+              number={graph.measure.number}
+              electionDate={graph.electionDate}
+              notice={graph.verification.state !== "verified"}
+              onBack={() => router.back()}
+            />
+          </Animated.View>
+        )}
+      </View>
+      <ListenBar
+        status={speech.status}
+        index={speech.index}
+        total={speech.total}
+        accent={P.spark}
+        onPause={speech.pause}
+        onResume={speech.resume}
+        onStop={speech.stop}
+      />
     </View>
   );
 }

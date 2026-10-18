@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   officialVoteMeaning,
   propositionDetailRoute,
+  splitOfficialTitle,
   submittedGuideArguments,
 } from "./proposition-explainers";
 
@@ -43,4 +44,25 @@ test("a guide notice about absent arguments does not become advocacy text", () =
     ]),
     [{ text: "A submitted argument" }],
   );
+});
+
+test("official titles split into subject and legal kind", () => {
+  assert.deepEqual(
+    splitOfficialTitle(
+      "AUTHORIZES BONDS FOR HOUSING AFFORDABILITY PROGRAMS. LEGISLATIVE STATUTE.",
+    ),
+    {
+      subject: "AUTHORIZES BONDS FOR HOUSING AFFORDABILITY PROGRAMS.",
+      kind: "Legislative statute",
+    },
+  );
+  assert.deepEqual(
+    splitOfficialTitle(
+      "IMPOSES ONE-TIME TAX ON CERTAIN TAXPAYERS. INITIATIVE CONSTITUTIONAL AMENDMENT AND STATUTE.",
+    ).kind,
+    "Initiative constitutional amendment and statute",
+  );
+  assert.deepEqual(splitOfficialTitle("Measure without a kind"), {
+    subject: "Measure without a kind",
+  });
 });

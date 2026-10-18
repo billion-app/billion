@@ -10,6 +10,9 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import type { AppLanguage } from "~/i18n/language";
+import { formatTime } from "~/i18n/format";
+
 const STORAGE_KEY = "billion.notification-prefs.v1";
 
 const MINUTES_IN_DAY = 24 * 60;
@@ -76,17 +79,26 @@ export function stepHour(minutes: number, deltaHours: number): number {
   return clampMinutes(minutes + deltaHours * 60);
 }
 
-export function formatClock(totalMin: number): string {
+export function formatClock(
+  totalMin: number,
+  language: AppLanguage = "en",
+): string {
   const min = clampMinutes(totalMin);
   const hour24 = Math.floor(min / 60);
   const minute = min % 60;
+  if (language !== "en") {
+    return formatTime(language, new Date(2000, 0, 1, hour24, minute));
+  }
   const hour12 = hour24 % 12 || 12;
   const suffix = hour24 < 12 ? "AM" : "PM";
   return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
-export function quietHoursLabel(prefs: NotificationPrefs): string {
-  return `${formatClock(prefs.quietStartMin)} \u2013 ${formatClock(prefs.quietEndMin)}`;
+export function quietHoursLabel(
+  prefs: NotificationPrefs,
+  language: AppLanguage = "en",
+): string {
+  return `${formatClock(prefs.quietStartMin, language)} \u2013 ${formatClock(prefs.quietEndMin, language)}`;
 }
 
 /**

@@ -11,9 +11,11 @@ import {
 import { useMutation } from "@tanstack/react-query";
 
 import type { IconName } from "~/components/ui";
+import type { AppStringKey } from "~/i18n/app-strings";
 import { Text } from "~/components/Themed";
 import { GhostButton, Icon, Kicker, ScreenShell } from "~/components/ui";
 import { posthog } from "~/config/posthog";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   colors,
   DigestHair,
@@ -28,10 +30,10 @@ import { buildFeedbackFormUrl } from "~/utils/feedback-form";
 
 type FeedbackCategory = "bug" | "idea" | "content";
 
-const CATS: { id: FeedbackCategory; label: string; icon: IconName }[] = [
-  { id: "bug", label: "Bug report", icon: "flag" },
-  { id: "idea", label: "Feature idea", icon: "sparkle" },
-  { id: "content", label: "Content issue", icon: "doc" },
+const CATS: { id: FeedbackCategory; label: AppStringKey; icon: IconName }[] = [
+  { id: "bug", label: "feedback.bug", icon: "flag" },
+  { id: "idea", label: "feedback.idea", icon: "sparkle" },
+  { id: "content", label: "feedback.content", icon: "doc" },
 ];
 
 const CAT_COLOR: Record<FeedbackCategory, string> = {
@@ -41,6 +43,9 @@ const CAT_COLOR: Record<FeedbackCategory, string> = {
 };
 
 export default function FeedbackScreen() {
+  const { t: tx } = useAppTranslation();
+
+  const { t } = useAppTranslation();
   const [cat, setCat] = useState<FeedbackCategory>("bug");
   const [text, setText] = useState("");
   const [lastSubmittedAt, setLastSubmittedAt] = useState(0);
@@ -53,7 +58,7 @@ export default function FeedbackScreen() {
     if (!canSubmit) return;
     const now = Date.now();
     if (now - lastSubmittedAt < 30_000) {
-      Alert.alert("Already sent", "Give us a moment before sending another.");
+      Alert.alert(t("feedback.alreadySent"), t("feedback.alreadySentBody"));
       return;
     }
 
@@ -76,13 +81,10 @@ export default function FeedbackScreen() {
             platform: Platform.OS,
           });
           setText("");
-          Alert.alert("Feedback sent", "Thanks. We read every note.");
+          Alert.alert(t("feedback.sent"), t("feedback.sentBody"));
         },
         onError: () => {
-          Alert.alert(
-            "Couldn’t send feedback",
-            "Please try again in a moment.",
-          );
+          Alert.alert(t("feedback.sendFailed"), t("feedback.tryLater"));
         },
       },
     );
@@ -96,8 +98,14 @@ export default function FeedbackScreen() {
           message,
           "",
           "———",
-          `App version: ${getAppVersion()} (${getAppBuildNumber()})`,
-          `Platform: ${Platform.OS} ${String(Platform.Version)}`,
+          tx("App version: {value1} ({value2})", {
+            value1: getAppVersion(),
+            value2: getAppBuildNumber() ?? "—",
+          }),
+          tx("Platform: {value1} {value2}", {
+            value1: Platform.OS,
+            value2: String(Platform.Version),
+          }),
         ].join("\n")
       : undefined;
     const url = buildFeedbackFormUrl(formKind, details);
@@ -112,16 +120,13 @@ export default function FeedbackScreen() {
         platform: Platform.OS,
       });
     } catch {
-      Alert.alert(
-        "Couldn’t open the feedback form",
-        "Please try again in a moment.",
-      );
+      Alert.alert(t("feedback.formFailed"), t("feedback.tryLater"));
     }
   };
 
   return (
-    <ScreenShell title="Send Feedback">
-      <Kicker style={s.kicker}>Category</Kicker>
+    <ScreenShell title={t("feedback.title")}>
+      <Kicker style={s.kicker}>{t("feedback.category")}</Kicker>
       <View style={{ gap: 10, marginBottom: 24 }}>
         {CATS.map((c) => {
           const active = cat === c.id;
@@ -131,6 +136,9 @@ export default function FeedbackScreen() {
               key={c.id}
               activeOpacity={0.8}
               onPress={() => setCat(c.id)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: active }}
+              accessibilityLabel={t(c.label)}
               style={[
                 s.catRow,
                 active
@@ -145,7 +153,7 @@ export default function FeedbackScreen() {
                   { color: active ? P.inkOnNight : "rgba(247,244,238,0.7)" },
                 ]}
               >
-                {c.label}
+                {t(c.label)}
               </Text>
               <View
                 style={[
@@ -162,18 +170,19 @@ export default function FeedbackScreen() {
         })}
       </View>
 
-      <Kicker style={s.kicker}>Details</Kicker>
+      <Kicker style={s.kicker}>{t("feedback.details")}</Kicker>
       <TextInput
         style={s.textarea}
         value={text}
         onChangeText={setText}
-        placeholder="Tell us what happened or what you'd love to see…"
+        placeholder={t("feedback.placeholder")}
+        accessibilityLabel={t("feedback.details")}
         placeholderTextColor={P.quiet}
         multiline
         textAlignVertical="top"
       />
       <Text style={s.attached}>
-        App version {getAppVersion()} attached automatically.
+        {t("feedback.attached", { version: getAppVersion() })}
       </Text>
 
       <TouchableOpacity
@@ -186,18 +195,20 @@ export default function FeedbackScreen() {
         disabled={!canSubmit}
       >
         <Text style={s.ctaLabel}>
-          {submitMutation.isPending ? "Sending…" : "Submit feedback"}
+          {submitMutation.isPending
+            ? t("feedback.sending")
+            : t("feedback.submit")}
         </Text>
       </TouchableOpacity>
 
       {formKind && (
         <>
-          <Text style={s.orDivider}>or</Text>
+          <Text style={s.orDivider}>{t("common.or")}</Text>
           <GhostButton
             label={
               formKind === "bug"
-                ? "Use guided bug report form"
-                : "Use guided feature request form"
+                ? t("feedback.guidedBug")
+                : t("feedback.guidedFeature")
             }
             onPress={() => void openGuidedForm()}
             color={P.quiet}

@@ -7,6 +7,7 @@ import { StyleSheet, Text, View } from "react-native";
 import type { Theme } from "~/styles";
 import type { DecisionLifecycle } from "~/utils/local-government";
 import { Icon } from "~/components/ui/Icon";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, useTheme } from "~/styles";
 import {
   lifecycleAccessibilityLabel,
@@ -32,6 +33,8 @@ export function LifecycleChip({
   lifecycle: DecisionLifecycle;
   size?: "sm" | "md";
 }) {
+  const { language } = useAppTranslation();
+
   const { theme } = useTheme();
   const visual = lifecycleVisual(lifecycle);
   const tint = TINT[visual.tint](theme);
@@ -44,11 +47,11 @@ export function LifecycleChip({
         s[size],
         { backgroundColor: `${tint}1F`, borderColor: `${tint}55` },
       ]}
-      accessibilityLabel={lifecycleAccessibilityLabel(lifecycle)}
+      accessibilityLabel={lifecycleAccessibilityLabel(lifecycle, language)}
     >
       <Icon name={visual.icon} size={iconSize} color={tint} />
       <Text style={[s.label, s[`${size}Label`], { color: tint }]}>
-        {lifecycleLabel(lifecycle)}
+        {lifecycleLabel(lifecycle, language)}
       </Text>
     </View>
   );

@@ -6,6 +6,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import type { DecisionRow } from "~/utils/local-government";
 import { Icon } from "~/components/ui/Icon";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   DigestPalette,
@@ -29,6 +30,8 @@ export function DecisionCard({
   decision: DecisionRow;
   onPress: () => void;
 }) {
+  const { t: tx, language } = useAppTranslation();
+
   const lifecycle = classifyDecision({
     status: decision.status,
     type: decision.type,
@@ -41,17 +44,18 @@ export function DecisionCard({
     decision.scope,
     decision.districtNumbers,
     decision.geographicText,
+    language,
   );
-  const topic = topicLabel(decision.topic);
-  const when = formatMeetingDate(decision.meetingStartsAt);
-  const relative = relativeDay(decision.meetingStartsAt);
+  const topic = topicLabel(decision.topic, language);
+  const when = formatMeetingDate(decision.meetingStartsAt, language);
+  const relative = relativeDay(decision.meetingStartsAt, undefined, language);
 
   return (
     <TouchableOpacity
       activeOpacity={0.8}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityHint="Opens the full decision"
+      accessibilityHint={tx("Opens the full decision")}
       style={s.card}
     >
       <View style={s.spine} />
@@ -90,10 +94,12 @@ export function DecisionCard({
           <View style={s.fileWrap}>
             {decision.fileNumber ? (
               <Text style={s.file} numberOfLines={1}>
-                File {decision.fileNumber}
-                {decision.agendaNumber
-                  ? ` · Agenda ${decision.agendaNumber}`
-                  : ""}
+                {tx("File {value1}{value2}", {
+                  value1: decision.fileNumber,
+                  value2: decision.agendaNumber
+                    ? ` · Agenda ${decision.agendaNumber}`
+                    : "",
+                })}
               </Text>
             ) : null}
             {scope.label ? (

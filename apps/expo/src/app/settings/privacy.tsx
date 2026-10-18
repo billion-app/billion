@@ -2,56 +2,38 @@ import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import type { IconName } from "~/components/ui";
+import type { AppStringKey } from "~/i18n/app-strings";
 import { Text } from "~/components/Themed";
 import { GhostButton, Icon, Kicker, ScreenShell } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { DigestHair, fontBody, DigestPalette as P } from "~/styles";
+
+const CONTACT_EMAIL = "thatxliner@gmail.com";
 
 interface Row {
   icon: IconName;
-  label: string;
-  sub: string;
+  label: AppStringKey;
+  sub: AppStringKey;
 }
 
-const NOTICE =
-  "Billion works without an account. We never ask for your name or email to use the app.";
-
 const COLLECT: Row[] = [
-  {
-    icon: "layers",
-    label: "Usage & error diagnostics",
-    sub: "App activity and handled errors are linked to a random installation ID, not your name, email, or an advertising ID.",
-  },
-  {
-    icon: "pin",
-    label: "Address-based ballot lookup",
-    sub: "Address text is sent through our servers for autocomplete and civic lookups; the selected address is also stored on this device.",
-  },
-  {
-    icon: "shield",
-    label: "No ads or cross-app tracking",
-    sub: "No advertising identifiers, and we never track you across other companies' apps or sites.",
-  },
+  { icon: "layers", label: "privacy.usage", sub: "privacy.usageSub" },
+  { icon: "pin", label: "privacy.address", sub: "privacy.addressSub" },
+  { icon: "shield", label: "privacy.noAds", sub: "privacy.noAdsSub" },
 ];
 
 const CONTROLS: Row[] = [
-  {
-    icon: "pin",
-    label: "Change or clear your location",
-    sub: "Settings → Location shows your saved address and lets you change or remove it anytime.",
-  },
+  { icon: "pin", label: "privacy.editAddress", sub: "privacy.editAddressSub" },
   {
     icon: "download",
-    label: "Stop analytics",
-    sub: "Uninstalling Billion stops all analytics collection from this device.",
+    label: "privacy.stopAnalytics",
+    sub: "privacy.stopAnalyticsSub",
   },
-  {
-    icon: "message",
-    label: "Access or delete your data",
-    sub: "Email thatxliner@gmail.com and we'll help with any request.",
-  },
+  { icon: "message", label: "privacy.access", sub: "privacy.accessSub" },
 ];
 
 function RowList({ rows }: { rows: Row[] }) {
+  const { t } = useAppTranslation();
   return (
     <View>
       {rows.map((r, i) => (
@@ -60,8 +42,8 @@ function RowList({ rows }: { rows: Row[] }) {
             <Icon name={r.icon} size={18} color={P.spark} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.label}>{r.label}</Text>
-            <Text style={s.sub}>{r.sub}</Text>
+            <Text style={s.label}>{t(r.label)}</Text>
+            <Text style={s.sub}>{t(r.sub, { email: CONTACT_EMAIL })}</Text>
           </View>
         </View>
       ))}
@@ -71,26 +53,27 @@ function RowList({ rows }: { rows: Row[] }) {
 
 export default function PrivacyScreen() {
   const router = useRouter();
+  const { t } = useAppTranslation();
 
   return (
-    <ScreenShell title="Privacy">
+    <ScreenShell title={t("privacy.title")}>
       <View style={s.notice}>
         <Icon name="lock" size={18} color={P.spark} />
-        <Text style={s.noticeText}>{NOTICE}</Text>
+        <Text style={s.noticeText}>{t("privacy.notice")}</Text>
       </View>
 
-      <Kicker>What we collect</Kicker>
+      <Kicker>{t("privacy.collect")}</Kicker>
       <View style={{ marginTop: 4, marginBottom: 24 }}>
         <RowList rows={COLLECT} />
       </View>
 
-      <Kicker>Your controls</Kicker>
+      <Kicker>{t("privacy.controls")}</Kicker>
       <View style={{ marginTop: 4 }}>
         <RowList rows={CONTROLS} />
       </View>
 
       <GhostButton
-        label="Read full Privacy Policy"
+        label={t("privacy.readPolicy")}
         onPress={() => router.push("/settings/terms")}
         color={P.spark}
         style={{ marginTop: 20, alignSelf: "flex-start" }}

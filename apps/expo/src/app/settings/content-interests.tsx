@@ -2,18 +2,17 @@ import { useCallback, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
+import type { AppStringKey } from "~/i18n/app-strings";
 import type { ContentTypeKey } from "~/styles";
 import { Text } from "~/components/Themed";
 import { Kicker, Pill, ScreenShell, Toggle } from "~/components/ui";
 import { posthog } from "~/config/posthog";
-import {
-  contentType,
-  DigestHair,
-  fontBody,
-  DigestPalette as P,
-} from "~/styles";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { hasAppString } from "~/i18n/app-strings";
+import { DigestHair, fontBody, DigestPalette as P } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
 
+/** Stored preference values stay English; only the chip label translates. */
 const TOPICS = [
   "Healthcare",
   "Climate",
@@ -29,14 +28,19 @@ const TOPICS = [
   "Elections",
 ];
 
-const CATS: { id: ContentTypeKey; label: string }[] = [
-  { id: "bill", label: "Bills & resolutions" },
-  { id: "exec", label: "Executive actions" },
-  { id: "court", label: "Court cases" },
-  { id: "local", label: "Local & state" },
+const CATS: { id: ContentTypeKey; label: AppStringKey }[] = [
+  { id: "bill", label: "interests.bills" },
+  { id: "exec", label: "interests.exec" },
+  { id: "court", label: "interests.court" },
+  { id: "local", label: "interests.local" },
 ];
 
 export default function ContentInterestsScreen() {
+  const { t } = useAppTranslation();
+  const topicLabel = (topic: string) => {
+    const key = `topic.${topic}`;
+    return hasAppString(key) ? t(key) : topic;
+  };
   const prefsQuery = useQuery(trpc.user.getPreferences.queryOptions());
   const saveMutation = useMutation({
     ...trpc.user.setPreferences.mutationOptions(),
@@ -90,13 +94,13 @@ export default function ContentInterestsScreen() {
     });
 
   return (
-    <ScreenShell title="Interests">
-      <Kicker>{`${topics.size} topics`}</Kicker>
+    <ScreenShell title={t("interests.title")}>
+      <Kicker>{t("interests.topicCount", { count: topics.size })}</Kicker>
       <View style={s.chips}>
         {TOPICS.map((x) => (
           <Pill
             key={x}
-            label={x}
+            label={topicLabel(x)}
             active={topics.has(x)}
             icon={topics.has(x) ? "check" : undefined}
             onPress={() => toggleTopic(x)}
@@ -104,11 +108,11 @@ export default function ContentInterestsScreen() {
         ))}
       </View>
 
-      <Kicker>Types</Kicker>
+      <Kicker>{t("interests.types")}</Kicker>
       {CATS.map((c, i) => (
         <View key={c.id} style={[s.catRow, i < CATS.length - 1 && s.divider]}>
-          <Text style={s.catKicker}>{contentType[c.id].label}</Text>
-          <Text style={s.catLabel}>{c.label}</Text>
+          <Text style={s.catKicker}>{t(`contentType.${c.id}`)}</Text>
+          <Text style={s.catLabel}>{t(c.label)}</Text>
           <Toggle on={cats.has(c.id)} onChange={() => toggleCat(c.id)} />
         </View>
       ))}

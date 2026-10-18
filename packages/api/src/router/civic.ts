@@ -6,6 +6,7 @@ import { caSosResultsClient } from "../clients/ca-sos-results";
 import { BallotProviderError } from "../clients/democracy-works";
 import { getDevBallot } from "../lib/ballot-dev-mocks";
 import { getBallotAvailability } from "../lib/ballot-launch";
+import { getCandidateBackground } from "../lib/candidate-background";
 import {
   getCachedTrillionGraph,
   getCaliforniaGuide,
@@ -15,8 +16,18 @@ import {
   getVoterInfo,
 } from "../lib/civic";
 import { CivicReadUnavailableError } from "../lib/civic-read-guard";
+import {
+  applySegments,
+  hashSegments,
+  TRANSLATION_LANGUAGES,
+} from "../lib/content-translation";
+import { getSegmentTranslations } from "../lib/content-translation-store";
 import { getElectedOfficials } from "../lib/elected-officials";
 import { publishedMeasureRelationships } from "../lib/measure-relationships";
+import {
+  measureSegments,
+  measureTranslationId,
+} from "../lib/measure-translation";
 import {
   publicPropositionConsequences,
   publishedPropositionConsequences,
@@ -41,6 +52,54 @@ const DISTRICT_REF = z.object({
 export const civicRouter = {
   /** Public release state; does not expose credentials or infer provider coverage. */
   getBallotAvailability: publicProcedure.query(() => getBallotAvailability()),
+  /**
+   * Cited biography from the shared candidate-enrichment cache. The same merge
+   * runs for every named candidate: state, district, and county keep same-name
+   * people apart. A miss stays empty. This is not a vote record.
+   */
+  getCandidateBackground: publicProcedure
+    .input(
+      z.object({
+        name: z.string().trim().min(1).max(200),
+        office: z.string().trim().min(1).max(200),
+        state: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z]{2}$/)
+          .optional(),
+        district: z.string().trim().min(1).max(200).optional(),
+        county: z.string().trim().min(1).max(200).optional(),
+        party: z.string().trim().min(1).max(100).optional(),
+        roles: z.array(z.string().trim().min(1).max(80)).max(8).optional(),
+        level: z.array(z.string().trim().min(1).max(80)).max(8).optional(),
+        electionYear: z.number().int().min(2000).max(2100),
+      }),
+    )
+    .query(async ({ input }) => {
+      try {
+        return await getCandidateBackground({
+          name: input.name,
+          office: input.office,
+          stateAbbrev: input.state,
+          district: input.district,
+          county: input.county,
+          party: input.party,
+          roles: input.roles,
+          level: input.level,
+          electionYear: input.electionYear,
+        });
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch candidate background",
+          cause: error,
+        });
+      }
+    }),
+
   getCaliforniaGuide: publicProcedure.query(async () => {
     const guide = await getCaliforniaGuide();
     if (!guide) return null;
@@ -79,6 +138,62 @@ export const civicRouter = {
         await getCachedTrillionGraph(guide.electionDate, input.number),
         guide.relationshipSources ?? [],
       );
+    }),
+
+  getMeasureTranslation: publicProcedure
+    .input(
+      z.object({
+        number: z.string().regex(/^\d+[A-Z]?$/),
+        language: z.enum(TRANSLATION_LANGUAGES),
+        scope: z.enum(["title", "reader"]).default("reader"),
+        revision: z.string().max(100).optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      const guide = await getCaliforniaGuide();
+      const original = guide?.measures.find((m) => m.number === input.number);
+      if (!guide || !original) return { status: "unavailable" as const };
+      const measure = {
+        ...original,
+        contextualExplanation: publishedPropositionContext(
+          guide.electionDate,
+          original,
+        ),
+        consequences: publicPropositionConsequences(
+          publishedPropositionConsequences(guide.electionDate, original),
+        ),
+      };
+      const graph =
+        input.scope === "reader"
+          ? publishedTrillionGraph(
+              guide,
+              input.number,
+              await getCachedTrillionGraph(guide.electionDate, input.number),
+              guide.relationshipSources ?? [],
+            )
+          : null;
+      if (input.revision && input.revision !== graph?.revision)
+        return { status: "stale" as const };
+      const segments = measureSegments(measure, graph, input.scope);
+      const translations = await getSegmentTranslations({
+        contentId: measureTranslationId(
+          guide.electionDate,
+          input.number,
+          input.scope,
+        ),
+        contentType: "measure",
+        language: input.language,
+        segments,
+      });
+      if (!translations) return { status: "pending" as const };
+      return {
+        status: "translated" as const,
+        language: input.language,
+        sourceHash: hashSegments(segments),
+        originalTitle: original.title,
+        measure: applySegments(measure, translations, "measure"),
+        graph: applySegments(graph, translations, "graph"),
+      };
     }),
 
   /**

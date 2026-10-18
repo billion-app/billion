@@ -8,6 +8,7 @@ import type { VotingLogisticsData } from "~/utils/voting-logistics";
 import type { PlanMethod } from "~/utils/voting-plan";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Card, Icon, Segmented } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, fontEditorial, hair, planes, sp } from "~/styles";
 import { votingInformationLinks } from "~/utils/voting-logistics";
 import {
@@ -35,11 +36,13 @@ function Cue({ name, size = 18 }: { name: IconName; size?: number }) {
 /** Compact evidence actions, scoped to the plan rather than changing shared UI. */
 function SourceLink({ label, url }: { label: string; url: string }) {
   const [failed, setFailed] = useState(false);
+  const { t } = useAppTranslation();
   return (
     <View>
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={label}
+        accessibilityHint={t("common.opensInBrowser")}
         style={s.serviceLink}
         onPress={() => {
           void Linking.openURL(url).then(
@@ -56,7 +59,7 @@ function SourceLink({ label, url }: { label: string; url: string }) {
           accessibilityRole="alert"
           style={[s.caption, { color: colors.white }]}
         >
-          Could not open the link. Tap to retry.
+          {t("voting.linkFailed")}
         </Text>
       )}
     </View>
@@ -140,7 +143,7 @@ export function VotingPlanSection({
   election,
   data,
   california = false,
-  returnLabel = "Hide voting steps",
+  returnLabel,
   onReturn,
   onViewLogistics,
   initiallyOpen = false,
@@ -158,6 +161,7 @@ export function VotingPlanSection({
   onViewLogistics?: () => void;
   initiallyOpen?: boolean;
 }) {
+  const { t } = useAppTranslation();
   const key = election ? planStorageKey(election) : undefined;
   return (
     <Plan
@@ -165,7 +169,7 @@ export function VotingPlanSection({
       storageKey={key}
       data={data}
       california={california}
-      returnLabel={returnLabel}
+      returnLabel={returnLabel ?? t("voting.plan.hideSteps")}
       onReturn={onReturn}
       onViewLogistics={onViewLogistics}
       initiallyOpen={initiallyOpen}
@@ -190,6 +194,7 @@ function Plan({
   onViewLogistics?: () => void;
   initiallyOpen: boolean;
 }) {
+  const { language, t } = useAppTranslation();
   const [expanded, setExpanded] = useState(initiallyOpen);
   const [method, setMethod] = useState<PlanMethod>("undecided");
   const [loaded, setLoaded] = useState(!storageKey);
@@ -243,18 +248,19 @@ function Plan({
   const body = [s.body, { color: colors.white }];
   const heading = [s.heading, { color: colors.white }];
   const caption = [s.caption, { color: "rgba(255,255,255,0.70)" }];
+  const caSos = t("voting.plan.caSos");
   const check =
     registrationCheck(data) ??
     (california
       ? {
-          name: "California Secretary of State",
+          name: caSos,
           url: "https://voterstatus.sos.ca.gov/EN/Authenticate",
         }
       : undefined);
   const fallback = votingPlanAction(data, "electionInfoUrl") ?? {
     name: california
-      ? "California county elections offices"
-      : "USA.gov · State election offices",
+      ? t("voting.plan.caCountyOffices")
+      : t("voting.plan.usaGovOffices"),
     url: california
       ? `${ca}/voting-resources/county-elections-offices`
       : "https://www.usa.gov/state-election-office",
@@ -269,27 +275,27 @@ function Plan({
     suppliedMethod ??
     (california && method !== "in-person"
       ? {
-          name: "California Secretary of State",
+          name: caSos,
           url: `${ca}/voting-resources/voting-california`,
         }
       : fallback);
   const officeAction = methodAction.url === fallback.url && !suppliedMethod;
   const actionLabel = officeAction
     ? california
-      ? "Find my county election office"
-      : "Visit your election office"
+      ? t("voting.plan.findCountyOffice")
+      : t("voting.plan.visitOffice")
     : method === "mail"
-      ? "See mail voting instructions"
+      ? t("voting.plan.mailInstructions")
       : method === "in-person"
-        ? "Find voting locations"
-        : "Compare ways to vote";
+        ? t("voting.link.findLocations")
+        : t("voting.plan.compareWays");
   const actionContext =
     method === "mail"
-      ? "Confirm mail voting and return instructions"
+      ? t("voting.plan.contextMail")
       : method === "in-person"
-        ? "Ask about voting locations and hours"
-        : "Confirm available methods for your election";
-  const resources = votingInformationLinks(data ?? {});
+        ? t("voting.plan.contextInPerson")
+        : t("voting.plan.contextUndecided");
+  const resources = votingInformationLinks(data ?? {}, language);
   return (
     <Card
       style={{
@@ -301,15 +307,15 @@ function Plan({
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Make your voting plan"
+        accessibilityLabel={t("voting.plan.title")}
         accessibilityState={{ expanded }}
         onPress={() => setExpanded(!expanded)}
         style={s.open}
       >
-        <Text style={heading}>Make your voting plan</Text>
+        <Text style={heading}>{t("voting.plan.title")}</Text>
         <View style={s.row}>
           <Text style={[...caption, s.flex, { color: colors.white }]}>
-            {expanded ? "Hide plan" : "Check registration. Choose how to vote."}
+            {expanded ? t("voting.plan.hide") : t("voting.plan.summary")}
           </Text>
           <Icon
             name={expanded ? "chevD" : "chevR"}
@@ -321,59 +327,67 @@ function Plan({
       {expanded && (
         <View style={s.steps}>
           {!storageKey && (
-            <Text style={body}>
-              Election details aren’t available. You can still use these voting
-              services.
-            </Text>
+            <Text style={body}>{t("voting.plan.noElection")}</Text>
           )}
           <View style={s.step}>
-            <StepHeading icon="user">1. Check registration</StepHeading>
+            <StepHeading icon="user">{t("voting.plan.step1")}</StepHeading>
             {check ? (
               <>
-                <SourceLink label="Check registration" url={check.url} />
+                <SourceLink
+                  label={t("voting.plan.checkRegistration")}
+                  url={check.url}
+                />
                 <Text style={caption}>
-                  {check.name} · Opens registration service
+                  {t("voting.plan.opensRegistration", { name: check.name })}
                 </Text>
               </>
             ) : (
               <>
                 <SourceLink
-                  label="Find your election office"
+                  label={t("voting.plan.findOffice")}
                   url={fallback.url}
                 />
                 <Text style={caption}>{fallback.name}</Text>
-                <Text style={caption}>
-                  For registration and available voting methods
-                </Text>
+                <Text style={caption}>{t("voting.plan.officeHelps")}</Text>
               </>
             )}
             {california && (
-              <Detail label="Need to register or update details?">
+              <Detail label={t("voting.plan.needRegister")}>
                 <SourceLink
-                  label="Registration application & requirements"
+                  label={t("voting.plan.registrationApplication")}
                   url={`${ca}/voter-registration`}
                 />
-                <Text style={caption}>California Secretary of State</Text>
+                <Text style={caption}>{caSos}</Text>
               </Detail>
             )}
           </View>
           <View style={s.step}>
-            <StepHeading icon="vote">
-              2. How would you like to vote?
-            </StepHeading>
+            <StepHeading icon="vote">{t("voting.plan.step2")}</StepHeading>
             {loaded ? (
               <Segmented<PlanMethod>
                 iconPosition="above"
                 value={method}
                 onChange={choose}
                 options={[
-                  { id: "undecided", label: "Unsure", icon: "help" },
-                  { id: "mail", label: "By mail", icon: "mail" },
-                  { id: "in-person", label: "In person", icon: "pin" },
+                  {
+                    id: "undecided",
+                    label: t("voting.plan.method.undecided"),
+                    icon: "help",
+                  },
+                  {
+                    id: "mail",
+                    label: t("voting.plan.method.mail"),
+                    icon: "mail",
+                  },
+                  {
+                    id: "in-person",
+                    label: t("voting.plan.method.inPerson"),
+                    icon: "pin",
+                  },
                 ]}
               />
             ) : (
-              <Text style={body}>Loading your choice…</Text>
+              <Text style={body}>{t("voting.plan.loadingChoice")}</Text>
             )}
             {(storageFailed ||
               !storageKey ||
@@ -386,22 +400,22 @@ function Plan({
                   style={[...caption, s.flex]}
                 >
                   {storageFailed
-                    ? "Couldn’t save. Your choice may be lost when you leave."
+                    ? t("voting.plan.saveFailed")
                     : !storageKey
-                      ? "This choice is temporary while election details are unavailable."
+                      ? t("voting.plan.temporary")
                       : saving
-                        ? "Saving…"
-                        : "Saved on this device"}
+                        ? t("voting.plan.saving")
+                        : t("voting.plan.saved")}
                 </Text>
               </View>
             )}
             {!check && officeAction ? (
               <Text style={caption}>
                 {method === "mail"
-                  ? "Ask the office above about ballot requests and returns."
+                  ? t("voting.plan.askMail")
                   : method === "in-person"
-                    ? "Ask the office above about locations and hours."
-                    : "The office above can explain your voting options."}
+                    ? t("voting.plan.askInPerson")
+                    : t("voting.plan.askUndecided")}
               </Text>
             ) : (
               <>
@@ -413,96 +427,77 @@ function Plan({
             {data && hasVotingPlanLogistics(data) && onViewLogistics && (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="View voting dates and locations"
+                accessibilityLabel={t("voting.plan.viewLogisticsA11y")}
                 onPress={onViewLogistics}
                 style={s.disclosure}
               >
                 <Text style={[s.action, s.flex, { color: colors.white }]}>
-                  View dates & locations
+                  {t("voting.plan.viewLogistics")}
                 </Text>
                 <Icon name="chevR" size={16} color={colors.white} />
               </Pressable>
             )}
             {method === "mail" && (
-              <Detail label="Mail deadlines & tracking" icon="clock">
-                <Text style={body}>
-                  Check these separately with your election office:
-                </Text>
-                <Deadline icon="doc" label="Request">
-                  Check if you need to request a ballot, and by when.
+              <Detail label={t("voting.plan.mailDeadlines")} icon="clock">
+                <Text style={body}>{t("voting.plan.checkSeparately")}</Text>
+                <Deadline icon="doc" label={t("voting.plan.request")}>
+                  {t("voting.plan.requestBody")}
                 </Deadline>
-                <Deadline icon="clock" label="Postmark">
-                  When the postal service must mark your return envelope.
+                <Deadline icon="clock" label={t("voting.plan.postmark")}>
+                  {t("voting.plan.postmarkBody")}
                 </Deadline>
-                <Deadline icon="home" label="Receipt">
-                  When the election office must receive your ballot.
+                <Deadline icon="home" label={t("voting.plan.receipt")}>
+                  {t("voting.plan.receiptBody")}
                 </Deadline>
                 {california && (
                   <SourceLink
-                    label="Track my ballot"
+                    label={t("voting.plan.trackBallot")}
                     url={`${ca}/ballot-status/wheres-my-ballot`}
                   />
                 )}
                 {california && (
                   <Text style={caption}>
-                    California Secretary of State · Opens its tracking service
+                    {t("voting.plan.opensTracking", { name: caSos })}
                   </Text>
                 )}
               </Detail>
             )}
             {method === "in-person" && (
-              <Detail label="Before you go" icon="pin">
-                <Text style={body}>
-                  Confirm the location, early-voting dates or Election Day
-                  hours, and what to bring. Missing location details here don’t
-                  mean in-person voting is unavailable.
-                </Text>
+              <Detail label={t("voting.plan.beforeYouGo")} icon="pin">
+                <Text style={body}>{t("voting.plan.beforeYouGoBody")}</Text>
                 {california && (
                   <SourceLink
-                    label="Voting requirements"
+                    label={t("voting.plan.requirements")}
                     url={`${ca}/voting-resources/voting-california`}
                   />
                 )}
               </Detail>
             )}
           </View>
-          <Detail label="More voting help & privacy" icon="help">
-            <Detail label="Voting in a primary?">
-              <Text style={body}>
-                Check which contests you can vote in, whether party enrollment
-                matters, and whether to request a different ballot. Confirm
-                party enrollment and ballot request deadlines separately.
-              </Text>
+          <Detail label={t("voting.plan.moreHelp")} icon="help">
+            <Detail label={t("voting.plan.primaryQuestion")}>
+              <Text style={body}>{t("voting.plan.primaryBody")}</Text>
               <SourceLink
-                label="Check primary voting rules"
+                label={t("voting.plan.primaryRules")}
                 url={
                   california
                     ? `${ca}/primary-elections-california`
                     : fallback.url
                 }
               />
-              <Text style={caption}>
-                {california ? "California Secretary of State" : fallback.name}
-              </Text>
+              <Text style={caption}>{california ? caSos : fallback.name}</Text>
             </Detail>
-            <Text style={heading}>Official confirmation</Text>
-            <Text style={body}>
-              Billion doesn’t verify registration, eligibility or ballot status.
-              Links open the authority’s service; return here to continue your
-              ballot.
-            </Text>
-            <Text style={heading}>On this device</Text>
+            <Text style={heading}>{t("voting.plan.officialTitle")}</Text>
+            <Text style={body}>{t("voting.plan.officialBody")}</Text>
+            <Text style={heading}>{t("voting.plan.deviceTitle")}</Text>
             <Text style={body}>
               {storageKey
-                ? "Only your method preference is saved, for this election."
-                : "Your temporary choice isn’t saved while election details are unavailable."}{" "}
-              No address, party or registration status is stored in this plan.
+                ? t("voting.plan.deviceSaved")
+                : t("voting.plan.deviceTemporary")}{" "}
+              {t("voting.plan.deviceNothingElse")}
             </Text>
-            <Text style={heading}>Dates and locations</Text>
-            <Text style={body}>
-              Ask your election office about details missing here. A missing
-              location listing doesn’t mean voting is unavailable.
-            </Text>
+            <Text style={heading}>{t("voting.plan.datesTitle")}</Text>
+            <Text style={body}>{t("voting.plan.datesBody")}</Text>
             {resources.map((link) => (
               <View key={link.url}>
                 <SourceLink label={link.label} url={link.url} />

@@ -1,0 +1,217 @@
+{
+  "electionDate": "2026-11-03",
+  "language": "zh",
+  "checkedAt": "2026-10-17T19:33:06.819Z",
+  "results": [
+    {
+      "number": "1",
+      "scope": "title",
+      "status": "translated",
+      "sourceHash": "546ad5103641f7b3b16ea8349a5cbd378c6e1a6a16514f069cbf1a9724eb8f76",
+      "title": "授权发行债券以支持住房可负担性计划。立法法规。"
+    },
+    {
+      "number": "2",
+      "scope": "title",
+      "status": "translated",
+      "sourceHash": "c9a98328fdede70edbb185cfda09ad2c9cf4deb5adf58aadbe12b7271681422f",
+      "title": "增加州的未雨绸缪基金。立法机构提出的宪法修正案。"
+    },
+    {
+      "number": "3",
+      "scope": "title",
+      "status": "translated",
+      "sourceHash": "f902d6cdf6731b68339fde13c47c7ee2b114682943049d5eb0bb1e2d76a41599",
+      "title": "通过延长现有的高收入税，为学校和医疗保健提供永久资金。倡议性宪法修正案。"
+    },
+    {
+      "number": "4",
+      "scope": "title",
+      "status": "translated",
+      "sourceHash": "e67a4c0b5579df401d43029a6293c5e764c48e3bdb06013eacef0c433d20d58a",
+      "title": "废除禁止使用公共资金资助选举竞选活动的规定。立法法规。"
+    },
+    {
+      "number": "5",
+      "scope": "title",
+      "status": "translated",
+      "sourceHash": "cd7f309a4725306ff870432b4dad7430db6ba754d9ae08ac25ae4c15d6935a9c",
+      "title": "更改全州公职人员的罢免选举程序。立法机关提出的宪法修正案。"
+    },
+    {
+      "number": "37",
+      "scope": "title",
+      "status": "translated",
+      "sourceHash": "ae75f5762e513a9fba79ee95656b59fbf4bcddf42b6a1ff54bb18cf4d895a811",
+      "title": "为符合条件的新房中等收入购房者设立贷款计划。倡议法案。"
+    },
+    {
+      "number": "38",
+      "scope": "title",
+      "status": "translated",
+      "sourceHash": "7c0fb025440bc44040a85309605e8c157264ad2274cc4a8ff5678786f046f152",
+      "title": "授权为免疫学医学研究发行债券。倡议法案。"
+    },
+    {
+      "number": "39",
+      "scope": "title",
+      "status": "translated",
+      "sourceHash": "79f06c65a70227f8b002e79b82d102e63440045a110b89e45bf81cf507bb7900",
+      "title": "禁止公民投票，除非他们出示政府签发的身份证明。倡议宪法修正案。"
+    },
+    {
+      "number": "40",
+      "scope": "title",
+      "status": "translated",
+      "sourceHash": "6f00e249462119f0dd9a6716670d23e365dd3716391a389fffa6285d66550fbc",
+      "title": "对某些纳税人征收一次性税款。公民倡议宪法修正案及法案。"
+    },
+    {
+      "number": "41",
+      "scope": "title",
+      "status": "translated",
+      "sourceHash": "30c28c2c5c3d792ca1933e151080152a1ea609ee287436267127abe599a7f426",
+      "title": "禁止征收将收入排除在州支出限额之外的新州税。要求对新州专项税进行审计。倡议性宪法修正案。"
+    },
+    {
+      "number": "42",
+      "scope": "title",
+      "status": "translated",
+      "sourceHash": "faf3babdef0544a780ebf227b8137656731a86f2f2c921ffd5fea9d6e97b1567",
+      "title": "禁止征收新的州个人财产税和某些追溯性州税。公民倡议宪法修正案。"
+    },
+    {
+      "number": "43",
+      "scope": "title",
+      "status": "translated",
+      "sourceHash": "c0891a5f19c0940f6b75f69add1f5ee003458b44d987792b34ddb3325c49a061",
+      "title": "限制选民为地方政府服务筹集收入的能力。立法宪法修正案。"
+    },
+    {
+      "number": "44",
+      "scope": "title",
+      "status": "translated",
+      "sourceHash": "fa9936a37d9ef0903ccec5407514b134ab06c83dc9d3dcd54c0326c0a8eaeac9",
+      "title": "要求社区卫生诊所将90%的收入用于项目服务。倡议法案。"
+    },
+    {
+      "number": "45",
+      "scope": "title",
+      "status": "translated",
+      "sourceHash": "b805bb56642809e046c11b47d781689484947afcd98fc748c09c171ac36dcb7c",
+      "title": "修改某些项目的环境审查。倡议法案。"
+    },
+    {
+      "number": "1",
+      "scope": "reader",
+      "status": "translated",
+      "sourceHash": "1042cf3b20f425a79980184ebc7505de1c8d0a1d0f1100cf18d3892f44fb4db3",
+      "title": "授权发行债券以支持住房可负担性计划。立法法案。",
+      "graphRevision": "2026-11-03-1-cdca296de94bae57"
+    },
+    {
+      "number": "2",
+      "scope": "reader",
+      "status": "translated",
+      "sourceHash": "01fc9aa8364293283e897fe7b8d1dd14604f4b991fa68a82eac5b9c1a71f1923",
+      "title": "增加州雨日基金。立法机构提出的宪法修正案。",
+      "graphRevision": "2026-11-03-2-8e70e97cdaff8b11"
+    },
+    {
+      "number": "3",
+      "scope": "reader",
+      "status": "translated",
+      "sourceHash": "708a35ce49021c234a3fbc6dfab68f8c435c791aa3bbdc38a219a889f65e1b4f",
+      "title": "通过延长现有的高收入人群税收，为学校和医疗保健提供永久资金。倡议性宪法修正案。",
+      "graphRevision": "2026-11-03-3-32fc1643fc39ee9f"
+    },
+    {
+      "number": "4",
+      "scope": "reader",
+      "status": "translated",
+      "sourceHash": "6d30a17b83d038dc4482b7ad047d8003c789449d02553f93bb2f16f0f7601b6d",
+      "title": "废除禁止使用公共资金资助选举竞选活动的规定。立法性法规。",
+      "graphRevision": "2026-11-03-4-73f4e8d8eab51718"
+    },
+    {
+      "number": "5",
+      "scope": "reader",
+      "status": "translated",
+      "sourceHash": "11823868f5e2246ac14f8c4e281ba621b585f5cbdf11c2676e06c79c89673534",
+      "title": "改变全州民选官员的罢免选举程序。立法机关提出的宪法修正案。",
+      "graphRevision": "2026-11-03-5-66c8467c2933ef31"
+    },
+    {
+      "number": "37",
+      "scope": "reader",
+      "status": "translated",
+      "sourceHash": "b1186409dfd6bb51c7546edefaffdebc5140ebed6ed3b8e0b1c195103bcfca81",
+      "title": "为符合条件的新建住房的中等收入买家设立贷款计划。倡议法案。",
+      "graphRevision": "2026-11-03-37-5e28cef0bbaec0ac"
+    },
+    {
+      "number": "38",
+      "scope": "reader",
+      "status": "translated",
+      "sourceHash": "b8c611b1cf8d648072c52588944ea8dab0f7bc8ba410ae3d7cfe7482c98415f4",
+      "title": "授权发行债券用于免疫学医学研究。倡议法案。",
+      "graphRevision": "2026-11-03-38-baa999e3e6028db9"
+    },
+    {
+      "number": "39",
+      "scope": "reader",
+      "status": "translated",
+      "sourceHash": "f1df6adb245119de61d4d3bdcdd8e17a003fc16d5715481c9d882747ea6ccf55",
+      "title": "禁止公民在未出示政府签发的身份证明的情况下投票。公民倡议宪法修正案。",
+      "graphRevision": "2026-11-03-39-ed67c2ec2f9ad0e4"
+    },
+    {
+      "number": "40",
+      "scope": "reader",
+      "status": "translated",
+      "sourceHash": "fe32bfbd70bb976cd653cb8c0f22d847890113a9fc3f7074fd4a312614ee4fc3",
+      "title": "对特定纳税人征收一次性税。倡议宪法修正案及法案。",
+      "graphRevision": "2026-11-03-40-22e877996b37c4d0"
+    },
+    {
+      "number": "41",
+      "scope": "reader",
+      "status": "translated",
+      "sourceHash": "96f051379b4e3b8323b831dfb9f367277c6eb452b76238fbcde9229b9e608d02",
+      "title": "禁止制定将收入排除在州支出上限之外的新州税。要求对新的州专项税进行审计。倡议性宪法修正案。",
+      "graphRevision": "2026-11-03-41-3432683471419381"
+    },
+    {
+      "number": "42",
+      "scope": "reader",
+      "status": "translated",
+      "sourceHash": "4b52708935109adca216da00ee3ea8a507f1a268370086bef089f0de2673f1d6",
+      "title": "禁止征收新的州个人财产税及某些追溯性州税。宪法修正案倡议。",
+      "graphRevision": "2026-11-03-42-20b64abc2c74d621"
+    },
+    {
+      "number": "43",
+      "scope": "reader",
+      "status": "translated",
+      "sourceHash": "5447435979877f6f23179029ed34f86c83440623530b41eee77ae9347085c340",
+      "title": "限制选民为地方政府服务增加收入的能力。立法机关提出的宪法修正案。",
+      "graphRevision": "2026-11-03-43-b0c0515e6c903f0b"
+    },
+    {
+      "number": "44",
+      "scope": "reader",
+      "status": "translated",
+      "sourceHash": "0f67c8eea1182ffbc0ceceaf0b19a7ba22001329b0c9aebdbb900c71aa1cb0c3",
+      "title": "要求社区卫生诊所将90%的收入用于项目服务。倡议法案。",
+      "graphRevision": "2026-11-03-44-c7e59872f45841cb"
+    },
+    {
+      "number": "45",
+      "scope": "reader",
+      "status": "translated",
+      "sourceHash": "92940f8fc0b4af1f379070a4ad0fb06d1bfcbf23866fd3874c1e8d631dcd9826",
+      "title": "修改某些项目的环境审查。倡议法案。",
+      "graphRevision": "2026-11-03-45-c4ab5fab045b876c"
+    }
+  ]
+}

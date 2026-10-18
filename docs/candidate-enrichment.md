@@ -47,3 +47,10 @@ flowchart TD
 ```
 
 The base ballot route reads date-scoped candidate statements from the [official guide scraper](../apps/scraper/README.md#ballot-source-collection). It matches a unique full name and statewide office within a provider-selected California statewide contest. It does not invoke the request-time enrichment adapters when `includeEnrichment` is false.
+
+A candidate page with no biography calls `civic.getCandidateBackground`. That uses this same cache key and `crossValidateCandidate` merge, including district and county when the route has them. It does not keep a second biography cache.
+
+Biography loading waits for the California guide only for a matching statewide
+ballot candidate. Other candidates load background immediately, even when the
+unused guide query has never fetched. A supplied ballot biography still avoids
+the background request.

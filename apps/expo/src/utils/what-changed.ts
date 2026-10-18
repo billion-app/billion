@@ -5,6 +5,9 @@
  * "today" feed. A returning reader sees movement only when `activityAt` is
  * newer than their last visit.
  */
+import type { AppLanguage } from "~/i18n/language";
+import { appTranslator, translateApp } from "~/i18n/app-strings";
+import { formatDate } from "~/i18n/format";
 
 export const BRIEF_MIN = 3;
 export const BRIEF_MAX = 7;
@@ -75,13 +78,16 @@ export function changeHeadline(item: ChangeItem): string {
   return item.title.trim();
 }
 
+/** `ctx.place` is the place name already in `language`. */
 export function changeConnection(
   item: ChangeItem,
   ctx: Pick<ChangeContext, "savedIds" | "vectors" | "place">,
+  language: AppLanguage = "en",
 ): string | undefined {
-  if (ctx.savedIds.has(item.id)) return "You saved this";
+  const t = appTranslator(language);
+  if (ctx.savedIds.has(item.id)) return t("change.saved");
   if (item.type === "bill" && item.jurisdiction === "federal") {
-    if (ctx.vectors.includes("congress")) return "You watch Congress";
+    if (ctx.vectors.includes("congress")) return t("change.watchCongress");
   }
   if (
     item.type === "bill" &&
@@ -89,13 +95,15 @@ export function changeConnection(
     item.jurisdiction !== "federal" &&
     ctx.vectors.includes("state")
   ) {
-    return ctx.place ? `You watch ${ctx.place}` : "You watch your state";
+    return ctx.place
+      ? t("change.watchPlace", { place: ctx.place })
+      : t("change.watchState");
   }
   if (item.type === "court_case" && ctx.vectors.includes("courts")) {
-    return "You watch the courts";
+    return t("change.watchCourts");
   }
   if (item.type === "government_content" && ctx.vectors.includes("executive")) {
-    return "You watch the White House";
+    return t("change.watchWhiteHouse");
   }
   return undefined;
 }
@@ -103,12 +111,13 @@ export function changeConnection(
 export function toChangeLine(
   item: ChangeItem,
   ctx: Pick<ChangeContext, "savedIds" | "vectors" | "place">,
+  language: AppLanguage = "en",
 ): ChangeLine {
   const why = item.featureTakeaway?.trim();
   const line: ChangeLine = {
     id: item.id,
     headline: changeHeadline(item),
-    connection: changeConnection(item, ctx),
+    connection: changeConnection(item, ctx, language),
   };
   if (why) line.why = why;
   return line;
@@ -142,10 +151,6 @@ export function selectChangeItems(
   return unique.slice(0, Math.max(0, Math.min(limit, BRIEF_MAX)));
 }
 
-function plural(count: number, one: string, many: string): string {
-  return count === 1 ? `1 ${one}` : `${count} ${many}`;
-}
-
 /**
  * Count lines for the brief header. Types first; a follow line only when
  * some — not all — of the items are followed, so it adds signal.
@@ -153,8 +158,10 @@ function plural(count: number, one: string, many: string): string {
 export function movedSummaryLines(
   items: readonly ChangeItem[],
   ctx: Pick<ChangeContext, "savedIds">,
+  language: AppLanguage = "en",
 ): string[] {
   if (items.length === 0) return [];
+  const t = appTranslator(language);
 
   let bills = 0;
   let courts = 0;
@@ -168,39 +175,39 @@ export function movedSummaryLines(
   }
 
   const lines: string[] = [];
-  if (bills > 0) lines.push(plural(bills, "bill moved", "bills moved"));
-  if (courts > 0) {
-    lines.push(plural(courts, "court ruling", "court rulings"));
-  }
+  if (bills > 0) lines.push(t("change.billsMoved", { count: bills }));
+  if (courts > 0) lines.push(t("change.courtRulings", { count: courts }));
   if (executive > 0) {
-    lines.push(plural(executive, "executive action", "executive actions"));
+    lines.push(t("change.executiveActions", { count: executive }));
   }
   if (followed > 0 && followed < items.length) {
-    lines.push(
-      followed === 1 ? "1 you saved moved" : `${followed} you saved moved`,
-    );
+    lines.push(t("change.savedMoved", { count: followed }));
   }
   return lines;
 }
 
-export function briefDateLabel(now: Date): string {
-  return now.toLocaleDateString("en-US", {
+export function briefDateLabel(
+  now: Date,
+  language: AppLanguage = "en",
+): string {
+  return formatDate(language, now, {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
 }
 
-export function briefCountLine(count: number, somethingMoved: boolean): string {
-  if (count <= 0) return "Nothing new yet.";
-  if (somethingMoved) {
-    return count === 1
-      ? "1 thing moved while you were away."
-      : `${count} things moved while you were away.`;
-  }
-  return count === 1
-    ? "1 thing worth knowing."
-    : `${count} things worth knowing.`;
+export function briefCountLine(
+  count: number,
+  somethingMoved: boolean,
+  language: AppLanguage = "en",
+): string {
+  if (count <= 0) return translateApp(language, "change.nothingNew");
+  return translateApp(
+    language,
+    somethingMoved ? "change.movedAway" : "change.worthKnowing",
+    { count },
+  );
 }
 
 export function anyMovedSince(
