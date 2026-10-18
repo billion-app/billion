@@ -518,6 +518,9 @@ importers:
       '@ai-sdk/google':
         specifier: ^3.0.53
         version: 3.0.53(zod@4.3.6)
+      '@ai-sdk/groq':
+        specifier: ^1.0.0
+        version: 1.2.9(zod@4.3.6)
       '@ai-sdk/openai':
         specifier: ^2.0.0
         version: 2.0.106(zod@4.3.6)
@@ -527,6 +530,9 @@ importers:
       '@openrouter/ai-sdk-provider':
         specifier: ^2.10.0
         version: 2.10.0(ai@6.0.141(zod@4.3.6))(zod@4.3.6)
+      '@trpc/server':
+        specifier: 'catalog:'
+        version: 11.16.0(typescript@6.0.3)
       ai:
         specifier: ^6.0.141
         version: 6.0.141(zod@4.3.6)
