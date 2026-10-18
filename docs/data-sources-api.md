@@ -238,10 +238,12 @@ import { SOS_RESULTS_HOME } from "@acme/api/clients/ca-sos-results";
 
 ## Address entry (client-side)
 
-**Source:** Native device location via `expo-location`, plus typed entry  
+**Source:** Native device location via `expo-location`, plus typed entry
+
 **Entry points:** `apps/expo/src/hooks/useDeviceLocation.ts` (permission + fix),
 `apps/expo/src/hooks/useDeviceAddress.ts` (fix → lookup address),
-`apps/expo/src/components/AddressAutocomplete.tsx` (shared field)  
+`apps/expo/src/components/AddressAutocomplete.tsx` (shared field)
+
 **Auth:** none — OS permission prompt instead of an API key
 
 The Google Places autocomplete and place-details endpoints were removed. The
