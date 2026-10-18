@@ -4,6 +4,7 @@ import { QueryClient, QueryObserver } from "@tanstack/react-query";
 
 import {
   articleTranslationState,
+  readyReaderTranslation,
   translationCachePolicy,
 } from "./translation-cache";
 
@@ -122,5 +123,41 @@ void test("article errors offer retry; English never looks like a pending transl
       isFetching: false,
     }),
     "original",
+  );
+});
+
+void test("prepared Chinese readers are ready in the initial response; English never substitutes while waiting", () => {
+  const prepared = {
+    status: "translated",
+    language: "zh",
+    sourceHash: "current",
+    articleContent: "完整的中文文章",
+  };
+  assert.equal(
+    readyReaderTranslation("zh", "current", prepared, undefined),
+    prepared,
+  );
+  assert.equal(readyReaderTranslation("zh", "current", null, undefined), null);
+  assert.equal(
+    readyReaderTranslation(
+      "zh",
+      "current",
+      { ...prepared, status: "unavailable" },
+      undefined,
+    ),
+    null,
+  );
+  assert.equal(readyReaderTranslation("zh", "new", prepared, undefined), null);
+  assert.equal(
+    readyReaderTranslation("es", "current", prepared, undefined),
+    null,
+  );
+  assert.equal(
+    readyReaderTranslation("en", "current", prepared, undefined),
+    null,
+  );
+  assert.equal(
+    readyReaderTranslation("zh", "current", null, prepared),
+    prepared,
   );
 });
