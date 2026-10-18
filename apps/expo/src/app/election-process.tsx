@@ -128,7 +128,7 @@ export default function ElectionProcessScreen() {
                   <Text
                     accessibilityRole="header"
                     accessibilityLabel={
-                      optional ? tx("Runoff, only if needed") : title
+                      optional ? tx("Runoff, only if needed") : tx(title)
                     }
                     style={s.heading}
                   >
