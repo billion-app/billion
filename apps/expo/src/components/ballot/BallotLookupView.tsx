@@ -35,6 +35,10 @@ import { NavHeader } from "~/components/ui/NavHeader";
 import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogisticsSection";
 import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import {
+  deviceLocationMessage,
+  useDeviceAddress,
+} from "~/hooks/useDeviceAddress";
+import {
   DigestHair,
   fontBody,
   fontEditorial,
@@ -148,13 +152,30 @@ export function BallotLookupView(props: BallotLookupViewProps) {
       : props.data;
   const model = data ? ballotModel(data) : undefined;
   const elections = ballotElectionOptions(props.discovery, data);
-  const submit = () => {
-    const valid = validateBallotAddress(draft);
+  const commitDraft = (next: string) => {
+    const valid = validateBallotAddress(next);
     setInvalid(!valid);
     if (valid) {
       setEditing(false);
-      props.onAddress(draft.trim());
+      props.onAddress(next.trim());
     }
+  };
+  const submit = () => commitDraft(draft);
+  // Native fix is a shortcut into the same field and validation, not a
+  // separate lookup path — the voter can still type their residence.
+  const {
+    resolve: resolveAddress,
+    error: locationError,
+    locating: locatingAddress,
+    resolving: resolvingAddress,
+  } = useDeviceAddress();
+  const locatingFromDevice = locatingAddress || resolvingAddress;
+  const locationMessage = deviceLocationMessage(locationError);
+  const captureLocation = async () => {
+    const next = await resolveAddress();
+    if (!next) return;
+    setDraft(next);
+    commitDraft(next);
   };
   const officeUrl = data ? ballotOfficeUrl(data) : undefined;
   const evidence =
@@ -376,6 +397,33 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                 {draft.trim().length > 300
                   ? "Keep your address under 300 characters."
                   : "Enter a street address, city, state and ZIP code."}
+              </Text>
+            )}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Use my current location"
+              accessibilityState={{
+                disabled: locatingFromDevice,
+                busy: locatingFromDevice,
+              }}
+              disabled={locatingFromDevice}
+              onPress={() => void captureLocation()}
+              style={[s.deviceButton, locatingFromDevice && s.deviceButtonBusy]}
+            >
+              {locatingFromDevice ? (
+                <ActivityIndicator color={P.inkOnNight} />
+              ) : (
+                <Icon name="pin" size={18} color={P.primary} />
+              )}
+              <Text style={s.deviceButtonText}>
+                {locatingFromDevice
+                  ? "Finding your location…"
+                  : "Use my location"}
+              </Text>
+            </Pressable>
+            {locationMessage && (
+              <Text accessibilityRole="alert" style={s.secondary}>
+                {locationMessage}
               </Text>
             )}
             <Pressable
@@ -866,6 +914,23 @@ const s = StyleSheet.create({
     backgroundColor: P.inkOnNight,
     alignItems: "center",
     justifyContent: "center",
+  },
+  deviceButton: {
+    minHeight: 48,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: P.quiet,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  deviceButtonBusy: { opacity: 0.7 },
+  deviceButtonText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+    color: P.inkOnNight,
   },
   primaryText: { fontFamily: fontBody.semibold, fontSize: 13, color: P.canvas },
   input: {

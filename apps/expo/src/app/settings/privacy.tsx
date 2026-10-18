@@ -36,8 +36,8 @@ const COLLECT: Row[] = [
 const CONTROLS: Row[] = [
   {
     icon: "pin",
-    label: "Edit or clear your address",
-    sub: "Open the Ballot tab to change or remove your saved address anytime.",
+    label: "Change or clear your location",
+    sub: "Settings → Location shows your saved address and lets you change or remove it anytime.",
   },
   {
     icon: "download",

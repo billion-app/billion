@@ -239,7 +239,9 @@ import { SOS_RESULTS_HOME } from "@acme/api/clients/ca-sos-results";
 ## Address entry (client-side)
 
 **Source:** Native device location via `expo-location`, plus typed entry  
-**Entry point:** `apps/expo/src/hooks/useDeviceLocation.ts`, `apps/expo/src/components/AddressAutocomplete.tsx`  
+**Entry points:** `apps/expo/src/hooks/useDeviceLocation.ts` (permission + fix),
+`apps/expo/src/hooks/useDeviceAddress.ts` (fix → lookup address),
+`apps/expo/src/components/AddressAutocomplete.tsx` (shared field)  
 **Auth:** none — OS permission prompt instead of an API key
 
 The Google Places autocomplete and place-details endpoints were removed. The
@@ -250,6 +252,15 @@ not Billion's servers. Typed entry stays an equal path, because GPS locates the
 person, not necessarily their registration. When the geocoder returns nothing
 usable, the client submits the coordinate itself (`lat,lng`) as the lookup
 address.
+
+`useDeviceAddress` owns the reverse-geocode and coordinate fallback so every
+surface behaves the same. `AddressAutocomplete` carries the "Use my location"
+button next to the manual field and is used by the Feed greeting, the Elections
+tab, How to Vote, and the representatives/ballot sections. The national ballot
+form in `apps/expo/src/components/ballot/BallotLookupView.tsx` adds the same
+shortcut to its existing field. Settings → Location
+(`apps/expo/src/app/settings/location.tsx`) shows the saved address with
+Change location and Remove actions, backed by `useUserAddress`.
 
 ---
 

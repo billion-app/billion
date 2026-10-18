@@ -20,13 +20,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import * as Location from "expo-location";
 
 import { PinMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
-import { useDeviceLocation } from "~/hooks/useDeviceLocation";
+import {
+  deviceLocationMessage,
+  useDeviceAddress,
+} from "~/hooks/useDeviceAddress";
 import { DigestHair, DigestPalette, fontBody } from "~/styles";
-import { formatCoordinates, formatPlacemark } from "~/utils/address";
 
 interface AddressAutocompleteProps {
   /** Initial text to seed the field (e.g. the currently stored address). */
@@ -55,12 +56,11 @@ export function AddressAutocomplete({
 }: AddressAutocompleteProps) {
   const [input, setInput] = useState(initialValue);
   const {
-    request: locate,
+    resolve: resolveAddress,
     locating,
+    resolving,
     error: locationError,
-  } = useDeviceLocation();
-  // The committed address while the post-GPS lookup is still resolving.
-  const [resolving, setResolving] = useState(false);
+  } = useDeviceAddress();
 
   const commit = (address: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -69,48 +69,18 @@ export function AddressAutocomplete({
   };
 
   const captureLocation = async () => {
-    const fix = await locate();
-    if (!fix) return; // hook already set the error state we render below
-
-    setResolving(true);
-    try {
-      const placemarks = await Location.reverseGeocodeAsync({
-        latitude: fix.coords.latitude,
-        longitude: fix.coords.longitude,
-      });
-      const formatted = formatPlacemark(placemarks[0]);
-      // Without a usable placemark, hand the coordinates to Civic anyway —
-      // Civic accepts "latitude,longitude" and resolves the jurisdiction.
-      commit(
-        formatted ??
-          formatCoordinates(fix.coords.latitude, fix.coords.longitude),
-      );
-    } catch {
-      // Reverse geocode failed but the fix itself was good — coordinates
-      // still beat nothing, and Civic can resolve them.
-      commit(formatCoordinates(fix.coords.latitude, fix.coords.longitude));
-    } finally {
-      setResolving(false);
-    }
+    const address = await resolveAddress();
+    // The hook already set the error state we render below.
+    if (address) commit(address);
   };
 
-  const locationStatus = resolving ? (
-    inline ? null : (
+  const locationMessage = deviceLocationMessage(locationError);
+  const locationStatus =
+    resolving && !inline ? (
       <Text style={s.statusText}>Confirming your address…</Text>
-    )
-  ) : locationError === "denied" ? (
-    <Text style={s.statusText}>
-      Location is off for Billion — type your address below instead.
-    </Text>
-  ) : locationError === "unavailable" ? (
-    <Text style={s.statusText}>
-      Location services are off — type your address below instead.
-    </Text>
-  ) : locationError === "failed" ? (
-    <Text style={s.statusText}>
-      Couldn&apos;t get a location fix — try again or type it in.
-    </Text>
-  ) : null;
+    ) : locationMessage ? (
+      <Text style={s.statusText}>{locationMessage}</Text>
+    ) : null;
 
   const gpsButton = (
     <TouchableOpacity

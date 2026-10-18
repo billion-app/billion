@@ -8,6 +8,7 @@ import { SettingsCrest } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
 import { Kicker, SettingsRow, TabScreen } from "~/components/ui";
 import { useOnboarding } from "~/hooks/useOnboarding";
+import { useUserAddress } from "~/hooks/useUserAddress";
 import {
   DigestSpace,
   fontBody,
@@ -15,6 +16,7 @@ import {
   DigestPalette as P,
 } from "~/styles";
 import { getAppVersion } from "~/utils/app-version";
+import { shortAddress } from "~/utils/voting";
 
 interface Item {
   icon: IconName;
@@ -23,8 +25,23 @@ interface Item {
   route: Href;
 }
 
-function buildGroups(): { title: string; items: Item[] }[] {
+function buildGroups(
+  address: string | null,
+): { title: string; items: Item[] }[] {
   return [
+    {
+      title: "Location",
+      items: [
+        {
+          icon: "pin",
+          label: address ? "Change location" : "Set your location",
+          sub: address
+            ? shortAddress(address)
+            : "The address where you're registered to vote",
+          route: "/settings/location" as Href,
+        },
+      ],
+    },
     {
       title: "Alerts",
       items: [
@@ -80,6 +97,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const onboarding = useOnboarding();
+  const { address } = useUserAddress();
 
   const confirmResetPreferences = () => {
     Alert.alert(
@@ -112,7 +130,7 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {buildGroups().map((g) => (
+      {buildGroups(address).map((g) => (
         <View key={g.title} style={s.section}>
           <Kicker style={s.sectionKicker}>{g.title}</Kicker>
           {g.items.map((it, i) => (
