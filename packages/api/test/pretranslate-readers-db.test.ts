@@ -33,7 +33,9 @@ void test(
     timeout: 30_000,
   },
   async () => {
-    const target = new URL(process.env.READER_TRANSLATIONS_TEST_DATABASE_URL!);
+    const databaseUrl = process.env.READER_TRANSLATIONS_TEST_DATABASE_URL;
+    assert.ok(databaseUrl);
+    const target = new URL(databaseUrl);
     assert.ok(["localhost", "127.0.0.1"].includes(target.hostname));
     assert.ok(target.pathname.endsWith("_test"));
     process.env.POSTGRES_URL = target.toString();
@@ -97,11 +99,10 @@ void test(
         const detail = await loadContentDetail({ id });
         const result = await translateContentDetail(detail, "zh");
         assert.equal(result.status, "translated");
-        if (result.status !== "translated") throw Error("Not prepared");
-        assert.match(result.articleContent!, /^中文/);
-        assert.ok(
-          result.articleContent!.includes("https://example.org/source"),
-        );
+
+        assert.ok(result.articleContent);
+        assert.match(result.articleContent, /^中文/);
+        assert.ok(result.articleContent.includes("https://example.org/source"));
         assert.equal(detail.originalContent, source.fullText);
         assert.equal(await prepareReaderTranslation(id), true);
       }
