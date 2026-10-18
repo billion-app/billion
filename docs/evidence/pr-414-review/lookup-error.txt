@@ -9,9 +9,9 @@ invalid address
 Edit
 
 We couldn't load your voting options
-The election lookup didn't respond. Your address is still in this lookup — this is on our side.
+We couldn't complete this lookup. Check your address or try again.
 Try again
 DON'T WAIT ON US
-Your county election office has the same information and is always authoritative.
+Your county election office can help you find current voting information.
 Find my county election office
 

@@ -82,9 +82,9 @@ export const howToVoteLookupStrings = {
     zh: "无法加载你的投票选项",
   },
   "howToVoteLookup.errorBody": {
-    en: "The election lookup didn't respond. Your address is still in this lookup — this is on our side.",
-    es: "La consulta electoral no respondió. Tu dirección sigue en esta consulta; el problema es de nuestro lado.",
-    zh: "选举查询未响应。你的地址仍保留在此次查询中，问题出在我们这边。",
+    en: "We couldn't complete this lookup. Check your address or try again.",
+    es: "No pudimos completar esta consulta. Revisa tu dirección o inténtalo de nuevo.",
+    zh: "无法完成此次查询。请检查地址或重试。",
   },
   "howToVoteLookup.dontWait": {
     en: "DON'T WAIT ON US",
@@ -92,9 +92,9 @@ export const howToVoteLookupStrings = {
     zh: "无需等待我们",
   },
   "howToVoteLookup.officeAuthority": {
-    en: "Your county election office has the same information and is always authoritative.",
-    es: "La oficina electoral de tu condado tiene la misma información y es siempre la autoridad competente.",
-    zh: "你所在县的选举办公室拥有同样的信息，并始终是权威来源。",
+    en: "Your county election office can help you find current voting information.",
+    es: "La oficina electoral de tu condado puede ayudarte a encontrar información electoral actualizada.",
+    zh: "你所在县的选举办公室可以帮助你查询最新的投票信息。",
   },
   "howToVoteLookup.findCounty": {
     en: "Find my county election office",
@@ -283,8 +283,8 @@ export const howToVoteLookupStrings = {
   },
   "howToVoteLookup.hoursMissing": {
     en: "Hours unavailable",
-    es: "Horarios no publicados",
-    zh: "尚未公布时间",
+    es: "Horarios no disponibles",
+    zh: "暂无时间信息",
   },
   "howToVoteLookup.directions": {
     en: "Get directions",
