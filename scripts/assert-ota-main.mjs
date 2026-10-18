@@ -12,24 +12,24 @@ export function assertOtaMain(repository) {
       input,
       maxBuffer: 128 * 1024 * 1024,
       env: { ...process.env, GIT_NO_REPLACE_OBJECTS: "1" },
-    }).trim();
+    });
 
-  if (git(["rev-parse", "--is-shallow-repository"]) !== "false") {
+  if (git(["rev-parse", "--is-shallow-repository"]).trim() !== "false") {
     throw new Error(
       "Main integration requires full Git history (fetch-depth: 0).",
     );
   }
-  const source = git(["rev-parse", "--verify", "HEAD^{commit}"]);
+  const source = git(["rev-parse", "--verify", "HEAD^{commit}"]).trim();
   const main = git([
     "rev-parse",
     "--verify",
     "refs/remotes/origin/main^{commit}",
-  ]);
-  const base = git(["merge-base", main, source]);
-  const commits = git(["rev-list", "--reverse", source, `^${main}`]);
+  ]).trim();
+  const base = git(["merge-base", main, source]).trim();
+  const commits = git(["rev-list", "--reverse", source, `^${main}`]).trim();
   if (!commits) return { source, main, backports: [] };
 
-  if (git(["rev-list", "--merges", source, `^${main}`])) {
+  if (git(["rev-list", "--merges", source, `^${main}`]).trim()) {
     throw new Error(
       "OTA source contains merges absent from main. Use linear cherry-picks of merged fixes.",
     );
@@ -51,7 +51,7 @@ export function assertOtaMain(repository) {
       "--",
     ]);
     // Unlike git cherry, preserve whitespace: it can change strings and program behavior.
-    const ids = git(["patch-id", "--verbatim"], diff + "\n");
+    const ids = git(["patch-id", "--verbatim"], diff).trim();
     return ids ? ids.split("\n").map((line) => line.split(" ")) : [];
   };
   const mainPatches = new Map(patches(main, base));

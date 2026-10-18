@@ -112,6 +112,15 @@ test("whitespace changes in string literals do not count as merged patches", (t)
   assert.throws(() => assertOtaMain(r.dir), /has no exact patch on main/);
 });
 
+test("trailing whitespace at the end of a patch remains significant", (t) => {
+  const r = repository(t);
+  r.commit("app.js", "new \n");
+  r.syncMain();
+  r.git("checkout", "-b", "release", r.base);
+  r.commit("app.js", "new\n");
+  assert.throws(() => assertOtaMain(r.dir), /has no exact patch on main/);
+});
+
 test("binary changes must match main", (t) => {
   const r = repository(t);
   r.commit("native.json", '{"version":2}\n');
