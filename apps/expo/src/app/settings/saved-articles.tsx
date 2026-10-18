@@ -11,6 +11,7 @@ import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import type { ContentItem } from "~/utils/content";
+import { CardTranslationNotice } from "~/components/CardTranslationNotice";
 import { EmptySearchMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
 import { ContentCard, NavHeader } from "~/components/ui";
@@ -24,6 +25,7 @@ import {
   DigestPalette as P,
 } from "~/styles";
 import { trpc } from "~/utils/api";
+import { cardTranslationPolling } from "~/utils/card-translation";
 import { toCardItem } from "~/utils/content";
 
 function SwipeableSavedCard({
@@ -72,12 +74,13 @@ function SwipeableSavedCard({
 
 export default function SavedArticlesScreen() {
   const router = useRouter();
-  const { t } = useAppTranslation();
+  const { t, language } = useAppTranslation();
   const { savedIds, toggleSave } = useSavedContent();
 
   const { data, isLoading, error, refetch } = useQuery({
-    ...trpc.content.byIds.queryOptions({ ids: savedIds }),
+    ...trpc.content.byIds.queryOptions({ ids: savedIds, language }),
     enabled: savedIds.length > 0,
+    refetchInterval: cardTranslationPolling,
   });
 
   const list = data?.items ?? [];
@@ -111,9 +114,15 @@ export default function SavedArticlesScreen() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             list.length > 0 ? (
-              <Text style={s.intro}>
-                {t("saved.count", { count: list.length })}
-              </Text>
+              <>
+                <CardTranslationNotice
+                  items={list}
+                  onRetry={() => void refetch()}
+                />
+                <Text style={s.intro}>
+                  {t("saved.count", { count: list.length })}
+                </Text>
+              </>
             ) : null
           }
           ItemSeparatorComponent={() => (

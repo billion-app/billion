@@ -1,6 +1,7 @@
 import type { ContentItem } from "./content";
 import type { AppLanguage } from "~/i18n/language";
 import { translateApp } from "~/i18n/app-strings";
+import { translateCardMetadata } from "./card-metadata";
 
 export interface FeaturedBillItem extends ContentItem {
   featureTakeaway?: string;
@@ -16,7 +17,7 @@ export function withoutFeaturedBills<T extends { id: string }>(
   return items.filter((item) => !featuredIds.has(item.id));
 }
 
-/** Bill text, status, and takeaway come from the API and stay as published. */
+/** The title and takeaway use the API display locale; IDs stay unchanged. */
 export function featuredBillAccessibilityLabel(
   item: FeaturedBillItem,
   index: number,
@@ -28,7 +29,7 @@ export function featuredBillAccessibilityLabel(
     item.billNumber,
     item.title,
     item.featureTakeaway ?? item.description,
-    item.billStatus,
+    translateCardMetadata(item.billStatus, language),
   ]
     .filter(Boolean)
     .map((part) => String(part).replace(/[.\s]+$/, ""))

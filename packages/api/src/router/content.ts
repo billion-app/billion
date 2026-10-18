@@ -29,6 +29,7 @@ import { toBillTimelineActions } from "../lib/bill-actions";
 import { billDiscoveryCondition } from "../lib/bill-discovery";
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
 import { projectBillStatus } from "../lib/bill-status";
+import { localizeContentCards } from "../lib/card-translation";
 import {
   billJurisdiction,
   displaySessionLabel,
@@ -467,6 +468,9 @@ const ContentCardSchema = z.object({
   sponsor: z.string().optional(),
   sessionLabel: z.string().optional(),
   sourceLabel: z.string().optional(),
+  translationState: z
+    .enum(["original", "pending", "translated", "unavailable"])
+    .optional(),
 });
 
 export type ContentCard = z.infer<typeof ContentCardSchema>;
@@ -610,6 +614,7 @@ export const contentRouter = {
     .input(
       z.object({
         jurisdiction: z.enum(JURISDICTIONS).default("federal"),
+        language: z.enum(["en", ...TRANSLATION_LANGUAGES]).default("en"),
       }),
     )
     .query(async ({ input }) => {
@@ -696,7 +701,9 @@ export const contentRouter = {
           featuredPosition: index + 1,
         }));
 
-        return await attachContentImages(cards);
+        return await attachContentImages(
+          await localizeContentCards(cards, input.language),
+        );
       } catch (error) {
         console.error("Unable to load featured bills", error);
         return [];
@@ -727,6 +734,7 @@ export const contentRouter = {
         limit: z.number().int().min(1).max(50).default(20),
         cursor: z.number().int().min(0).optional(),
         jurisdiction: z.enum(JURISDICTIONS).default("federal"),
+        language: z.enum(["en", ...TRANSLATION_LANGUAGES]).default("en"),
       }),
     )
     .query(async ({ input }) => {
@@ -833,7 +841,9 @@ export const contentRouter = {
         );
 
         return {
-          items: await attachContentImages(items),
+          items: await attachContentImages(
+            await localizeContentCards(items, input.language),
+          ),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -855,7 +865,9 @@ export const contentRouter = {
         const page = hasMore ? bills.slice(0, limit) : bills;
         const items: ContentCard[] = page.map(toBillCard);
         return {
-          items: await attachContentImages(items),
+          items: await attachContentImages(
+            await localizeContentCards(items, input.language),
+          ),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -883,7 +895,9 @@ export const contentRouter = {
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
         return {
-          items: await attachContentImages(items),
+          items: await attachContentImages(
+            await localizeContentCards(items, input.language),
+          ),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -912,7 +926,9 @@ export const contentRouter = {
         jurisdictionCode: jurisdictionCode(jurisdiction),
       }));
       return {
-        items: await attachContentImages(items),
+        items: await attachContentImages(
+          await localizeContentCards(items, input.language),
+        ),
         nextCursor: hasMore ? cursor + limit : undefined,
       };
     }),
@@ -931,6 +947,7 @@ export const contentRouter = {
           .optional(),
         limit: z.number().int().min(1).max(50).default(20),
         jurisdiction: z.enum(JURISDICTIONS).default("federal"),
+        language: z.enum(["en", ...TRANSLATION_LANGUAGES]).default("en"),
       }),
     )
     .query(async ({ input }) => {
@@ -972,7 +989,9 @@ export const contentRouter = {
           .orderBy(desc(billRank))
           .limit(limit);
         const items: ContentCard[] = bills.map(toBillCard);
-        return await attachContentImages(items);
+        return await attachContentImages(
+          await localizeContentCards(items, input.language),
+        );
       }
 
       if (type === "government_content" || type === "general") {
@@ -991,7 +1010,9 @@ export const contentRouter = {
           isAIGenerated: false,
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
-        return await attachContentImages(items);
+        return await attachContentImages(
+          await localizeContentCards(items, input.language),
+        );
       }
 
       if (type === "court_case") {
@@ -1012,7 +1033,9 @@ export const contentRouter = {
           jurisdiction,
           jurisdictionCode: jurisdictionCode(jurisdiction),
         }));
-        return await attachContentImages(items);
+        return await attachContentImages(
+          await localizeContentCards(items, input.language),
+        );
       }
 
       // "all" — union matches from all three tables, re-ranked together.
@@ -1117,7 +1140,9 @@ export const contentRouter = {
                   : "US",
             },
       );
-      return await attachContentImages(items);
+      return await attachContentImages(
+        await localizeContentCards(items, input.language),
+      );
     }),
 
   // Get detailed content by ID from database
@@ -1195,7 +1220,12 @@ export const contentRouter = {
 
   // Profile and related legislation for the member who formally sponsored a bill.
   getSponsorProfile: publicProcedure
-    .input(z.object({ billId: z.string().uuid() }))
+    .input(
+      z.object({
+        billId: z.string().uuid(),
+        language: z.enum(["en", ...TRANSLATION_LANGUAGES]).default("en"),
+      }),
+    )
     .query(async ({ input }) => {
       const [bill] = await db
         .select()
@@ -1252,16 +1282,20 @@ export const contentRouter = {
           imageUrl: official?.image,
         },
         sourceUrl: bill.url,
-        sponsoredBills: sponsoredBills.map((item) => ({
-          id: item.id,
-          title: item.title,
-          description: billDescription(item.description, item.summary),
-          billNumber: item.billNumber,
-          status: projectBillStatus(item),
-          thumbnailUrl: item.thumbnailUrl,
-          imageUri: item.imageUri,
-          introducedDate: item.introducedDate?.toISOString(),
-        })),
+        sponsoredBills: await localizeContentCards(
+          sponsoredBills.map((item) => ({
+            type: "bill" as const,
+            id: item.id,
+            title: item.title,
+            description: billDescription(item.description, item.summary),
+            billNumber: item.billNumber,
+            status: projectBillStatus(item),
+            thumbnailUrl: item.thumbnailUrl,
+            imageUri: item.imageUri,
+            introducedDate: item.introducedDate?.toISOString(),
+          })),
+          input.language,
+        ),
       };
     }),
 
@@ -1271,7 +1305,12 @@ export const contentRouter = {
   // anyone has an account, which means the list screen arrives holding ids
   // and no session — it needs a way to turn them into something renderable.
   byIds: publicProcedure
-    .input(z.object({ ids: z.array(z.string().uuid()).max(200) }))
+    .input(
+      z.object({
+        ids: z.array(z.string().uuid()).max(200),
+        language: z.enum(["en", ...TRANSLATION_LANGUAGES]).default("en"),
+      }),
+    )
     .query(async ({ input }) => {
       if (input.ids.length === 0) return { items: [] };
 
@@ -1345,7 +1384,11 @@ export const contentRouter = {
         .map((id) => byId.get(id))
         .filter((item) => item != null);
 
-      return { items: await attachContentImages(ordered) };
+      return {
+        items: await attachContentImages(
+          await localizeContentCards(ordered, input.language),
+        ),
+      };
     }),
 
   // --- Saved Articles ---

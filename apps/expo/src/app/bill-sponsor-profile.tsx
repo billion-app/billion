@@ -8,6 +8,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import { CardTranslationNotice } from "~/components/CardTranslationNotice";
 import { LanguageCorner } from "~/components/LanguageButton";
 import { Text } from "~/components/Themed";
 import {
@@ -21,19 +22,26 @@ import {
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, fontDisplay, planes } from "~/styles";
 import { trpc } from "~/utils/api";
+import { translateCardMetadata } from "~/utils/card-metadata";
+import { cardTranslationPolling } from "~/utils/card-translation";
 import { formatDate } from "~/utils/dates";
 
 export default function BillSponsorProfileScreen() {
-  const { t: tx } = useAppTranslation();
+  const { t: tx, language } = useAppTranslation();
 
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const billId = Array.isArray(params.id) ? params.id[0] : params.id;
   const query = useQuery({
     ...trpc.content.getSponsorProfile.queryOptions({
+      language,
       billId: billId ?? "00000000-0000-0000-0000-000000000000",
     }),
     enabled: !!billId,
+    refetchInterval: (query) =>
+      cardTranslationPolling({
+        state: { data: query.state.data?.sponsoredBills },
+      }),
   });
 
   if (query.isLoading) {
@@ -111,6 +119,11 @@ export default function BillSponsorProfileScreen() {
         </View>
 
         <View style={s.section}>
+          <CardTranslationNotice
+            isError={query.isError}
+            items={sponsoredBills}
+            onRetry={() => void query.refetch()}
+          />
           <Kicker>
             {tx("Sponsored legislation · {value1}", {
               value1: sponsoredBills.length,
@@ -128,7 +141,7 @@ export default function BillSponsorProfileScreen() {
                     : bill.billNumber,
                   title: bill.title,
                   gist: bill.description,
-                  status: bill.status,
+                  status: translateCardMetadata(bill.status, language),
                   updated: bill.introducedDate
                     ? tx("Introduced {value1}", {
                         value1: formatDate(bill.introducedDate),

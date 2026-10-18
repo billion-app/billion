@@ -28,6 +28,13 @@ const LANGUAGE_NAME: Record<TranslationLanguage, string> = {
 
 /** Bumped when the prompt or segmenting changes, so cached rows refresh. */
 export const TRANSLATION_PROMPT_VERSION = "translate-v3";
+export const CARD_TRANSLATION_PROMPT_VERSION = "translate-card-v1";
+
+export function translationPromptVersion(segments: Segment[]): string {
+  return segments.some(({ key }) => key.startsWith("card."))
+    ? CARD_TRANSLATION_PROMPT_VERSION
+    : TRANSLATION_PROMPT_VERSION;
+}
 
 type Path = (string | number)[];
 
@@ -193,7 +200,7 @@ export function sourceSegments(source: TranslationSource): Segment[] {
 
 export function hashSegments(segments: Segment[]): string {
   return createHash("sha256")
-    .update(TRANSLATION_PROMPT_VERSION)
+    .update(translationPromptVersion(segments))
     .update(JSON.stringify(segments))
     .digest("hex");
 }
@@ -253,6 +260,7 @@ export function batchPieces(pieces: Piece[]): Piece[][] {
 export type TranslateBatch = (
   texts: string[],
   language: TranslationLanguage,
+  context?: "card",
 ) => Promise<string[]>;
 
 export async function translateSegments(
@@ -280,7 +288,13 @@ export async function translateSegments(
   const translatedPieces: Piece[] = [];
   for (const batch of batchPieces(pieces)) {
     const texts = batch.map((piece) => piece.text);
-    const result = await translateBatch(texts, language);
+    const result = await translateBatch(
+      texts,
+      language,
+      translationPromptVersion(segments) === CARD_TRANSLATION_PROMPT_VERSION
+        ? "card"
+        : undefined,
+    );
     if (result.length !== texts.length) {
       throw new Error(
         `Translation returned ${result.length} items for ${texts.length}`,
@@ -319,7 +333,7 @@ export function createTranslateBatch(
   model: LanguageModel,
   signal?: AbortSignal,
 ): TranslateBatch {
-  return async (texts, language) => {
+  return async (texts, language, context) => {
     const { output } = await generateText({
       model,
       temperature: 0.2,
@@ -330,6 +344,7 @@ export function createTranslateBatch(
       prompt: `Translate each string in the JSON array below from English into ${LANGUAGE_NAME[language]} for a nonpartisan civic news app.
 
 Rules:
+${context === "card" ? "- These strings belong to one legislative news card: a bill title, its summary, and possibly an editorial takeaway. Read them together to disambiguate the title. Use the legal/government meaning, not an everyday homonym. For example, criminal-justice Corrections means 惩教 or 矫正 in Chinese (not 更正); parole is 假释; pre-release treatment means rehabilitation or treatment before release, not benefits or preferential treatment. Preserve proposed/conditional wording such as would; do not imply a proposal is already law. Render a title naturally as a heading, without an unnecessary final period." : ""}
 - Return {"translations": [...]} with exactly ${texts.length} strings, in the same order.
 - Translate meaning faithfully and neutrally. Do not add, remove, soften, or explain anything.
 - Keep markdown exactly: headings, lists, links, and **bold** markers stay around the matching translated words.

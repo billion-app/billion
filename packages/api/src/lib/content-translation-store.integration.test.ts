@@ -10,6 +10,7 @@ import { ContentTranslation, ContentTranslationRequest } from "@acme/db/schema";
 import { TRANSLATION_PROMPT_VERSION } from "./content-translation";
 import {
   getSegmentTranslations,
+  getSegmentTranslationsMany,
   getTranslations,
   processNextTranslation,
 } from "./content-translation-store";
@@ -46,6 +47,92 @@ void test(
         modelVersion: `${TRANSLATION_PROMPT_VERSION}:test`,
       });
     try {
+      await t.test(
+        "a page of card requests is deduplicated and does not overwrite reader jobs",
+        async () => {
+          const { cardTranslationRequest } = await import("./card-translation");
+          const card = {
+            id: input.contentId,
+            type: "bill" as const,
+            title: "Wildfire",
+            description: "Would share data",
+          };
+          const cardRequest = cardTranslationRequest(card, "es");
+          await getTranslations(input);
+          const before = await db.select().from(ContentTranslationRequest);
+          assert.deepEqual(
+            await getSegmentTranslationsMany([cardRequest, cardRequest]),
+            [null, null],
+          );
+          const queued = await db.select().from(ContentTranslationRequest);
+          assert.equal(queued.length, 2);
+          assert.deepEqual(
+            queued.find((row) => row.contentId === input.contentId),
+            before[0],
+          );
+          assert.equal(await worker(), "generated");
+          assert.equal(await worker(), "generated");
+          const [payload] = await getSegmentTranslationsMany([cardRequest]);
+          assert.equal(payload?.["card.title"], "ES Wildfire");
+          // An older worker can copy the new source hash, but its prompt cannot pass as the card prompt.
+          await db
+            .update(ContentTranslation)
+            .set({ modelVersion: `${TRANSLATION_PROMPT_VERSION}:old-worker` })
+            .where(eq(ContentTranslation.contentId, cardRequest.contentId));
+          assert.deepEqual(await getSegmentTranslationsMany([cardRequest]), [
+            null,
+          ]);
+          assert.equal(await worker(), "generated");
+          assert.equal(
+            (await getSegmentTranslationsMany([cardRequest]))[0]?.[
+              "card.title"
+            ],
+            "ES Wildfire",
+          );
+
+          // A malformed cache entry must be regenerated, even when its hash matches.
+          await db
+            .update(ContentTranslation)
+            .set({
+              payload: {
+                "card.title": " ",
+                "card.description": "ES Would share data",
+              },
+            })
+            .where(eq(ContentTranslation.contentId, cardRequest.contentId));
+          assert.deepEqual(await getSegmentTranslationsMany([cardRequest]), [
+            null,
+          ]);
+          assert.equal(
+            await processNextTranslation({
+              translateBatch: translated,
+              modelVersion:
+                `${TRANSLATION_PROMPT_VERSION}:${"x".repeat(80)}`.slice(0, 80),
+            }),
+            "generated",
+          );
+          const [longModelCache] = await db
+            .select()
+            .from(ContentTranslation)
+            .where(eq(ContentTranslation.contentId, cardRequest.contentId));
+          assert.equal(longModelCache?.modelVersion.length, 80);
+          assert.equal(
+            (await getSegmentTranslationsMany([cardRequest]))[0]?.[
+              "card.title"
+            ],
+            "ES Wildfire",
+          );
+
+          assert.equal((await getTranslations(input))?.title, "ES First");
+          await db
+            .delete(ContentTranslation)
+            .where(eq(ContentTranslation.contentId, cardRequest.contentId));
+          await db
+            .delete(ContentTranslation)
+            .where(eq(ContentTranslation.contentId, input.contentId));
+        },
+      );
+
       await t.test(
         "concurrent readers enqueue once; concurrent workers claim once",
         async () => {

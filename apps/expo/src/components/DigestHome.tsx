@@ -30,6 +30,8 @@ import { useSavedContent } from "~/hooks/useSavedContent";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
 import { trpc } from "~/utils/api";
+import { translateCardMetadata } from "~/utils/card-metadata";
+import { cardTranslationPolling } from "~/utils/card-translation";
 import { contentImageSource } from "~/utils/editorial-visuals";
 import {
   isStateJurisdiction,
@@ -39,6 +41,7 @@ import {
 } from "~/utils/jurisdiction";
 import { visibleArticles } from "~/utils/read-content";
 import { BRIEF_MAX, changeConnection } from "~/utils/what-changed";
+import { CardTranslationNotice } from "./CardTranslationNotice";
 
 const CANVAS = P.night;
 const CARD = P.card;
@@ -70,6 +73,8 @@ function jurisdictionLabel(item: DigestCard, language: AppLanguage): string {
 }
 
 function sourceLabel(item: DigestCard, language: AppLanguage): string {
+  if (language !== "en" && item.type === "bill" && item.jurisdiction)
+    return jurisdictionText(item.jurisdiction, language).body;
   if (
     "sourceLabel" in item &&
     typeof item.sourceLabel === "string" &&
@@ -98,7 +103,10 @@ function cardDek(item: DigestCard): string {
 }
 
 function coverMeta(item: DigestCard, language: AppLanguage): string {
-  const parts = [item.billNumber, item.chamber].filter(Boolean);
+  const parts = [
+    item.billNumber,
+    translateCardMetadata(item.chamber, language),
+  ].filter(Boolean);
   return parts.length > 0
     ? parts.join(" · ")
     : jurisdictionLabel(item, language);
@@ -150,8 +158,10 @@ export function DigestHome() {
   const featuredLocal = useQuery({
     ...trpc.content.getFeaturedBills.queryOptions({
       jurisdiction: localJurisdiction,
+      language,
     }),
     enabled: localJurisdiction !== "ma",
+    refetchInterval: cardTranslationPolling,
   });
   const featuredEmpty =
     !featuredLocal.isLoading && (featuredLocal.data?.length ?? 0) === 0;
@@ -160,15 +170,21 @@ export function DigestHome() {
       type: localJurisdiction === "ma" ? "all" : "bill",
       limit: BRIEF_MAX,
       jurisdiction: localJurisdiction,
+      language,
     }),
     enabled: featuredEmpty || !!featuredLocal.error,
+    refetchInterval: cardTranslationPolling,
   });
 
   const featuredFederal = useQuery(
-    trpc.content.getFeaturedBills.queryOptions({ jurisdiction: "federal" }),
+    trpc.content.getFeaturedBills.queryOptions(
+      { jurisdiction: "federal", language },
+      { refetchInterval: cardTranslationPolling },
+    ),
   );
   const {
     data: federalFeed,
+    refetch: refetchFederalFeed,
     error: federalFeedError,
     fetchNextPage,
     hasNextPage,
@@ -180,9 +196,11 @@ export function DigestHome() {
         type: "bill",
         limit: ALSO_PAGE_SIZE,
         jurisdiction: "federal",
+        language,
       },
       {
         initialCursor: 0,
+        refetchInterval: cardTranslationPolling,
         getNextPageParam: (lastPage) => lastPage.nextCursor,
       },
     ),
@@ -314,6 +332,21 @@ export function DigestHome() {
           <View style={s.sectionRule} />
         </View>
 
+        <CardTranslationNotice
+          isError={
+            !!featuredLocal.error ||
+            !!localFeed.error ||
+            !!featuredFederal.error ||
+            !!federalFeedError
+          }
+          items={[...localCards, ...alsoCards]}
+          onRetry={() => {
+            void featuredLocal.refetch();
+            void localFeed.refetch();
+            void featuredFederal.refetch();
+            void refetchFederalFeed();
+          }}
+        />
         {localLoading ? (
           <ActivityIndicator
             color={MUTED}
@@ -679,7 +712,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 13.5,
     lineHeight: 19,
-    color: MUTED,
+    color: INK,
   },
   dots: {
     flexDirection: "row",
@@ -787,6 +820,6 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 13.5,
     lineHeight: 19,
-    color: MUTED,
+    color: INK,
   },
 });

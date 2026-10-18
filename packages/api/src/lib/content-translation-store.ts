@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod/v4";
 
-import { and, asc, eq, lte, ne, sql } from "@acme/db";
+import { and, asc, eq, inArray, lte, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import { ContentTranslation, ContentTranslationRequest } from "@acme/db/schema";
 
@@ -17,6 +17,7 @@ import {
   sourceSegments,
   translateSegments,
   TRANSLATION_PROMPT_VERSION,
+  translationPromptVersion,
 } from "./content-translation";
 
 const payloadSchema = z.record(z.string(), z.string());
@@ -33,62 +34,88 @@ export async function getTranslations(input: {
   });
 }
 
-export async function getSegmentTranslations(input: {
+export interface SegmentTranslationRequest {
   contentId: string;
   contentType: "bill" | "government_content" | "court_case" | "measure";
   language: TranslationLanguage;
   segments: Segment[];
-}): Promise<Record<string, string> | null> {
-  const segments = input.segments;
-  const sourceHash = hashSegments(segments);
-  const [row] = await db
+}
+
+export async function getSegmentTranslations(input: SegmentTranslationRequest) {
+  const [result] = await getSegmentTranslationsMany([input]);
+  return result ?? null;
+}
+
+/** One cache read and one deduplicated queue write for a page of cards. */
+export async function getSegmentTranslationsMany(
+  inputs: SegmentTranslationRequest[],
+) {
+  if (!inputs.length) return [];
+  const rows = await db
     .select()
     .from(ContentTranslation)
     .where(
       and(
-        eq(ContentTranslation.contentId, input.contentId),
-        eq(ContentTranslation.language, input.language),
+        inArray(
+          ContentTranslation.contentId,
+          inputs.map((input) => input.contentId),
+        ),
+        inArray(
+          ContentTranslation.language,
+          inputs.map((input) => input.language),
+        ),
       ),
-    )
-    .limit(1);
-  // During a rolling deploy an old worker can claim a new API's request.
-  // Its output must not masquerade as the current prompt merely because it
-  // copied the request's source hash. A miss requeues it for the new worker.
-  if (
-    row?.sourceHash === sourceHash &&
-    row.modelVersion.startsWith(`${TRANSLATION_PROMPT_VERSION}:`)
-  ) {
-    const parsed = payloadSchema.safeParse(row.payload);
-    if (parsed.success) return parsed.data;
+    );
+  const cached = new Map(
+    rows.map((row) => [`${row.contentId}:${row.language}`, row]),
+  );
+  const misses = new Map<
+    string,
+    SegmentTranslationRequest & { sourceHash: string }
+  >();
+  const results = inputs.map((input) => {
+    const sourceHash = hashSegments(input.segments);
+    const key = `${input.contentId}:${input.language}`;
+    const row = cached.get(key);
+    if (
+      row?.sourceHash === sourceHash &&
+      row.modelVersion.startsWith(
+        `${translationPromptVersion(input.segments)}:`,
+      )
+    ) {
+      const parsed = payloadSchema.safeParse(row.payload);
+      if (
+        parsed.success &&
+        input.segments.every((segment) => !!parsed.data[segment.key]?.trim())
+      )
+        return parsed.data;
+    }
+    misses.set(key, { ...input, sourceHash });
+    return null;
+  });
+  if (misses.size) {
+    await db
+      .insert(ContentTranslationRequest)
+      .values([...misses.values()])
+      .onConflictDoUpdate({
+        target: [
+          ContentTranslationRequest.contentId,
+          ContentTranslationRequest.language,
+        ],
+        set: {
+          sourceHash: sql`excluded.source_hash`,
+          segments: sql`excluded.segments`,
+          contentType: sql`excluded.content_type`,
+          requestedAt: sql`now()`,
+          availableAt: sql`now()`,
+          attempts: 0,
+          claimId: null,
+        },
+        // Polling must preserve a worker lease and a failed request's backoff.
+        setWhere: sql`${ContentTranslationRequest.sourceHash} <> excluded.source_hash`,
+      });
   }
-
-  await db
-    .insert(ContentTranslationRequest)
-    .values({
-      contentId: input.contentId,
-      contentType: input.contentType,
-      language: input.language,
-      sourceHash,
-      segments,
-    })
-    .onConflictDoUpdate({
-      target: [
-        ContentTranslationRequest.contentId,
-        ContentTranslationRequest.language,
-      ],
-      set: {
-        sourceHash,
-        segments,
-        contentType: input.contentType,
-        requestedAt: sql`now()`,
-        availableAt: sql`now()`,
-        attempts: 0,
-        claimId: null,
-      },
-      // Reader polling must not reset a lease or a failed request's backoff.
-      setWhere: ne(ContentTranslationRequest.sourceHash, sourceHash),
-    });
-  return null;
+  return results;
 }
 
 /** Claims one request without holding a DB connection while the model runs. */
@@ -132,6 +159,12 @@ export async function processNextTranslation(input: {
       language,
       input.translateBatch,
     );
+    const modelVersion = input.modelVersion
+      .replace(
+        `${TRANSLATION_PROMPT_VERSION}:`,
+        `${translationPromptVersion(request.segments)}:`,
+      )
+      .slice(0, 80);
     return await db.transaction(async (tx) => {
       // A source revision or an expired lease must never publish stale work.
       const [current] = await tx
@@ -148,14 +181,14 @@ export async function processNextTranslation(input: {
           language,
           sourceHash: request.sourceHash,
           payload,
-          modelVersion: input.modelVersion,
+          modelVersion,
         })
         .onConflictDoUpdate({
           target: [ContentTranslation.contentId, ContentTranslation.language],
           set: {
             sourceHash: request.sourceHash,
             payload,
-            modelVersion: input.modelVersion,
+            modelVersion,
           },
         });
       await tx.delete(ContentTranslationRequest).where(owned);
