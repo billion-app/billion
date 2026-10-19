@@ -126,6 +126,7 @@ export function JurisdictionPicker({
                     onSaveAddress(next);
                     setEditingAddress(false);
                   }}
+                  onCancel={() => setEditingAddress(false)}
                 />
               </View>
             ) : (

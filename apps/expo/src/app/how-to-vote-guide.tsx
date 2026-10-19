@@ -10,7 +10,13 @@
  * is unavailable.
  */
 import type { Href } from "expo-router";
-import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Linking,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
 
 import type { IconName } from "~/components/ui";
@@ -124,21 +130,31 @@ export default function HowToVoteGuideScreen() {
     { icon: "accessibility", text: t("voteGuide.bring.helper") },
   ];
 
-  const DATES: readonly { icon: IconName; label: string; detail: string }[] = [
+  // Generic deadline types, not dates. Each one opens the office that
+  // publishes the actual date for the current election.
+  const DEADLINES: readonly {
+    icon: IconName;
+    label: string;
+    detail: string;
+    url: string;
+  }[] = [
     {
       icon: "edit",
       label: t("voteGuide.dates.registration"),
       detail: t("voteGuide.dates.registrationDetail"),
+      url: "https://www.sos.ca.gov/elections/upcoming-elections",
     },
     {
       icon: "mail",
       label: t("voteGuide.dates.missing"),
       detail: t("voteGuide.dates.missingDetail"),
+      url: "https://www.sos.ca.gov/elections/voting-resources/county-elections-offices",
     },
     {
       icon: "inbox",
       label: t("voteGuide.dates.return"),
       detail: t("voteGuide.dates.returnDetail"),
+      url: "https://www.sos.ca.gov/elections/upcoming-elections",
     },
   ];
 
@@ -301,16 +317,26 @@ export default function HowToVoteGuideScreen() {
 
         <Kicker>{t("voteGuide.dates")}</Kicker>
         <Card style={s.dates}>
-          {DATES.map((date) => (
-            <View key={date.label} style={s.dateRow}>
+          <Text style={s.datesNote}>{t("voteGuide.datesNote")}</Text>
+          {DEADLINES.map((deadline) => (
+            <TouchableOpacity
+              key={deadline.label}
+              activeOpacity={0.8}
+              accessibilityRole="link"
+              accessibilityLabel={`${deadline.label}. ${deadline.detail}`}
+              accessibilityHint={t("common.opensInBrowser")}
+              onPress={() => void Linking.openURL(deadline.url)}
+              style={s.dateRow}
+            >
               <View style={s.dateIcon}>
-                <Icon name={date.icon} size={15} color={colors.bill} />
+                <Icon name={deadline.icon} size={15} color={colors.bill} />
               </View>
               <View style={s.dateBody}>
-                <Text style={s.dateLabel}>{date.label}</Text>
-                <Text style={s.dateDetail}>{date.detail}</Text>
+                <Text style={s.dateLabel}>{deadline.label}</Text>
+                <Text style={s.dateDetail}>{deadline.detail}</Text>
               </View>
-            </View>
+              <Icon name="external" size={15} color={colors.bill} />
+            </TouchableOpacity>
           ))}
           <TouchableOpacity
             accessibilityRole="button"
@@ -494,7 +520,18 @@ const s = StyleSheet.create({
   },
 
   dates: { gap: 14, marginTop: 10, marginBottom: 24 },
-  dateRow: { flexDirection: "row", alignItems: "center", gap: 11 },
+  datesNote: {
+    fontFamily: fontBody.regular,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: colors.textSecondary,
+  },
+  dateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    minHeight: 44,
+  },
   dateIcon: {
     width: 30,
     height: 30,

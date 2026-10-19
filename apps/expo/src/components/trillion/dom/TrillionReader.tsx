@@ -27,6 +27,7 @@ export interface TrillionReaderHandle extends DOMImperativeFactory {
 export default function TrillionReader({
   graph,
   translationKey = "en",
+  externalHeader = false,
   language = "en",
   localState,
   onLocalState,
@@ -41,6 +42,7 @@ export default function TrillionReader({
 }: {
   graph: PublicTrillionGraph;
   translationKey?: string;
+  externalHeader?: boolean;
   language?: "en" | "es" | "zh";
   localState: string;
   onLocalState: (value: string) => Promise<void>;
@@ -83,6 +85,7 @@ export default function TrillionReader({
       view,
       ballot,
       language,
+      externalHeader,
       navigation: navigation.current,
     });
     reader.current = mounted;
@@ -99,6 +102,7 @@ export default function TrillionReader({
     graph.measure.number,
     graph.revision,
     translationKey,
+    externalHeader,
     language,
   ]);
   return (

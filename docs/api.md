@@ -37,7 +37,18 @@ The protected `user.getPreferences` procedure returns the caller's `user_prefere
 
 For Browse and article detail, start in [content.ts](../packages/api/src/router/content.ts). `getByType` reads paginated stored content, `search` searches the corpus, and `getById` assembles the detail response with available derived content. The [architecture tour](architecture.md#follow-a-bill-to-the-screen) traces these back to ingestion.
 
+Presidential records keep `type: "government_content"` for routing and expose
+their stored source type as `governmentContentType`. Browse, search, saved
+records, and detail preserve this field. Mobile and web badges use it to
+distinguish executive orders, notices, memoranda, and other document types.
+Missing or unknown subtypes use the neutral Executive label. Notification
+eligibility still uses the stored source type, independently of badge copy.
+
 Detail keeps bill `brief` and court `courtBrief` as separate response fields.
+Bill timelines validate stored action records and omit entries without a readable
+date and description. Some Congress actions contain only an internal code; these
+must not prevent the article or its translation from loading. Original action
+records remain unchanged in storage.
 Court output is validated against its own schema and current source hash;
 missing, stale, invalid, or unsupported brief versions return `null`. Court
 lenses also need the current source hash. Original text and source URLs remain
@@ -84,6 +95,8 @@ Choose the existing router that owns the behavior. Define runtime input validati
 Lock-screen alerts live on `notifications`. The phone is the identity: Expo registers a push token, `sync` upserts that token with prefs and saved bill IDs, and `notify-followers` later sends through Expo Push. There is no account. Copy, quiet hours, and the Expo client live under `packages/api/src/lib/notifications/`.
 
 Executive-order subscriptions are separate from saved bills. `sync` accepts `prefs.executiveOrders`; a true value starts a subscription at the current time, repeated syncs preserve that start, and omission by older clients preserves an existing subscription. The hourly worker queues new `Executive Order` source rows created after that start and published on or after its UTC calendar date. Earlier publications and existing archive rows are excluded. A unique device/order index prevents duplicate alerts, including after Federal Register reconciliation. Quiet hours apply; tapping opens the source article. Opt-out cancels queued executive alerts, and delivery checks the current subscription again. Apply migration `0022_lush_the_order` before deploying the API and worker.
+
+New-bill alerts use a separate optional `prefs.newBills` subscription. Omission preserves the current choice for older clients. Repeated opt-in preserves its start; opt-out clears it and deletes unsent new-bill alerts. The worker selects Congress.gov bills first imported after that start, with an introduction date between seven UTC calendar days before ingestion and the ingestion timestamp. This accepts delayed imports such as a bill introduced three days before arrival, excludes archive imports, and survives worker downtime. Each device receives at most one queued `new_bill` alert per bill. Quiet hours apply, delivery rechecks the subscription, and re-enabling excludes previously imported bills. Sent rows remain in history. Apply migration `0030_petite_ironclad` before deploying the API and worker.
 
 Turning off follow alerts or removing a saved bill cancels its unsent follow notifications. Delivery also checks the current preference and follow record. A test sends only its own outbox row; it does not release the quiet-hours backlog. A successful test response means Expo accepted the push, not that APNs delivered it. Expo rejection returns an API error.
 

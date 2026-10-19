@@ -23,11 +23,15 @@ export function ReaderTools({
   state,
   onRetry,
   showLanguage = true,
+  showNotice = true,
+  inline = false,
 }: {
   speech: ReturnType<typeof useArticleSpeech>;
-  state: "original" | "translated" | "pending" | "unavailable";
+  state: "original" | "translated" | "pending" | "unavailable" | "delayed";
   onRetry: () => void;
   showLanguage?: boolean;
+  showNotice?: boolean;
+  inline?: boolean;
 }) {
   const { t } = useLanguage();
   // Read aloud is missing on web and in builds without the speech module.
@@ -41,7 +45,7 @@ export function ReaderTools({
         ? t("listen.resume")
         : t("listen.short");
   return (
-    <View style={s.wrap}>
+    <View style={[s.wrap, inline && s.inline]}>
       <View style={s.row}>
         <Pressable
           style={({ pressed }) => [
@@ -72,16 +76,18 @@ export function ReaderTools({
             size={17}
             color={speech.available ? P.inkOnNight : P.quiet}
           />
-          <Text
-            style={[s.label, !speech.available && s.labelMuted]}
-            numberOfLines={1}
-          >
-            {listenLabel}
-          </Text>
+          {!inline && (
+            <Text
+              style={[s.label, !speech.available && s.labelMuted]}
+              numberOfLines={1}
+            >
+              {listenLabel}
+            </Text>
+          )}
         </Pressable>
         {showLanguage && <LanguageButton />}
       </View>
-      <TranslationNotice state={state} onRetry={onRetry} />
+      {showNotice && <TranslationNotice state={state} onRetry={onRetry} />}
       {!speech.available && explainUnavailable && (
         <Text style={s.note} accessibilityLiveRegion="polite">
           {t("listen.unavailable")}
@@ -97,6 +103,7 @@ export function ReaderTools({
 }
 
 const s = StyleSheet.create({
+  inline: { paddingHorizontal: 0, paddingTop: 0, paddingBottom: 0 },
   wrap: {
     paddingHorizontal: 16,
     paddingTop: 4,

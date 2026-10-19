@@ -138,6 +138,8 @@ Web requests carry session cookies. The Expo auth client stores its session loca
 
 On a physical phone, Your alerts loads the server history when the screen opens. These are pushes accepted by Expo; entries are removed if a later receipt reports failure or delivery remains unknown after 24 hours. Receipt success confirms provider acceptance, not display on the phone. Empty history stays empty; old sample entries are discarded. Test reports push failures without substituting a local notification. Simulators use local OS notifications and keep only successfully scheduled tests in local history.
 
+Settings offers **New bills in Congress** after Executive orders. It defaults off for every installation, including new ones, and onboarding does not enable it. The choice persists locally and syncs through `PushSync`, including when the app returns to the foreground. Each eligible bill gets one alert that opens its article; new-bill alerts also appear in Your alerts.
+
 Push registration waits for onboarding to finish and notification preferences to load. Completing onboarding writes the selected instant and recap choices to the notification store before registration starts. Later Settings edits remain authoritative across launches.
 
 The [election-process education route](../apps/expo/src/app/election-process.tsx) is reached from the Elections invitation. It uses hand-authored summaries of linked official sources to compare presidential nomination, California congressional top-two elections and Texas party primaries. These are labeled educational examples, not personalized ballots or live contest timelines. Current stage and next milestone remain unavailable; official registration and election-office links provide the next action. Candidate-status distinctions do not create a 2028 roster. [Prototype gates](evidence/419/README.md) record the remaining editorial, reader and native verification work.
@@ -148,7 +150,7 @@ The Elections invitation opens the live, statewide California official guide cac
 
 These screens call the local `civic.getVoterInfo` API with explicit `mock:full`, `mock:partial`, `mock:empty` or `mock:error` addresses. The server recognizes them only when `NODE_ENV=development`, before any provider or cache operation. Production never returns these fixtures. Names, instructions and schedules in the fixtures are fictional.
 
-Article detail on mobile, the web reader, and shared article pages shows Created and Last updated beneath the title. These come from the stored record’s `createdAt` and `updatedAt` through `content.getById`, rather than the official publication or action date. If no update timestamp exists, Last updated uses the creation timestamp.
+Article detail on mobile, the web reader, and shared article pages shows Introduced for bills with a source introduction date from `content.getById`. Federal bills use the stored `introducedDate`; state bills require a dated introduction action because older records can store the provider’s creation date in that column. Other records, and bills without an introduction date, show Added to Billion using `createdAt`; this is when Billion first stored the record, not an official event date. Updated on Billion uses `updatedAt`, falling back to `createdAt` if no update timestamp exists. Dates are formatted in UTC so an official calendar date does not shift to the previous day on a reader’s phone. Labels and date formats follow the selected language.
 
 The voting plan opens inline in the statewide guide and the address ballot, so
 readers keep their election, tab and ballot position while checking official
@@ -187,3 +189,23 @@ Candidate research is translated only after its release/publication gates pass. 
 Alert history requests the selected language and refreshes while translation is pending. Test notifications use fixed localized copy and normalize to the current language when read. Ordinary OS push alerts still use their delivery-time copy; this does not persist a device language preference on the notification service.
 
 App share links carry `lang`; `/b/[id]`, its metadata, and the story/preview images use the same reader translation cache. A missing translation displays a localized preparing state instead of producing an English share image. The standalone marketing site and editorial tools have no app language selection and are outside this mobile-page audit. See the [October page audit](localization-audit.md) for coverage and intentional source-language boundaries.
+
+### Address confirmation, privacy, and updates
+
+Device location fills an editable draft. Both full forms and compact news menus
+require a visible confirmation action; Cancel discards the draft and invalidates
+pending location requests. News copy refers to a coverage address, while ballot
+copy asks for the registered voting address. The address-free voting guide labels
+its links as deadlines to check with official sources instead of presenting them
+as current dates. Settings → Privacy opens the Privacy Policy first and links
+directly to address and OS permission controls.
+
+[UpdatePrompt](../apps/expo/src/components/UpdatePrompt.tsx) owns the optional
+update notices. Its OTA card stays dismissible while preparing a restart; dismiss
+cancels restart intent, and a stalled preparation times out. Reduced motion does
+not change the action's urgency. The localized
+[App Store card](../apps/expo/src/components/AppStoreUpdateBanner.tsx) is suppressed
+while the OTA notice or preparation is active. Both notices sit above the tab
+bar so Back and the language selector remain reachable. It uses the installed native
+version and a validated public Apple listing through `appRelease.latestIos`.
+Development builds do not offer real App Store updates.

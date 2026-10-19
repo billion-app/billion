@@ -48,7 +48,28 @@ void test("non-bill records get a kind as status and no activity date", () => {
   });
   assert.equal(card.status, "Executive action");
   assert.equal(card.activityAt, undefined);
-  assert.equal(card.typeLabel, "ORDER");
+  assert.equal(card.typeLabel, "EXECUTIVE");
+});
+
+void test("presidential cards show the source document type", () => {
+  for (const [governmentContentType, expected] of [
+    ["Executive Order", "ORDER"],
+    ["Notice", "NOTICE"],
+    ["Memorandum", "MEMORANDUM"],
+    ["Proclamation", "PROCLAMATION"],
+    ["Presidential Document", "PRESIDENTIAL DOCUMENT"],
+    ["future document type", "EXECUTIVE"],
+  ]) {
+    const card = toCardItem({
+      id: "presidential-record",
+      type: "government_content",
+      governmentContentType,
+      title: "Continuation of a national emergency",
+      description: "Source document",
+    });
+    assert.equal(card.typeLabel, expected);
+    assert.equal(card.type, "government_content");
+  }
 });
 
 void test("unknown types present as a briefing", () => {

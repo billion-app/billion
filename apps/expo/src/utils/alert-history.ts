@@ -17,6 +17,7 @@ export const MAX_ALERTS = 100;
 
 export type AlertKind =
   | "executive"
+  | "new_bill"
   | "follow"
   | "breaking"
   | "changes"
@@ -47,6 +48,7 @@ export const TEST_ALERT: Omit<AlertItem, "id" | "at"> = {
 
 const KINDS = new Set<AlertKind>([
   "executive",
+  "new_bill",
   "follow",
   "breaking",
   "changes",

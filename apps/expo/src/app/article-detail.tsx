@@ -18,6 +18,7 @@ import type { BillBriefData, BriefQuote } from "~/components/ui";
 import type { ShareSurface } from "~/utils/share";
 import { LanguageCorner } from "~/components/LanguageButton";
 import { ListenBar } from "~/components/ListenBar";
+import { ReaderTranslationState } from "~/components/ReaderTranslationState";
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { ShareSheet } from "~/components/ShareSheet";
 import { Text } from "~/components/Themed";
@@ -45,6 +46,7 @@ import { useLanguage } from "~/hooks/useLanguage";
 import { useReadContent } from "~/hooks/useReadContent";
 import { useSavedContent } from "~/hooks/useSavedContent";
 import { useScreenshotDetection } from "~/hooks/useScreenshotDetection";
+import { useTranslationWait } from "~/hooks/useTranslationWait";
 import { translateAppLabel } from "~/i18n/app-strings";
 import {
   colors,
@@ -58,15 +60,17 @@ import {
   planes,
   resolveType,
 } from "~/styles";
-import { trpc } from "~/utils/api";
+import { queryClient, trpc } from "~/utils/api";
 import { translateSessionLabel } from "~/utils/card-metadata";
-import { formatDate } from "~/utils/dates";
+import { formatArticleDate, formatDate } from "~/utils/dates";
 import { contentImageSource } from "~/utils/editorial-visuals";
+import { governmentContentLabel } from "~/utils/government-content";
 import { isStateJurisdiction, jurisdictionText } from "~/utils/jurisdiction";
 import { findSourcePassage } from "~/utils/source-passage";
 import { buildSpeechChunks } from "~/utils/speech-script";
 import {
   articleTranslationState,
+  readyReaderTranslation,
   translationCachePolicy,
 } from "~/utils/translation-cache";
 
@@ -115,6 +119,7 @@ export default function ArticleDetailScreen() {
     });
   };
 
+  const { language, t: tr, isReady: isLanguageReady } = useLanguage();
   const {
     data: content,
     isLoading,
@@ -123,20 +128,14 @@ export default function ArticleDetailScreen() {
   } = useQuery({
     ...trpc.content.getById.queryOptions({
       id: articleId ?? "__missing__",
+      language,
       supportsMassachusetts: true,
     }),
-    enabled: !!articleId,
+    enabled: !!articleId && isLanguageReady,
   });
 
-  const { markRead } = useReadContent();
-  const loadedArticleId = !error ? content?.id : undefined;
   useEffect(() => {
-    // Failed requests and cards merely seen on Home are not reads.
-    if (loadedArticleId) markRead(loadedArticleId);
-  }, [loadedArticleId, markRead]);
-
-  useEffect(() => {
-    if (content) {
+    if (content && isLanguageReady) {
       posthog.capture("article_viewed", {
         content_id: content.id,
         content_type: content.type,
@@ -144,7 +143,7 @@ export default function ArticleDetailScreen() {
         is_ai_generated: content.isAIGenerated,
       });
     }
-  }, [content]);
+  }, [content, isLanguageReady]);
   const headerImageUri = content?.imageUri ?? content?.thumbnailUrl;
   const headerImageSource = content
     ? contentImageSource(headerImageUri)
@@ -153,36 +152,69 @@ export default function ArticleDetailScreen() {
     ? `${content.title}:${headerImageUri ?? "local"}`
     : undefined;
 
-  // Spanish and Chinese readers get Billion's explanation translated. English
-  // renders first; the translation replaces it when it arrives. Source text
-  // (original documents and quotes) is never translated.
-  const { language, t: tr } = useLanguage();
+  // Ready translations arrive with the article. Cache misses poll without
+  // revealing English prose; original documents and quotations stay verbatim.
   const translationLanguage = language === "en" ? null : language;
+  const preparedTranslation = readyReaderTranslation(
+    language,
+    content?.translationSourceHash,
+    content?.translation,
+    null,
+  );
+  const translationOptions = trpc.content.getTranslation.queryOptions({
+    id: articleId ?? "__missing__",
+    language: translationLanguage ?? "es",
+    sourceHash: content?.translationSourceHash,
+    supportsMassachusetts: true,
+  });
+  const cachedTranslation = readyReaderTranslation(
+    language,
+    content?.translationSourceHash,
+    preparedTranslation,
+    queryClient.getQueryData(translationOptions.queryKey),
+  );
+  const translationWait = useTranslationWait(
+    content && translationLanguage && !cachedTranslation
+      ? `${content.id}:${translationLanguage}:${content.translationSourceHash}`
+      : undefined,
+  );
   const translationQuery = useQuery({
-    ...trpc.content.getTranslation.queryOptions({
-      id: articleId ?? "__missing__",
-      language: translationLanguage ?? "es",
-      sourceHash: content?.translationSourceHash,
-      supportsMassachusetts: true,
-    }),
-    enabled: !!articleId && !!content && !!translationLanguage,
+    ...translationOptions,
+    enabled:
+      !!articleId &&
+      !!content &&
+      !!translationLanguage &&
+      !preparedTranslation &&
+      !translationWait.expired,
     ...translationCachePolicy,
+    refetchInterval: translationWait.expired
+      ? false
+      : translationCachePolicy.refetchInterval,
   });
   useEffect(() => {
     if (translationQuery.data?.status === "stale") void refetchContent();
   }, [translationQuery.data, refetchContent]);
-  const translation =
-    translationLanguage &&
-    translationQuery.data?.status === "translated" &&
-    translationQuery.data.language === translationLanguage &&
-    translationQuery.data.sourceHash === content?.translationSourceHash
-      ? translationQuery.data
-      : null;
+  const translation = readyReaderTranslation(
+    language,
+    content?.translationSourceHash,
+    preparedTranslation,
+    translationQuery.data,
+  );
   const translationState = articleTranslationState(
     !!translationLanguage,
     !!translation,
     translationQuery,
   );
+
+  const { markRead } = useReadContent();
+  const loadedArticleId =
+    !error && isLanguageReady && (!translationLanguage || translation)
+      ? content?.id
+      : undefined;
+  useEffect(() => {
+    // Failed requests and cards merely seen on Home are not reads.
+    if (loadedArticleId) markRead(loadedArticleId);
+  }, [loadedArticleId, markRead]);
 
   const speechLanguage =
     mode !== "source" &&
@@ -192,7 +224,12 @@ export default function ArticleDetailScreen() {
       : "en";
   // Narration follows the selected section, with context for listening.
   const speechChunks = useMemo(() => {
-    if (!content) return [];
+    if (
+      !isLanguageReady ||
+      !content ||
+      (translationLanguage && !translation && mode !== "source")
+    )
+      return [];
     if (mode === "source") {
       return buildSpeechChunks({
         title: content.title,
@@ -217,7 +254,14 @@ export default function ArticleDetailScreen() {
         (content.type === "court_case" ? content.courtBrief : null),
       body: translation?.articleContent ?? content.articleContent,
     });
-  }, [content, translation, mode, speechLanguage]);
+  }, [
+    content,
+    translation,
+    translationLanguage,
+    mode,
+    speechLanguage,
+    isLanguageReady,
+  ]);
   const speech = useArticleSpeech({
     chunks: speechChunks,
     language: speechLanguage,
@@ -257,12 +301,14 @@ export default function ArticleDetailScreen() {
     setShareSurface("screenshot");
   }, !!content);
 
-  if (isLoading) {
+  if (isLoading || !isLanguageReady) {
     return (
       <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
-        <LanguageCorner />
+        {isLanguageReady && <LanguageCorner />}
         <ActivityIndicator size="large" color={colors.white} />
-        <Text style={s.loadingText}>{tr("article.loading")}</Text>
+        {isLanguageReady && (
+          <Text style={s.loadingText}>{tr("article.loading")}</Text>
+        )}
       </View>
     );
   }
@@ -283,8 +329,46 @@ export default function ArticleDetailScreen() {
     );
   }
 
+  if (translationLanguage && !translation) {
+    return (
+      <ReaderTranslationState
+        title={[
+          tr(
+            content.type === "bill"
+              ? "readerUi.type.bill"
+              : content.type === "court_case"
+                ? "readerUi.type.court"
+                : "readerUi.type.exec",
+          ),
+          content.billNumber,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+        state={
+          translationState === "unavailable"
+            ? "unavailable"
+            : translationWait.expired
+              ? "delayed"
+              : "pending"
+        }
+        onRetry={() => {
+          translationWait.retry();
+          void translationQuery.refetch();
+        }}
+        onBack={() => router.back()}
+      />
+    );
+  }
+
   const typeKey = resolveType(content.type);
   const t = contentType[typeKey];
+  const typeLabel =
+    content.type === "government_content"
+      ? governmentContentLabel(
+          content.governmentContentType,
+          language,
+        ).toUpperCase()
+      : tr(`readerUi.type.${typeKey}`);
   // This screen is always rendered on the dark navy canvas, independent of
   // the phone's appearance setting. Using the light system theme here made
   // valid article markdown navy-on-navy and appear completely empty.
@@ -449,6 +533,8 @@ export default function ArticleDetailScreen() {
   // Actions are the official legislative record from the source (congress.gov).
   const timelineSourceUrl = hasRealActions ? content.url : undefined;
   const sponsor = content.type === "bill" ? content.sponsor : undefined;
+  const introducedDate =
+    content.type === "bill" ? content.introducedDate : undefined;
   const isStateBill =
     content.type === "bill" && isStateJurisdiction(content.jurisdiction);
   const displayBillNumber = isStateBill
@@ -471,7 +557,7 @@ export default function ArticleDetailScreen() {
   return (
     <View style={s.screen}>
       <NavHeader
-        title={tr(`readerUi.type.${typeKey}`)}
+        title={typeLabel}
         onBack={() => router.back()}
         action={
           <>
@@ -530,7 +616,10 @@ export default function ArticleDetailScreen() {
         <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
           <TranslationNotice
             state={mode === "source" ? "source" : translationState}
-            onRetry={() => void translationQuery.refetch()}
+            onRetry={() => {
+              translationWait.retry();
+              void translationQuery.refetch();
+            }}
           />
         </View>
       )}
@@ -559,7 +648,7 @@ export default function ArticleDetailScreen() {
         ) : (
           <Placeholder
             label={tr("readerUi.headerArt", {
-              type: tr(`readerUi.type.${typeKey}`),
+              type: typeLabel,
             })}
             height={170}
             radius={16}
@@ -568,7 +657,7 @@ export default function ArticleDetailScreen() {
         )}
 
         <View style={s.badgeRow}>
-          <Badge type={typeKey} />
+          <Badge type={typeKey}>{typeLabel}</Badge>
           {displayBillNumber ? (
             <Text style={s.billNumber} testID="article-bill-number">
               {displayBillNumber}
@@ -594,20 +683,15 @@ export default function ArticleDetailScreen() {
         {content.createdAt && content.updatedAt ? (
           <View style={{ gap: 4, marginBottom: 16 }} testID="article-dates">
             <Text style={s.articleDate}>
-              {tr("article.created")}{" "}
-              {content.createdAt.toLocaleDateString(dateLocale, {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {tr(introducedDate ? "article.introduced" : "article.created")}{" "}
+              {formatArticleDate(
+                introducedDate ?? content.createdAt,
+                dateLocale,
+              )}
             </Text>
             <Text style={s.articleDate}>
               {tr("article.updated")}{" "}
-              {content.updatedAt.toLocaleDateString(dateLocale, {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {formatArticleDate(content.updatedAt, dateLocale)}
             </Text>
           </View>
         ) : null}

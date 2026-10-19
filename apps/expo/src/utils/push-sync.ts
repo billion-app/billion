@@ -63,6 +63,7 @@ export async function syncPushRegistration(
     | "breaking"
     | "following"
     | "executiveOrders"
+    | "newBills"
     | "brief"
     | "recap"
     | "quietHours"
@@ -86,6 +87,7 @@ export async function syncPushRegistration(
         breaking: prefs.breaking,
         following: prefs.following,
         executiveOrders: prefs.executiveOrders,
+        newBills: prefs.newBills,
         brief: prefs.brief,
         recap: prefs.recap,
         quietHours: prefs.quietHours,

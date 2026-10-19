@@ -158,9 +158,9 @@ export const voteGuideStrings = {
     zh: "如有需要，可带一位协助者。",
   },
   "voteGuide.dates.registration": {
-    en: "Registration",
-    es: "Inscripción",
-    zh: "选民登记",
+    en: "Registration deadline",
+    es: "Fecha límite de inscripción",
+    zh: "登记截止日期",
   },
   "voteGuide.dates.registrationDetail": {
     en: "Missed regular registration? Same-day registration may still be available.",
@@ -168,9 +168,9 @@ export const voteGuideStrings = {
     zh: "错过常规登记？可能仍可办理当日登记。",
   },
   "voteGuide.dates.missing": {
-    en: "Missing mail ballot",
-    es: "No recibiste tu boleta por correo",
-    zh: "未收到邮寄选票",
+    en: "Replacement ballot deadline",
+    es: "Fecha límite para una boleta de reemplazo",
+    zh: "补发选票截止日期",
   },
   "voteGuide.dates.missingDetail": {
     en: "Ask your county about a replacement ballot and its deadlines.",
@@ -178,9 +178,9 @@ export const voteGuideStrings = {
     zh: "向所在县咨询补发选票及其截止日期。",
   },
   "voteGuide.dates.return": {
-    en: "Ballot return",
-    es: "Devolución de la boleta",
-    zh: "交回选票",
+    en: "Ballot return deadlines",
+    es: "Fechas límite para devolver la boleta",
+    zh: "交回选票截止日期",
   },
   "voteGuide.dates.returnDetail": {
     en: "Check postmark, receipt, and in-person return deadlines.",
@@ -313,9 +313,14 @@ export const voteGuideStrings = {
     zh: "携带物品",
   },
   "voteGuide.dates": {
-    en: "DATES TO KNOW",
-    es: "FECHAS IMPORTANTES",
-    zh: "重要日期",
+    en: "DEADLINES TO CHECK",
+    es: "FECHAS LÍMITE QUE DEBES CONSULTAR",
+    zh: "需要确认的截止日期",
+  },
+  "voteGuide.datesNote": {
+    en: "Deadlines change with each election. Tap one to check it with the official source.",
+    es: "Las fechas límite cambian en cada elección. Toca una para consultarla en la fuente oficial.",
+    zh: "每次选举的截止日期都不同。点按一项，向官方来源确认。",
   },
   "voteGuide.published": {
     en: "Check published voting details",
@@ -353,9 +358,9 @@ export const voteGuideStrings = {
     zh: "查询我的投票方式",
   },
   "voteGuide.cta.location": {
-    en: "Change my location",
-    es: "Cambiar mi ubicación",
-    zh: "更改我的位置",
+    en: "Change my saved address",
+    es: "Cambiar mi dirección guardada",
+    zh: "更改我保存的地址",
   },
 
   "voteGuide.entry.address": {

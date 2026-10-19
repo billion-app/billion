@@ -220,3 +220,25 @@ pnpm --filter @acme/scraper run retroactive-briefs --dry-run
 New and changed bills get briefs automatically as part of the normal scrape
 (`upsertBillBrief` in `utils/db/operations.ts`). `pnpm db:seed` writes two
 example briefs so the UI is visible locally without an LLM key.
+
+## Prepared Chinese readers
+
+After a successful content write, ingestion queues the complete Chinese reader
+(title, summary, authored article, structured brief and deep dive, perspectives,
+and timeline). The translation worker prepares that cached result before a
+reader requests it. Original documents, verbatim quotations, and source links
+remain intact. The canonical reader loader is shared with the API so background
+preparation and interactive requests use the same revision and field selection.
+
+The continuously running translation worker also walks existing bills, court
+cases, and executive content in bounded pages. It repeats the walk to catch
+later brief or perspective changes. It pauses preparation while the shared
+queue has 20 runnable or in-flight requests, instead of placing the entire archive ahead of readers.
+A source change invalidates the cached translation; unchanged text reuses it.
+
+`content.getById({ language: "zh" })` includes the prepared translation in its
+initial response. If preparation is still pending or fails, the mobile reader
+shows a localized waiting/retry state and allows an explicit switch to English.
+It does not render or narrate English prose while the Chinese reader loads.
+Spanish readers use the same display behavior with on-demand preparation.
+See the [translation worker commands](../apps/scraper/README.md#reader-translation-preparation).

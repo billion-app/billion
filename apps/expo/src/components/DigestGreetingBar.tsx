@@ -897,6 +897,7 @@ export function DigestGreetingBar({
                   setEditingAddress(false);
                   setLocationOpen(false);
                 }}
+                onCancel={() => setEditingAddress(false)}
               />
             ) : (
               <Pressable

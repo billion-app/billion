@@ -16,6 +16,7 @@ export interface ContentItem {
   title: string;
   description: string;
   type: "bill" | "government_content" | "court_case" | "general";
+  governmentContentType?: string;
   thumbnailUrl?: string;
   imageUri?: string;
   billNumber?: string;
@@ -61,6 +62,7 @@ export function toCardItem(
   return {
     id: item.id,
     type: resolveType(item.type),
+    governmentContentType: item.governmentContentType,
     tag: isStateBill
       ? stateBillTag(item.billNumber, !!options.showJurisdiction)
       : item.billNumber,

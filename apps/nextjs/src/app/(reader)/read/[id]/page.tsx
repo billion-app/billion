@@ -69,7 +69,12 @@ export default async function ReaderPage({ params }: PageProps) {
   const content = await getReaderContent(id);
   if (!content) notFound();
 
-  const type = presentType(content.type);
+  const type = presentType(
+    content.type,
+    content.type === "government_content"
+      ? content.governmentContentType
+      : undefined,
+  );
   const accent = type.color;
   const art = safeImageSrc(content.imageUri ?? content.thumbnailUrl);
   const jurisdiction = field<string>(content, "jurisdiction");
@@ -174,6 +179,9 @@ export default async function ReaderPage({ params }: PageProps) {
             {content.title}
           </h1>
           <ArticleDates
+            introducedDate={
+              content.type === "bill" ? content.introducedDate : undefined
+            }
             createdAt={content.createdAt}
             updatedAt={content.updatedAt}
           />

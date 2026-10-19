@@ -18,7 +18,7 @@ const argv = await yargs(hideBin(process.argv))
 
 if (argv.dryRun) {
   logger.info(
-    "dry-run: would enqueue follow moves and new executive orders, then drain the outbox",
+    "dry-run: would enqueue follow moves, new Congress bills and new executive orders, then drain the outbox",
   );
   process.exit(0);
 }

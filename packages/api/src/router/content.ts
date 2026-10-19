@@ -1,38 +1,31 @@
 import type { TRPCRouterRecord } from "@trpc/server";
-import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
 import type { BillLifecycleAction } from "@acme/validators";
 import { and, desc, eq, inArray, sql, unionAll } from "@acme/db";
-import { clampBillDescription } from "@acme/db/bill-description";
 import { db } from "@acme/db/client";
-import {
-  EXECUTIVE_ORDER_FALLBACK_IMAGE_URL,
-  resolveContentImageUrl,
-} from "@acme/db/content-images";
 import {
   Bill,
   BillInterest,
-  BriefChangeImage,
-  ContentBrief,
-  ContentImage,
-  ContentLens,
   CourtCase,
   FeaturedBill,
   GovernmentContent,
   SavedArticle,
 } from "@acme/db/schema";
-import { parseBillBriefRecord, parseCourtBriefRecord } from "@acme/validators";
 
 import type { ContentJurisdiction } from "../lib/content-jurisdiction";
-import { toBillTimelineActions } from "../lib/bill-actions";
 import { billDiscoveryCondition } from "../lib/bill-discovery";
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
 import { projectBillStatus } from "../lib/bill-status";
 import { localizeContentCards } from "../lib/card-translation";
 import {
+  attachContentImages,
+  billDescription,
+  courtJurisdiction,
+  loadContentDetail,
+} from "../lib/content-detail";
+import {
   billJurisdiction,
-  displaySessionLabel,
   JURISDICTION_CODES,
   jurisdictionCode,
   JURISDICTIONS,
@@ -40,17 +33,16 @@ import {
   parseStateBillNumber,
 } from "../lib/content-jurisdiction";
 import {
-  applySegments,
   hashReaderSource,
   readerTranslationSource,
   TRANSLATION_LANGUAGES,
 } from "../lib/content-translation";
-import { getTranslations } from "../lib/content-translation-store";
 import { getFederalOfficialByName } from "../lib/elected-officials";
 import {
   FEATURED_BILL_LIMIT,
   rankFeaturedBillCandidates,
 } from "../lib/featured-bills";
+import { translateContentDetail } from "../lib/reader-translation";
 import { protectedProcedure, publicProcedure } from "../trpc";
 
 const SAVED_CONTENT_TYPES = [
@@ -58,7 +50,6 @@ const SAVED_CONTENT_TYPES = [
   "government_content",
   "court_case",
 ] as const;
-type SavedContentType = (typeof SAVED_CONTENT_TYPES)[number];
 
 /**
  * "When did something actually happen to this record", per content type.
@@ -103,317 +94,6 @@ const COURT_CASE_ACTIVITY_AT = sql<Date>`coalesce(
   ${CourtCase.createdAt}
 ) at time zone 'UTC'`;
 
-function billDescription(
-  description: string | null | undefined,
-  summary?: string | null,
-): string {
-  return clampBillDescription(description ?? summary ?? "");
-}
-
-interface ContentImageRef {
-  id: string;
-  type: SavedContentType | "general";
-  thumbnailUrl?: string;
-}
-
-export async function attachContentImages<T extends ContentImageRef>(
-  items: readonly T[],
-): Promise<(T & { imageUri?: string })[]> {
-  if (items.length === 0) return [];
-
-  const governmentIds = items
-    .filter((item) => item.type === "government_content")
-    .map((item) => item.id);
-  const [rows, executiveOrders] = await Promise.all([
-    db
-      .select({
-        contentType: ContentImage.contentType,
-        contentId: ContentImage.contentId,
-        storagePath: ContentImage.storagePath,
-      })
-      .from(ContentImage)
-      .where(
-        inArray(
-          ContentImage.contentId,
-          items.map((item) => item.id),
-        ),
-      ),
-    governmentIds.length > 0
-      ? db
-          .select({ id: GovernmentContent.id })
-          .from(GovernmentContent)
-          .where(
-            and(
-              inArray(GovernmentContent.id, governmentIds),
-              eq(GovernmentContent.type, "Executive Order"),
-            ),
-          )
-      : Promise.resolve([]),
-  ]);
-  const executiveOrderIds = new Set(executiveOrders.map((item) => item.id));
-  const pathByContent = new Map(
-    rows.map((row) => [`${row.contentType}:${row.contentId}`, row.storagePath]),
-  );
-
-  return items.map((item) => ({
-    ...item,
-    imageUri: resolveContentImageUrl(
-      item.thumbnailUrl,
-      pathByContent.get(`${item.type}:${item.id}`),
-      undefined,
-      item.type === "government_content" && executiveOrderIds.has(item.id)
-        ? EXECUTIVE_ORDER_FALLBACK_IMAGE_URL
-        : undefined,
-    ),
-  }));
-}
-
-// Look up cached dual-lens perspectives for a content item. Returns null when
-// none have been generated yet; the client omits the panel until analysis exists.
-async function getLensData(
-  contentId: string,
-  contentType: "bill" | "government_content" | "court_case",
-) {
-  const [lens] = await db
-    .select({ lensData: ContentLens.lensData })
-    .from(ContentLens)
-    .where(
-      and(
-        eq(ContentLens.contentId, contentId),
-        eq(ContentLens.contentType, contentType),
-      ),
-    )
-    .limit(1);
-  return lens?.lensData ?? null;
-}
-
-// Look up the cached structured brief for a content item. Rows written by an
-// older shipped shapes are normalized here, so the client can treat a present
-// brief as renderable while the scraper refreshes stale rows independently.
-// Court briefs have a separate projection and never enter the bill parser.
-async function getBrief(
-  contentId: string,
-  contentType: "bill" | "government_content" | "court_case",
-) {
-  const [row] = await db
-    .select({ id: ContentBrief.id, brief: ContentBrief.brief })
-    .from(ContentBrief)
-    .where(
-      and(
-        eq(ContentBrief.contentId, contentId),
-        eq(ContentBrief.contentType, contentType),
-      ),
-    )
-    .limit(1);
-  if (!row) return null;
-  const parsed = parseBillBriefRecord(row.brief);
-  if (!parsed) return null;
-
-  // Change artwork is stored per change rather than inside the brief JSON, so
-  // it is attached here. A change with no row, or a row deliberately recorded
-  // without bytes, simply has no image — the card renders fine without one.
-  const art = await db
-    .select({
-      changeIndex: BriefChangeImage.changeIndex,
-      imageData: BriefChangeImage.imageData,
-      imageMimeType: BriefChangeImage.imageMimeType,
-    })
-    .from(BriefChangeImage)
-    .where(eq(BriefChangeImage.contentBriefId, row.id));
-
-  const uriByIndex = new Map(
-    art.flatMap((item) =>
-      item.imageData && item.imageMimeType
-        ? [
-            [
-              item.changeIndex,
-              `data:${item.imageMimeType};base64,${item.imageData.toString("base64")}`,
-            ] as const,
-          ]
-        : [],
-    ),
-  );
-  if (uriByIndex.size === 0) return parsed;
-
-  return {
-    ...parsed,
-    changes: parsed.changes.map((change, index) => {
-      const imageUri = uriByIndex.get(index);
-      return imageUri ? { ...change, imageUri } : change;
-    }),
-  };
-}
-
-/**
- * The reader payload for one content item. Shared by `getById` and
- * `getTranslation`, which overlays translated prose on this English record.
- */
-async function loadContentDetail(input: {
-  id: string;
-  supportsMassachusetts?: boolean;
-}) {
-  // Try to find in bills
-  const bill = await db
-    .select()
-    .from(Bill)
-    .where(eq(Bill.id, input.id))
-    .limit(1);
-  if (bill[0]) {
-    const b = bill[0];
-    const jurisdiction = billJurisdiction(b.sourceWebsite, b.billNumber);
-    if (jurisdiction === "ma" && !input.supportsMassachusetts)
-      throw new TRPCError({ code: "NOT_FOUND" });
-    const stateIdentity = parseStateBillNumber(b.billNumber);
-    const sponsorIdentity = b.sponsor
-      ? parseBillSponsor(b.sponsor, jurisdiction)
-      : undefined;
-    // The people export is a network fetch, so run it alongside the other
-    // per-bill lookups and treat a miss as "no headshot" rather than an
-    // error — the card falls back to initials.
-    const [official, lensData, brief] = await Promise.all([
-      sponsorIdentity && jurisdiction === "federal"
-        ? getFederalOfficialByName(
-            sponsorIdentity.name,
-            b.chamber,
-            sponsorIdentity.state,
-          ).catch(() => undefined)
-        : undefined,
-      getLensData(b.id, "bill"),
-      getBrief(b.id, "bill"),
-    ]);
-    const sponsor = sponsorIdentity
-      ? {
-          ...sponsorIdentity,
-          role: sponsorRole(b.chamber, jurisdiction),
-          imageUrl: official?.image,
-        }
-      : undefined;
-    const [result] = await attachContentImages([
-      {
-        id: b.id,
-        title: b.title,
-        createdAt: b.createdAt,
-        updatedAt: b.updatedAt ?? b.createdAt,
-        description: billDescription(b.description, b.summary),
-        type: "bill" as const,
-        isAIGenerated: !!b.aiGeneratedArticle,
-        thumbnailUrl: b.thumbnailUrl ?? undefined,
-        billNumber: b.billNumber,
-        jurisdiction,
-        jurisdictionCode: jurisdictionCode(jurisdiction),
-        sessionLabel: displaySessionLabel(
-          jurisdiction,
-          stateIdentity?.sessionLabel,
-        ),
-        sourceLabel: officialSourceLabel(jurisdiction),
-        sponsor,
-        articleContent:
-          b.aiGeneratedArticle ?? b.fullText ?? "No content available",
-        originalContent: b.fullText ?? "Full text not available",
-        url: b.url,
-        actions: toBillTimelineActions(b.actions ?? []),
-        status: projectBillStatus(b),
-        lensData,
-        brief,
-      },
-    ]);
-    if (!result) throw new Error(`Failed to decorate bill ${b.id}`);
-    return result;
-  }
-
-  // Try to find in government content
-  const content = await db
-    .select()
-    .from(GovernmentContent)
-    .where(eq(GovernmentContent.id, input.id))
-    .limit(1);
-  if (content[0]) {
-    const c = content[0];
-    const [result] = await attachContentImages([
-      {
-        id: c.id,
-        title: c.title,
-        createdAt: c.createdAt,
-        updatedAt: c.updatedAt ?? c.createdAt,
-        description: c.description ?? "",
-        type: "government_content" as const,
-        isAIGenerated: !!c.aiGeneratedArticle,
-        thumbnailUrl: c.thumbnailUrl ?? undefined,
-        billNumber: undefined,
-        articleContent:
-          c.aiGeneratedArticle ?? c.fullText ?? "No content available",
-        originalContent: c.fullText ?? "Full text not available",
-        url: c.url,
-        officialUrl: c.federalRegisterUrl ?? undefined,
-        lensData: await getLensData(c.id, "government_content"),
-      },
-    ]);
-    if (!result) {
-      throw new Error(`Failed to decorate government content ${c.id}`);
-    }
-    return result;
-  }
-
-  // Try to find in court cases
-  const courtCase = await db
-    .select()
-    .from(CourtCase)
-    .where(eq(CourtCase.id, input.id))
-    .limit(1);
-  if (courtCase[0]) {
-    const c = courtCase[0];
-    const [briefRows, lensData] = await Promise.all([
-      db
-        .select()
-        .from(ContentBrief)
-        .where(
-          and(
-            eq(ContentBrief.contentId, c.id),
-            eq(ContentBrief.contentType, "court_case"),
-          ),
-        )
-        .limit(1),
-      getLensData(c.id, "court_case"),
-    ]);
-    const [storedBrief] = briefRows;
-    const courtBrief =
-      storedBrief?.contentHash === c.contentHash
-        ? parseCourtBriefRecord(storedBrief.brief, c.contentHash)
-        : null;
-    const [result] = await attachContentImages([
-      {
-        id: c.id,
-        title: c.title,
-        createdAt: c.createdAt,
-        updatedAt: c.updatedAt ?? c.createdAt,
-        description: c.description ?? "",
-        type: "court_case" as const,
-        isAIGenerated: !!courtBrief || !!c.aiGeneratedArticle,
-        thumbnailUrl: c.thumbnailUrl ?? undefined,
-        billNumber: undefined,
-        articleContent:
-          c.aiGeneratedArticle ?? c.fullText ?? "No content available",
-        originalContent: c.fullText ?? "Full text not available",
-        url: c.url,
-        courtBrief,
-        lensData,
-        jurisdiction: courtJurisdiction(c.url),
-        jurisdictionCode: jurisdictionCode(courtJurisdiction(c.url)),
-      },
-    ]);
-    if (!result) throw new Error(`Failed to decorate court case ${c.id}`);
-    return result;
-  }
-
-  // A typed code rather than a bare Error: the public share page turns
-  // this one case into a 404 and has to let every other failure through
-  // to the logs, which it cannot do if they all look alike.
-  throw new TRPCError({
-    code: "NOT_FOUND",
-    message: `Content with id ${input.id} not found`,
-  });
-}
-
 // Helper function to get thumbnail URL for any content
 export async function getThumbnailForContent(
   id: string,
@@ -456,6 +136,7 @@ const ContentCardSchema = z.object({
   title: z.string(),
   description: z.string(),
   type: z.enum(["bill", "government_content", "court_case", "general"]),
+  governmentContentType: z.string().optional(),
   isAIGenerated: z.boolean(),
   thumbnailUrl: z.string().optional(),
   imageUri: z.string().optional(), // Add support for AI-generated data URIs
@@ -540,10 +221,6 @@ const billJurisdictionCondition = (jurisdiction: ContentJurisdiction) =>
     : sql`${Bill.sourceWebsite} = 'openstates.org' and ${Bill.billNumber} like ${`${jurisdiction.toUpperCase()} %`}`;
 
 const MASSACHUSETTS_CASE_URL = "https://ecourtrecords.org/us/massachusetts/%";
-const courtJurisdiction = (url: string): ContentJurisdiction =>
-  url.startsWith("https://ecourtrecords.org/us/massachusetts/")
-    ? "ma"
-    : "federal";
 const courtJurisdictionCondition = (jurisdiction: ContentJurisdiction) =>
   jurisdiction === "ma"
     ? sql`${CourtCase.url} like ${MASSACHUSETTS_CASE_URL}`
@@ -590,6 +267,7 @@ export const contentRouter = {
         title: content.title,
         description: content.description ?? "",
         type: "government_content" as const,
+        governmentContentType: content.type,
         isAIGenerated: false,
         thumbnailUrl: content.thumbnailUrl ?? undefined,
       })),
@@ -753,6 +431,7 @@ export const contentRouter = {
               title: Bill.title,
               description: sql<string>`coalesce(${Bill.description}, ${Bill.summary}, '')`,
               type: sql<string>`'bill'`,
+              governmentContentType: sql<string | null>`null`,
               thumbnailUrl: Bill.thumbnailUrl,
               billNumber: sql<string | null>`${Bill.billNumber}`,
               sourceWebsite: sql<string | null>`${Bill.sourceWebsite}`,
@@ -777,6 +456,9 @@ export const contentRouter = {
               title: GovernmentContent.title,
               description: sql<string>`coalesce(${GovernmentContent.description}, '')`,
               type: sql<string>`'government_content'`,
+              governmentContentType: sql<
+                string | null
+              >`${GovernmentContent.type}`,
               thumbnailUrl: GovernmentContent.thumbnailUrl,
               billNumber: sql<string | null>`null`,
               sourceWebsite: sql<string | null>`null`,
@@ -796,6 +478,7 @@ export const contentRouter = {
               title: CourtCase.title,
               description: sql<string>`coalesce(${CourtCase.description}, '')`,
               type: sql<string>`'court_case'`,
+              governmentContentType: sql<string | null>`null`,
               thumbnailUrl: CourtCase.thumbnailUrl,
               billNumber: sql<string | null>`null`,
               sourceWebsite: sql<string | null>`null`,
@@ -829,6 +512,7 @@ export const contentRouter = {
                 title: row.title,
                 description: row.description,
                 type: row.type as ContentCard["type"],
+                governmentContentType: row.governmentContentType ?? undefined,
                 isAIGenerated: false,
                 thumbnailUrl: row.thumbnailUrl ?? undefined,
                 jurisdiction:
@@ -891,6 +575,7 @@ export const contentRouter = {
           title: content.title,
           description: content.description ?? "",
           type: "government_content" as const,
+          governmentContentType: content.type,
           isAIGenerated: false,
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
@@ -1007,6 +692,7 @@ export const contentRouter = {
           title: content.title,
           description: content.description ?? "",
           type: "government_content" as const,
+          governmentContentType: content.type,
           isAIGenerated: false,
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
@@ -1052,6 +738,7 @@ export const contentRouter = {
                 "description",
               ),
             type: sql<string>`'bill'`.as("type"),
+            governmentContentType: sql<string | null>`null`,
             thumbnailUrl: Bill.thumbnailUrl,
             billNumber: sql<string | null>`${Bill.billNumber}`,
             sourceWebsite: sql<string | null>`${Bill.sourceWebsite}`,
@@ -1080,6 +767,9 @@ export const contentRouter = {
                 "description",
               ),
             type: sql<string>`'government_content'`.as("type"),
+            governmentContentType: sql<
+              string | null
+            >`${GovernmentContent.type}`,
             thumbnailUrl: GovernmentContent.thumbnailUrl,
             billNumber: sql<string | null>`null`,
             sourceWebsite: sql<string | null>`null`,
@@ -1101,6 +791,7 @@ export const contentRouter = {
               "description",
             ),
             type: sql<string>`'court_case'`.as("type"),
+            governmentContentType: sql<string | null>`null`,
             thumbnailUrl: CourtCase.thumbnailUrl,
             billNumber: sql<string | null>`null`,
             sourceWebsite: sql<string | null>`null`,
@@ -1130,6 +821,7 @@ export const contentRouter = {
               title: row.title,
               description: row.description,
               type: row.type as ContentCard["type"],
+              governmentContentType: row.governmentContentType ?? undefined,
               isAIGenerated: false,
               thumbnailUrl: row.thumbnailUrl ?? undefined,
               jurisdiction:
@@ -1150,6 +842,7 @@ export const contentRouter = {
     .input(
       z.object({
         id: z.string(),
+        language: z.enum(["en", ...TRANSLATION_LANGUAGES]).default("en"),
         // Older installed clients cannot render Massachusetts bill detail.
         // They omit this field; a direct link then gets a safe not-found state.
         supportsMassachusetts: z.boolean().optional(),
@@ -1159,6 +852,10 @@ export const contentRouter = {
       const detail = await loadContentDetail(input);
       return {
         ...detail,
+        translation:
+          input.language === "en"
+            ? null
+            : await translateContentDetail(detail, input.language),
         translationSourceHash: hashReaderSource(
           readerTranslationSource(detail),
         ),
@@ -1167,7 +864,7 @@ export const contentRouter = {
 
   // Spanish or Chinese reading of the reader payload. Only Billion-authored
   // prose is translated; quotes, original text, and citations stay as
-  // written. The client renders English first and swaps this in.
+  // written. Cached prose also travels with the initial localized detail response.
   getTranslation: publicProcedure
     .input(
       z.object({
@@ -1182,46 +879,7 @@ export const contentRouter = {
     )
     .query(async ({ input }) => {
       const detail = await loadContentDetail(input);
-      const source = readerTranslationSource(detail);
-      const sourceHash = hashReaderSource(source);
-      if (input.sourceHash && input.sourceHash !== sourceHash) {
-        return {
-          status: "stale" as const,
-          language: input.language,
-          sourceHash,
-        };
-      }
-      const brief = "brief" in detail ? detail.brief : null;
-      const courtBrief = "courtBrief" in detail ? detail.courtBrief : null;
-      const translations = await getTranslations({
-        contentId: detail.id,
-        contentType: detail.type,
-        language: input.language,
-        source,
-      });
-      if (!translations) {
-        return {
-          status: "unavailable" as const,
-          language: input.language,
-          sourceHash,
-        };
-      }
-      return {
-        status: "translated" as const,
-        language: input.language,
-        sourceHash,
-        title: translations.title ?? detail.title,
-        description: translations.description ?? detail.description,
-        articleContent: translations.articleContent ?? null,
-        brief: applySegments(brief, translations, "brief"),
-        courtBrief: applySegments(courtBrief, translations, "courtBrief"),
-        lensData: applySegments(detail.lensData, translations, "lensData"),
-        actions: applySegments(
-          "actions" in detail ? detail.actions : [],
-          translations,
-          "actions",
-        ),
-      };
+      return translateContentDetail(detail, input.language, input.sourceHash);
     }),
 
   // Profile and related legislation for the member who formally sponsored a bill.
@@ -1342,6 +1000,7 @@ export const contentRouter = {
           .select({
             id: GovernmentContent.id,
             title: GovernmentContent.title,
+            governmentContentType: GovernmentContent.type,
             description: GovernmentContent.description,
             thumbnailUrl: GovernmentContent.thumbnailUrl,
           })
@@ -1452,6 +1111,7 @@ export const contentRouter = {
                 .select({
                   id: GovernmentContent.id,
                   title: GovernmentContent.title,
+                  governmentContentType: GovernmentContent.type,
                   description: GovernmentContent.description,
                   thumbnailUrl: GovernmentContent.thumbnailUrl,
                 })

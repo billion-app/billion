@@ -115,7 +115,7 @@ export function OgCard({
   language?: ReaderLanguage;
   art?: string;
 }) {
-  const type = presentType(content.type);
+  const type = presentType(content.type, content.governmentContentType);
   // Sized for the worst case this canvas has to hold: a four-line headline
   // and header art, on 630px of height that cannot scroll.
   const summary = shareSummaryParts(content, art ? 130 : 165);
@@ -283,7 +283,7 @@ export function StoryCard({
   content: ShareableContent;
   art?: string;
 }) {
-  const type = presentType(content.type);
+  const type = presentType(content.type, content.governmentContentType);
   const summary = shareSummaryParts(content, 150);
   const title = truncate(content.title, 110);
   const titleSize = title.length > 88 ? 54 : title.length > 58 ? 60 : 66;

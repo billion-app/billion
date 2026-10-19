@@ -24,11 +24,13 @@ export function TrillionLoading({
   electionDate,
   notice = true,
   onBack,
+  showHeader = true,
 }: {
   number?: string;
   electionDate?: string;
   notice?: boolean;
   onBack: () => void;
+  showHeader?: boolean;
 }) {
   const { t: tx, locale: appLocale } = useAppTranslation();
 
@@ -49,36 +51,40 @@ export function TrillionLoading({
   const fade = useAnimatedStyle(() => ({ opacity: pulse.value }));
   return (
     <View style={s.screen}>
-      <View style={s.header}>
-        <Pressable
-          style={s.back}
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel={tx("Back")}
-          hitSlop={8}
-        >
-          <Icon name="chevL" size={20} color="#F7F4EE" />
-        </Pressable>
-        <View style={s.identity}>
-          <Text style={s.eyebrow}>
-            {electionDate
-              ? tx("California · {value1}", {
-                  value1: new Date(
-                    `${electionDate}T12:00:00Z`,
-                  ).toLocaleDateString(appLocale, {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                    timeZone: "UTC",
-                  }),
-                })
-              : tx("California")}
-          </Text>
-          <Text style={s.headerTitle}>
-            {tx("Proposition {value1} · The debate", { value1: number ?? "" })}
-          </Text>
+      {showHeader && (
+        <View style={s.header}>
+          <Pressable
+            style={s.back}
+            onPress={onBack}
+            accessibilityRole="button"
+            accessibilityLabel={tx("Back")}
+            hitSlop={8}
+          >
+            <Icon name="chevL" size={20} color="#F7F4EE" />
+          </Pressable>
+          <View style={s.identity}>
+            <Text style={s.eyebrow}>
+              {electionDate
+                ? tx("California · {value1}", {
+                    value1: new Date(
+                      `${electionDate}T12:00:00Z`,
+                    ).toLocaleDateString(appLocale, {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      timeZone: "UTC",
+                    }),
+                  })
+                : tx("California")}
+            </Text>
+            <Text style={s.headerTitle}>
+              {tx("Proposition {value1} · The debate", {
+                value1: number ?? "",
+              })}
+            </Text>
+          </View>
         </View>
-      </View>
+      )}
       <Animated.View
         style={[s.stack, fade]}
         accessible

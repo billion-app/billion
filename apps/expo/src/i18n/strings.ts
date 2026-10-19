@@ -13,7 +13,10 @@ const en = {
     "Choose the language for the app. Original quotations and source documents keep their published wording.",
   "language.choose": "Language · 语言 · Idioma",
 
-  "readerUi.useEnglish": "Use English instead",
+  "readerUi.translationDelayed": "Taking longer than expected",
+  "readerUi.translationDelayedBody":
+    "Your translation may still be preparing. Automatic checks are paused; retry to check again.",
+  "readerUi.useEnglish": "Switch app to English",
   "readerUi.define": "Define {term}",
   "readerUi.defineHint": "Shows a short definition below this paragraph",
   "readerUi.closeDefinition": "Close definition of {term}",
@@ -147,7 +150,7 @@ const en = {
   "readerUi.matching": "MATCHING PASSAGE",
   "readerUi.cited": "CITED PASSAGE",
   "readerUi.type.bill": "BILL",
-  "readerUi.type.exec": "ORDER",
+  "readerUi.type.exec": "EXECUTIVE",
   "readerUi.type.court": "CASE",
   "readerUi.type.news": "NEWS",
   "readerUi.type.local": "LOCAL",
@@ -178,6 +181,10 @@ const en = {
   "readerUi.officialRecord": "Official record",
   "readerUi.translatingZh": "Translating into Chinese…",
   "readerUi.translatingEs": "Translating into Spanish…",
+  "readerUi.preparingTranslation":
+    "The translated content will appear here when it is ready.",
+  "readerUi.retryTranslation":
+    "Please retry loading the translation, or choose English.",
   "readerUi.translationWait":
     "English is shown for now. Your translation will appear here automatically. The first translation can take a little time.",
   "readerUi.translationFailed": "Translation couldn’t load",
@@ -230,8 +237,9 @@ const en = {
   "article.share": "Share this record",
   "article.save": "Save to read later",
   "article.unsave": "Remove from saved",
-  "article.created": "Created",
-  "article.updated": "Last updated",
+  "article.introduced": "Introduced",
+  "article.created": "Added to Billion",
+  "article.updated": "Updated on Billion",
   "article.sponsoredBy": "Sponsored by",
   "article.caseBrief": "Case brief",
   "article.theBrief": "The brief",
@@ -256,7 +264,7 @@ const en = {
     "Quotes and source documents stay in their original language.",
   "reader.translatedTitles":
     "Machine-translated titles · check the original sources",
-  "reader.showEnglish": "Show English",
+  "reader.showEnglish": "Switch app to English",
   "reader.translateNote":
     "Billion machine-translates its explanations from English. Quotes and source documents stay in their original language.",
   "listen.unavailable":
@@ -291,7 +299,10 @@ const es: Dictionary = {
     "Elige el idioma de la aplicación. Las citas y los documentos originales conservan el texto publicado.",
   "language.choose": "Idioma · 语言 · Language",
 
-  "readerUi.useEnglish": "Usar inglés",
+  "readerUi.translationDelayed": "Está tardando más de lo esperado",
+  "readerUi.translationDelayedBody":
+    "La traducción puede seguir preparándose. Las consultas automáticas están en pausa; reintenta para comprobarla.",
+  "readerUi.useEnglish": "Cambiar la app a inglés",
   "readerUi.define": "Definir {term}",
   "readerUi.defineHint": "Muestra una definición breve debajo de este párrafo",
   "readerUi.closeDefinition": "Cerrar definición de {term}",
@@ -427,7 +438,7 @@ const es: Dictionary = {
   "readerUi.matching": "PASAJE COINCIDENTE",
   "readerUi.cited": "PASAJE CITADO",
   "readerUi.type.bill": "PROYECTO DE LEY",
-  "readerUi.type.exec": "ORDEN",
+  "readerUi.type.exec": "EJECUTIVO",
   "readerUi.type.court": "CASO",
   "readerUi.type.news": "NOTICIAS",
   "readerUi.type.local": "LOCAL",
@@ -458,6 +469,10 @@ const es: Dictionary = {
   "readerUi.officialRecord": "Registro oficial",
   "readerUi.translatingZh": "Traduciendo al chino…",
   "readerUi.translatingEs": "Traduciendo al español…",
+  "readerUi.preparingTranslation":
+    "El artículo traducido aparecerá aquí cuando esté listo.",
+  "readerUi.retryTranslation":
+    "Vuelve a intentar cargar la traducción o elige inglés.",
   "readerUi.translationWait":
     "Por ahora se muestra el inglés. La traducción aparecerá aquí automáticamente. La primera traducción puede tardar un poco.",
   "readerUi.translationFailed": "No se pudo cargar la traducción",
@@ -506,8 +521,9 @@ const es: Dictionary = {
   "article.share": "Compartir este registro",
   "article.save": "Guardar para leer después",
   "article.unsave": "Quitar de guardados",
-  "article.created": "Creado",
-  "article.updated": "Última actualización",
+  "article.introduced": "Presentado",
+  "article.created": "Añadido a Billion",
+  "article.updated": "Actualizado en Billion",
   "article.sponsoredBy": "Patrocinado por",
   "article.caseBrief": "Resumen del caso",
   "article.theBrief": "El resumen",
@@ -533,7 +549,7 @@ const es: Dictionary = {
     "Las citas y los documentos conservan su idioma original.",
   "reader.translatedTitles":
     "Títulos traducidos automáticamente · consulta las fuentes originales",
-  "reader.showEnglish": "Ver en inglés",
+  "reader.showEnglish": "Cambiar la app a inglés",
   "reader.translateNote":
     "Billion traduce automáticamente sus explicaciones del inglés. Las citas y los documentos conservan su idioma original.",
   "listen.unavailable":
@@ -563,7 +579,10 @@ const zh: Dictionary = {
   "language.appNote": "选择应用语言。引文和来源文件保留发布时的原文。",
   "language.choose": "语言 · Language · Idioma",
 
-  "readerUi.useEnglish": "切换为英文",
+  "readerUi.translationDelayed": "翻译准备时间比预期更长",
+  "readerUi.translationDelayedBody":
+    "译文可能仍在准备。已暂停自动检查；点按重试可再次检查。",
+  "readerUi.useEnglish": "将整个应用切换为英文",
   "readerUi.define": "解释“{term}”",
   "readerUi.defineHint": "在本段下方显示简要释义",
   "readerUi.closeDefinition": "关闭“{term}”的释义",
@@ -693,7 +712,7 @@ const zh: Dictionary = {
   "readerUi.matching": "匹配段落",
   "readerUi.cited": "引用段落",
   "readerUi.type.bill": "法案",
-  "readerUi.type.exec": "行政命令",
+  "readerUi.type.exec": "行政文件",
   "readerUi.type.court": "案件",
   "readerUi.type.news": "新闻",
   "readerUi.type.local": "地方",
@@ -724,6 +743,8 @@ const zh: Dictionary = {
   "readerUi.officialRecord": "官方记录",
   "readerUi.translatingZh": "正在翻译成中文…",
   "readerUi.translatingEs": "正在翻译成西班牙语…",
+  "readerUi.preparingTranslation": "译文准备好后会自动显示。",
+  "readerUi.retryTranslation": "请重试加载译文，或选择阅读英文。",
   "readerUi.translationWait":
     "暂时显示英文，译文准备好后会自动替换，无需刷新。首次翻译可能需要一点时间。",
   "readerUi.translationFailed": "译文加载失败",
@@ -771,8 +792,9 @@ const zh: Dictionary = {
   "article.share": "分享此记录",
   "article.save": "保存以便稍后阅读",
   "article.unsave": "从已保存中移除",
-  "article.created": "创建于",
-  "article.updated": "最后更新",
+  "article.introduced": "提出日期",
+  "article.created": "收录于 Billion",
+  "article.updated": "Billion 更新于",
   "article.sponsoredBy": "提案人",
   "article.caseBrief": "案件摘要",
   "article.theBrief": "摘要",
@@ -794,7 +816,7 @@ const zh: Dictionary = {
   "article.translationPending": "正在准备翻译…完成前暂时显示英文。",
   "reader.originalSources": "引文和原始文件保留原文。",
   "reader.translatedTitles": "标题由机器翻译 · 请核对原始来源",
-  "reader.showEnglish": "显示英文",
+  "reader.showEnglish": "将整个应用切换为英文",
   "reader.translateNote":
     "Billion 的解读由英文机器翻译。引文和原始文件保留原文。",
   "listen.unavailable": "朗读需要最新版本的应用及已安装的语音。",

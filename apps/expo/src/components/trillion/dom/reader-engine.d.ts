@@ -39,6 +39,7 @@ export function mountTrillionReader(
   graph: PublicTrillionGraph,
   options?: {
     language?: "en" | "es" | "zh";
+    externalHeader?: boolean;
     navigation?: ReaderNavigation;
     localState?: string;
     onLocalState?: (value: string) => void | Promise<void>;

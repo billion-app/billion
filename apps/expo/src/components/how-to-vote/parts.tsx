@@ -183,6 +183,7 @@ export function LocationList({
           activeOpacity={0.7}
           style={s.showAll}
           accessibilityRole="button"
+          accessibilityState={{ expanded }}
         >
           <Text style={s.showAllText}>
             {expanded
@@ -221,14 +222,14 @@ export function LinkRow({
         if (onPress) return onPress();
         if (url) void Linking.openURL(url);
       }}
-      accessibilityRole="link"
+      accessibilityRole={onPress ? "button" : "link"}
       accessibilityLabel={label}
       accessibilityHint={
         url && !onPress ? t("common.opensInBrowser") : undefined
       }
     >
       <Text style={s.linkText}>{label}</Text>
-      <Icon name="external" size={15} color={colors.bill} />
+      {!onPress && <Icon name="external" size={15} color={colors.bill} />}
     </TouchableOpacity>
   );
 }
