@@ -23,6 +23,7 @@ import { DigestGreetingBar } from "~/components/DigestGreetingBar";
 import { GoldFoilText } from "~/components/GoldBillionMark";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
+import { useIdleBallotPreloading } from "~/hooks/useIdleBallotPreloading";
 import { useLastVisit } from "~/hooks/useLastVisit";
 import { useOnboarding } from "~/hooks/useOnboarding";
 import { useReadContent } from "~/hooks/useReadContent";
@@ -240,6 +241,9 @@ export function DigestHome() {
     (featuredEmpty || !!featuredLocal.error);
   const coverLoading =
     readHistoryLoading || featuredFederal.isLoading || federalFeedLoading;
+  const preloading = useIdleBallotPreloading({
+    enabled: !localLoading && !coverLoading,
+  });
   const coverError =
     !coverLoading &&
     alsoCards.length === 0 &&
@@ -315,13 +319,22 @@ export function DigestHome() {
   );
 
   return (
-    <View style={s.screen}>
+    <View
+      style={s.screen}
+      onTouchStart={preloading.onTouchStart}
+      onTouchEnd={preloading.onTouchEnd}
+      onTouchCancel={preloading.onTouchCancel}
+    >
       <DigestGreetingBar stageReady={!localLoading} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         bounces={!railHeld}
         directionalLockEnabled
         scrollEnabled={!railHeld}
+        onScrollBeginDrag={preloading.onScrollBegin}
+        onScrollEndDrag={preloading.onScrollEndDrag}
+        onMomentumScrollBegin={preloading.onScrollBegin}
+        onMomentumScrollEnd={preloading.onMomentumScrollEnd}
         onScroll={onFeedScroll}
         scrollEventThrottle={200}
         contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
@@ -398,8 +411,16 @@ export function DigestHome() {
                 style={[s.railScroll, { height: RAIL_CARD_HEIGHT }]}
                 onScroll={onRailScroll}
                 scrollEventThrottle={16}
-                onScrollEndDrag={() => setRailHeld(false)}
-                onMomentumScrollEnd={() => setRailHeld(false)}
+                onScrollBeginDrag={preloading.onScrollBegin}
+                onMomentumScrollBegin={preloading.onScrollBegin}
+                onScrollEndDrag={() => {
+                  setRailHeld(false);
+                  preloading.onScrollEndDrag();
+                }}
+                onMomentumScrollEnd={() => {
+                  setRailHeld(false);
+                  preloading.onMomentumScrollEnd();
+                }}
               >
                 {localCards.map((card, index) => {
                   const img = contentImageSource(

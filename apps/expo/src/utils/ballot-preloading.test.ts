@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setImmediate } from "node:timers/promises";
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryObserver } from "@tanstack/react-query";
 
-import type { IdleScheduler } from "./measure-preloading";
+import type { IdleScheduler } from "./ballot-preloading";
 import {
-  createIdleMeasurePreloader,
-  MEASURE_GRAPH_STALE_TIME,
-} from "./measure-preloading";
+  BALLOT_STALE_TIME,
+  ballotPreloads,
+  canPreloadReader,
+  createIdlePreloader,
+} from "./ballot-preloading";
 
 type IdleCallback = Parameters<IdleScheduler["request"]>[0];
 
@@ -50,9 +52,9 @@ function fixture(fetch: (number: string) => Promise<string | null>) {
   const options = (number: string) => ({
     queryKey: ["civic", "getTrillion", { number }],
     queryFn: () => fetch(number),
-    staleTime: MEASURE_GRAPH_STALE_TIME,
+    staleTime: BALLOT_STALE_TIME,
   });
-  const queue = createIdleMeasurePreloader(
+  const queue = createIdlePreloader<string>(
     (number) => client.prefetchQuery({ ...options(number), retry: false }),
     idle,
   );
@@ -76,7 +78,7 @@ test("starts only in idle time and yields again between sequential requests", as
     return number === "1" ? first.promise : Promise.resolve(number);
   });
   t.after(() => f.cleanup());
-  f.queue.setMeasures(["1", "2"]);
+  f.queue.setItems(["1", "2"]);
   assert.deepEqual(requests, []);
   f.idle.run(0);
   assert.deepEqual(requests, []);
@@ -102,7 +104,7 @@ test("touch and scroll both have to finish before preloading resumes", async (t)
     return Promise.resolve(number);
   });
   t.after(() => f.cleanup());
-  f.queue.setMeasures(["1"]);
+  f.queue.setItems(["1"]);
   f.queue.setPaused("touch", true);
   f.queue.setPaused("scroll", true);
   assert.equal(f.idle.pending, 0);
@@ -122,7 +124,7 @@ test("inactive guides cancel queued work and resume from the same position", asy
     return Promise.resolve(number);
   });
   t.after(() => f.cleanup());
-  f.queue.setMeasures(["1", "2"]);
+  f.queue.setItems(["1", "2"]);
   f.idle.run();
   await setImmediate();
   f.queue.setPaused("inactive", true);
@@ -141,7 +143,7 @@ test("blur keeps the active query available for navigation without continuing th
     return graph.promise;
   });
   t.after(() => f.cleanup());
-  f.queue.setMeasures(["1", "2"]);
+  f.queue.setItems(["1", "2"]);
   f.idle.run();
   f.queue.setPaused("inactive", true);
   const navigation = f.client.fetchQuery(f.options("1"));
@@ -165,7 +167,7 @@ test("fresh graphs and null results are reused by both preload and foreground qu
   });
   t.after(() => f.cleanup());
   f.client.setQueryData(f.options("1").queryKey, "cached");
-  f.queue.setMeasures(["1", "2"]);
+  f.queue.setItems(["1", "2"]);
   f.idle.run();
   await setImmediate();
   assert.deepEqual(requests, []);
@@ -186,7 +188,7 @@ test("failed speculation has no retries, allows later measures, and can retry on
     return Promise.resolve(number);
   });
   t.after(() => f.cleanup());
-  f.queue.setMeasures(["1", "2"]);
+  f.queue.setItems(["1", "2"]);
   f.idle.run();
   await setImmediate();
   assert.deepEqual(requests, ["1"]);
@@ -206,7 +208,7 @@ test("unmount cancels queued callbacks and does not cancel a shared in-flight qu
     return first.promise;
   });
   t.after(() => f.cleanup());
-  f.queue.setMeasures(["1", "2"]);
+  f.queue.setItems(["1", "2"]);
   f.idle.run();
   f.queue.dispose();
   first.resolve("ready");
@@ -215,7 +217,7 @@ test("unmount cancels queued callbacks and does not cancel a shared in-flight qu
   assert.equal(f.client.getQueryData(f.options("1").queryKey), "ready");
   assert.equal(f.idle.pending, 0);
   f.queue.setPaused("inactive", false);
-  f.queue.setMeasures(["3"]);
+  f.queue.setItems(["3"]);
   assert.equal(f.idle.pending, 0);
 });
 
@@ -227,9 +229,9 @@ test("a new guide does not overlap the request already in flight", async (t) => 
     return number === "1" ? first.promise : Promise.resolve(number);
   });
   t.after(() => f.cleanup());
-  f.queue.setMeasures(["1", "2"]);
+  f.queue.setItems(["1", "2"]);
   f.idle.run();
-  f.queue.setMeasures(["3"]);
+  f.queue.setItems(["3"]);
   assert.equal(f.idle.pending, 0);
   first.resolve("ready");
   await setImmediate();
@@ -240,25 +242,121 @@ test("a new guide does not overlap the request already in flight", async (t) => 
 
 test("runtimes without idle callbacks skip speculative requests", () => {
   let requests = 0;
-  const queue = createIdleMeasurePreloader(() => {
+  const queue = createIdlePreloader<string>(() => {
     requests++;
     return Promise.resolve();
   });
-  queue.setMeasures(["1"]);
+  queue.setItems(["1"]);
   assert.equal(requests, 0);
   queue.dispose();
 });
 
-test("foreground navigation refreshes an expired graph", async (t) => {
+test("opening a prepared screen keeps fresh data and refreshes expired data", async (t) => {
+  let requests = 0;
+  const f = fixture(() => Promise.resolve(`graph-${++requests}`));
+  t.after(() => f.cleanup());
+  await f.client.prefetchQuery(f.options("1"));
+  const observer = new QueryObserver(f.client, {
+    ...f.options("1"),
+    enabled: false,
+  });
+  t.after(observer.subscribe(() => undefined));
+  assert.equal(observer.getCurrentResult().data, "graph-1");
+  observer.setOptions({ ...f.options("1"), enabled: true });
+  await setImmediate();
+  assert.equal(requests, 1, "opening fresh preparation reuses its data");
+  observer.setOptions({ ...f.options("1"), enabled: false });
+  f.client.setQueryData(f.options("1").queryKey, "graph-1", {
+    updatedAt: Date.now() - BALLOT_STALE_TIME - 1,
+  });
+  observer.setOptions({ ...f.options("1"), enabled: true });
+  assert.equal(observer.getCurrentResult().data, "graph-1");
+  await setImmediate();
+  assert.equal(observer.getCurrentResult().data, "graph-2");
+  assert.equal(requests, 2);
+});
+
+test("opening a prepared screen recovers from failed background fetching", async (t) => {
+  let online = false;
   let requests = 0;
   const f = fixture(() => {
     requests++;
-    return Promise.resolve("updated");
+    return online
+      ? Promise.resolve("recovered")
+      : Promise.reject(new Error("offline"));
   });
   t.after(() => f.cleanup());
-  f.client.setQueryData(f.options("1").queryKey, "old", {
-    updatedAt: Date.now() - MEASURE_GRAPH_STALE_TIME - 1,
+  await f.client.prefetchQuery(f.options("1"));
+  const observer = new QueryObserver(f.client, {
+    ...f.options("1"),
+    enabled: false,
   });
-  assert.equal(await f.client.fetchQuery(f.options("1")), "updated");
-  assert.equal(requests, 1);
+  t.after(observer.subscribe(() => undefined));
+  await setImmediate();
+  assert.equal(requests, 1, "hidden screens do not retry failed speculation");
+  online = true;
+  observer.setOptions({ ...f.options("1"), enabled: true });
+  await setImmediate();
+  assert.equal(observer.getCurrentResult().data, "recovered");
+  assert.equal(requests, 2);
+});
+
+test("Feed prepares the full guide before the Elections screen", () => {
+  assert.deepEqual(ballotPreloads(), [
+    { kind: "guide" },
+    { kind: "elections" },
+  ]);
+});
+
+test("Measures warm every graph but prepare only the first two readers after their data", () => {
+  assert.deepEqual(ballotPreloads(["1", "2", "3"]), [
+    { kind: "guide" },
+    { kind: "graph", number: "1" },
+    { kind: "reader", number: "1" },
+    { kind: "graph", number: "2" },
+    { kind: "reader", number: "2" },
+    { kind: "graph", number: "3" },
+  ]);
+});
+
+test("reader preparation preserves mounted readers and never exceeds two hidden readers", () => {
+  const reader = (number: string) => ({
+    key: `reader-${number}`,
+    name: "proposition-detail",
+    params: { number },
+  });
+  assert.equal(
+    canPreloadReader({ routes: [], preloadedRoutes: [] }, "1"),
+    true,
+  );
+  assert.equal(
+    canPreloadReader({ routes: [reader("1")], preloadedRoutes: [] }, "1"),
+    false,
+  );
+  assert.equal(
+    canPreloadReader({ routes: [], preloadedRoutes: [reader("1")] }, "1"),
+    false,
+  );
+  assert.equal(
+    canPreloadReader({ routes: [], preloadedRoutes: [reader("1")] }, "2"),
+    true,
+  );
+  assert.equal(
+    canPreloadReader(
+      { routes: [], preloadedRoutes: [reader("1"), reader("2")] },
+      "3",
+    ),
+    false,
+  );
+  assert.equal(
+    canPreloadReader(
+      { routes: [reader("1")], preloadedRoutes: [reader("2")] },
+      "1",
+    ),
+    false,
+  );
+  assert.equal(
+    canPreloadReader({ routes: [], preloadedRoutes: [reader("2")] }, "1"),
+    true,
+  );
 });

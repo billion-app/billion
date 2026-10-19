@@ -13,7 +13,7 @@
  */
 import type * as ExpoSpeech from "expo-speech";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useFocusEffect } from "expo-router";
+import { useIsFocused } from "expo-router";
 
 import type { AppLanguage } from "~/i18n/language";
 import { posthog } from "~/config/posthog";
@@ -50,6 +50,7 @@ export function useArticleSpeech(options: {
   mode: "explainer" | "opinions" | "source";
 }) {
   const { chunks, language, contentId, mode } = options;
+  const focused = useIsFocused();
   const available = loadSpeech() !== null;
   const [status, setStatus] = useState<SpeechStatus>("idle");
   const [error, setError] = useState(false);
@@ -127,10 +128,9 @@ export function useArticleSpeech(options: {
     setStatus("idle");
   }, [halt]);
 
-  useFocusEffect(useCallback(() => stop, [stop]));
-
-  // New text (mode or language switch) invalidates the current reading.
-  useEffect(() => stop, [contentId, mode, language, chunks, stop]);
+  useEffect(() => {
+    if (focused) return stop;
+  }, [focused, contentId, mode, language, chunks, stop]);
 
   return {
     available: available && chunks.length > 0,
