@@ -9,6 +9,7 @@ import {
   ballotPreloads,
   canPreloadReader,
   createIdlePreloader,
+  retainVisiblePreloads,
 } from "./ballot-preloading";
 
 type IdleCallback = Parameters<IdleScheduler["request"]>[0];
@@ -308,18 +309,20 @@ test("Feed prepares the full guide before the Elections screen", () => {
   ]);
 });
 
-test("Measures warm every graph but prepare only the first two readers after their data", () => {
+test("Measures prepare every visible reader after its data", () => {
   assert.deepEqual(ballotPreloads(["1", "2", "3"]), [
+    { kind: "retain-readers", numbers: ["1", "2", "3"] },
     { kind: "guide" },
     { kind: "graph", number: "1" },
     { kind: "reader", number: "1" },
     { kind: "graph", number: "2" },
     { kind: "reader", number: "2" },
     { kind: "graph", number: "3" },
+    { kind: "reader", number: "3" },
   ]);
 });
 
-test("reader preparation preserves mounted readers and never exceeds two hidden readers", () => {
+test("reader preparation reuses mounted readers and includes later visible measures", () => {
   const reader = (number: string) => ({
     key: `reader-${number}`,
     name: "proposition-detail",
@@ -346,7 +349,7 @@ test("reader preparation preserves mounted readers and never exceeds two hidden 
       { routes: [], preloadedRoutes: [reader("1"), reader("2")] },
       "3",
     ),
-    false,
+    true,
   );
   assert.equal(
     canPreloadReader(
@@ -359,4 +362,70 @@ test("reader preparation preserves mounted readers and never exceeds two hidden 
     canPreloadReader({ routes: [], preloadedRoutes: [reader("2")] }, "1"),
     true,
   );
+});
+
+test("moving the viewport releases only hidden offscreen readers", () => {
+  const reader = (number: string) => ({
+    key: `reader-${number}`,
+    name: "proposition-detail",
+    params: { number },
+  });
+  const state: Parameters<typeof retainVisiblePreloads>[0] = {
+    stale: false,
+    type: "stack",
+    key: "root",
+    index: 1,
+    routeNames: ["(tabs)", "proposition-detail", "other"],
+    routes: [{ key: "tabs", name: "(tabs)" }, reader("1")],
+    preloadedRoutes: [
+      reader("2"),
+      reader("3"),
+      { key: "other", name: "other" },
+    ],
+  };
+  const next = retainVisiblePreloads(state, ["3", "4", "5"]);
+  assert.deepEqual(
+    next.preloadedRoutes.map(({ key }) => key),
+    ["reader-3", "other"],
+  );
+  assert.equal(
+    next.routes,
+    state.routes,
+    "a reader opened before eviction stays in the Back stack",
+  );
+  assert.equal(next.index, state.index);
+  assert.equal(next.key, state.key);
+  assert.equal(
+    retainVisiblePreloads(next, ["3", "4"]),
+    next,
+    "same viewport does not reset navigation",
+  );
+  assert.deepEqual(retainVisiblePreloads(next, []).preloadedRoutes, [
+    { key: "other", name: "other" },
+  ]);
+});
+
+test("scrolling replaces queued readers while an earlier graph finishes", async () => {
+  const idle = idleCallbacks();
+  const graph = deferred<void>();
+  const started: string[] = [];
+  const queue = createIdlePreloader<string>((item) => {
+    started.push(item);
+    return item === "graph-1" ? graph.promise : Promise.resolve();
+  }, idle);
+  queue.setItems(["graph-1", "reader-1"]);
+  idle.run();
+  queue.setPaused("scroll", true);
+  queue.setItems(["retain-37", "graph-37", "reader-37"]);
+  graph.resolve();
+  await setImmediate();
+  assert.equal(idle.pending, 0);
+  queue.setPaused("scroll", false);
+  assert.deepEqual(started, ["graph-1"]);
+  for (let i = 0; i < 3; i++) {
+    idle.run();
+    await setImmediate();
+  }
+  assert.deepEqual(started, ["graph-1", "retain-37", "graph-37", "reader-37"]);
+  queue.dispose();
 });

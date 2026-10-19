@@ -783,7 +783,7 @@ export function mountTrillionReader(root, graph, options = {}) {
   }
 
   // ── Reading column ──────────────────────────────────────────────────
-  const $ = (s) => document.querySelector(s);
+  const $ = (s) => root.querySelector(s);
   const page = $("#page");
 
   function srcLabel(n) {
@@ -2373,7 +2373,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       sim2.innerHTML = `<div class="dup"><strong>${tr("Reusing an existing claim")}</strong><span>${tr("Its original attribution stays. Explain why it applies to this target.")}</span></div>`;
     });
     $("#preview").addEventListener("click", () => {
-      const act = document.querySelector('input[name="act"]:checked').value;
+      const act = $('input[name="act"]:checked').value;
       const missing = !claim.value.trim()
         ? tr("Write the claim or question you're adding.")
         : act !== "asks" && !$("#why").value.trim()
@@ -2423,7 +2423,7 @@ export function mountTrillionReader(root, graph, options = {}) {
   }
 
   // ── Events ──────────────────────────────────────────────────────────
-  listen(document).addEventListener("click", (ev) => {
+  listen(root).addEventListener("click", (ev) => {
     const v = ev.target.closest("[data-view]");
     if (v) {
       view = v.dataset.view;
@@ -2486,11 +2486,11 @@ export function mountTrillionReader(root, graph, options = {}) {
     } else if (t.dataset.tab) {
       tab = t.dataset.tab;
       render(false);
-      document.querySelector(`[data-tab="${tab}"]`)?.focus();
+      $(`[data-tab="${tab}"]`)?.focus();
     } else closeSheet();
   });
   // Desktop: hovering a slice names it in place; a click still only previews.
-  listen(document).addEventListener("mouseover", (ev) => {
+  listen(root).addEventListener("mouseover", (ev) => {
     const t = ev.target.closest?.(".ring-sheet [data-peek]");
     const out = $("#ov-hover");
     if (!out) return;
@@ -2541,7 +2541,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     ringDrag = null;
   });
   listen(root).addEventListener("focusin", (ev) => nameSlice(ev.target));
-  listen(document).addEventListener("keydown", (ev) => {
+  listen(root).addEventListener("keydown", (ev) => {
     const slice = ev.target.closest?.(".ring-sheet svg [data-peek]");
     if (slice && (ev.key === "Enter" || ev.key === " ")) {
       ev.preventDefault();
@@ -2567,7 +2567,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     }
     const t = ev.target.closest?.("[role=tab]");
     if (t && (ev.key === "ArrowRight" || ev.key === "ArrowLeft")) {
-      const all = [...document.querySelectorAll("[role=tab]")];
+      const all = [...root.querySelectorAll("[role=tab]")];
       const next =
         all[
           (all.indexOf(t) + (ev.key === "ArrowRight" ? 1 : all.length - 1)) %

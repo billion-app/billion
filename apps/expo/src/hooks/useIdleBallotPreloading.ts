@@ -1,7 +1,7 @@
 import type { NativeStackNavigationProp } from "expo-router";
 import type { GestureResponderEvent } from "react-native";
 import { useEffect, useMemo, useRef } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 import { useIsFocused, useNavigation, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -12,6 +12,7 @@ import {
   ballotPreloads,
   canPreloadReader,
   createIdlePreloader,
+  retainVisiblePreloads,
 } from "~/utils/ballot-preloading";
 
 export function useIdleBallotPreloading({
@@ -36,6 +37,17 @@ export function useIdleBallotPreloading({
   useEffect(() => {
     const queue = createIdlePreloader<BallotPreload>((item) => {
       switch (item.kind) {
+        case "retain-readers": {
+          const state = navigation.getState();
+          const next = retainVisiblePreloads(state, item.numbers);
+          if (next !== state) {
+            navigation.dispatch((current) => ({
+              type: "RESET",
+              payload: retainVisiblePreloads(current, item.numbers),
+            }));
+          }
+          return Promise.resolve();
+        }
         case "guide":
           return queryClient.prefetchQuery(
             trpc.civic.getCaliforniaGuide.queryOptions(undefined, {
@@ -55,10 +67,7 @@ export function useIdleBallotPreloading({
           return Promise.resolve();
         case "reader":
           if (canPreloadReader(navigation.getState(), item.number)) {
-            router.prefetch({
-              pathname: "/proposition-detail",
-              params: { number: item.number },
-            });
+            navigation.preload("proposition-detail", { number: item.number });
           }
           return Promise.resolve();
       }
@@ -99,7 +108,19 @@ export function useIdleBallotPreloading({
     preloader.current?.setPaused("scroll", false);
   }
 
+  function onScrollBegin() {
+    if (scrollTimer.current) clearTimeout(scrollTimer.current);
+    preloader.current?.setPaused("scroll", true);
+  }
+
   return {
+    onScroll:
+      Platform.OS === "web"
+        ? () => {
+            onScrollBegin();
+            scrollTimer.current = setTimeout(onMomentumScrollEnd, 150);
+          }
+        : undefined,
     onTouchStart: () => preloader.current?.setPaused("touch", true),
     onTouchEnd: (event: GestureResponderEvent) =>
       preloader.current?.setPaused(
@@ -107,10 +128,7 @@ export function useIdleBallotPreloading({
         event.nativeEvent.touches.length > 0,
       ),
     onTouchCancel: () => preloader.current?.setPaused("touch", false),
-    onScrollBegin: () => {
-      if (scrollTimer.current) clearTimeout(scrollTimer.current);
-      preloader.current?.setPaused("scroll", true);
-    },
+    onScrollBegin,
     onScrollEndDrag: () => {
       if (scrollTimer.current) clearTimeout(scrollTimer.current);
       scrollTimer.current = setTimeout(onMomentumScrollEnd, 150);
