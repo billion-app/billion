@@ -664,6 +664,9 @@ export const PushDevice = pgTable(
     executiveOrdersSubscribedAt: t.timestamp("executive_orders_subscribed_at", {
       withTimezone: true,
     }),
+    newBillsSubscribedAt: t.timestamp("new_bills_subscribed_at", {
+      withTimezone: true,
+    }),
     brief: t.boolean().notNull().default(false),
     recap: t.boolean().notNull().default(false),
     quietHours: t.boolean("quiet_hours").notNull().default(true),
@@ -758,6 +761,9 @@ export const NotificationOutbox = pgTable(
       table.notBefore,
     ),
     deviceIdx: index("notification_outbox_device_id_idx").on(table.deviceId),
+    newBillUnique: uniqueIndex("notification_outbox_new_bill_unique")
+      .on(table.deviceId, table.contentId)
+      .where(sql`${table.kind} = 'new_bill'`),
     executiveUnique: uniqueIndex("notification_outbox_executive_unique")
       .on(table.deviceId, table.contentId)
       .where(sql`${table.kind} = 'executive'`),

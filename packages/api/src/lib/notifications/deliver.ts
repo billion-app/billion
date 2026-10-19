@@ -23,6 +23,7 @@ import {
 import {
   executiveOrderAlertCopy,
   followAlertCopy,
+  newBillAlertCopy,
   TEST_ALERT_COPY,
   testAlertCopy,
 } from "./copy";
@@ -178,6 +179,72 @@ export async function enqueueExecutiveOrders(now = new Date()) {
   });
 }
 
+export async function enqueueNewBills(now = new Date()) {
+  return db.transaction(async (tx) => {
+    const due = await tx
+      .select({
+        deviceId: PushDevice.id,
+        billId: Bill.id,
+        title: Bill.title,
+        billNumber: Bill.billNumber,
+        quietHours: PushDevice.quietHours,
+        quietStartMin: PushDevice.quietStartMin,
+        quietEndMin: PushDevice.quietEndMin,
+        timezone: PushDevice.timezone,
+      })
+      .from(PushDevice)
+      .innerJoin(
+        Bill,
+        and(
+          eq(Bill.sourceWebsite, "congress.gov"),
+          sql`${Bill.createdAt} AT TIME ZONE 'UTC' >= ${PushDevice.newBillsSubscribedAt}`,
+          lte(Bill.createdAt, now),
+          sql`${Bill.introducedDate} >= date_trunc('day', ${Bill.createdAt}) - interval '7 days'`,
+          sql`${Bill.introducedDate} <= ${Bill.createdAt}`,
+        ),
+      )
+      .where(
+        and(
+          isNull(PushDevice.disabledAt),
+          isNotNull(PushDevice.newBillsSubscribedAt),
+          notExists(
+            tx
+              .select({ id: NotificationOutbox.id })
+              .from(NotificationOutbox)
+              .where(
+                and(
+                  eq(NotificationOutbox.deviceId, PushDevice.id),
+                  eq(NotificationOutbox.contentId, Bill.id),
+                  eq(NotificationOutbox.kind, "new_bill"),
+                ),
+              ),
+          ),
+        ),
+      )
+      .orderBy(Bill.createdAt, Bill.id, PushDevice.id)
+      .limit(1000)
+      .for("update", { of: PushDevice, skipLocked: true });
+    if (!due.length) return { enqueued: 0 };
+    const inserted = await tx
+      .insert(NotificationOutbox)
+      .values(
+        due.map((row) => ({
+          deviceId: row.deviceId,
+          contentId: row.billId,
+          ...newBillAlertCopy({
+            id: row.billId,
+            title: row.title,
+            billNumber: row.billNumber,
+          }),
+          notBefore: nextDeliveryAt(now, row),
+        })),
+      )
+      .onConflictDoNothing()
+      .returning({ id: NotificationOutbox.id });
+    return { enqueued: inserted.length };
+  });
+}
+
 export async function enqueueTestAlert(
   deviceId: string,
   bill?: {
@@ -242,6 +309,13 @@ export async function drainOutbox(
             and(
               isNotNull(PushDevice.executiveOrdersSubscribedAt),
               sql`${NotificationOutbox.createdAt} >= ${PushDevice.executiveOrdersSubscribedAt}`,
+            ),
+          ),
+          or(
+            ne(NotificationOutbox.kind, "new_bill"),
+            and(
+              isNotNull(PushDevice.newBillsSubscribedAt),
+              sql`${NotificationOutbox.createdAt} >= ${PushDevice.newBillsSubscribedAt}`,
             ),
           ),
           or(
@@ -340,6 +414,7 @@ export async function runFollowNotifications(
   const receipts = await checkPushReceipts(now);
   const { enqueued } = await enqueueFollowMoves(now);
   const executive = await enqueueExecutiveOrders(now);
+  const bills = await enqueueNewBills(now);
   const drained = { sent: 0, failed: 0, unregistered: 0 };
   // Bound each run while allowing a broadcast to span multiple Expo requests.
   for (let batch = 0; batch < 20; batch++) {
@@ -349,7 +424,11 @@ export async function runFollowNotifications(
     drained.unregistered += result.unregistered;
     if (result.sent + result.failed < 100) break;
   }
-  return { enqueued: enqueued + executive.enqueued, ...drained, receipts };
+  return {
+    enqueued: enqueued + executive.enqueued + bills.enqueued,
+    ...drained,
+    receipts,
+  };
 }
 
 /** Send only the newly queued test; leave quiet-hours backlog untouched. */

@@ -179,3 +179,45 @@ void test("legacy saved-item consent never enables new-order alerts", () => {
     false,
   );
 });
+
+void test("new-bill alerts require an explicit Settings opt-in on every installation", () => {
+  assert.equal(DEFAULT_NOTIFICATION_PREFS.newBills, false);
+  assert.equal(parseNotificationPrefs(null).newBills, false);
+  assert.equal(
+    parseNotificationPrefs(JSON.stringify({ settled: true, following: true }))
+      .newBills,
+    false,
+  );
+  assert.equal(
+    parseNotificationPrefs(JSON.stringify({ newBills: true })).newBills,
+    true,
+  );
+  assert.equal(
+    parseNotificationPrefs(JSON.stringify({ newBills: "true" })).newBills,
+    false,
+  );
+  assert.equal(
+    parseNotificationPrefs(JSON.stringify({ newBills: false })).newBills,
+    false,
+  );
+  const onboarding = {
+    completed: true,
+    alerts: { instant: true, digest: true },
+  };
+  assert.equal(
+    notificationPrefsFromOnboarding(DEFAULT_NOTIFICATION_PREFS, onboarding)
+      .newBills,
+    false,
+  );
+  assert.equal(
+    notificationPrefsFromOnboarding(
+      { ...DEFAULT_NOTIFICATION_PREFS, newBills: true },
+      onboarding,
+    ).newBills,
+    true,
+  );
+  assert.equal(
+    "newBills" in notificationChoicesForOnboarding(["congress"], true, true),
+    false,
+  );
+});

@@ -164,17 +164,17 @@ Production entries read process variables and do not load local dotenv files. CI
 
 Use the focused command for the missing asset. Check its help and preview mode first; write defaults differ by command.
 
-| Command                      | Purpose                                                           |
-| ---------------------------- | ----------------------------------------------------------------- |
-| `reprocess-content`          | Inspect or repair incomplete content; read-only until `--apply`   |
-| `backfill-bill-descriptions` | Fill missing bill descriptions; writes require `--apply`          |
-| `repair-bill-descriptions`   | Repair misleading bill summaries through a reviewed manifest      |
-| `retroactive-briefs`         | Generate missing or stale structured briefs; supports `--dry-run` |
-| `retroactive-lenses`         | Generate missing or stale perspectives; supports `--dry-run`      |
-| `content-images`             | Generate header artwork                                           |
-| `bill-interest`              | Score editorial interest; supports `--dry-run`                    |
-| `notify-followers`           | Enqueue and send lock-screen alerts for followed bills            |
-| `prune-bills`                | Inspect retention candidates; read-only until `--apply`           |
+| Command                      | Purpose                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| `reprocess-content`          | Inspect or repair incomplete content; read-only until `--apply`          |
+| `backfill-bill-descriptions` | Fill missing bill descriptions; writes require `--apply`                 |
+| `repair-bill-descriptions`   | Repair misleading bill summaries through a reviewed manifest             |
+| `retroactive-briefs`         | Generate missing or stale structured briefs; supports `--dry-run`        |
+| `retroactive-lenses`         | Generate missing or stale perspectives; supports `--dry-run`             |
+| `content-images`             | Generate header artwork                                                  |
+| `bill-interest`              | Score editorial interest; supports `--dry-run`                           |
+| `notify-followers`           | Send saved-bill updates and opted-in new-bill and executive-order alerts |
+| `prune-bills`                | Inspect retention candidates; read-only until `--apply`                  |
 
 `content-images` accepts `--type bill`, `--type government_content`, or
 `--type court_case` for a bounded single-domain run. Production's manual

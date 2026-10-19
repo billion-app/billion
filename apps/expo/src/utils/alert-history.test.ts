@@ -119,3 +119,15 @@ void test("a scheduled local test is recorded", async () => {
   assert.equal(next[0]?.id, "test-1");
   assert.equal(next.length, 1);
 });
+
+void test("new-bill alerts retain their article link in history", () => {
+  const item = {
+    id: "new-bill",
+    at: "2026-10-18T03:17:44Z",
+    kind: "new_bill",
+    title: "New bill in Congress",
+    body: "S.5686: No Public Executions in America Act",
+    href: "/article-detail?id=bill-id",
+  };
+  assert.deepEqual(parseAlertHistory(JSON.stringify([item])), [item]);
+});

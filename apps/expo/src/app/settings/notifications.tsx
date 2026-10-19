@@ -142,6 +142,12 @@ export default function NotificationsScreen() {
           onChange={(next) => setPref({ executiveOrders: next })}
         />
         <PrefRow
+          label={t("notify.newBills")}
+          sub={t("notify.newBillsSub")}
+          on={prefs.newBills}
+          onChange={(next) => setPref({ newBills: next })}
+        />
+        <PrefRow
           label={t("notify.brief")}
           sub={t("notify.briefSub")}
           on={prefs.brief}
@@ -247,13 +253,14 @@ function PrefRow({
       style={[s.row, !last && s.divider]}
       accessibilityRole="switch"
       accessibilityState={{ checked: on }}
+      aria-checked={on}
       accessibilityLabel={`${label}. ${sub}`}
     >
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={s.label}>{label}</Text>
         <Text style={s.sub}>{sub}</Text>
       </View>
-      <View pointerEvents="none">
+      <View pointerEvents="none" style={{ flexShrink: 0 }}>
         <Toggle on={on} onChange={() => undefined} />
       </View>
     </Pressable>

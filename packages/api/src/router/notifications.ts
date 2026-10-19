@@ -27,6 +27,7 @@ const PrefsInput = z.object({
   breaking: z.boolean(),
   following: z.boolean(),
   executiveOrders: z.boolean().optional(),
+  newBills: z.boolean().optional(),
   brief: z.boolean(),
   recap: z.boolean(),
   quietHours: z.boolean(),
@@ -81,6 +82,12 @@ export const notificationsRouter = {
           : input.prefs.executiveOrders
             ? sql`coalesce(${PushDevice.executiveOrdersSubscribedAt}, now())`
             : null;
+      const newBillsSubscribedAt =
+        input.prefs.newBills === undefined
+          ? undefined
+          : input.prefs.newBills
+            ? sql`coalesce(${PushDevice.newBillsSubscribedAt}, now())`
+            : null;
       const [device] = await db
         .insert(PushDevice)
         .values({
@@ -89,6 +96,7 @@ export const notificationsRouter = {
           timezone: input.timezone,
           userId,
           ...prefs,
+          newBillsSubscribedAt: input.prefs.newBills ? new Date() : null,
           executiveOrdersSubscribedAt: input.prefs.executiveOrders
             ? new Date()
             : null,
@@ -101,6 +109,7 @@ export const notificationsRouter = {
             userId,
             ...prefs,
             executiveOrdersSubscribedAt,
+            newBillsSubscribedAt,
             lastSeenAt: new Date(),
             disabledAt: null,
           },
@@ -120,6 +129,18 @@ export const notificationsRouter = {
             and(
               eq(NotificationOutbox.deviceId, deviceId),
               eq(NotificationOutbox.kind, "executive"),
+              isNull(NotificationOutbox.sentAt),
+            ),
+          );
+      }
+
+      if (input.prefs.newBills === false) {
+        await db
+          .delete(NotificationOutbox)
+          .where(
+            and(
+              eq(NotificationOutbox.deviceId, deviceId),
+              eq(NotificationOutbox.kind, "new_bill"),
               isNull(NotificationOutbox.sentAt),
             ),
           );

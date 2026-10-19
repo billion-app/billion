@@ -4,6 +4,7 @@ export const SIGNAL_CATEGORY = "billionSignal";
 
 export type NotificationKind =
   | "executive"
+  | "new_bill"
   | "follow"
   | "breaking"
   | "brief"
@@ -77,4 +78,17 @@ export function testAlertCopy(language: "en" | "es" | "zh" = "en") {
       body: "Las notificaciones están activadas.",
     };
   return TEST_ALERT_COPY;
+}
+
+export function newBillAlertCopy(bill: {
+  id: string;
+  title: string;
+  billNumber: string;
+}) {
+  return {
+    kind: "new_bill" as const,
+    title: "New bill in Congress",
+    body: `${bill.billNumber}: ${clipTitle(bill.title)}`,
+    href: `/article-detail?id=${bill.id}`,
+  };
 }
