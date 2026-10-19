@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import type { ViewToken } from "react-native";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Image,
   Linking,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -44,6 +45,8 @@ type Guide = NonNullable<RouterOutputs["civic"]["getCaliforniaGuide"]>;
 type Candidate = Guide["candidates"][number];
 type Measure = Guide["measures"][number];
 type GuideTab = "candidates" | "measures";
+
+const MEASURE_VIEWABILITY = { itemVisiblePercentThreshold: 1 };
 
 const COUNTY_OFFICES_URL =
   "https://www.sos.ca.gov/elections/voting-resources/county-elections-offices";
@@ -212,7 +215,6 @@ export function CaliforniaGuidePreview({
   const { t: tx, language: uiLanguage } = useAppTranslation();
 
   const { language, t } = useLanguage();
-  const guideScroll = useRef<ScrollView>(null);
   const router = useRouter();
 
   const [tab, setTab] = useState<GuideTab>("candidates");
@@ -221,12 +223,21 @@ export function CaliforniaGuidePreview({
     trpc.civic.getCaliforniaGuide.queryOptions(undefined, { enabled: focused }),
   );
   const guide = query.isError ? undefined : query.data;
-  const measureNumbers = useMemo(
-    () => guide?.measures.map((measure) => measure.number) ?? [],
-    [guide?.measures],
+  const [visibleNumbers, setVisibleNumbers] = useState<string[]>([]);
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken<Measure>[] }) => {
+      const numbers = viewableItems.map(({ item }) => item.number);
+      setVisibleNumbers((previous) =>
+        previous.length === numbers.length &&
+        previous.every((number, index) => number === numbers[index])
+          ? previous
+          : numbers,
+      );
+    },
+    [],
   );
   const preloading = useIdleBallotPreloading({
-    numbers: measureNumbers,
+    numbers: visibleNumbers,
     enabled: tab === "measures",
   });
   const hasBoldedTitles = !!guide?.measures.some((m) => m.displayTitle);
@@ -238,186 +249,214 @@ export function CaliforniaGuidePreview({
       onTouchCancel={preloading.onTouchCancel}
     >
       <NavHeader title={tx("California guide")} large onBack={onBack} />
-      <ScrollView
-        ref={guideScroll}
+      <FlatList
+        key={tab}
+        data={tab === "measures" ? guide?.measures : []}
+        keyExtractor={(measure) => measure.number}
+        renderItem={({ item }) => <MeasureRow measure={item} />}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        viewabilityConfig={MEASURE_VIEWABILITY}
+        onViewableItemsChanged={onViewableItemsChanged}
+        onScroll={preloading.onScroll}
         onScrollBeginDrag={preloading.onScrollBegin}
         onScrollEndDrag={preloading.onScrollEndDrag}
         onMomentumScrollBegin={preloading.onScrollBegin}
         onMomentumScrollEnd={preloading.onMomentumScrollEnd}
         contentContainerStyle={s.screen}
         showsVerticalScrollIndicator={false}
-      >
-        <View style={s.intro}>
-          {guide && (
-            <Text style={s.kicker}>
-              {tx("{date} · General election", {
-                date: ballotElectionDate(guide.electionDate, uiLanguage),
-              })}
-            </Text>
-          )}
-          {!guide && (
-            <Text style={s.introText}>
-              {query.isPending
-                ? tx("Checking the statewide preview…")
-                : query.isError
-                  ? tx("The preview couldn’t load.")
-                  : tx("The preview isn’t available in Billion.")}
-            </Text>
-          )}
-        </View>
-
-        <View style={s.actions}>
-          {QUICK_ACTIONS.map((item) => (
-            <TouchableOpacity
-              key={item.mode}
-              accessibilityRole="button"
-              activeOpacity={0.8}
-              style={s.action}
-              onPress={() =>
-                router.push(
-                  item.mode === "help"
-                    ? "/election-access"
-                    : {
-                        pathname: "/guide-preparation",
-                        params: { mode: item.mode },
-                      },
-                )
-              }
-            >
-              <Icon name={item.icon} size={15} color={P.inkOnNight} />
-              <Text style={s.actionText}>{tx(item.label)}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        {query.isPending && <ActivityIndicator color={P.inkOnNight} />}
-        {query.isError && (
-          <Card>
-            <Text style={s.cardText}>
-              {tx("The official guide could not load.")}
-            </Text>
-            <TouchableOpacity
-              accessibilityRole="button"
-              style={s.retryButton}
-              onPress={() => void query.refetch()}
-            >
-              <Text style={s.retry}>{tx("Try again")}</Text>
-            </TouchableOpacity>
-          </Card>
-        )}
-        {!query.isPending && !query.isError && !guide && (
-          <Card>
-            <Text style={s.cardText}>
-              {tx(
-                "Guide data is unavailable to Billion. Check the official guide or your election office.",
-              )}
-            </Text>
-          </Card>
-        )}
-        {!query.isPending && (query.isError || !guide) && (
-          <View style={s.intro}>
-            <SourceLink
-              label={tx("California official voter guide")}
-              prominence="primary"
-              url="https://voterguide.sos.ca.gov/"
-            />
-            <SourceLink
-              label={tx("Find your county elections office")}
-              url={COUNTY_OFFICES_URL}
-            />
-          </View>
-        )}
-
-        {guide && (
-          <>
-            <Segmented<GuideTab>
-              value={tab}
-              onChange={setTab}
-              options={[
-                {
-                  id: "candidates",
-                  label: tx("Statements {count}", {
-                    count: guide.candidates.length,
-                  }),
-                  icon: "vote",
-                },
-                {
-                  id: "measures",
-                  label: tx("Measures {count}", {
-                    count: guide.measures.length,
-                  }),
-                  icon: "scale",
-                },
-              ]}
-            />
-            {tab === "candidates" ? (
-              <View style={s.list}>
-                <Text style={s.note}>
-                  {tx("Statement submitters only, not your full ballot.")}
+        ListHeaderComponentStyle={{
+          marginBottom:
+            tab === "measures" && (hasBoldedTitles || language !== "en")
+              ? 12
+              : 22,
+        }}
+        ListHeaderComponent={
+          <View style={{ gap: 22 }}>
+            <View style={s.intro}>
+              {guide && (
+                <Text style={s.kicker}>
+                  {tx("{date} · General election", {
+                    date: ballotElectionDate(guide.electionDate, uiLanguage),
+                  })}
                 </Text>
-                {guide.candidates.map((candidate) => (
-                  <CandidateRow
-                    key={`${candidate.officeSlug}:${candidate.name}`}
-                    candidate={candidate}
-                  />
-                ))}
-              </View>
-            ) : (
-              <View style={s.list}>
-                {(hasBoldedTitles || language !== "en") && (
-                  <View style={s.aiNote}>
-                    <Icon name="sparkle" size={13} color={P.quiet} />
-                    <Text style={s.note}>
-                      {language === "en"
-                        ? tx("Official titles · bold added by Billion")
-                        : t("reader.translatedTitles")}
-                    </Text>
-                  </View>
-                )}
-                {guide.measures.map((measure) => (
-                  <MeasureRow key={measure.number} measure={measure} />
-                ))}
-              </View>
-            )}
-            <View style={s.footer}>
-              {onOpenBallot && (
+              )}
+              {!guide && (
+                <Text style={s.introText}>
+                  {query.isPending
+                    ? tx("Checking the statewide preview…")
+                    : query.isError
+                      ? tx("The preview couldn’t load.")
+                      : tx("The preview isn’t available in Billion.")}
+                </Text>
+              )}
+            </View>
+
+            <View style={s.actions}>
+              {QUICK_ACTIONS.map((item) => (
+                <TouchableOpacity
+                  key={item.mode}
+                  accessibilityRole="button"
+                  activeOpacity={0.8}
+                  style={s.action}
+                  onPress={() =>
+                    router.push(
+                      item.mode === "help"
+                        ? "/election-access"
+                        : {
+                            pathname: "/guide-preparation",
+                            params: { mode: item.mode },
+                          },
+                    )
+                  }
+                >
+                  <Icon name={item.icon} size={15} color={P.inkOnNight} />
+                  <Text style={s.actionText}>{tx(item.label)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {query.isPending && <ActivityIndicator color={P.inkOnNight} />}
+            {query.isError && (
+              <Card>
+                <Text style={s.cardText}>
+                  {tx("The official guide could not load.")}
+                </Text>
                 <TouchableOpacity
                   accessibilityRole="button"
-                  onPress={onOpenBallot}
-                  style={s.ballotButton}
+                  style={s.retryButton}
+                  onPress={() => void query.refetch()}
                 >
-                  <Text style={s.ballotButtonText}>
-                    {tx("Find my official ballot")}
-                  </Text>
-                  <Icon name="arrowRight" size={17} color={P.inkOnNight} />
+                  <Text style={s.retry}>{tx("Try again")}</Text>
                 </TouchableOpacity>
-              )}
-              <Card flush style={s.sources}>
-                <SourceRow
-                  icon="book"
-                  label={tx("Official voter guide")}
-                  url={guide.sourceUrl}
-                />
-                <SourceRow
-                  icon="vote"
-                  label={tx("Check your registration")}
-                  url="https://voterstatus.sos.ca.gov/EN/Authenticate"
-                />
-                <SourceRow
-                  icon="pin"
-                  label={tx("County elections office")}
-                  url={COUNTY_OFFICES_URL}
-                  last
-                />
               </Card>
-            </View>
-          </>
-        )}
-        {onOpenFixtures && (
-          <TouchableOpacity onPress={onOpenFixtures}>
-            <Text style={s.fixtureLink}>{tx("Development scenarios")}</Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
+            )}
+            {!query.isPending && !query.isError && !guide && (
+              <Card>
+                <Text style={s.cardText}>
+                  {tx(
+                    "Guide data is unavailable to Billion. Check the official guide or your election office.",
+                  )}
+                </Text>
+              </Card>
+            )}
+            {!query.isPending && (query.isError || !guide) && (
+              <View style={s.intro}>
+                <SourceLink
+                  label={tx("California official voter guide")}
+                  prominence="primary"
+                  url="https://voterguide.sos.ca.gov/"
+                />
+                <SourceLink
+                  label={tx("Find your county elections office")}
+                  url={COUNTY_OFFICES_URL}
+                />
+              </View>
+            )}
+
+            {guide && (
+              <>
+                <Segmented<GuideTab>
+                  value={tab}
+                  onChange={(next) => {
+                    if (next === tab) return;
+                    setVisibleNumbers([]);
+                    setTab(next);
+                  }}
+                  options={[
+                    {
+                      id: "candidates",
+                      label: tx("Statements {count}", {
+                        count: guide.candidates.length,
+                      }),
+                      icon: "vote",
+                    },
+                    {
+                      id: "measures",
+                      label: tx("Measures {count}", {
+                        count: guide.measures.length,
+                      }),
+                      icon: "scale",
+                    },
+                  ]}
+                />
+                {tab === "candidates" ? (
+                  <View style={s.list}>
+                    <Text style={s.note}>
+                      {tx("Statement submitters only, not your full ballot.")}
+                    </Text>
+                    {guide.candidates.map((candidate) => (
+                      <CandidateRow
+                        key={`${candidate.officeSlug}:${candidate.name}`}
+                        candidate={candidate}
+                      />
+                    ))}
+                  </View>
+                ) : (
+                  <View style={s.list}>
+                    {(hasBoldedTitles || language !== "en") && (
+                      <View style={s.aiNote}>
+                        <Icon name="sparkle" size={13} color={P.quiet} />
+                        <Text style={s.note}>
+                          {language === "en"
+                            ? tx("Official titles · bold added by Billion")
+                            : t("reader.translatedTitles")}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+        }
+        ListFooterComponent={
+          <View
+            style={{
+              gap: 22,
+              marginTop: tab === "measures" && guide?.measures.length ? 22 : 0,
+            }}
+          >
+            {guide && (
+              <View style={s.footer}>
+                {onOpenBallot && (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    onPress={onOpenBallot}
+                    style={s.ballotButton}
+                  >
+                    <Text style={s.ballotButtonText}>
+                      {tx("Find my official ballot")}
+                    </Text>
+                    <Icon name="arrowRight" size={17} color={P.inkOnNight} />
+                  </TouchableOpacity>
+                )}
+                <Card flush style={s.sources}>
+                  <SourceRow
+                    icon="book"
+                    label={tx("Official voter guide")}
+                    url={guide.sourceUrl}
+                  />
+                  <SourceRow
+                    icon="vote"
+                    label={tx("Check your registration")}
+                    url="https://voterstatus.sos.ca.gov/EN/Authenticate"
+                  />
+                  <SourceRow
+                    icon="pin"
+                    label={tx("County elections office")}
+                    url={COUNTY_OFFICES_URL}
+                    last
+                  />
+                </Card>
+              </View>
+            )}
+            {onOpenFixtures && (
+              <TouchableOpacity onPress={onOpenFixtures}>
+                <Text style={s.fixtureLink}>{tx("Development scenarios")}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        }
+      />
     </View>
   );
 }
@@ -427,7 +466,6 @@ const s = StyleSheet.create({
     paddingHorizontal: DigestSpace.screenPadX + 4,
     paddingTop: 12,
     paddingBottom: 160,
-    gap: 22,
   },
   intro: { gap: 10 },
   kicker: {

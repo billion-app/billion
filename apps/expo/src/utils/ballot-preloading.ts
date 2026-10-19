@@ -1,7 +1,6 @@
 import type { StackNavigationState } from "expo-router";
 
 export const BALLOT_STALE_TIME = 60_000;
-const MAX_PRELOADED_READERS = 2;
 
 type PauseReason = "inactive" | "touch" | "scroll";
 export interface IdleScheduler {
@@ -86,6 +85,7 @@ export function createIdlePreloader<T>(
 }
 
 export type BallotPreload =
+  | { kind: "retain-readers"; numbers: readonly string[] }
   | { kind: "guide" }
   | { kind: "elections" }
   | { kind: "graph"; number: string }
@@ -94,14 +94,34 @@ export type BallotPreload =
 export function ballotPreloads(numbers?: readonly string[]): BallotPreload[] {
   if (!numbers) return [{ kind: "guide" }, { kind: "elections" }];
   return [
+    { kind: "retain-readers", numbers },
     { kind: "guide" },
-    ...numbers.flatMap((number, index): BallotPreload[] => [
+    ...numbers.flatMap((number): BallotPreload[] => [
       { kind: "graph", number },
-      ...(index < MAX_PRELOADED_READERS
-        ? [{ kind: "reader" as const, number }]
-        : []),
+      { kind: "reader", number },
     ]),
   ];
+}
+
+type BallotNavigationState = StackNavigationState<
+  Record<string, object | undefined>
+>;
+
+export function retainVisiblePreloads(
+  state: BallotNavigationState,
+  numbers: readonly string[],
+): BallotNavigationState {
+  const preloadedRoutes = state.preloadedRoutes.filter(
+    (route) =>
+      route.name !== "proposition-detail" ||
+      (route.params &&
+        "number" in route.params &&
+        typeof route.params.number === "string" &&
+        numbers.includes(route.params.number)),
+  );
+  return preloadedRoutes.length === state.preloadedRoutes.length
+    ? state
+    : { ...state, preloadedRoutes };
 }
 
 export function canPreloadReader(
@@ -118,8 +138,5 @@ export function canPreloadReader(
       "number" in route.params &&
       route.params.number === number,
   );
-  const prepared = state.preloadedRoutes.filter(
-    (route) => route.name === "proposition-detail",
-  ).length;
-  return !alreadyMounted && prepared < MAX_PRELOADED_READERS;
+  return !alreadyMounted;
 }
