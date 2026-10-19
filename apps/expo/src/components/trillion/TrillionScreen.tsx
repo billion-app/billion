@@ -100,20 +100,22 @@ function ReaderHost({ graph, view, ballot }: TrillionScreenProps) {
   // Then the edge swipe and Android's back action step back like the reader's back button,
   // instead of the stack leaving the whole debate.
   const [backInside, setBackInside] = useState(false);
+  const handleBackInside = backInside && !startupFailed;
   useEffect(() => {
-    navigation.setOptions({ gestureEnabled: !backInside });
-  }, [navigation, backInside]);
+    navigation.setOptions({ gestureEnabled: !handleBackInside });
+  }, [navigation, handleBackInside]);
   useEffect(() => {
-    if (!backInside || Platform.OS !== "android") return;
+    if (!handleBackInside || Platform.OS !== "android") return;
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
-        reader.current?.goBack();
+        if (!reader.current) return false;
+        reader.current.goBack();
         return true;
       },
     );
     return () => subscription.remove();
-  }, [backInside]);
+  }, [handleBackInside]);
   useEffect(() => {
     if (ready || waitingForTranslation) return;
     const timer = setTimeout(() => setFailedKey(contentKey), 15_000);
@@ -123,7 +125,7 @@ function ReaderHost({ graph, view, ballot }: TrillionScreenProps) {
     value1: graph.measure.number,
   });
   const goBack = () => {
-    if (backInside) reader.current?.goBack();
+    if (handleBackInside && reader.current) reader.current.goBack();
     else router.back();
   };
   return (
