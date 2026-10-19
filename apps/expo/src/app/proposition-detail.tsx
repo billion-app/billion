@@ -36,6 +36,7 @@ import {
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
+import { MEASURE_GRAPH_STALE_TIME } from "~/utils/measure-preloading";
 import { measureSpeechChunks } from "~/utils/measure-speech";
 import {
   officialVoteMeaning,
@@ -59,7 +60,7 @@ export default function PropositionDetailScreen() {
   const debate = useQuery(
     trpc.civic.getTrillion.queryOptions(
       { number: number ?? "" },
-      { enabled: !!number },
+      { enabled: !!number, staleTime: MEASURE_GRAPH_STALE_TIME },
     ),
   );
   const graph =

@@ -24,7 +24,6 @@ import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useArticleSpeech } from "~/hooks/useArticleSpeech";
 import { useMeasureTranslation } from "~/hooks/useMeasureTranslation";
 import { fontBody, DigestPalette as P } from "~/styles";
-import { queryClient, trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { graphSpeechChunks } from "~/utils/measure-speech";
 import TrillionReader from "./dom/TrillionReader";
@@ -196,9 +195,6 @@ function ReaderHost({ graph, view, ballot }: TrillionScreenProps) {
                   await Linking.openURL(url);
                 }}
                 onOpenMeasure={(number) => {
-                  void queryClient.prefetchQuery(
-                    trpc.civic.getTrillion.queryOptions({ number }),
-                  );
                   router.push({
                     pathname: "/proposition-detail",
                     params: { number },
