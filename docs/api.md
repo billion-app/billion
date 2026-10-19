@@ -37,6 +37,13 @@ The protected `user.getPreferences` procedure returns the caller's `user_prefere
 
 For Browse and article detail, start in [content.ts](../packages/api/src/router/content.ts). `getByType` reads paginated stored content, `search` searches the corpus, and `getById` assembles the detail response with available derived content. The [architecture tour](architecture.md#follow-a-bill-to-the-screen) traces these back to ingestion.
 
+Presidential records keep `type: "government_content"` for routing and expose
+their stored source type as `governmentContentType`. Browse, search, saved
+records, and detail preserve this field. Mobile and web badges use it to
+distinguish executive orders, notices, memoranda, and other document types.
+Missing or unknown subtypes use the neutral Executive label. Notification
+eligibility still uses the stored source type, independently of badge copy.
+
 Detail keeps bill `brief` and court `courtBrief` as separate response fields.
 Bill timelines validate stored action records and omit entries without a readable
 date and description. Some Congress actions contain only an internal code; these

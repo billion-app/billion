@@ -1,4 +1,4 @@
-import { contentType } from "@acme/ui/digest-tokens";
+import { contentType, getGovernmentContentLabel } from "@acme/ui/digest-tokens";
 
 import { isStateScope, stateLegislature } from "./jurisdictions";
 
@@ -19,6 +19,7 @@ export interface ContentListItem {
   title: string;
   description: string;
   type: ContentKind;
+  governmentContentType?: string;
   thumbnailUrl?: string;
   imageUri?: string;
   billNumber?: string;
@@ -44,8 +45,17 @@ const TYPES: Record<string, TypePresentation | undefined> = {
 
 const GENERAL: TypePresentation = { ...contentType.news, kind: "Briefing" };
 
-export function presentType(type: string): TypePresentation {
-  return TYPES[type] ?? GENERAL;
+export function presentType(
+  type: string,
+  governmentContentType?: string,
+): TypePresentation {
+  const presentation = TYPES[type] ?? GENERAL;
+  return type === "government_content"
+    ? {
+        ...presentation,
+        label: getGovernmentContentLabel(governmentContentType),
+      }
+    : presentation;
 }
 
 export interface CardItem {
@@ -77,7 +87,7 @@ export function toCardItem(
   item: ContentListItem,
   options: { showJurisdiction?: boolean } = {},
 ): CardItem {
-  const type = presentType(item.type);
+  const type = presentType(item.type, item.governmentContentType);
   const isBill = item.type === "bill";
   const isStateBill = isBill && isStateScope(item.jurisdiction);
   return {

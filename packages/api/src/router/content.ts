@@ -136,6 +136,7 @@ const ContentCardSchema = z.object({
   title: z.string(),
   description: z.string(),
   type: z.enum(["bill", "government_content", "court_case", "general"]),
+  governmentContentType: z.string().optional(),
   isAIGenerated: z.boolean(),
   thumbnailUrl: z.string().optional(),
   imageUri: z.string().optional(), // Add support for AI-generated data URIs
@@ -266,6 +267,7 @@ export const contentRouter = {
         title: content.title,
         description: content.description ?? "",
         type: "government_content" as const,
+        governmentContentType: content.type,
         isAIGenerated: false,
         thumbnailUrl: content.thumbnailUrl ?? undefined,
       })),
@@ -429,6 +431,7 @@ export const contentRouter = {
               title: Bill.title,
               description: sql<string>`coalesce(${Bill.description}, ${Bill.summary}, '')`,
               type: sql<string>`'bill'`,
+              governmentContentType: sql<string | null>`null`,
               thumbnailUrl: Bill.thumbnailUrl,
               billNumber: sql<string | null>`${Bill.billNumber}`,
               sourceWebsite: sql<string | null>`${Bill.sourceWebsite}`,
@@ -453,6 +456,9 @@ export const contentRouter = {
               title: GovernmentContent.title,
               description: sql<string>`coalesce(${GovernmentContent.description}, '')`,
               type: sql<string>`'government_content'`,
+              governmentContentType: sql<
+                string | null
+              >`${GovernmentContent.type}`,
               thumbnailUrl: GovernmentContent.thumbnailUrl,
               billNumber: sql<string | null>`null`,
               sourceWebsite: sql<string | null>`null`,
@@ -472,6 +478,7 @@ export const contentRouter = {
               title: CourtCase.title,
               description: sql<string>`coalesce(${CourtCase.description}, '')`,
               type: sql<string>`'court_case'`,
+              governmentContentType: sql<string | null>`null`,
               thumbnailUrl: CourtCase.thumbnailUrl,
               billNumber: sql<string | null>`null`,
               sourceWebsite: sql<string | null>`null`,
@@ -505,6 +512,7 @@ export const contentRouter = {
                 title: row.title,
                 description: row.description,
                 type: row.type as ContentCard["type"],
+                governmentContentType: row.governmentContentType ?? undefined,
                 isAIGenerated: false,
                 thumbnailUrl: row.thumbnailUrl ?? undefined,
                 jurisdiction:
@@ -567,6 +575,7 @@ export const contentRouter = {
           title: content.title,
           description: content.description ?? "",
           type: "government_content" as const,
+          governmentContentType: content.type,
           isAIGenerated: false,
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
@@ -683,6 +692,7 @@ export const contentRouter = {
           title: content.title,
           description: content.description ?? "",
           type: "government_content" as const,
+          governmentContentType: content.type,
           isAIGenerated: false,
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
@@ -728,6 +738,7 @@ export const contentRouter = {
                 "description",
               ),
             type: sql<string>`'bill'`.as("type"),
+            governmentContentType: sql<string | null>`null`,
             thumbnailUrl: Bill.thumbnailUrl,
             billNumber: sql<string | null>`${Bill.billNumber}`,
             sourceWebsite: sql<string | null>`${Bill.sourceWebsite}`,
@@ -756,6 +767,9 @@ export const contentRouter = {
                 "description",
               ),
             type: sql<string>`'government_content'`.as("type"),
+            governmentContentType: sql<
+              string | null
+            >`${GovernmentContent.type}`,
             thumbnailUrl: GovernmentContent.thumbnailUrl,
             billNumber: sql<string | null>`null`,
             sourceWebsite: sql<string | null>`null`,
@@ -777,6 +791,7 @@ export const contentRouter = {
               "description",
             ),
             type: sql<string>`'court_case'`.as("type"),
+            governmentContentType: sql<string | null>`null`,
             thumbnailUrl: CourtCase.thumbnailUrl,
             billNumber: sql<string | null>`null`,
             sourceWebsite: sql<string | null>`null`,
@@ -806,6 +821,7 @@ export const contentRouter = {
               title: row.title,
               description: row.description,
               type: row.type as ContentCard["type"],
+              governmentContentType: row.governmentContentType ?? undefined,
               isAIGenerated: false,
               thumbnailUrl: row.thumbnailUrl ?? undefined,
               jurisdiction:
@@ -984,6 +1000,7 @@ export const contentRouter = {
           .select({
             id: GovernmentContent.id,
             title: GovernmentContent.title,
+            governmentContentType: GovernmentContent.type,
             description: GovernmentContent.description,
             thumbnailUrl: GovernmentContent.thumbnailUrl,
           })
@@ -1094,6 +1111,7 @@ export const contentRouter = {
                 .select({
                   id: GovernmentContent.id,
                   title: GovernmentContent.title,
+                  governmentContentType: GovernmentContent.type,
                   description: GovernmentContent.description,
                   thumbnailUrl: GovernmentContent.thumbnailUrl,
                 })
