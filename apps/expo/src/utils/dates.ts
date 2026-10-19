@@ -26,6 +26,15 @@ export function formatDate(dateString: string, locale = "en-US"): string {
   });
 }
 
+export function formatArticleDate(date: Date, locale = "en-US"): string {
+  return date.toLocaleDateString(locale, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function isWithinDays(dateString: string, days: number): boolean {
   const daysRemaining = daysUntil(dateString);
   return daysRemaining > 0 && daysRemaining <= days;

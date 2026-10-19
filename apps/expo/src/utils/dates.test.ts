@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { daysUntil, formatDate, monthDay } from "./dates";
+import { daysUntil, formatArticleDate, formatDate, monthDay } from "./dates";
 
 void test("calendar dates retain their day in all UI languages west of UTC", () => {
   const previous = process.env.TZ;
@@ -10,6 +10,15 @@ void test("calendar dates retain their day in all UI languages west of UTC", () 
   try {
     for (const locale of ["en-US", "es-US", "zh-CN"]) {
       const date = new Date("2026-11-03T00:00:00Z");
+      assert.equal(
+        formatArticleDate(new Date("2026-10-15T00:00:00Z"), locale),
+        new Intl.DateTimeFormat(locale, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          timeZone: "UTC",
+        }).format(new Date("2026-10-15T00:00:00Z")),
+      );
       assert.equal(
         formatDate("2026-11-03", locale),
         new Intl.DateTimeFormat(locale, {

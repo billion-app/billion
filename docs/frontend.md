@@ -150,7 +150,7 @@ The Elections invitation opens the live, statewide California official guide cac
 
 These screens call the local `civic.getVoterInfo` API with explicit `mock:full`, `mock:partial`, `mock:empty` or `mock:error` addresses. The server recognizes them only when `NODE_ENV=development`, before any provider or cache operation. Production never returns these fixtures. Names, instructions and schedules in the fixtures are fictional.
 
-Article detail on mobile, the web reader, and shared article pages shows Created and Last updated beneath the title. These come from the stored record’s `createdAt` and `updatedAt` through `content.getById`, rather than the official publication or action date. If no update timestamp exists, Last updated uses the creation timestamp.
+Article detail on mobile, the web reader, and shared article pages shows Introduced for bills with a stored `introducedDate` from `content.getById`. Other records, and bills without an introduction date, show Added to Billion using `createdAt`; this is when Billion first stored the record, not an official event date. Updated on Billion uses `updatedAt`, falling back to `createdAt` if no update timestamp exists. Dates are formatted in UTC so an official calendar date does not shift to the previous day on a reader’s phone. Labels and date formats follow the selected language.
 
 The voting plan opens inline in the statewide guide and the address ballot, so
 readers keep their election, tab and ballot position while checking official

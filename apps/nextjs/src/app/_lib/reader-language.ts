@@ -77,8 +77,9 @@ const copy: Record<string, { es: string; zh: string }> = {
     es: "Descargar Billion para iPhone",
     zh: "下载 iPhone 版 Billion",
   },
-  Created: { es: "Creado", zh: "创建于" },
-  "Last updated": { es: "Última actualización", zh: "最后更新" },
+  Introduced: { es: "Presentado", zh: "提出日期" },
+  "Added to Billion": { es: "Añadido a Billion", zh: "收录于 Billion" },
+  "Updated on Billion": { es: "Actualizado en Billion", zh: "Billion 更新于" },
   "Translation is being prepared.": {
     es: "La traducción se está preparando.",
     zh: "正在准备翻译。",

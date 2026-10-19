@@ -60,7 +60,7 @@ import {
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import { translateSessionLabel } from "~/utils/card-metadata";
-import { formatDate } from "~/utils/dates";
+import { formatArticleDate, formatDate } from "~/utils/dates";
 import { contentImageSource } from "~/utils/editorial-visuals";
 import { governmentContentLabel } from "~/utils/government-content";
 import { isStateJurisdiction, jurisdictionText } from "~/utils/jurisdiction";
@@ -501,6 +501,8 @@ export default function ArticleDetailScreen() {
   // Actions are the official legislative record from the source (congress.gov).
   const timelineSourceUrl = hasRealActions ? content.url : undefined;
   const sponsor = content.type === "bill" ? content.sponsor : undefined;
+  const introducedDate =
+    content.type === "bill" ? content.introducedDate : undefined;
   const isStateBill =
     content.type === "bill" && isStateJurisdiction(content.jurisdiction);
   const displayBillNumber = isStateBill
@@ -646,20 +648,15 @@ export default function ArticleDetailScreen() {
         {content.createdAt && content.updatedAt ? (
           <View style={{ gap: 4, marginBottom: 16 }} testID="article-dates">
             <Text style={s.articleDate}>
-              {tr("article.created")}{" "}
-              {content.createdAt.toLocaleDateString(dateLocale, {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {tr(introducedDate ? "article.introduced" : "article.created")}{" "}
+              {formatArticleDate(
+                introducedDate ?? content.createdAt,
+                dateLocale,
+              )}
             </Text>
             <Text style={s.articleDate}>
               {tr("article.updated")}{" "}
-              {content.updatedAt.toLocaleDateString(dateLocale, {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {formatArticleDate(content.updatedAt, dateLocale)}
             </Text>
           </View>
         ) : null}

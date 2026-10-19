@@ -3,13 +3,16 @@ import { readerText } from "../_lib/reader-language";
 
 export function ArticleDates({
   language = "en",
+  introducedDate,
   createdAt,
   updatedAt,
 }: {
   language?: ReaderLanguage;
+  introducedDate?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
+  const primaryDate = introducedDate ?? createdAt;
   const options: Intl.DateTimeFormatOptions = {
     month: "short",
     day: "numeric",
@@ -22,16 +25,19 @@ export function ArticleDates({
       data-testid="article-dates"
     >
       <span>
-        {readerText(language, "Created")}{" "}
-        <time dateTime={createdAt.toISOString()}>
-          {createdAt.toLocaleDateString(
+        {readerText(
+          language,
+          introducedDate ? "Introduced" : "Added to Billion",
+        )}{" "}
+        <time dateTime={primaryDate.toISOString()}>
+          {primaryDate.toLocaleDateString(
             language === "zh" ? "zh-CN" : `${language}-US`,
             options,
           )}
         </time>
       </span>
       <span>
-        {readerText(language, "Last updated")}{" "}
+        {readerText(language, "Updated on Billion")}{" "}
         <time dateTime={updatedAt.toISOString()}>
           {updatedAt.toLocaleDateString(
             language === "zh" ? "zh-CN" : `${language}-US`,
