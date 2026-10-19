@@ -167,6 +167,9 @@ export default async function SharedContentPage({ params }: PageProps) {
         </h1>
 
         <ArticleDates
+          introducedDate={
+            content.type === "bill" ? content.introducedDate : undefined
+          }
           createdAt={content.createdAt}
           updatedAt={content.updatedAt}
         />

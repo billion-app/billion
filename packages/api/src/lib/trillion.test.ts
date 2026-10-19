@@ -37,6 +37,131 @@ const current = corpus.sources.map((s) => ({
 }));
 const clone = (): TrillionGraph => structuredClone(graph);
 
+function withHistoricalContext() {
+  const value = clone();
+  value.nodes.push({
+    id: "b-before",
+    kind: "branch",
+    title: "What was it like before?",
+    label: "What was it like before?",
+    quotes: [],
+  });
+  value.edges.push({
+    id: "part-before",
+    from: "b-before",
+    to: value.rootId,
+    type: "part",
+  });
+  const node = must(value.nodes.find((n) => n.id === "p-unspent"));
+  node.context = {
+    topic: "history",
+    period: "2015–16; audit published 2018",
+    scope: "California MHSA local balances",
+    limitation:
+      "This is a historical unspent balance, not proof of current recoverable savings or how the proposed wealth tax would perform.",
+    money: [
+      {
+        nominal: "$231 million",
+        currency: "USD",
+        scope: {
+          period: "End of fiscal year 2015–16",
+          jurisdiction: "California",
+          timing: "stock",
+          accounting: "unspecified",
+        },
+        comparison: {
+          state: "unavailable",
+          reason:
+            "No matching total fund balance is established by this source.",
+        },
+      },
+    ],
+  };
+  value.edges.push({
+    id: "before-history",
+    from: node.id,
+    to: "b-before",
+    type: "detail",
+  });
+  return { value, node };
+}
+
+void test("context publishes through the same source freshness and snapshot-stripping gate", () => {
+  const { value, node } = withHistoricalContext();
+  const published = publishedTrillionGraph(corpus.guide, "40", value, current);
+  assert.ok(published);
+  assert.equal(
+    published.nodes.find((n) => n.id === node.id)?.context?.money[0]?.comparison
+      .state,
+    "unavailable",
+  );
+  assert.ok(published.sources.every((s) => !("snapshot" in s)));
+  const stale = current.filter((s) => !s.url.includes("2017-117"));
+  assert.equal(publishedTrillionGraph(corpus.guide, "40", value, stale), null);
+});
+
+void test("budget context rejects missing coverage, mismatched periods and uncited denominator amounts", () => {
+  const { value, node } = withHistoricalContext();
+  const context = must(node.context);
+  const money = must(context.money[0]);
+  context.money = [];
+  assert.equal(trillionGraphSchema.safeParse(value).success, false);
+  context.money = [money];
+  money.comparison = {
+    state: "available",
+    numerator: { min: 231e6, max: 231e6 },
+    denominator: {
+      name: "Relevant balance",
+      amount: 1e9,
+      currency: "USD",
+      scope: { ...money.scope },
+      evidence: [
+        {
+          sourceId: must(node.quotes[0]).sourceId,
+          locator: must(node.quotes[0]).locator,
+        },
+      ],
+    },
+    basis: "measured",
+  };
+  money.scope.accounting = "gross";
+  money.comparison.denominator.scope.accounting = "gross";
+  assert.equal(
+    trillionGraphSchema.safeParse(value).success,
+    false,
+    "a real locator does not verify an invented denominator",
+  );
+  money.comparison.denominator.amount = 231e6;
+  assert.equal(trillionGraphSchema.safeParse(value).success, true);
+  money.comparison.denominator.scope.period = "2026–27";
+  assert.equal(trillionGraphSchema.safeParse(value).success, false);
+});
+
+void test("campaign claims cannot become background facts, and highlights must point to relevant quoted evidence", () => {
+  const { value, node } = withHistoricalContext();
+  const crux = must(value.nodes.find((n) => n.id === "x-history"));
+  crux.highlight = {
+    rank: 1,
+    reason:
+      "Past delivery helps readers evaluate the proposed use of additional funding.",
+    evidence: [node.id],
+  };
+  assert.equal(trillionGraphSchema.safeParse(value).success, true);
+  crux.highlight.evidence = ["b-what"];
+  assert.equal(trillionGraphSchema.safeParse(value).success, false);
+  delete crux.highlight;
+  delete node.context;
+  assert.equal(
+    trillionGraphSchema.safeParse(value).success,
+    false,
+    "background cannot bypass the context checks by omitting metadata",
+  );
+  node.context = withHistoricalContext().node.context;
+  node.kind = "argument";
+  node.attribution = { name: "Campaign" };
+  assert.equal(trillionGraphSchema.safeParse(value).success, false);
+});
+
 void test("the Prop 40 pilot passes the machine gate and strips snapshots", () => {
   const published = publishedTrillionGraph(corpus.guide, "40", graph, current);
   assert.ok(published);

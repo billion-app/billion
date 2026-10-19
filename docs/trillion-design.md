@@ -16,7 +16,7 @@ This document records the decisions made in the October 2026 design review and t
 | Graph scope                     | One graph per record. Records link to shared global claims, such as moral frameworks, through edges that must justify reuse.              |
 | Root of a record's graph        | The reader's own decision question, worded by record type.                                                                                |
 | Who / What + Why / When / How   | All are branches of the same graph for now. No tabs.                                                                                      |
-| First thing a reader sees       | A small live map of the question and its four basics, above the focused claim page. Everything else is revealed on request.               |
+| First thing a reader sees       | A small live map of the question and its basics, above the focused claim page. Everything else is revealed on request.                    |
 | Ordering of children            | By debate structure, plus editorial picks on seeded records. Never by popularity or agreement.                                            |
 | Duplicates and global promotion | Claims start local. Duplicates are merged into global claims through promotion, later assisted by votes and an AI curator.                |
 | Seeded content                  | Labeled by provenance, open to challenge, and gated by existing editorial review.                                                         |
@@ -65,10 +65,17 @@ The summary names the measure's subject the way the ballot title does ("the rain
 
 A definition is not enough for that reader, who also needs to know how things work before the change. Under the summary, a gray "New to this? How it works today" opens two or three plain sentences, such as what the rainy day fund is for and that deposits count toward the spending limit today. These come only from the **Background** section of the Legislative Analyst's analysis. That section is the nonpartisan account of current law and is written for voters. The same call that drafts the summary writes the background. It sees that section and nothing else from the analysis, so the summary itself still rests on the legal text alone. The background quotes the analysis word for word ("From the Legislative Analyst"), may quote no other source, and is dropped if none of its quotes verify.
 
-Directly under the summary sits the **lead disagreement**, the first disputed question in the generator's order. The prompt asks for disputes most consequential first, usually where the ballot arguments and rebuttals clash directly. The card has no label; its border runs from the Yes color to the No color, so it draws the eye without Billion declaring which disagreement matters most. An earlier version picked the dispute with the most arguments and called it "The biggest disagreement". For Prop 2 that skipped the rebate question a reviewer found most important, because the count only reflects how much the model wrote. The Disputes tab uses the same order. Reviewers had found the debate's main conflict on the second tab, behind "What does it actually do?".
+In **Disputes**, up to three explicit editorial selections appear first, with a blue-to-pink gradient border and a “Question worth weighing” label. They are part of the dispute list rather than a separate section above the tabs. The generator assesses which distinct questions could materially change the decision about this proposal, including effectiveness, feasible alternatives, fiscal tradeoffs, distribution, values and legal operation where relevant. Historical performance can lead. Argument counts, source order and campaign intensity do not determine the selection.
 
-The root has four fixed **orientation branches** that every record shares, so readers learn one skeleton:
+Each selected crux carries a rank, a short reason, and references to quoted cards weighing on that question. A small gray “Why this question?” accordion inside each selected card discloses the reason, its AI authorship and the evidence. The publication gate validates those links; pruning a supporting card removes the selection without deleting the question. These checks verify structure and quoted passages, not the quality of the editorial judgment. The Disputes tab follows the explicit ranks, then the remaining source order. Older records without selection metadata show the ordinary dispute list without editorial highlights.
 
+**What was it like before?** is the first basic branch in newly generated graphs. It groups existing rules, past results and money in context. Context cards cite the official analysis or curated historical records, never campaign statements as established background. Each names its time period, program/fund scope and limits. Historical comparisons must explain similarities and differences; an old audit does not establish current recoverable savings. Rebate context distinguishes constitutional rebates, ordinary refunds and discretionary relief, and never implies an exhaustive frequency from a few examples.
+
+Context amounts use the shared budget-context contract. A computed share requires matching periods, jurisdiction, annual/one-time/stock timing and accounting basis, plus quoted denominator evidence. Otherwise the card explicitly says the share is unavailable or inapplicable. Current law, historical outcomes and missing evidence remain distinct. If drafting or validation leaves a topic empty, an unanswered question remains visible rather than implying nothing is known.
+
+New graphs have five **orientation branches**; existing four-branch records remain readable:
+
+- **What was it like before?** Existing rules, past results and budget context, with source dates and limitations.
 - **What does it actually do?** Quoted provisions, each a source-text claim. Interpretations hang off the provision they interpret. The measure's own text comes first, in order of importance (the core change, who it covers, money, then exceptions and procedure), then its findings, then the Legislative Analyst. A card about another ballot measure says so on the card ("Conflicts with Props 41 and 42"), because those interactions are easy to miss in a list of provisions.
 - **Who's behind it?** Proponents, opponents, sponsors, and funding. Funding is evidence of a relationship, not proof of motive.
 - **When?** Official dates, kept separate from retrieval and update timestamps.
@@ -92,7 +99,7 @@ A public vote on leans was rejected. It would turn into a vote on the argument, 
 
 ### One layered view, not a summary
 
-There is no separate simplified mode. The first layer of the graph is the simple view: the question, its four basics, and the disputed questions. Each tap goes one layer deeper. Because the overview is the top of the graph rather than a separately written summary, every line in it leads somewhere further, and nothing in it can drift into a final answer.
+There is no separate simplified mode. The first layer of the graph is the simple view: the question, its basics, and the disputed questions. Each tap goes one layer deeper. Because the overview is the top of the graph rather than a separately written summary, every line in it leads somewhere further, and nothing in it can drift into a final answer.
 
 Two cues keep the first layer from reading as the conclusion (the Bradbury principle):
 

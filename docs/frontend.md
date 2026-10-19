@@ -40,7 +40,7 @@ The gated [national ballot route](../apps/expo/src/app/ballot.tsx) offers an ele
 
 Candidate and measure details keep generated summaries separate from original text, with a reading control when both are available. A supplied short measure summary leads, with a distinct extended summary available on demand. Candidate statements lead below the identity card; biography opens as supporting context. These editorial screens use the article detail typography and shared segmented control, which reflows at enlarged text sizes. A measure with original text but no overview opens directly to the supplied text. Source disclosures retain field-specific links and distinguish retrieval from human verification. Missing details lead to an election-office link; language availability stays unknown unless verified evidence is supplied. Candidate filters appear for contests with more than five entries and use the supplied party names. A candidate explicitly marked as withdrawn but still on the ballot remains readable with that status shown.
 
-The [OTA restart prompt](../apps/expo/src/components/UpdatePrompt.tsx) overlays the root stack. It asks to restart only when `expo-updates` is enabled and a downloaded update is waiting that is not already the running bundle. `isUpdatePending` alone is not enough — Expo can report the current launch as pending after a previous download. Preview the chrome in development with `EXPO_PUBLIC_FORCE_UPDATE_BANNER=1`.
+The [OTA restart prompt](../apps/expo/src/components/UpdatePrompt.tsx) overlays the root stack. It asks to restart only when `expo-updates` is enabled and a downloaded update is waiting that is not already the running bundle. `isUpdatePending` alone is not enough — Expo can report the current launch as pending after a previous download. Restart [fetches the latest compatible update](../apps/expo/src/utils/restart-with-update.ts) before reloading, so a prompt left open across releases does not install an intermediate cached bundle. While fetching, the prompt shows its progress state and disables duplicate restart requests. A failed fetch leaves the app running and reports the failure; a check that finds no update does not reload. Preview the chrome in development with `EXPO_PUBLIC_FORCE_UPDATE_BANNER=1`.
 
 ## Onboarding and content preferences
 
@@ -104,6 +104,24 @@ reason to keep avoidable jargon. Supply meanings with the content so the same
 word can have the right meaning for that record. Do not put a defined paragraph
 inside another button: give the card its own separate navigation action.
 
+## App Store update banner
+
+[AppStoreUpdateBanner](../apps/expo/src/components/AppStoreUpdateBanner.tsx) checks
+`appRelease.latestIos` after onboarding in release iOS builds, on launch and on
+returning to the foreground (at most hourly). The
+[server lookup](../packages/api/src/lib/app-store-release.ts) reads Apple’s public
+US listing for Billion, validates the app identity, and caches the result for an
+hour per server process. Failed lookups return no release and retry after five
+minutes on the server; the client checks again when its hourly cache expires.
+
+The banner compares the installed native version from `expo-application`, because
+an OTA can change the JavaScript config version without upgrading the binary. It
+only offers a newer release that supports the device’s iOS version. “Open App
+Store” opens the listing; “Later” hides that version until the next app session.
+An outstanding OTA restart prompt takes priority until that OTA is installed.
+Development builds, Android, missing data, and equal or newer installed versions
+stay quiet. This is an optional update notice, with no forced update or timer.
+
 ## Authentication
 
 [packages/auth/src/index.ts](../packages/auth/src/index.ts) configures Better Auth with the Drizzle adapter, optional Discord OAuth, the OAuth proxy, and the native callback bridge. Next.js exposes it through `/api/auth` and passes the resulting session into the tRPC context.
@@ -124,7 +142,7 @@ The Elections invitation opens the live, statewide California official guide cac
 
 These screens call the local `civic.getVoterInfo` API with explicit `mock:full`, `mock:partial`, `mock:empty` or `mock:error` addresses. The server recognizes them only when `NODE_ENV=development`, before any provider or cache operation. Production never returns these fixtures. Names, instructions and schedules in the fixtures are fictional.
 
-Article detail on mobile, the web reader, and shared article pages shows Created and Last updated beneath the title. These come from the stored record’s `createdAt` and `updatedAt` through `content.getById`, rather than the official publication or action date. If no update timestamp exists, Last updated uses the creation timestamp.
+Article detail on mobile, the web reader, and shared article pages shows Introduced for bills with a stored `introducedDate` from `content.getById`. Other records, and bills without an introduction date, show Added to Billion using `createdAt`; this is when Billion first stored the record, not an official event date. Updated on Billion uses `updatedAt`, falling back to `createdAt` if no update timestamp exists. Dates are formatted in UTC so an official calendar date does not shift to the previous day on a reader’s phone.
 
 The voting plan opens inline in the statewide guide and the address ballot, so
 readers keep their election, tab and ballot position while checking official

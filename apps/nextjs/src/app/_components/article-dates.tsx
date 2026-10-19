@@ -1,10 +1,13 @@
 export function ArticleDates({
+  introducedDate,
   createdAt,
   updatedAt,
 }: {
+  introducedDate?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
+  const primaryDate = introducedDate ?? createdAt;
   const options: Intl.DateTimeFormatOptions = {
     month: "short",
     day: "numeric",
@@ -17,13 +20,13 @@ export function ArticleDates({
       data-testid="article-dates"
     >
       <span>
-        Created{" "}
-        <time dateTime={createdAt.toISOString()}>
-          {createdAt.toLocaleDateString("en-US", options)}
+        {introducedDate ? "Introduced" : "Added to Billion"}{" "}
+        <time dateTime={primaryDate.toISOString()}>
+          {primaryDate.toLocaleDateString("en-US", options)}
         </time>
       </span>
       <span>
-        Last updated{" "}
+        Updated on Billion{" "}
         <time dateTime={updatedAt.toISOString()}>
           {updatedAt.toLocaleDateString("en-US", options)}
         </time>

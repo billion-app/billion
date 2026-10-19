@@ -41,17 +41,18 @@ await test("Trillion cards, touch ring and device persistence", async () => {
       `http://127.0.0.1:${server.address().port}/prototypes/trillion/mobile.html`,
     );
     await page.locator('[data-measure="41"]').click();
-    await page.locator(".pinned-dispute").waitFor();
+    await page.locator('[data-tab="disagree"]').first().click();
+    await page.locator(".dispute-row").first().waitFor();
     assert.equal(
       await page
         .locator(
-          '.pinned-dispute [role="button"], .pinned-dispute [role="link"]',
+          '.dispute-row .go [role="button"], .dispute-row .go [role="link"]',
         )
         .count(),
       0,
       "card titles cannot contain competing actions",
     );
-    await page.locator(".pd-title").click();
+    await page.locator(".dispute-row .go").first().click();
     assert.match(
       await page.locator("#page h1").textContent(),
       /Would audits improve public services/,
@@ -116,6 +117,8 @@ await test("Trillion cards, touch ring and device persistence", async () => {
       "The whole debate",
     );
     await page.locator("[data-ring]").click();
+    // The demo page also scrolls outside the phone; bring the touch target into view.
+    await page.locator(".ring-sheet svg").scrollIntoViewIfNeeded();
     const scrubbedTitle = await page
       .locator(".ring-sheet svg")
       .evaluate((svg) => {

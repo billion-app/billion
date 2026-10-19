@@ -994,6 +994,7 @@ export const contentRouter = {
           {
             id: b.id,
             title: b.title,
+            introducedDate: b.introducedDate,
             createdAt: b.createdAt,
             updatedAt: b.updatedAt ?? b.createdAt,
             description: billDescription(b.description, b.summary),

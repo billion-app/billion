@@ -31,6 +31,7 @@ import {
 import { QueryClientProvider } from "@tanstack/react-query";
 import { PostHogProvider } from "posthog-react-native";
 
+import { AppStoreUpdateBanner } from "~/components/AppStoreUpdateBanner";
 import { GREAT_VIBES } from "~/components/digest/staticAssets";
 import { NotificationTapHandler } from "~/components/NotificationTapHandler";
 import { OnboardingGate } from "~/components/onboarding/OnboardingGate";
@@ -210,6 +211,7 @@ export default function RootLayout() {
           <PushSync />
           {/* Absolute overlay: update banner sits above Stack without affecting tab/stack layout */}
           <UpdatePrompt />
+          <AppStoreUpdateBanner />
           <StatusBar style={statusBarStyleFor(pathname)} />
         </GestureHandlerRootView>
       </PostHogProvider>

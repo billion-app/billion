@@ -22,8 +22,12 @@ import {
 import type { TrillionCorpus } from "./trillion-capture.js";
 import { sourceHash } from "./measure-relationship-capture.js";
 import { trillionCorpusSchema } from "./trillion-capture.js";
+import {
+  TRILLION_CONTEXT_INSTRUCTIONS,
+  withContextGaps,
+} from "./trillion-context.js";
 
-export const TRILLION_PROMPT_VERSION = "trillion-v11";
+export const TRILLION_PROMPT_VERSION = "trillion-v12";
 export const TRILLION_SUMMARY_PROMPT_VERSION = "trillion-summary-v6";
 const termsField = z.array(trillionTermSchema).max(8).default([]);
 export const trillionSummarySchema = z.object({
@@ -63,14 +67,16 @@ export function buildTrillionPrompt(corpus: TrillionCorpus): string {
     ? `
 - Historical precedent: sources with role "precedent" are archived documents about EARLIER measures (past analyses, State Auditor reports). Add one crux "Has this been tried before, and did it work?" with dispute "facts". Each precedent claim is kind "precedent", quotes ONLY a precedent source, and links to that crux with "weighs" and a stance. A precedent node may also "supports", "challenges" or "qualifies" a specific argument; its "why" must say how the earlier measure is similar AND how it differs. Never present a precedent document as describing this measure, and never quote a precedent source from any other kind of node.`
     : "";
-  return `You are drafting the seed of a public argument graph ("the Trillion") for one California ballot measure. It is published WITHOUT human review, so every rule below is enforced by machine checks and anything that fails is discarded.
+  return `You are drafting the seed of a public argument graph ("the Trillion") for one California ballot measure. It is published WITHOUT human review. Structure and quotations are machine-checked; those checks cannot certify an interpretation or editorial judgment.
 
 Purpose: help a voter explore the reasoning, find where people actually disagree, and form their own view. Billion begins the reader's thinking; it never concludes. Never recommend a vote, tally sides, or say who is winning.
 
+${TRILLION_CONTEXT_INSTRUCTIONS}
+
 Graph shape (node ids: lowercase letters, digits and hyphens):
 - Exactly one root, id "root", kind "root", title and label "How should I vote on Prop ${corpus.number}?".
-- Exactly four kind "branch" nodes linked to root with type "part": "What does it actually do?", "Who's behind it?", "When?", "How can I act?".
-- Four to six kind "crux" nodes: the specific questions people genuinely disagree about, phrased as short neutral questions about ONE thing (at most 12 words, for example "How much money would it actually raise?"). Never join two questions with "and", "or" or "rather than"; split them. When the measure conflicts with or depends on another measure on the ballot, give that interaction its own "legal" question. Each links to root with type "crux" and names its dispute: "facts", "values", "reading" (how to read the text) or "legal" (courts, timing, other measures). List the crux nodes most consequential first: the first is the disagreement that matters most to how a voter decides, usually where the ballot arguments and rebuttals clash directly (never a question about past measures); the reader highlights it.
+- Exactly five kind "branch" nodes linked to root with type "part": "What was it like before?" (id "b-before"), "What does it actually do?", "Who's behind it?", "When?", "How can I act?".
+- Four to six kind "crux" nodes: the specific questions people genuinely disagree about, phrased as short neutral questions about ONE thing (at most 12 words, for example "How much money would it actually raise?"). Never join two questions with "and", "or" or "rather than"; split them. When the measure conflicts with or depends on another measure on the ballot, give that interaction its own "legal" question. Each links to root with type "crux" and names its dispute: "facts", "values", "reading" (how to read the text) or "legal" (courts, timing, other measures). Use the explicit highlight selections below; node order does not determine importance.
 - Arguments link to a crux with type "weighs" and a stance toward a Yes vote ON THIS MEASURE: "for", "against" or "mixed". The stance is NOT the answer to the question. Under "Could Prop 41 prevent Prop 40 from taking effect?", the opponents' claim "Prop 41 was designed to undo Prop 40" answers the question yes but argues for a No vote on Prop 41, so its stance is "against". Group by question, never into pro and con lists.
 - When an argument's lean depends on a value framework rather than on facts (whether taxing wealth is fair depends on views about desert, need or equal treatment), give it stance "mixed" and surface the assumption: a kind "shared" node states the framework as a claim ("Taxing accumulated wealth is fair when gains go untaxed until sale"), linked to the argument with type "appliesTo", whose "why" says which way the argument cuts under that framework. Add a second framework node when a common rival view cuts the other way. Do this only where the sources' arguments actually turn on such an assumption.
 - Provisions of the measure (kind "provision"), findings the authors wrote (kind "finding"), and the Legislative Analyst (kind "analysis") link to the branch they explain with type "detail", and to claims they bear on with "supports", "challenges" or "qualifies". Readers see each branch's details in the order you write the "detail" edges: put the measure's core change first, then who it covers, then money, then exceptions and procedure. "What does it actually do?" is built from the measure's OWN legal text: give it five to ten provision nodes, each quoting the specific section that does the thing, before any analysis. The Legislative Analyst explains alongside the text; never use an analysis node to stand in for a provision the legal text states directly.
@@ -219,7 +225,10 @@ export function pruneUnverified(
   }));
   nodes = nodes.filter((node) => {
     const keep =
-      !QUOTED_TRILLION_KINDS.has(node.kind) || node.quotes.length > 0;
+      (!QUOTED_TRILLION_KINDS.has(node.kind) || node.quotes.length > 0) &&
+      (!node.context ||
+        node.quotes.length ===
+          graph.nodes.find((n) => n.id === node.id)?.quotes.length);
     if (!keep) dropped.push(node.id);
     return keep;
   });
@@ -276,7 +285,38 @@ export function pruneUnverified(
       ? { ...graph.background, quotes: backgroundQuotes }
       : undefined;
   if (graph.background && !background) dropped.push("background");
-  return { graph: { ...graph, summary, background, nodes, edges }, dropped };
+  // A selection loses its status if its supporting card was removed; the question survives.
+  const ranks = new Set<number>();
+  nodes = nodes.map((node) => {
+    const h = node.highlight;
+    if (!h) return node;
+    if (
+      node.kind === "crux" &&
+      !ranks.has(h.rank) &&
+      h.evidence.every(
+        (id) =>
+          nodes.some((n) => n.id === id && n.quotes.length > 0) &&
+          edges.some(
+            (e) => e.from === id && e.to === node.id && e.type === "weighs",
+          ),
+      )
+    ) {
+      ranks.add(h.rank);
+      return node;
+    }
+    dropped.push(`${node.id} highlight (missing evidence or duplicate rank)`);
+    const { highlight: _highlight, ...rest } = node;
+    return rest;
+  });
+  return {
+    graph: {
+      ...graph,
+      summary,
+      background,
+      ...withContextGaps(nodes, edges, graph.rootId),
+    },
+    dropped,
+  };
 }
 
 /**

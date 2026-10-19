@@ -52,7 +52,7 @@ import {
   resolveType,
 } from "~/styles";
 import { trpc } from "~/utils/api";
-import { formatDate } from "~/utils/dates";
+import { formatArticleDate, formatDate } from "~/utils/dates";
 import { contentImageSource } from "~/utils/editorial-visuals";
 import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
 import { findSourcePassage } from "~/utils/source-passage";
@@ -337,6 +337,8 @@ export default function ArticleDetailScreen() {
   // Actions are the official legislative record from the source (congress.gov).
   const timelineSourceUrl = hasRealActions ? content.url : undefined;
   const sponsor = content.type === "bill" ? content.sponsor : undefined;
+  const introducedDate =
+    content.type === "bill" ? content.introducedDate : undefined;
   const isStateBill =
     content.type === "bill" && isStateJurisdiction(content.jurisdiction);
   const displayBillNumber = isStateBill
@@ -444,20 +446,11 @@ export default function ArticleDetailScreen() {
         {content.createdAt && content.updatedAt ? (
           <View style={{ gap: 4, marginBottom: 16 }} testID="article-dates">
             <Text style={s.articleDate}>
-              Created{" "}
-              {content.createdAt.toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {introducedDate ? "Introduced" : "Added to Billion"}{" "}
+              {formatArticleDate(introducedDate ?? content.createdAt)}
             </Text>
             <Text style={s.articleDate}>
-              Last updated{" "}
-              {content.updatedAt.toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+              Updated on Billion {formatArticleDate(content.updatedAt)}
             </Text>
           </View>
         ) : null}
