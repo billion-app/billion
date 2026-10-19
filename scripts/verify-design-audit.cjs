@@ -155,6 +155,13 @@ const article = {
         path: `${out}/measure-error-${width}.png`,
         fullPage: true,
       });
+      await page.clock.fastForward(120_001);
+      await page.getByTestId("translation-unavailable").waitFor();
+      assert.equal(
+        await page.getByTestId("translation-delayed").count(),
+        0,
+        "an expired wait must not relabel a failed measure as still preparing",
+      );
       state = "ready";
       await page.getByTestId("translation-retry").click();
       await page
@@ -287,6 +294,22 @@ const article = {
       );
       await page.screenshot({
         path: `${out}/article-pending-${width}.png`,
+        fullPage: true,
+      });
+      state = "error";
+      await page.reload();
+      await page
+        .getByTestId("translation-unavailable")
+        .waitFor({ timeout: 35_000 });
+      await page.clock.fastForward(120_001);
+      await page.getByTestId("translation-unavailable").waitFor();
+      assert.equal(
+        await page.getByTestId("translation-delayed").count(),
+        0,
+        "an expired wait must not relabel a failed article as still preparing",
+      );
+      await page.screenshot({
+        path: `${out}/article-error-after-wait-${width}.png`,
         fullPage: true,
       });
       await page.goto(`${base}/design-audit-preview`);

@@ -180,6 +180,14 @@ let browser;
         assert.equal(await field.isEditable(), true, `${tag}: denied field`);
         await shot(page, "04-location-denied");
         await field.fill(LONG_ADDRESS);
+        const draftPreview = page.getByTestId("address-draft");
+        assert.equal(await draftPreview.innerText(), LONG_ADDRESS);
+        const draftBounds = await draftPreview.boundingBox();
+        assert.ok(draftBounds.height > 25, `${tag}: draft wraps`);
+        assert.ok(
+          draftBounds.x + draftBounds.width <= width,
+          `${tag}: draft fits`,
+        );
         await shot(page, "05-location-manual-draft");
         await page.getByRole("button", { name: l.save }).last().click();
         await page.getByText(LONG_ADDRESS).last().waitFor();

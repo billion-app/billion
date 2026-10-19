@@ -244,6 +244,11 @@ export function AddressAutocomplete({
         </TouchableOpacity>
       </View>
 
+      {!!draft && (
+        <Text testID="address-draft" selectable style={s.statusText}>
+          {draft}
+        </Text>
+      )}
       <View style={s.secondaryRow}>
         {gpsButton}
         {cancelButton}

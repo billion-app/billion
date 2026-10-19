@@ -345,10 +345,10 @@ export default function ArticleDetailScreen() {
           .filter(Boolean)
           .join(" · ")}
         state={
-          translationWait.expired
-            ? "delayed"
-            : translationState === "unavailable"
-              ? "unavailable"
+          translationState === "unavailable"
+            ? "unavailable"
+            : translationWait.expired
+              ? "delayed"
               : "pending"
         }
         onRetry={() => {

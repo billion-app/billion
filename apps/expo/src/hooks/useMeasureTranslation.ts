@@ -62,10 +62,10 @@ export function useMeasureTranslation(
         ? ("original" as const)
         : translation
           ? ("translated" as const)
-          : wait.expired
-            ? ("delayed" as const)
-            : query.isError || query.data?.status === "unavailable"
-              ? ("unavailable" as const)
+          : query.isError || query.data?.status === "unavailable"
+            ? ("unavailable" as const)
+            : wait.expired
+              ? ("delayed" as const)
               : ("pending" as const),
     retry: () => {
       wait.retry();
