@@ -45,6 +45,10 @@ Missing or unknown subtypes use the neutral Executive label. Notification
 eligibility still uses the stored source type, independently of badge copy.
 
 Detail keeps bill `brief` and court `courtBrief` as separate response fields.
+Bill timelines validate stored action records and omit entries without a readable
+date and description. Some Congress actions contain only an internal code; these
+must not prevent the article or its translation from loading. Original action
+records remain unchanged in storage.
 Court output is validated against its own schema and current source hash;
 missing, stale, invalid, or unsupported brief versions return `null`. Court
 lenses also need the current source hash. Original text and source URLs remain
