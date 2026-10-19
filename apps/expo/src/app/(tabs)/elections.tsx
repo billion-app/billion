@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useIsFocused, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import type { Contest } from "@acme/api";
@@ -263,7 +263,10 @@ function CaliforniaElectionEntry({
 }) {
   const router = useRouter();
   const { language, t } = useAppTranslation();
-  const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
+  const focused = useIsFocused();
+  const query = useQuery(
+    trpc.civic.getCaliforniaGuide.queryOptions(undefined, { enabled: focused }),
+  );
   const guide = query.isError ? undefined : query.data;
 
   return (

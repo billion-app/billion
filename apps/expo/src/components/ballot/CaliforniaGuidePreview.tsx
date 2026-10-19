@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useIsFocused, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { plainTrillionText, trillionEmphasis } from "@acme/validators";
@@ -19,7 +19,7 @@ import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader, Segmented } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
-import { useIdleMeasurePreloading } from "~/hooks/useIdleMeasurePreloading";
+import { useIdleBallotPreloading } from "~/hooks/useIdleBallotPreloading";
 import { useLanguage } from "~/hooks/useLanguage";
 import { useMeasureTranslation } from "~/hooks/useMeasureTranslation";
 import { translateAppLabel } from "~/i18n/app-strings";
@@ -216,16 +216,19 @@ export function CaliforniaGuidePreview({
   const router = useRouter();
 
   const [tab, setTab] = useState<GuideTab>("candidates");
-  const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
+  const focused = useIsFocused();
+  const query = useQuery(
+    trpc.civic.getCaliforniaGuide.queryOptions(undefined, { enabled: focused }),
+  );
   const guide = query.isError ? undefined : query.data;
   const measureNumbers = useMemo(
     () => guide?.measures.map((measure) => measure.number) ?? [],
     [guide?.measures],
   );
-  const preloading = useIdleMeasurePreloading(
-    measureNumbers,
-    tab === "measures",
-  );
+  const preloading = useIdleBallotPreloading({
+    numbers: measureNumbers,
+    enabled: tab === "measures",
+  });
   const hasBoldedTitles = !!guide?.measures.some((m) => m.displayTitle);
   return (
     <View

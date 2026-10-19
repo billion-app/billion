@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useIsFocused } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { queryClient, trpc } from "~/utils/api";
@@ -12,6 +13,7 @@ export function useMeasureTranslation(
   scope: "title" | "reader" = "reader",
 ) {
   const { language } = useLanguage();
+  const focused = useIsFocused();
   const options = trpc.civic.getMeasureTranslation.queryOptions({
     number: number ?? "0",
     language: language === "en" ? "zh" : language,
@@ -25,16 +27,18 @@ export function useMeasureTranslation(
     number && language !== "en" && !cachedReady
       ? `${number}:${language}:${revision ?? scope}`
       : undefined,
+    focused,
   );
   const query = useQuery({
     ...options,
     ...translationCachePolicy,
-    refetchInterval: wait.expired
-      ? false
-      : (query) =>
-          query.state.data?.status === "unavailable"
-            ? false
-            : translationCachePolicy.refetchInterval(query),
+    refetchInterval:
+      !focused || wait.expired
+        ? false
+        : (query) =>
+            query.state.data?.status === "unavailable"
+              ? false
+              : translationCachePolicy.refetchInterval(query),
     // The guide can change independently of a graph revision.
     staleTime: 30_000,
     enabled: !!number && language !== "en" && !wait.expired,

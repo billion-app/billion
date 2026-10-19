@@ -228,6 +228,9 @@ export default function RootLayout() {
               <Stack.Screen name="(onboarding)" />
               <Stack.Screen
                 name="proposition-detail"
+                getId={({ params }) =>
+                  typeof params?.number === "string" ? params.number : undefined
+                }
                 options={{
                   contentStyle: { backgroundColor: "#0E1530" },
                 }}

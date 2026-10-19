@@ -1,4 +1,7 @@
-export const MEASURE_GRAPH_STALE_TIME = 60_000;
+import type { StackNavigationState } from "expo-router";
+
+export const BALLOT_STALE_TIME = 60_000;
+const MAX_PRELOADED_READERS = 2;
 
 type PauseReason = "inactive" | "touch" | "scroll";
 export interface IdleScheduler {
@@ -11,8 +14,8 @@ export interface IdleScheduler {
 declare const requestIdleCallback: IdleScheduler["request"];
 declare const cancelIdleCallback: IdleScheduler["cancel"];
 
-export function createIdleMeasurePreloader(
-  preload: (number: string) => Promise<void>,
+export function createIdlePreloader<T>(
+  preload: (item: T) => Promise<void>,
   idle: IdleScheduler | undefined = typeof requestIdleCallback === "function" &&
   typeof cancelIdleCallback === "function"
     ? {
@@ -21,7 +24,7 @@ export function createIdleMeasurePreloader(
       }
     : undefined,
 ) {
-  let measures: readonly string[] = [];
+  let items: readonly T[] = [];
   let index = 0;
   let pendingIdle: number | undefined;
   let fetching = false;
@@ -40,7 +43,7 @@ export function createIdleMeasurePreloader(
       paused.size ||
       fetching ||
       pendingIdle !== undefined ||
-      index >= measures.length
+      index >= items.length
     )
       return;
     pendingIdle = idle.request((deadline) => {
@@ -50,10 +53,10 @@ export function createIdleMeasurePreloader(
         schedule();
         return;
       }
-      const number = measures[index++];
-      if (number === undefined) return;
+      const item = items[index++];
+      if (item === undefined) return;
       fetching = true;
-      void preload(number).then(() => {
+      void preload(item).then(() => {
         fetching = false;
         schedule();
       });
@@ -61,8 +64,8 @@ export function createIdleMeasurePreloader(
   }
 
   return {
-    setMeasures(next: readonly string[]) {
-      measures = next;
+    setItems(next: readonly T[]) {
+      items = next;
       index = 0;
       schedule();
     },
@@ -80,4 +83,43 @@ export function createIdleMeasurePreloader(
       cancelPending();
     },
   };
+}
+
+export type BallotPreload =
+  | { kind: "guide" }
+  | { kind: "elections" }
+  | { kind: "graph"; number: string }
+  | { kind: "reader"; number: string };
+
+export function ballotPreloads(numbers?: readonly string[]): BallotPreload[] {
+  if (!numbers) return [{ kind: "guide" }, { kind: "elections" }];
+  return [
+    { kind: "guide" },
+    ...numbers.flatMap((number, index): BallotPreload[] => [
+      { kind: "graph", number },
+      ...(index < MAX_PRELOADED_READERS
+        ? [{ kind: "reader" as const, number }]
+        : []),
+    ]),
+  ];
+}
+
+export function canPreloadReader(
+  state: Pick<
+    StackNavigationState<Record<string, object | undefined>>,
+    "routes" | "preloadedRoutes"
+  >,
+  number: string,
+) {
+  const alreadyMounted = [...state.routes, ...state.preloadedRoutes].some(
+    (route) =>
+      route.name === "proposition-detail" &&
+      route.params &&
+      "number" in route.params &&
+      route.params.number === number,
+  );
+  const prepared = state.preloadedRoutes.filter(
+    (route) => route.name === "proposition-detail",
+  ).length;
+  return !alreadyMounted && prepared < MAX_PRELOADED_READERS;
 }

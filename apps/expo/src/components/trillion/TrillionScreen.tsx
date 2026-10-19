@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import Animated, { FadeOut, ReduceMotion } from "react-native-reanimated";
-import { useNavigation, useRouter } from "expo-router";
+import { useIsFocused, useNavigation, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import type { PublicTrillionGraph } from "@acme/validators";
@@ -47,6 +47,7 @@ export function TrillionScreen(props: TrillionScreenProps) {
 
 function ReaderHost({ graph, view, ballot }: TrillionScreenProps) {
   const { t: tx } = useAppTranslation();
+  const focused = useIsFocused();
   const [readyKey, setReadyKey] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [failedKey, setFailedKey] = useState<string | null>(null);
@@ -101,10 +102,10 @@ function ReaderHost({ graph, view, ballot }: TrillionScreenProps) {
   const [backInside, setBackInside] = useState(false);
   const handleBackInside = backInside && !startupFailed;
   useEffect(() => {
-    navigation.setOptions({ gestureEnabled: !handleBackInside });
-  }, [navigation, handleBackInside]);
+    if (focused) navigation.setOptions({ gestureEnabled: !handleBackInside });
+  }, [focused, navigation, handleBackInside]);
   useEffect(() => {
-    if (!handleBackInside || Platform.OS !== "android") return;
+    if (!focused || !handleBackInside || Platform.OS !== "android") return;
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
@@ -114,12 +115,12 @@ function ReaderHost({ graph, view, ballot }: TrillionScreenProps) {
       },
     );
     return () => subscription.remove();
-  }, [handleBackInside]);
+  }, [focused, handleBackInside]);
   useEffect(() => {
-    if (ready || waitingForTranslation) return;
+    if (!focused || ready || waitingForTranslation) return;
     const timer = setTimeout(() => setFailedKey(contentKey), 15_000);
     return () => clearTimeout(timer);
-  }, [ready, contentKey, waitingForTranslation, attempt]);
+  }, [focused, ready, contentKey, waitingForTranslation, attempt]);
   const title = tx("Proposition {value1} · The debate", {
     value1: graph.measure.number,
   });

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { trillionEmphasis } from "@acme/validators";
@@ -36,7 +36,7 @@ import {
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
-import { MEASURE_GRAPH_STALE_TIME } from "~/utils/measure-preloading";
+import { BALLOT_STALE_TIME } from "~/utils/ballot-preloading";
 import { measureSpeechChunks } from "~/utils/measure-speech";
 import {
   officialVoteMeaning,
@@ -48,9 +48,12 @@ export default function PropositionDetailScreen() {
   const { t: tx, language: uiLanguage } = useAppTranslation();
 
   const router = useRouter();
+  const focused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { number } = useLocalSearchParams<{ number?: string }>();
-  const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
+  const query = useQuery(
+    trpc.civic.getCaliforniaGuide.queryOptions(undefined, { enabled: focused }),
+  );
   const originalMeasure = query.data?.measures.find(
     (item) => item.number === number,
   );
@@ -60,7 +63,7 @@ export default function PropositionDetailScreen() {
   const debate = useQuery(
     trpc.civic.getTrillion.queryOptions(
       { number: number ?? "" },
-      { enabled: !!number, staleTime: MEASURE_GRAPH_STALE_TIME },
+      { enabled: focused && !!number, staleTime: BALLOT_STALE_TIME },
     ),
   );
   const graph =

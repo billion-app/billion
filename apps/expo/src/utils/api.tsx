@@ -12,6 +12,7 @@ import superjson from "superjson";
 import type { AppRouter } from "@acme/api";
 
 import { authClient } from "./auth";
+import { BALLOT_STALE_TIME } from "./ballot-preloading";
 import { getBaseUrl } from "./base-url";
 
 export const queryClient = new QueryClient({
@@ -55,6 +56,10 @@ export const trpcClient = createTRPCClient<AppRouter>({
 export const trpc = createTRPCOptionsProxy<AppRouter>({
   client: trpcClient,
   queryClient,
+});
+
+queryClient.setQueryDefaults(trpc.civic.getCaliforniaGuide.queryKey(), {
+  staleTime: BALLOT_STALE_TIME,
 });
 
 export { type RouterInputs, type RouterOutputs } from "@acme/api";
