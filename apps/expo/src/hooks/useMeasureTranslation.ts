@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { queryClient, trpc } from "~/utils/api";
 import { translationCachePolicy } from "~/utils/translation-cache";
 import { useLanguage } from "./useLanguage";
+import { useTranslationWait } from "./useTranslationWait";
 
 export function useMeasureTranslation(
   number: string | undefined,
@@ -11,17 +12,32 @@ export function useMeasureTranslation(
   scope: "title" | "reader" = "reader",
 ) {
   const { language } = useLanguage();
+  const options = trpc.civic.getMeasureTranslation.queryOptions({
+    number: number ?? "0",
+    language: language === "en" ? "zh" : language,
+    scope,
+    revision,
+  });
+  const cached = queryClient.getQueryData(options.queryKey);
+  const cachedReady =
+    cached?.status === "translated" && cached.language === language;
+  const wait = useTranslationWait(
+    number && language !== "en" && !cachedReady
+      ? `${number}:${language}:${revision ?? scope}`
+      : undefined,
+  );
   const query = useQuery({
-    ...trpc.civic.getMeasureTranslation.queryOptions({
-      number: number ?? "0",
-      language: language === "en" ? "zh" : language,
-      scope,
-      revision,
-    }),
+    ...options,
     ...translationCachePolicy,
+    refetchInterval: wait.expired
+      ? false
+      : (query) =>
+          query.state.data?.status === "unavailable"
+            ? false
+            : translationCachePolicy.refetchInterval(query),
     // The guide can change independently of a graph revision.
     staleTime: 30_000,
-    enabled: !!number && language !== "en",
+    enabled: !!number && language !== "en" && !wait.expired,
   });
   useEffect(() => {
     if (query.data?.status !== "stale") return;
@@ -48,7 +64,12 @@ export function useMeasureTranslation(
           ? ("translated" as const)
           : query.isError || query.data?.status === "unavailable"
             ? ("unavailable" as const)
-            : ("pending" as const),
-    retry: () => void query.refetch(),
+            : wait.expired
+              ? ("delayed" as const)
+              : ("pending" as const),
+    retry: () => {
+      wait.retry();
+      void query.refetch();
+    },
   };
 }

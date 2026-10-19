@@ -90,3 +90,46 @@ void test("a reload failure reaches the caller so the reader can retry", async (
     failure,
   );
 });
+
+void test("dismissing during download prevents a later surprise restart", async () => {
+  const controller = new AbortController();
+  let finish:
+    | ((result: { isNew: boolean; isRollBackToEmbedded: boolean }) => void)
+    | undefined;
+  let reloads = 0;
+  const running = restartWithLatestUpdate(
+    {
+      fetchUpdateAsync: () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      reloadAsync: () => {
+        reloads++;
+        return Promise.resolve();
+      },
+    },
+    controller.signal,
+  );
+  const rejected = assert.rejects(running, { name: "AbortError" });
+  controller.abort();
+  await rejected;
+  finish?.({ isNew: true, isRollBackToEmbedded: false });
+  await Promise.resolve();
+  assert.equal(reloads, 0);
+});
+
+void test("a stalled download times out without restarting", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let reloads = 0;
+  const running = restartWithLatestUpdate({
+    fetchUpdateAsync: () => new Promise(() => undefined),
+    reloadAsync: () => {
+      reloads++;
+      return Promise.resolve();
+    },
+  });
+  const rejected = assert.rejects(running, /timed out/);
+  t.mock.timers.tick(30_000);
+  await rejected;
+  assert.equal(reloads, 0);
+});

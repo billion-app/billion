@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 
+import type { AppTranslate } from "~/i18n/app-strings";
 import { PinMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
@@ -17,11 +18,22 @@ import {
 } from "~/hooks/useDeviceAddress";
 import { DigestHair, DigestPalette, fontBody } from "~/styles";
 
+type LocationError = ReturnType<typeof useDeviceAddress>["error"];
+
+/**
+ * What the address is for. Ballot lookups need the registered voting address;
+ * the news menus only need somewhere to center local coverage, so their
+ * fallback copy must not tell people to find their registration.
+ */
+export type AddressPurpose = "voting" | "news";
+
 interface AddressAutocompleteProps {
   /** Initial text to seed the field (e.g. the currently stored address). */
   initialValue?: string;
   /** Commit the address after the voter confirms it. */
   onSubmit: (address: string) => void;
+  /** Leave without committing. Renders a visible Cancel action when set. */
+  onCancel?: () => void;
   /**
    * Optional field hint. Pass `null` to hide — Elections empty state carries
    * the editorial lead elsewhere so we don't repeat "enter your address".
@@ -29,20 +41,47 @@ interface AddressAutocompleteProps {
    */
   hint?: string | null;
   autoFocus?: boolean;
-  /** Menu/sheet field: type and commit. No Look Up chrome. */
+  /** Menu/sheet field: compact type, Save, and Cancel. No Look Up chrome. */
   inline?: boolean;
+  /** Label for the full-size commit button. Defaults to "Look Up". */
+  submitLabel?: string;
+  /** Defaults to `news` for inline menus and `voting` for the full field. */
+  purpose?: AddressPurpose;
+}
+
+function newsLocationMessage(
+  error: LocationError,
+  t: AppTranslate,
+): string | null {
+  switch (error) {
+    case "denied":
+      return t("address.news.denied");
+    case "unavailable":
+      return t("address.news.unavailable");
+    case "failed":
+      return t("address.news.failed");
+    case "address-unavailable":
+      return t("address.news.noStreetAddress");
+    default:
+      return null;
+  }
 }
 
 export function AddressAutocomplete({
   initialValue = "",
   onSubmit,
+  onCancel,
   hint: hintProp,
   autoFocus = true,
   inline = false,
+  submitLabel,
+  purpose = inline ? "news" : "voting",
 }: AddressAutocompleteProps) {
   const { t } = useAppTranslation();
   const hint = hintProp === undefined ? t("address.defaultHint") : hintProp;
   const [input, setInput] = useState(initialValue);
+  // Set when device location wrote the draft; cleared once the person edits.
+  const [suggested, setSuggested] = useState(false);
   const {
     resolve: resolveAddress,
     cancel: cancelLocation,
@@ -50,52 +89,92 @@ export function AddressAutocomplete({
     resolving,
     error: locationError,
   } = useDeviceAddress();
+  const busy = locating || resolving;
+  const draft = input.trim();
+  const commitLabel = inline
+    ? t("common.save")
+    : (submitLabel ?? t("address.lookUp"));
 
-  const commit = (address: string) => {
+  const commit = () => {
+    if (!draft) return;
     cancelLocation();
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setInput(address);
-    onSubmit(address);
+    setSuggested(false);
+    setInput(draft);
+    onSubmit(draft);
   };
 
+  const edit = (value: string) => {
+    cancelLocation();
+    setSuggested(false);
+    setInput(value);
+  };
+
+  // Location only fills the draft. The person still reviews and commits it.
   const captureLocation = async () => {
+    setSuggested(false);
     const address = await resolveAddress();
-    if (address) setInput(address);
+    if (!address) return;
+    setInput(address);
+    setSuggested(true);
   };
 
-  const locationMessage = deviceLocationMessage(locationError, t);
-  const locationStatus =
-    resolving && !inline ? (
-      <Text style={s.statusText}>{t("address.confirming")}</Text>
-    ) : locationMessage ? (
-      <Text accessibilityRole="alert" style={s.statusText}>
-        {locationMessage}
-      </Text>
-    ) : null;
+  const cancel = () => {
+    cancelLocation();
+    onCancel?.();
+  };
+
+  const errorMessage =
+    purpose === "news"
+      ? newsLocationMessage(locationError, t)
+      : deviceLocationMessage(locationError, t);
+  const statusMessage = locating
+    ? t("address.finding")
+    : resolving
+      ? t("address.confirming")
+      : suggested
+        ? t("address.checkDraft", { action: commitLabel })
+        : null;
+  const locationStatus = errorMessage ? (
+    <Text accessibilityRole="alert" style={s.statusText}>
+      {errorMessage}
+    </Text>
+  ) : statusMessage ? (
+    <Text accessibilityLiveRegion="polite" style={s.statusText}>
+      {statusMessage}
+    </Text>
+  ) : null;
 
   const gpsButton = (
     <TouchableOpacity
-      style={[s.gpsBtn, locating && s.gpsBtnBusy]}
-      disabled={locating || resolving}
+      style={[s.gpsBtn, busy && s.gpsBtnBusy]}
+      disabled={busy}
       onPress={() => void captureLocation()}
       activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel={t("address.useLocation")}
-      accessibilityState={{
-        disabled: locating || resolving,
-        busy: locating || resolving,
-      }}
+      accessibilityState={{ disabled: busy, busy }}
     >
-      {locating || resolving ? (
+      {busy ? (
         <ActivityIndicator size="small" color={DigestPalette.spark} />
       ) : (
-        <>
-          <PinMark size={14} color={DigestPalette.spark} />
-          <Text style={s.gpsText}>{t("address.useLocation")}</Text>
-        </>
+        <PinMark size={14} color={DigestPalette.spark} />
       )}
+      <Text style={s.gpsText}>{t("address.useLocation")}</Text>
     </TouchableOpacity>
   );
+
+  const cancelButton = onCancel ? (
+    <TouchableOpacity
+      style={s.cancelBtn}
+      onPress={cancel}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={t("common.cancel")}
+    >
+      <Text style={s.cancelText}>{t("common.cancel")}</Text>
+    </TouchableOpacity>
+  ) : null;
 
   if (inline) {
     return (
@@ -106,21 +185,28 @@ export function AddressAutocomplete({
           accessibilityLabel={t("address.placeholder")}
           placeholderTextColor={DigestPalette.quiet}
           value={input}
-          onChangeText={(value) => {
-            cancelLocation();
-            setInput(value);
-          }}
+          onChangeText={edit}
           autoComplete="street-address"
           textContentType="fullStreetAddress"
           autoFocus={autoFocus}
           returnKeyType="done"
-          onSubmitEditing={() => {
-            const next = input.trim();
-            if (next) commit(next);
-          }}
+          onSubmitEditing={commit}
         />
-        {gpsButton}
+        <View style={s.inlineGps}>{gpsButton}</View>
         {locationStatus}
+        <View style={s.inlineActions}>
+          {cancelButton}
+          <TouchableOpacity
+            style={[s.saveBtn, !draft && s.btnOff]}
+            disabled={!draft}
+            onPress={commit}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !draft }}
+          >
+            <Text style={s.saveText}>{commitLabel}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -139,26 +225,34 @@ export function AddressAutocomplete({
             accessibilityLabel={t("address.registeredPlaceholder")}
             placeholderTextColor={DigestHair.inkMuted}
             value={input}
-            onChangeText={(value) => {
-              cancelLocation();
-              setInput(value);
-            }}
+            onChangeText={edit}
             autoComplete="street-address"
             textContentType="fullStreetAddress"
             autoFocus={autoFocus}
+            returnKeyType="done"
+            onSubmitEditing={commit}
           />
         </View>
         <TouchableOpacity
-          style={[s.btn, !input.trim() && s.btnOff]}
-          disabled={!input.trim()}
+          style={[s.btn, !draft && s.btnOff]}
+          disabled={!draft}
           accessibilityRole="button"
-          onPress={() => input.trim() && commit(input.trim())}
+          accessibilityState={{ disabled: !draft }}
+          onPress={commit}
         >
-          <Text style={s.btnText}>{t("address.lookUp")}</Text>
+          <Text style={s.btnText}>{commitLabel}</Text>
         </TouchableOpacity>
       </View>
 
-      {gpsButton}
+      {!!draft && (
+        <Text testID="address-draft" selectable style={s.statusText}>
+          {draft}
+        </Text>
+      )}
+      <View style={s.secondaryRow}>
+        {gpsButton}
+        {cancelButton}
+      </View>
       {locationStatus}
     </View>
   );
@@ -174,6 +268,35 @@ const s = StyleSheet.create({
     color: DigestPalette.inkOnNight,
     fontFamily: fontBody.semibold,
     fontSize: 15,
+  },
+  inlineActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+  },
+  saveBtn: {
+    minHeight: 40,
+    paddingHorizontal: 18,
+    borderRadius: 9999,
+    backgroundColor: DigestPalette.primary,
+    justifyContent: "center",
+  },
+  saveText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+    color: DigestPalette.inkOnNight,
+  },
+  cancelBtn: {
+    minHeight: 40,
+    paddingHorizontal: 12,
+    justifyContent: "center",
+  },
+  cancelText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+    color: DigestPalette.spark,
   },
   hint: {
     fontFamily: fontBody.regular,
@@ -208,8 +331,16 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: DigestPalette.inkOnNight,
   },
-  gpsBtn: {
+  secondaryRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
     marginTop: 10,
+  },
+  inlineGps: { marginTop: 10 },
+  gpsBtn: {
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",

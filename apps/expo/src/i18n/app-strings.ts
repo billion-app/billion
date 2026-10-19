@@ -23,11 +23,13 @@ import { howToVoteLookupStrings } from "./app/how-to-vote-lookup";
 import { onboardingStrings } from "./app/onboarding";
 import { pageStrings } from "./app/pages";
 import { settingsStrings } from "./app/settings";
+import { updateStrings } from "./app/updates";
 import { votingStrings } from "./app/voting";
 import { formatNumber } from "./format";
 
 export const CATALOG = {
   ...auditStrings,
+  ...updateStrings,
   ...pageStrings,
   ...commonStrings,
   ...feedStrings,

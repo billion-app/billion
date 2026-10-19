@@ -1,4 +1,8 @@
 export const labels: Record<string, { zh: string; es: string }> = {
+  "Captured sources do not answer this yet.": {
+    zh: "目前收集的来源尚未解答这个问题。",
+    es: "Las fuentes recopiladas aún no responden a esto.",
+  },
   From: { zh: "起点", es: "Desde" },
   To: { zh: "终点", es: "Hasta" },
   "Drag cards to pull the web around. Pinch, scroll, or use the buttons to zoom.":

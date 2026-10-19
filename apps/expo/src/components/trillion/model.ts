@@ -172,6 +172,7 @@ export class TrillionModel {
 
   /** Debate structure, not popularity: unanswered, then evidenced, then contested. */
   rank(id: string): number {
+    if (id.startsWith("context-gap-")) return 3;
     const inc = this.incoming(id);
     const kind = this.node(id).kind;
     const answered = inc.some((e) => RESP.has(e.type) || e.type === "supports");

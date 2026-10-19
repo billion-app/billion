@@ -332,3 +332,11 @@ starts fetching its debate. A navy skeleton holds the layout while loading.
 Run the shared reader's browser regression with
 `node --test prototypes/trillion/reader*.test.mjs` after rebuilding the mockup with
 `node prototypes/trillion/build.mjs`.
+
+The native host keeps Back, the language selector, and listening controls above
+translation status. It hides the embedded header to avoid repeating navigation.
+Pending translations show the localized proposition identifier and Retry, without
+mounting the English graph under another language. Long waits pause automatic
+checks after two minutes; Retry starts a new wait. Opening the English fallback
+explicitly changes the app language. Missing captured context is labeled as an
+evidence limitation and does not count as an unanswered debate question.

@@ -12,9 +12,9 @@ export const howToVoteLookupStrings = {
     zh: "你的投票地址",
   },
   "howToVoteLookup.lookupOnly": {
-    en: "Used for this lookup. Your saved home address stays the same.",
-    es: "Se usa para esta consulta. Tu dirección guardada no cambia.",
-    zh: "仅用于此次查询。你保存的家庭地址保持不变。",
+    en: "Used for this lookup only. Your saved address in Settings stays the same.",
+    es: "Se usa solo para esta consulta. Tu dirección guardada en Ajustes no cambia.",
+    zh: "仅用于此次查询。你在设置中保存的地址保持不变。",
   },
   "howToVoteLookup.mismatchTitle": {
     en: "Election information doesn't match",
@@ -120,6 +120,11 @@ export const howToVoteLookupStrings = {
     en: "REGISTERED ADDRESS",
     es: "DIRECCIÓN REGISTRADA",
     zh: "登记地址",
+  },
+  "howToVoteLookup.editAddress": {
+    en: "Edit registered address",
+    es: "Editar la dirección registrada",
+    zh: "编辑登记地址",
   },
   "howToVoteLookup.addressNote": {
     en: "Used only to look up your ballot and voting locations.",

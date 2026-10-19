@@ -13,7 +13,10 @@ const en = {
     "Choose the language for the app. Original quotations and source documents keep their published wording.",
   "language.choose": "Language · 语言 · Idioma",
 
-  "readerUi.useEnglish": "Use English instead",
+  "readerUi.translationDelayed": "Taking longer than expected",
+  "readerUi.translationDelayedBody":
+    "Your translation may still be preparing. Automatic checks are paused; retry to check again.",
+  "readerUi.useEnglish": "Switch app to English",
   "readerUi.define": "Define {term}",
   "readerUi.defineHint": "Shows a short definition below this paragraph",
   "readerUi.closeDefinition": "Close definition of {term}",
@@ -179,7 +182,7 @@ const en = {
   "readerUi.translatingZh": "Translating into Chinese…",
   "readerUi.translatingEs": "Translating into Spanish…",
   "readerUi.preparingTranslation":
-    "The translated article will appear here when it is ready.",
+    "The translated content will appear here when it is ready.",
   "readerUi.retryTranslation":
     "Please retry loading the translation, or choose English.",
   "readerUi.translationWait":
@@ -260,7 +263,7 @@ const en = {
     "Quotes and source documents stay in their original language.",
   "reader.translatedTitles":
     "Machine-translated titles · check the original sources",
-  "reader.showEnglish": "Show English",
+  "reader.showEnglish": "Switch app to English",
   "reader.translateNote":
     "Billion machine-translates its explanations from English. Quotes and source documents stay in their original language.",
   "listen.unavailable":
@@ -295,7 +298,10 @@ const es: Dictionary = {
     "Elige el idioma de la aplicación. Las citas y los documentos originales conservan el texto publicado.",
   "language.choose": "Idioma · 语言 · Language",
 
-  "readerUi.useEnglish": "Usar inglés",
+  "readerUi.translationDelayed": "Está tardando más de lo esperado",
+  "readerUi.translationDelayedBody":
+    "La traducción puede seguir preparándose. Las consultas automáticas están en pausa; reintenta para comprobarla.",
+  "readerUi.useEnglish": "Cambiar la app a inglés",
   "readerUi.define": "Definir {term}",
   "readerUi.defineHint": "Muestra una definición breve debajo de este párrafo",
   "readerUi.closeDefinition": "Cerrar definición de {term}",
@@ -541,7 +547,7 @@ const es: Dictionary = {
     "Las citas y los documentos conservan su idioma original.",
   "reader.translatedTitles":
     "Títulos traducidos automáticamente · consulta las fuentes originales",
-  "reader.showEnglish": "Ver en inglés",
+  "reader.showEnglish": "Cambiar la app a inglés",
   "reader.translateNote":
     "Billion traduce automáticamente sus explicaciones del inglés. Las citas y los documentos conservan su idioma original.",
   "listen.unavailable":
@@ -571,7 +577,10 @@ const zh: Dictionary = {
   "language.appNote": "选择应用语言。引文和来源文件保留发布时的原文。",
   "language.choose": "语言 · Language · Idioma",
 
-  "readerUi.useEnglish": "切换为英文",
+  "readerUi.translationDelayed": "翻译准备时间比预期更长",
+  "readerUi.translationDelayedBody":
+    "译文可能仍在准备。已暂停自动检查；点按重试可再次检查。",
+  "readerUi.useEnglish": "将整个应用切换为英文",
   "readerUi.define": "解释“{term}”",
   "readerUi.defineHint": "在本段下方显示简要释义",
   "readerUi.closeDefinition": "关闭“{term}”的释义",
@@ -804,7 +813,7 @@ const zh: Dictionary = {
   "article.translationPending": "正在准备翻译…完成前暂时显示英文。",
   "reader.originalSources": "引文和原始文件保留原文。",
   "reader.translatedTitles": "标题由机器翻译 · 请核对原始来源",
-  "reader.showEnglish": "显示英文",
+  "reader.showEnglish": "将整个应用切换为英文",
   "reader.translateNote":
     "Billion 的解读由英文机器翻译。引文和原始文件保留原文。",
   "listen.unavailable": "朗读需要最新版本的应用及已安装的语音。",

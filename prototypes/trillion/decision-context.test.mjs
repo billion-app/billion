@@ -134,6 +134,24 @@ await test("decision context, selection reasons and sources work on narrow and w
         0,
         "Basics should not repeat the selected disputes above its grid",
       );
+      await page.locator('[data-tab="open"]').first().click();
+      assert.equal(
+        await page.locator('#page [data-node^="context-gap-"]').count(),
+        0,
+        "missing captured evidence must not inflate unanswered debates",
+      );
+      await page.locator('[data-tab="basics"]').first().click();
+      await page.locator('[data-node="b-before"]').first().click();
+      const gaps = page
+        .locator("#page .row")
+        .filter({ has: page.locator('[data-node^="context-gap-"]') });
+      assert.equal(await gaps.count(), 2);
+      assert.equal(await gaps.locator(".badge-open").count(), 0);
+      assert.match(
+        await gaps.first().textContent(),
+        /Captured sources do not answer this yet/,
+      );
+      await page.locator("#back").click();
       await page.locator('[data-tab="disagree"]').first().click();
       assert.deepEqual(
         await page

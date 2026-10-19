@@ -1,24 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Alert,
-  Dimensions,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import Animated, {
-  Easing,
-  interpolate,
-  runOnJS,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Updates from "expo-updates";
 
+import { AppStoreUpdateBanner } from "~/components/AppStoreUpdateBanner";
 import { UpdateReadyMark } from "~/components/UpdateReadyMark";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
@@ -26,7 +11,6 @@ import {
   fontBody,
   fontDisplay,
   getShadow,
-  hair,
   planes,
   rd,
   useTheme,
@@ -37,38 +21,26 @@ import {
   shouldForceShowBanner,
 } from "~/utils/update-prompt";
 
-const TIMER_MS = 8000;
-const TO_CENTER_MS = 420;
-
 export interface UpdatePromptProps {
-  /** Force banner visible for DEV / preview. */
   forceShow?: boolean;
 }
 
-type Phase = "toast" | "ask";
-
-/** Dismissible OTA popup: toast with timer, then centered ask. */
+/** Optional updates remain dismissible, including while a download is pending. */
 export function UpdatePrompt({ forceShow = false }: UpdatePromptProps) {
-  const { theme, isDark } = useTheme();
   const { t } = useAppTranslation();
-  const insets = useSafeAreaInsets();
-  const reduceMotion = useReducedMotion();
   const { currentlyRunning, downloadedUpdate, isUpdatePending } =
     Updates.useUpdates();
   const [dismissedUpdateId, setDismissedUpdateId] = useState<string | null>(
     null,
   );
-  const [phase, setPhase] = useState<Phase>("toast");
-  const [phaseForId, setPhaseForId] = useState<string | null>(null);
-  const restartInFlight = useRef(false);
-  const [isPreparingUpdate, setIsPreparingUpdate] = useState(false);
-
+  const [preparing, setPreparing] = useState(false);
+  const operation = useRef<AbortController | null>(null);
   const forcePreview = shouldForceShowBanner({
     forceShowProp: forceShow,
     isDev: __DEV__,
     forceEnv: process.env.EXPO_PUBLIC_FORCE_UPDATE_BANNER,
   });
-  const { visible: promptVisible, updateId } = resolveUpdatePrompt({
+  const { visible, updateId } = resolveUpdatePrompt({
     forcePreview,
     updatesEnabled: Updates.isEnabled,
     isUpdatePending,
@@ -76,415 +48,172 @@ export function UpdatePrompt({ forceShow = false }: UpdatePromptProps) {
     downloadedUpdate,
     dismissedUpdateId,
   });
-  const visible = promptVisible || isPreparingUpdate;
-
-  const restartWithUpdate = async () => {
-    if (restartInFlight.current) return;
-    if (forcePreview) {
-      setDismissedUpdateId(updateId);
-      return;
-    }
-    restartInFlight.current = true;
-    setIsPreparingUpdate(true);
-    try {
-      await restartWithLatestUpdate(Updates);
-      setDismissedUpdateId(updateId);
-    } catch (error) {
-      console.warn("Unable to install the latest update:", error);
-      Alert.alert(t("update.failedTitle"), t("update.failedBody"));
-    } finally {
-      restartInFlight.current = false;
-      setIsPreparingUpdate(false);
-    }
-  };
-
-  // Reset phase when a new update id becomes active (render-time adjust).
-  if (visible && updateId != null && phaseForId !== updateId) {
-    setPhaseForId(updateId);
-    setPhase(reduceMotion ? "ask" : "toast");
-  }
-
-  const enterOpacity = useSharedValue(0);
-  const timerProgress = useSharedValue(1);
-  /** 0 = top toast, 1 = centered ask */
-  const centerProgress = useSharedValue(0);
+  useEffect(
+    () => () => {
+      operation.current?.abort();
+      operation.current = null;
+    },
+    [],
+  );
 
   const dismiss = () => {
-    if (restartInFlight.current) return;
-    if (updateId != null) setDismissedUpdateId(updateId);
+    operation.current?.abort();
+    operation.current = null;
+    setPreparing(false);
+    setDismissedUpdateId(updateId);
   };
-
-  const goAsk = () => {
-    setPhase("ask");
-  };
-
-  useEffect(() => {
-    if (!visible) {
-      enterOpacity.value = 0;
-      timerProgress.value = 1;
-      centerProgress.value = 0;
+  const restart = async () => {
+    if (operation.current) return;
+    if (forcePreview) {
+      dismiss();
       return;
     }
-
-    if (reduceMotion) {
-      enterOpacity.value = 1;
-      timerProgress.value = 0;
-      centerProgress.value = 1;
-      return;
+    const controller = new AbortController();
+    operation.current = controller;
+    setPreparing(true);
+    try {
+      await restartWithLatestUpdate(Updates, controller.signal);
+      if (!controller.signal.aborted) setDismissedUpdateId(updateId);
+    } catch {
+      if (!controller.signal.aborted)
+        Alert.alert(t("update.failedTitle"), t("update.failedBody"));
+    } finally {
+      if (operation.current === controller) {
+        operation.current = null;
+        setPreparing(false);
+      }
     }
-
-    enterOpacity.value = withTiming(1, {
-      duration: 280,
-      easing: Easing.out(Easing.quad),
-    });
-    centerProgress.value = 0;
-    timerProgress.value = 1;
-    timerProgress.value = withTiming(
-      0,
-      { duration: TIMER_MS, easing: Easing.linear },
-      (finished) => {
-        if (!finished) return;
-        centerProgress.value = withTiming(1, {
-          duration: TO_CENTER_MS,
-          easing: Easing.inOut(Easing.cubic),
-        });
-        runOnJS(goAsk)();
-      },
-    );
-  }, [
-    visible,
-    updateId,
-    reduceMotion,
-    enterOpacity,
-    timerProgress,
-    centerProgress,
-  ]);
-
-  const screenH = Dimensions.get("window").height;
-  const toastTop = insets.top + 8;
-
-  const backdropStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(centerProgress.value, [0, 1], [0, 0.55]),
-  }));
-
-  const cardStyle = useAnimatedStyle(() => {
-    const topY = toastTop;
-    const centerY = screenH / 2 - 140;
-    const translateY = interpolate(
-      centerProgress.value,
-      [0, 1],
-      [topY, centerY],
-    );
-    const scale = interpolate(centerProgress.value, [0, 1], [1, 1.02]);
-    return {
-      opacity: enterOpacity.value,
-      transform: [{ translateY }, { scale }],
-    };
-  });
-
-  const timerStyle = useAnimatedStyle(() => ({
-    transform: [{ scaleX: Math.max(timerProgress.value, 0.001) }],
-    opacity: interpolate(centerProgress.value, [0, 0.35], [1, 0]),
-  }));
-
-  if (!visible) return null;
-
-  const surface = isDark ? planes.surface : theme.card;
-  const asking = phase === "ask";
-
+  };
   return (
-    <View
-      pointerEvents="box-none"
-      style={styles.root}
-      accessibilityElementsHidden={false}
-      importantForAccessibility="yes"
-    >
-      <Animated.View
-        pointerEvents={asking ? "auto" : "none"}
-        style={[styles.backdrop, backdropStyle]}
-      >
-        <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
-      </Animated.View>
-
-      <Animated.View
-        style={[
-          styles.popup,
-          {
-            backgroundColor: surface,
-            borderColor: hair[2],
-          },
-          getShadow(asking ? "lg" : "md", isDark),
-          cardStyle,
-        ]}
-        accessibilityRole="alert"
-        accessibilityLiveRegion="polite"
-      >
-        {asking ? (
-          <View style={styles.askBody}>
-            <UpdateReadyMark size={44} color={colors.bill} />
-            <Text style={styles.kicker}>{t("update.kicker")}</Text>
-            <Text style={[styles.askTitle, { color: theme.foreground }]}>
-              {isPreparingUpdate ? t("update.getting") : t("update.askTitle")}
-            </Text>
-            <Text style={[styles.askSubtitle, { color: theme.textSecondary }]}>
-              {isPreparingUpdate
-                ? t("update.restartingBody")
-                : t("update.askBody")}
-            </Text>
-            <View style={styles.askActions}>
-              <Pressable
-                onPress={() => void restartWithUpdate()}
-                disabled={isPreparingUpdate}
-                accessibilityState={{
-                  disabled: isPreparingUpdate,
-                  busy: isPreparingUpdate,
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={t("update.restartA11y")}
-                style={({ pressed }) => [
-                  styles.askPrimary,
-                  pressed && { opacity: 0.85 },
-                ]}
-              >
-                <Text style={styles.askPrimaryText}>
-                  {isPreparingUpdate
-                    ? t("update.updating")
-                    : t("update.restartNow")}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={dismiss}
-                disabled={isPreparingUpdate}
-                accessibilityRole="button"
-                accessibilityLabel={t("update.dismissA11y")}
-                style={({ pressed }) => [
-                  styles.askSecondary,
-                  pressed && { opacity: 0.55 },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.askSecondaryText,
-                    { color: theme.textSecondary },
-                  ]}
-                >
-                  {t("update.notNow")}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.row}>
-            <View style={styles.markWrap}>
-              <UpdateReadyMark size={32} color={colors.bill} />
-            </View>
-            <View style={styles.copy}>
-              <Text style={styles.kicker} numberOfLines={1}>
-                {t("update.kicker")}
-              </Text>
-              <Text
-                style={[styles.title, { color: theme.foreground }]}
-                numberOfLines={1}
-              >
-                {isPreparingUpdate ? t("update.getting") : t("update.ready")}
-              </Text>
-              <Text
-                style={[styles.subtitle, { color: theme.textSecondary }]}
-                numberOfLines={1}
-              >
-                {isPreparingUpdate
-                  ? t("update.restartingWhenReady")
-                  : t("update.restartToInstall")}
-              </Text>
-            </View>
-            <View style={styles.actions}>
-              <Pressable
-                onPress={() => void restartWithUpdate()}
-                disabled={isPreparingUpdate}
-                accessibilityState={{
-                  disabled: isPreparingUpdate,
-                  busy: isPreparingUpdate,
-                }}
-                hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-                accessibilityRole="button"
-                accessibilityLabel={t("update.restartA11y")}
-                style={({ pressed }) => [
-                  styles.restartHit,
-                  pressed && styles.restartPressed,
-                ]}
-              >
-                <Text style={styles.restartText}>
-                  {isPreparingUpdate
-                    ? t("update.updating")
-                    : t("update.restart")}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={dismiss}
-                disabled={isPreparingUpdate}
-                hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
-                accessibilityRole="button"
-                accessibilityLabel={t("update.dismissA11y")}
-                style={({ pressed }) => [
-                  styles.laterHit,
-                  pressed && { opacity: 0.55 },
-                ]}
-              >
-                <Text
-                  style={[styles.laterText, { color: theme.textSecondary }]}
-                >
-                  {t("update.later")}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        <View style={[styles.timerTrack, { backgroundColor: hair[2] }]}>
-          <Animated.View style={[styles.timerFill, timerStyle]} />
-        </View>
-      </Animated.View>
-    </View>
+    <>
+      {(visible || preparing) && (
+        <UpdatePromptCard
+          busy={preparing}
+          onRestart={() => void restart()}
+          onDismiss={dismiss}
+        />
+      )}
+      <AppStoreUpdateBanner otaVisible={visible || preparing} />
+    </>
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 1000,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "#000",
-  },
-  popup: {
+/** Shared with the development preview so ready and slow-download states can be exercised. */
+export function UpdatePromptCard({
+  busy,
+  onRestart,
+  onDismiss,
+}: {
+  busy: boolean;
+  onRestart: () => void;
+  onDismiss: () => void;
+}) {
+  const { theme, isDark } = useTheme();
+  const { t } = useAppTranslation();
+  const insets = useSafeAreaInsets();
+  return (
+    <View pointerEvents="box-none" style={s.root}>
+      <View
+        style={[
+          s.card,
+          {
+            bottom: insets.bottom + 88,
+            backgroundColor: isDark ? planes.surface : theme.card,
+            borderColor: theme.border,
+          },
+          getShadow("lg", isDark),
+        ]}
+      >
+        <View style={s.heading} testID="ota-update-card">
+          <UpdateReadyMark size={32} color={colors.bill} />
+          <View
+            style={s.copy}
+            accessibilityLiveRegion="polite"
+            accessibilityState={{ busy }}
+          >
+            <Text style={s.kicker}>{t("update.kicker")}</Text>
+            <Text style={[s.title, { color: theme.foreground }]}>
+              {busy ? t("update.getting") : t("update.ready")}
+            </Text>
+            <Text style={[s.subtitle, { color: theme.textSecondary }]}>
+              {busy
+                ? t("update.restartingWhenReady")
+                : t("update.restartToInstall")}
+            </Text>
+          </View>
+        </View>
+        <View style={s.actions}>
+          <Pressable
+            testID="ota-restart"
+            accessibilityRole="button"
+            accessibilityLabel={t("update.restartA11y")}
+            accessibilityState={{ disabled: busy, busy }}
+            disabled={busy}
+            onPress={onRestart}
+            style={({ pressed }) => [
+              s.action,
+              s.primary,
+              busy && s.disabled,
+              pressed && s.pressed,
+            ]}
+          >
+            <Text style={s.primaryText}>
+              {busy ? t("update.updating") : t("update.restart")}
+            </Text>
+          </Pressable>
+          <Pressable
+            testID="ota-dismiss"
+            accessibilityRole="button"
+            accessibilityLabel={t("update.dismissA11y")}
+            onPress={onDismiss}
+            style={({ pressed }) => [s.action, pressed && s.pressed]}
+          >
+            <Text style={[s.secondaryText, { color: theme.foreground }]}>
+              {t("update.notNow")}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+const s = StyleSheet.create({
+  root: { ...StyleSheet.absoluteFill, zIndex: 1000 },
+  card: {
     position: "absolute",
     left: 12,
     right: 12,
+    padding: 16,
+    gap: 12,
     borderRadius: rd.xl,
     borderWidth: StyleSheet.hairlineWidth,
-    overflow: "hidden",
   },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 12,
-  },
-  markWrap: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  copy: {
-    flex: 1,
-    minWidth: 0,
-    justifyContent: "center",
-    gap: 1,
-  },
+  heading: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  copy: { flex: 1, minWidth: 0, gap: 4 },
   kicker: {
+    color: colors.bill,
     fontFamily: fontBody.semibold,
     fontSize: 10,
-    lineHeight: 12,
     letterSpacing: 0.8,
-    color: colors.bill,
-    textTransform: "uppercase",
   },
-  title: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 16,
-    lineHeight: 20,
-  },
-  subtitle: {
-    fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 16,
-  },
-  actions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingLeft: 4,
-  },
-  restartHit: {
+  title: { fontFamily: fontDisplay.bold, fontSize: 18, lineHeight: 24 },
+  subtitle: { fontFamily: fontBody.regular, fontSize: 13, lineHeight: 19 },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  action: {
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: 16,
     justifyContent: "center",
-    minHeight: 36,
-    paddingVertical: 4,
+    alignItems: "center",
+    borderRadius: 10,
   },
-  restartPressed: {
-    opacity: 0.7,
-  },
-  restartText: {
+  primary: { backgroundColor: colors.bill },
+  primaryText: {
+    color: planes.ink,
     fontFamily: fontBody.semibold,
-    fontSize: 13,
-    color: colors.bill,
-  },
-  laterHit: {
-    justifyContent: "center",
-    minHeight: 36,
-    paddingVertical: 4,
-  },
-  laterText: {
-    fontFamily: fontBody.medium,
-    fontSize: 13,
-  },
-  askBody: {
-    alignItems: "center",
-    paddingHorizontal: 22,
-    paddingTop: 22,
-    paddingBottom: 18,
-    gap: 8,
-  },
-  askTitle: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 22,
-    lineHeight: 28,
-    textAlign: "center",
-    marginTop: 4,
-  },
-  askSubtitle: {
-    fontFamily: fontBody.regular,
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  askActions: {
-    width: "100%",
-    gap: 10,
-    marginTop: 4,
-  },
-  askPrimary: {
-    backgroundColor: colors.bill,
-    borderRadius: rd.md,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  askPrimaryText: {
-    fontFamily: fontBody.semibold,
-    fontSize: 15,
-    color: "#FFFFFF",
-  },
-  askSecondary: {
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  askSecondaryText: {
-    fontFamily: fontBody.medium,
     fontSize: 14,
   },
-  timerTrack: {
-    height: 3,
-    width: "100%",
-    overflow: "hidden",
-  },
-  timerFill: {
-    height: "100%",
-    width: "100%",
-    backgroundColor: colors.bill,
-    transformOrigin: "left",
-  },
+  secondaryText: { fontFamily: fontBody.semibold, fontSize: 14 },
+  disabled: { opacity: 0.5 },
+  pressed: { opacity: 0.7 },
 });

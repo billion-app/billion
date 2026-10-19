@@ -185,3 +185,23 @@ Candidate research is translated only after its release/publication gates pass. 
 Alert history requests the selected language and refreshes while translation is pending. Test notifications use fixed localized copy and normalize to the current language when read. Ordinary OS push alerts still use their delivery-time copy; this does not persist a device language preference on the notification service.
 
 App share links carry `lang`; `/b/[id]`, its metadata, and the story/preview images use the same reader translation cache. A missing translation displays a localized preparing state instead of producing an English share image. The standalone marketing site and editorial tools have no app language selection and are outside this mobile-page audit. See the [October page audit](localization-audit.md) for coverage and intentional source-language boundaries.
+
+### Address confirmation, privacy, and updates
+
+Device location fills an editable draft. Both full forms and compact news menus
+require a visible confirmation action; Cancel discards the draft and invalidates
+pending location requests. News copy refers to a coverage address, while ballot
+copy asks for the registered voting address. The address-free voting guide labels
+its links as deadlines to check with official sources instead of presenting them
+as current dates. Settings → Privacy opens the Privacy Policy first and links
+directly to address and OS permission controls.
+
+[UpdatePrompt](../apps/expo/src/components/UpdatePrompt.tsx) owns the optional
+update notices. Its OTA card stays dismissible while preparing a restart; dismiss
+cancels restart intent, and a stalled preparation times out. Reduced motion does
+not change the action's urgency. The localized
+[App Store card](../apps/expo/src/components/AppStoreUpdateBanner.tsx) is suppressed
+while the OTA notice or preparation is active. Both notices sit above the tab
+bar so Back and the language selector remain reachable. It uses the installed native
+version and a validated public Apple listing through `appRelease.latestIos`.
+Development builds do not offer real App Store updates.

@@ -15,14 +15,21 @@ export function TranslationNotice({
   onRetry,
   hideEnglish = false,
 }: {
-  state: "original" | "translated" | "pending" | "unavailable" | "source";
+  state:
+    | "original"
+    | "translated"
+    | "pending"
+    | "unavailable"
+    | "delayed"
+    | "source";
   onRetry: () => void;
   hideEnglish?: boolean;
 }) {
   const { language, setLanguage, t } = useLanguage();
   if (state === "original") return null;
   const pending = state === "pending";
-  const failed = state === "unavailable";
+  const delayed = state === "delayed";
+  const failed = state === "unavailable" || delayed;
   return (
     <View
       style={[s.notice, (pending || failed) && s.prominent]}
@@ -34,11 +41,8 @@ export function TranslationNotice({
           <ActivityIndicator
             size="small"
             color={P.spark}
-            accessibilityLabel={t(
-              language === "zh"
-                ? "readerUi.translatingZh"
-                : "readerUi.translatingEs",
-            )}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
           />
         ) : (
           <Icon
@@ -50,13 +54,15 @@ export function TranslationNotice({
         <View style={s.copy}>
           {(pending || failed) && (
             <Text style={s.title}>
-              {failed
-                ? t("readerUi.translationFailed")
-                : t(
-                    language === "zh"
-                      ? "readerUi.translatingZh"
-                      : "readerUi.translatingEs",
-                  )}
+              {delayed
+                ? t("readerUi.translationDelayed")
+                : failed
+                  ? t("readerUi.translationFailed")
+                  : t(
+                      language === "zh"
+                        ? "readerUi.translatingZh"
+                        : "readerUi.translatingEs",
+                    )}
             </Text>
           )}
           <Text style={[s.text, (pending || failed) && s.body]}>
@@ -66,15 +72,17 @@ export function TranslationNotice({
                     ? "readerUi.preparingTranslation"
                     : "readerUi.translationWait",
                 )
-              : failed
-                ? t(
-                    hideEnglish
-                      ? "readerUi.retryTranslation"
-                      : "readerUi.translationRetry",
-                  )
-                : state === "source"
-                  ? t("article.sourceStaysEnglish")
-                  : `${t("article.translated")} · ${t("reader.originalSources")}`}
+              : delayed
+                ? t("readerUi.translationDelayedBody")
+                : failed
+                  ? t(
+                      hideEnglish
+                        ? "readerUi.retryTranslation"
+                        : "readerUi.translationRetry",
+                    )
+                  : state === "source"
+                    ? t("article.sourceStaysEnglish")
+                    : `${t("article.translated")} · ${t("reader.originalSources")}`}
           </Text>
         </View>
       </View>
@@ -84,10 +92,12 @@ export function TranslationNotice({
             <Pressable
               accessibilityRole="button"
               onPress={onRetry}
-              style={s.action}
+              style={[s.action, hideEnglish && s.primaryAction]}
               testID="translation-retry"
             >
-              <Text style={s.actionText}>{t("common.retry")}</Text>
+              <Text style={[s.actionText, hideEnglish && s.primaryText]}>
+                {t("common.retry")}
+              </Text>
             </Pressable>
           )}
           <Pressable
@@ -142,6 +152,13 @@ const s = StyleSheet.create({
   body: { fontSize: 13, lineHeight: 19, color: P.inkOnNight },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
   action: { minHeight: 44, justifyContent: "center" },
+  primaryAction: {
+    backgroundColor: P.linkOnNight,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  primaryText: { color: P.night },
   actionText: {
     fontFamily: fontBody.semibold,
     fontSize: 13,

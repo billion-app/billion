@@ -120,7 +120,7 @@ export function mountTrillionReader(root, graph, options = {}) {
         </section>
 
         <main class="reader" id="reader">
-          <header class="top">
+          <header class="top" ${options.externalHeader ? "hidden" : ""}>
             <button class="back" id="back" aria-label="${esc(tr("Back"))}" type="button">
               <svg
                 width="18"
@@ -547,6 +547,7 @@ export function mountTrillionReader(root, graph, options = {}) {
 
   // Debate-structure ordering: unanswered first, then evidence-backed, then contested, then the rest.
   function rank(id) {
+    if (id.startsWith("context-gap-")) return 3;
     const inc = incoming(id);
     const kind = N[id].kind;
     if (
@@ -845,6 +846,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       <div class="rowhead">${chip}<span class="src">${esc(srcLabel(o))}${o.context ? ` · ${esc(o.context.period)}` : ""}</span></div>
       <button class="go" type="button" data-node="${otherId}">
         <span class="t">${cardTitle(otherId)}${open}</span>
+        ${otherId.startsWith("context-gap-") ? `<span class="context-row-limit">${esc(tr("Captured sources do not answer this yet."))}</span>` : ""}
         ${
           o.context
             ? `<span class="context-row-limit">${esc(o.context.limitation)}</span>${o.context.money
@@ -909,7 +911,7 @@ export function mountTrillionReader(root, graph, options = {}) {
           const st = cruxState(e.from);
           const k = incoming(e.from).filter((x) => x.type === "weighs").length;
           const selected = !!N[e.from].highlight;
-          return `<div class="row dispute-row ${selected ? "is-highlighted r-neutral" : N[e.from].dispute === "values" ? "r-values" : "r-question"}${N[e.from].dispute === "values" ? " values-dispute" : ""}">${selected ? `<span class="selection-label">${tr("Question worth weighing")}</span>` : ""}<span class="relchip static">${esc(DISPUTE[N[e.from].dispute])}</span>
+          return `<div class="row dispute-row ${selected ? "is-highlighted r-neutral" : N[e.from].dispute === "values" ? "r-values" : "r-question"}${N[e.from].dispute === "values" ? " values-dispute" : ""}">${selected ? `<span class="selection-label">${tr("Question worth weighing")} · ${tr("Selected by Billion AI")}</span>` : ""}<span class="relchip static">${esc(DISPUTE[N[e.from].dispute])}</span>
           <button class="go" type="button" data-node="${e.from}"><span class="t">${cardTitle(e.from)}</span>
           <span class="src">${esc(st.state)} · ${tr("{count} arguments", { count: k })}</span></button>${highlightReason(e.from)}</div>`;
         })
