@@ -68,13 +68,7 @@ export function LanguageButton({
           style={[s.label, tone === "paper" && s.paperLabel]}
           numberOfLines={1}
         >
-          {compact
-            ? language === "en"
-              ? "EN"
-              : language === "es"
-                ? "ES"
-                : "中文"
-            : label}
+          {label}
         </Text>
         {!compact && (
           <Icon

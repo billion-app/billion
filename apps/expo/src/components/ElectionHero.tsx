@@ -29,14 +29,14 @@ export function ElectionHero({ election }: ElectionHeroProps) {
       ? t("relative.daysLeft", { count: days })
       : days === 0
         ? t("common.today")
-        : undefined;
+        : t("relative.daysAgo", { count: Math.abs(days) });
 
   return (
     <View style={s.wrap}>
       <EmptyBallotMark width={72} />
       <Text style={s.kicker}>{electionTypeLabel(type, language)}</Text>
       <Text style={s.name}>{election.name}</Text>
-      <Text style={s.date}>{date}</Text>
+      {/* The labeled Election Day row below carries the date once. */}
       <Text style={s.explainer}>
         {type === "primary"
           ? t("elections.explainer.primaryGeneric")
@@ -77,11 +77,6 @@ const s = StyleSheet.create({
     color: DigestPalette.inkOnNight,
     lineHeight: 36,
     letterSpacing: -0.8,
-  },
-  date: {
-    fontFamily: fontBody.medium,
-    fontSize: 15,
-    color: DigestPalette.quiet,
   },
   explainer: {
     fontFamily: fontBody.regular,

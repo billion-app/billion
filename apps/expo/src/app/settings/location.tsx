@@ -1,5 +1,7 @@
 /**
- * Location settings — the one place to see and change the saved voter address.
+ * Location settings — the one place to see and change the saved address. The
+ * same address centers local news and seeds ballot lookups, so the copy names
+ * both uses and asks for the registered address only where ballots need it.
  *
  * The field is `AddressAutocomplete`, so this screen offers the same native
  * "Use my location" shortcut as the rest of the app while keeping typed entry
@@ -8,6 +10,7 @@
  */
 import { useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
+import { useRouter } from "expo-router";
 
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
 import { Text } from "~/components/Themed";
@@ -23,6 +26,7 @@ import { DigestHair, fontBody, DigestPalette as P } from "~/styles";
 
 export default function LocationScreen() {
   const { t } = useAppTranslation();
+  const router = useRouter();
   const [saveError, setSaveError] = useState(false);
   const { address, setAddress, clearAddress, isLoading } = useUserAddress();
   const [editing, setEditing] = useState(false);
@@ -59,17 +63,11 @@ export default function LocationScreen() {
           <AddressAutocomplete
             initialValue={address ?? ""}
             onSubmit={save}
+            onCancel={address ? () => setEditing(false) : undefined}
             hint={t("location.hint")}
             autoFocus={false}
+            submitLabel={t("common.save")}
           />
-          {address ? (
-            <GhostButton
-              label={t("common.cancel")}
-              onPress={() => setEditing(false)}
-              color={P.spark}
-              style={s.secondaryAction}
-            />
-          ) : null}
         </View>
       ) : (
         <View style={s.card}>
@@ -95,6 +93,12 @@ export default function LocationScreen() {
         </Text>
       )}
       <Text style={s.fineprint}>{t("location.stored")}</Text>
+      <GhostButton
+        label={t("location.privacyLink")}
+        onPress={() => router.push("/settings/privacy")}
+        color={P.spark}
+        style={s.privacyLink}
+      />
     </ScreenShell>
   );
 }
@@ -137,4 +141,5 @@ const s = StyleSheet.create({
     color: P.quiet,
     marginTop: 16,
   },
+  privacyLink: { marginTop: 4, alignSelf: "flex-start" },
 });

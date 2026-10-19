@@ -163,6 +163,7 @@ function HowToVoteScreen() {
               setRequestedElectionId(undefined);
               setEditing(false);
             }}
+            onCancel={() => setEditing(false)}
           />
           <Text style={s.fineprint}>{t("howToVoteLookup.lookupOnly")}</Text>
         </Card>
@@ -326,14 +327,13 @@ function HowToVoteScreen() {
               <Text style={s.addrKicker}>
                 {t("howToVoteLookup.registeredAddress")}
               </Text>
-              <Text style={s.addrText} numberOfLines={1}>
-                {shortAddress(address ?? "")}
-              </Text>
+              <Text style={s.addrText}>{shortAddress(address ?? "")}</Text>
             </View>
             <TouchableOpacity
-              onPress={() => setEditing((v) => !v)}
+              onPress={() => setEditing(true)}
               hitSlop={12}
               accessibilityRole="button"
+              accessibilityLabel={t("howToVoteLookup.editAddress")}
             >
               <Text style={s.addrEdit}>{t("common.edit")}</Text>
             </TouchableOpacity>
@@ -491,14 +491,13 @@ function AddressRow({
         <Text style={s.addrKicker}>
           {t("howToVoteLookup.registeredAddress")}
         </Text>
-        <Text style={s.addrText} numberOfLines={1}>
-          {shortAddress(address)}
-        </Text>
+        <Text style={s.addrText}>{shortAddress(address)}</Text>
       </View>
       <TouchableOpacity
         onPress={onEdit}
         hitSlop={12}
         accessibilityRole="button"
+        accessibilityLabel={t("howToVoteLookup.editAddress")}
       >
         <Text style={s.addrEdit}>{t("common.edit")}</Text>
       </TouchableOpacity>
@@ -585,6 +584,7 @@ const s = StyleSheet.create({
   addrText: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
+    lineHeight: 19,
     color: colors.white,
     marginTop: 1,
   },

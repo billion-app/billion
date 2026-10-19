@@ -18,6 +18,7 @@ import type { BillBriefData, BriefQuote } from "~/components/ui";
 import type { ShareSurface } from "~/utils/share";
 import { LanguageCorner } from "~/components/LanguageButton";
 import { ListenBar } from "~/components/ListenBar";
+import { ReaderTranslationState } from "~/components/ReaderTranslationState";
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { ShareSheet } from "~/components/ShareSheet";
 import { Text } from "~/components/Themed";
@@ -45,6 +46,7 @@ import { useLanguage } from "~/hooks/useLanguage";
 import { useReadContent } from "~/hooks/useReadContent";
 import { useSavedContent } from "~/hooks/useSavedContent";
 import { useScreenshotDetection } from "~/hooks/useScreenshotDetection";
+import { useTranslationWait } from "~/hooks/useTranslationWait";
 import { translateAppLabel } from "~/i18n/app-strings";
 import {
   colors,
@@ -58,7 +60,7 @@ import {
   planes,
   resolveType,
 } from "~/styles";
-import { trpc } from "~/utils/api";
+import { queryClient, trpc } from "~/utils/api";
 import { translateSessionLabel } from "~/utils/card-metadata";
 import { formatDate } from "~/utils/dates";
 import { contentImageSource } from "~/utils/editorial-visuals";
@@ -159,16 +161,35 @@ export default function ArticleDetailScreen() {
     content?.translation,
     null,
   );
+  const translationOptions = trpc.content.getTranslation.queryOptions({
+    id: articleId ?? "__missing__",
+    language: translationLanguage ?? "es",
+    sourceHash: content?.translationSourceHash,
+    supportsMassachusetts: true,
+  });
+  const cachedTranslation = readyReaderTranslation(
+    language,
+    content?.translationSourceHash,
+    preparedTranslation,
+    queryClient.getQueryData(translationOptions.queryKey),
+  );
+  const translationWait = useTranslationWait(
+    content && translationLanguage && !cachedTranslation
+      ? `${content.id}:${translationLanguage}:${content.translationSourceHash}`
+      : undefined,
+  );
   const translationQuery = useQuery({
-    ...trpc.content.getTranslation.queryOptions({
-      id: articleId ?? "__missing__",
-      language: translationLanguage ?? "es",
-      sourceHash: content?.translationSourceHash,
-      supportsMassachusetts: true,
-    }),
+    ...translationOptions,
     enabled:
-      !!articleId && !!content && !!translationLanguage && !preparedTranslation,
+      !!articleId &&
+      !!content &&
+      !!translationLanguage &&
+      !preparedTranslation &&
+      !translationWait.expired,
     ...translationCachePolicy,
+    refetchInterval: translationWait.expired
+      ? false
+      : translationCachePolicy.refetchInterval,
   });
   useEffect(() => {
     if (translationQuery.data?.status === "stale") void refetchContent();
@@ -310,21 +331,32 @@ export default function ArticleDetailScreen() {
 
   if (translationLanguage && !translation) {
     return (
-      <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
-        <LanguageCorner />
-        <View style={{ width: "100%", maxWidth: 480, paddingHorizontal: 24 }}>
-          <TranslationNotice
-            state={translationState}
-            onRetry={() => void translationQuery.refetch()}
-            hideEnglish
-          />
-          <PrimaryButton
-            label={tr("common.goBack")}
-            onPress={() => router.back()}
-            style={{ marginTop: 16 }}
-          />
-        </View>
-      </View>
+      <ReaderTranslationState
+        title={[
+          tr(
+            content.type === "bill"
+              ? "readerUi.type.bill"
+              : content.type === "court_case"
+                ? "readerUi.type.court"
+                : "readerUi.type.exec",
+          ),
+          content.billNumber,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+        state={
+          translationWait.expired
+            ? "delayed"
+            : translationState === "unavailable"
+              ? "unavailable"
+              : "pending"
+        }
+        onRetry={() => {
+          translationWait.retry();
+          void translationQuery.refetch();
+        }}
+        onBack={() => router.back()}
+      />
     );
   }
 
@@ -582,7 +614,10 @@ export default function ArticleDetailScreen() {
         <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
           <TranslationNotice
             state={mode === "source" ? "source" : translationState}
-            onRetry={() => void translationQuery.refetch()}
+            onRetry={() => {
+              translationWait.retry();
+              void translationQuery.refetch();
+            }}
           />
         </View>
       )}

@@ -17,6 +17,7 @@ import {
 } from "~/components/ballot-evidence/PropositionContext";
 import { ListenBar } from "~/components/ListenBar";
 import { ReaderTools } from "~/components/ReaderTools";
+import { ReaderTranslationState } from "~/components/ReaderTranslationState";
 import { developmentDebate } from "~/components/trillion/development/pilots";
 import { TrillionLoading } from "~/components/trillion/TrillionLoading";
 import { TrillionScreen } from "~/components/trillion/TrillionScreen";
@@ -98,6 +99,10 @@ export default function PropositionDetailScreen() {
   if (query.isPending || (!!measure && debate.isPending))
     return (
       <View style={[s.screen, { paddingTop: insets.top }]}>
+        <NavHeader
+          title={tx("Proposition {value1}", { value1: number ?? "" })}
+          onBack={() => router.back()}
+        />
         <View>
           <ReaderTools
             speech={speech}
@@ -106,6 +111,7 @@ export default function PropositionDetailScreen() {
           />
         </View>
         <TrillionLoading
+          showHeader={false}
           number={number}
           electionDate={query.data?.electionDate}
           onBack={() => router.back()}
@@ -113,6 +119,21 @@ export default function PropositionDetailScreen() {
       </View>
     );
 
+  if (measure && translation.language !== "en" && !translation.translation)
+    return (
+      <ReaderTranslationState
+        title={tx("Proposition {value1}", { value1: number ?? "" })}
+        state={
+          translation.state === "delayed"
+            ? "delayed"
+            : translation.state === "unavailable"
+              ? "unavailable"
+              : "pending"
+        }
+        onBack={() => router.back()}
+        onRetry={translation.retry}
+      />
+    );
   return (
     <View style={s.screen}>
       <NavHeader

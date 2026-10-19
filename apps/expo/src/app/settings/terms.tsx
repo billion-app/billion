@@ -1,4 +1,5 @@
 import { StyleSheet, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 
 import type { AppStringKey } from "~/i18n/app-strings";
 import { Text } from "~/components/Themed";
@@ -45,18 +46,58 @@ const PRIVACY_SECTIONS: Section[] = [
   ["terms.p12Title", "terms.p12Body"],
 ];
 
+/** Long sections carry blank-line breaks between sentences; render each chunk
+ *  as its own paragraph so the wording stays identical but scans in pieces. */
 function DocSection({ title, body }: { title: string; body: string }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.sectionBody}>{body}</Text>
+      <Text style={styles.sectionTitle} accessibilityRole="header">
+        {title}
+      </Text>
+      {body.split("\n\n").map((paragraph, i) => (
+        <Text
+          key={paragraph}
+          style={[styles.sectionBody, i > 0 && styles.paragraph]}
+        >
+          {paragraph}
+        </Text>
+      ))}
     </View>
+  );
+}
+
+function DocTitle({ children }: { children: string }) {
+  return (
+    <Text style={styles.docTitle} accessibilityRole="header">
+      {children}
+    </Text>
   );
 }
 
 export default function TermsScreen() {
   const { language, t, formatDate } = useAppTranslation();
+  // Privacy entry points open the policy first instead of below 11 Terms
+  // sections; both documents stay on one page under one "Last updated" date.
+  const { section } = useLocalSearchParams<{ section?: string }>();
+  const privacyFirst = section === "privacy";
   const vars = { email: CONTACT_EMAIL };
+
+  const terms = (
+    <>
+      <DocTitle>{t("terms.tosTitle")}</DocTitle>
+      {TERMS_SECTIONS.map(([title, body]) => (
+        <DocSection key={title} title={t(title)} body={t(body, vars)} />
+      ))}
+    </>
+  );
+  const privacy = (
+    <>
+      <DocTitle>{t("terms.privacyTitle")}</DocTitle>
+      {PRIVACY_SECTIONS.map(([title, body]) => (
+        <DocSection key={title} title={t(title)} body={t(body, vars)} />
+      ))}
+    </>
+  );
 
   return (
     <ScreenShell title={t("terms.title")}>
@@ -74,17 +115,9 @@ export default function TermsScreen() {
         <Text style={styles.translationNote}>{t("terms.translationNote")}</Text>
       ) : null}
 
-      <Text style={styles.docTitle}>{t("terms.tosTitle")}</Text>
-      {TERMS_SECTIONS.map(([title, body]) => (
-        <DocSection key={title} title={t(title)} body={t(body, vars)} />
-      ))}
-
+      {privacyFirst ? privacy : terms}
       <View style={styles.divider} />
-
-      <Text style={styles.docTitle}>{t("terms.privacyTitle")}</Text>
-      {PRIVACY_SECTIONS.map(([title, body]) => (
-        <DocSection key={title} title={t(title)} body={t(body, vars)} />
-      ))}
+      {privacyFirst ? terms : privacy}
     </ScreenShell>
   );
 }
@@ -131,4 +164,5 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: P.quiet,
   },
+  paragraph: { marginTop: 10 },
 });
