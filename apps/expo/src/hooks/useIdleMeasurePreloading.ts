@@ -1,7 +1,7 @@
 import type { GestureResponderEvent } from "react-native";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
-import { useNavigation } from "expo-router";
+import { useIsFocused } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { trpc } from "~/utils/api";
@@ -14,7 +14,7 @@ export function useIdleMeasurePreloading(
   numbers: readonly string[],
   enabled: boolean,
 ) {
-  const navigation = useNavigation();
+  const focused = useIsFocused();
   const queryClient = useQueryClient();
   const preloader = useRef<ReturnType<typeof createIdleMeasurePreloader>>(null);
   const scrollTimer = useRef<ReturnType<typeof setTimeout>>(null);
@@ -29,72 +29,57 @@ export function useIdleMeasurePreloading(
       ),
     );
     preloader.current = queue;
-    queue.setPaused("tab", true);
-    queue.setPaused("blur", !navigation.isFocused());
-    queue.setPaused("background", AppState.currentState !== "active");
-    const focus = navigation.addListener("focus", () =>
-      queue.setPaused("blur", false),
-    );
-    const blur = navigation.addListener("blur", () => {
-      queue.setPaused("blur", true);
-      queue.setPaused("touch", false);
-      queue.setPaused("scroll", false);
-    });
-    const appState = AppState.addEventListener("change", (state) => {
-      queue.setPaused("background", state !== "active");
-      if (state !== "active") {
-        queue.setPaused("touch", false);
-        queue.setPaused("scroll", false);
-      }
-    });
     return () => {
       queue.dispose();
       preloader.current = null;
-      focus();
-      blur();
-      appState.remove();
       if (scrollTimer.current) clearTimeout(scrollTimer.current);
     };
-  }, [navigation, queryClient]);
+  }, [queryClient]);
 
   useEffect(() => {
     preloader.current?.setMeasures(numbers);
-  }, [numbers, navigation, queryClient]);
+  }, [numbers, queryClient]);
 
   useEffect(() => {
-    preloader.current?.setPaused("tab", !enabled);
-  }, [enabled, navigation, queryClient]);
+    const queue = preloader.current;
+    const update = () => {
+      const active = enabled && focused && AppState.currentState === "active";
+      queue?.setPaused("inactive", !active);
+      if (!active) {
+        if (scrollTimer.current) clearTimeout(scrollTimer.current);
+        queue?.setPaused("touch", false);
+        queue?.setPaused("scroll", false);
+      }
+    };
+    update();
+    const subscription = AppState.addEventListener("change", update);
+    return () => {
+      subscription.remove();
+      queue?.setPaused("inactive", true);
+    };
+  }, [enabled, focused, queryClient]);
 
-  const onTouchStart = useCallback(() => {
-    preloader.current?.setPaused("touch", true);
-  }, []);
-  const onTouchEnd = useCallback((event: GestureResponderEvent) => {
-    preloader.current?.setPaused("touch", event.nativeEvent.touches.length > 0);
-  }, []);
-  const onTouchCancel = useCallback(() => {
-    preloader.current?.setPaused("touch", false);
-  }, []);
-  const onScrollBegin = useCallback(() => {
-    preloader.current?.setPaused("scroll", true);
-    if (scrollTimer.current) clearTimeout(scrollTimer.current);
-  }, []);
-  const onScrollEndDrag = useCallback(() => {
-    if (scrollTimer.current) clearTimeout(scrollTimer.current);
-    scrollTimer.current = setTimeout(() => {
-      preloader.current?.setPaused("scroll", false);
-    }, 150);
-  }, []);
-  const onMomentumScrollEnd = useCallback(() => {
+  function onMomentumScrollEnd() {
     if (scrollTimer.current) clearTimeout(scrollTimer.current);
     preloader.current?.setPaused("scroll", false);
-  }, []);
+  }
 
   return {
-    onTouchStart,
-    onTouchEnd,
-    onTouchCancel,
-    onScrollBegin,
-    onScrollEndDrag,
+    onTouchStart: () => preloader.current?.setPaused("touch", true),
+    onTouchEnd: (event: GestureResponderEvent) =>
+      preloader.current?.setPaused(
+        "touch",
+        event.nativeEvent.touches.length > 0,
+      ),
+    onTouchCancel: () => preloader.current?.setPaused("touch", false),
+    onScrollBegin: () => {
+      if (scrollTimer.current) clearTimeout(scrollTimer.current);
+      preloader.current?.setPaused("scroll", true);
+    },
+    onScrollEndDrag: () => {
+      if (scrollTimer.current) clearTimeout(scrollTimer.current);
+      scrollTimer.current = setTimeout(onMomentumScrollEnd, 150);
+    },
     onMomentumScrollEnd,
   };
 }

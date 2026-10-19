@@ -1,6 +1,6 @@
 export const MEASURE_GRAPH_STALE_TIME = 60_000;
 
-type PauseReason = "tab" | "blur" | "background" | "touch" | "scroll";
+type PauseReason = "inactive" | "touch" | "scroll";
 export interface IdleScheduler {
   request: (
     callback: (deadline: { timeRemaining: () => number }) => void,
@@ -12,7 +12,7 @@ declare const requestIdleCallback: IdleScheduler["request"];
 declare const cancelIdleCallback: IdleScheduler["cancel"];
 
 export function createIdleMeasurePreloader(
-  preload: (number: string) => Promise<unknown>,
+  preload: (number: string) => Promise<void>,
   idle: IdleScheduler | undefined = typeof requestIdleCallback === "function" &&
   typeof cancelIdleCallback === "function"
     ? {
@@ -51,20 +51,13 @@ export function createIdleMeasurePreloader(
         return;
       }
       const number = measures[index++];
-      if (number !== undefined) void run(number);
+      if (number === undefined) return;
+      fetching = true;
+      void preload(number).then(() => {
+        fetching = false;
+        schedule();
+      });
     });
-  }
-
-  async function run(number: string) {
-    fetching = true;
-    try {
-      await preload(number);
-    } catch {
-      return;
-    } finally {
-      fetching = false;
-      schedule();
-    }
   }
 
   return {

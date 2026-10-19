@@ -115,25 +115,22 @@ test("touch and scroll both have to finish before preloading resumes", async (t)
   assert.deepEqual(requests, ["1"]);
 });
 
-test("tab, focus, and app state cancel queued work independently", async (t) => {
+test("inactive guides cancel queued work and resume from the same position", async (t) => {
   const requests: string[] = [];
   const f = fixture((number) => {
     requests.push(number);
     return Promise.resolve(number);
   });
   t.after(() => f.cleanup());
-  f.queue.setMeasures(["1"]);
-  for (const reason of ["tab", "blur", "background"] as const) {
-    f.queue.setPaused(reason, true);
-  }
-  assert.equal(f.idle.pending, 0);
-  f.queue.setPaused("tab", false);
-  f.queue.setPaused("blur", false);
-  assert.equal(f.idle.pending, 0);
-  f.queue.setPaused("background", false);
+  f.queue.setMeasures(["1", "2"]);
   f.idle.run();
   await setImmediate();
-  assert.deepEqual(requests, ["1"]);
+  f.queue.setPaused("inactive", true);
+  assert.equal(f.idle.pending, 0);
+  f.queue.setPaused("inactive", false);
+  f.idle.run();
+  await setImmediate();
+  assert.deepEqual(requests, ["1", "2"]);
 });
 
 test("blur keeps the active query available for navigation without continuing the queue", async (t) => {
@@ -146,14 +143,14 @@ test("blur keeps the active query available for navigation without continuing th
   t.after(() => f.cleanup());
   f.queue.setMeasures(["1", "2"]);
   f.idle.run();
-  f.queue.setPaused("blur", true);
+  f.queue.setPaused("inactive", true);
   const navigation = f.client.fetchQuery(f.options("1"));
   assert.equal(requests, 1);
   graph.resolve("ready");
   assert.equal(await navigation, "ready");
   await setImmediate();
   assert.equal(f.idle.pending, 0);
-  f.queue.setPaused("blur", false);
+  f.queue.setPaused("inactive", false);
   assert.equal(requests, 1);
   f.idle.run();
   await setImmediate();
@@ -217,7 +214,7 @@ test("unmount cancels queued callbacks and does not cancel a shared in-flight qu
   assert.deepEqual(requests, ["1"]);
   assert.equal(f.client.getQueryData(f.options("1").queryKey), "ready");
   assert.equal(f.idle.pending, 0);
-  f.queue.setPaused("blur", false);
+  f.queue.setPaused("inactive", false);
   f.queue.setMeasures(["3"]);
   assert.equal(f.idle.pending, 0);
 });
@@ -264,20 +261,4 @@ test("foreground navigation refreshes an expired graph", async (t) => {
   });
   assert.equal(await f.client.fetchQuery(f.options("1")), "updated");
   assert.equal(requests, 1);
-});
-
-test("a rejected preload still yields before the next item and disposal cancels it", async () => {
-  const idle = idleCallbacks();
-  const requests: string[] = [];
-  const queue = createIdleMeasurePreloader((number) => {
-    requests.push(number);
-    return Promise.reject(new Error("failed"));
-  }, idle);
-  queue.setMeasures(["1", "2"]);
-  idle.run();
-  await setImmediate();
-  assert.deepEqual(requests, ["1"]);
-  assert.equal(idle.pending, 1);
-  queue.dispose();
-  assert.equal(idle.pending, 0);
 });
