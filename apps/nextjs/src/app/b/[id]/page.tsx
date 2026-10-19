@@ -228,6 +228,9 @@ export default async function SharedContentPage({
 
         <ArticleDates
           language={language}
+          introducedDate={
+            content.type === "bill" ? content.introducedDate : undefined
+          }
           createdAt={content.createdAt}
           updatedAt={content.updatedAt}
         />
