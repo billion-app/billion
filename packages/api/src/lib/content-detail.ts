@@ -29,6 +29,7 @@ import {
   officialSourceLabel,
   parseStateBillNumber,
 } from "./content-jurisdiction";
+import { courtSourceDate, governmentSourceDate } from "./content-source-date";
 import { getFederalOfficialByName } from "./elected-officials";
 
 export function billDescription(
@@ -224,15 +225,23 @@ export async function loadContentDetail(input: {
           imageUrl: official?.image,
         }
       : undefined;
+    const introducedDate = billIntroductionDate({
+      jurisdiction,
+      introducedDate: b.introducedDate,
+      actions: b.actions,
+    });
     const [result] = await decorate([
       {
         id: b.id,
         title: b.title,
-        introducedDate: billIntroductionDate({
-          jurisdiction,
-          introducedDate: b.introducedDate,
-          actions: b.actions,
-        }),
+        introducedDate,
+        sourceDate: introducedDate
+          ? {
+              kind: "introduced" as const,
+              date: introducedDate,
+              timeZone: "UTC",
+            }
+          : null,
         createdAt: b.createdAt,
         updatedAt: b.updatedAt ?? b.createdAt,
         description: billDescription(b.description, b.summary),
@@ -274,6 +283,7 @@ export async function loadContentDetail(input: {
       {
         id: c.id,
         title: c.title,
+        sourceDate: governmentSourceDate(c),
         createdAt: c.createdAt,
         updatedAt: c.updatedAt ?? c.createdAt,
         description: c.description ?? "",
@@ -326,6 +336,7 @@ export async function loadContentDetail(input: {
       {
         id: c.id,
         title: c.title,
+        sourceDate: courtSourceDate(c),
         createdAt: c.createdAt,
         updatedAt: c.updatedAt ?? c.createdAt,
         description: c.description ?? "",
