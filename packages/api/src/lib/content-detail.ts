@@ -273,6 +273,7 @@ export async function loadContentDetail(input: {
         updatedAt: c.updatedAt ?? c.createdAt,
         description: c.description ?? "",
         type: "government_content" as const,
+        governmentContentType: c.type,
         isAIGenerated: !!c.aiGeneratedArticle,
         thumbnailUrl: c.thumbnailUrl ?? undefined,
         billNumber: undefined,

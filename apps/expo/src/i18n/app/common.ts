@@ -96,10 +96,62 @@ export const commonStrings = {
   },
 
   "contentType.bill": { en: "Bill", es: "Proyecto de ley", zh: "法案" },
-  "contentType.exec": { en: "Order", es: "Orden", zh: "行政令" },
+  "contentType.exec": { en: "Executive", es: "Ejecutivo", zh: "行政文件" },
   "contentType.court": { en: "Case", es: "Caso", zh: "案件" },
   "contentType.news": { en: "News", es: "Noticias", zh: "新闻" },
   "contentType.local": { en: "Local", es: "Local", zh: "地方" },
+
+  "governmentContent.ORDER": {
+    en: "Order",
+    es: "Orden ejecutiva",
+    zh: "行政令",
+  },
+  "governmentContent.NOTICE": { en: "Notice", es: "Aviso", zh: "通知" },
+  "governmentContent.MEMORANDUM": {
+    en: "Memorandum",
+    es: "Memorando",
+    zh: "备忘录",
+  },
+  "governmentContent.PROCLAMATION": {
+    en: "Proclamation",
+    es: "Proclamación",
+    zh: "公告",
+  },
+  "governmentContent.PRESIDENTIAL DOCUMENT": {
+    en: "Presidential document",
+    es: "Documento presidencial",
+    zh: "总统文件",
+  },
+  "governmentContent.NEWS ARTICLE": {
+    en: "News article",
+    es: "Artículo de noticias",
+    zh: "新闻报道",
+  },
+  "governmentContent.FACT SHEET": {
+    en: "Fact sheet",
+    es: "Hoja informativa",
+    zh: "情况说明",
+  },
+  "governmentContent.PRESS RELEASE": {
+    en: "Press release",
+    es: "Comunicado de prensa",
+    zh: "新闻稿",
+  },
+  "governmentContent.BRIEFING STATEMENT": {
+    en: "Briefing statement",
+    es: "Declaración informativa",
+    zh: "简报声明",
+  },
+  "governmentContent.PRESIDENTIAL ACTION": {
+    en: "Presidential action",
+    es: "Acción presidencial",
+    zh: "总统行动",
+  },
+  "governmentContent.EXECUTIVE": {
+    en: "Executive",
+    es: "Ejecutivo",
+    zh: "行政文件",
+  },
 
   "follow.saveTitle": {
     en: "Save {title} for later",

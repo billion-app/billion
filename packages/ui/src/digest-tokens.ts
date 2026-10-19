@@ -107,11 +107,38 @@ export const DigestHair = {
 /** Content-type color + badge label (bill/exec/court/news/local). */
 export const contentType = {
   bill: { color: "#4A7CFF", label: "BILL" },
-  exec: { color: "#6366F1", label: "ORDER" },
+  exec: { color: "#6366F1", label: "EXECUTIVE" },
   court: { color: "#0891B2", label: "CASE" },
   news: { color: "#8A8FA0", label: "NEWS" },
   local: { color: "#4A7CFF", label: "LOCAL" },
 } as const;
+
+export function getGovernmentContentLabel(governmentContentType?: string) {
+  switch (governmentContentType?.trim().toLowerCase()) {
+    case "executive order":
+      return "ORDER";
+    case "notice":
+      return "NOTICE";
+    case "memorandum":
+      return "MEMORANDUM";
+    case "proclamation":
+      return "PROCLAMATION";
+    case "presidential document":
+      return "PRESIDENTIAL DOCUMENT";
+    case "news article":
+      return "NEWS ARTICLE";
+    case "fact sheet":
+      return "FACT SHEET";
+    case "press release":
+      return "PRESS RELEASE";
+    case "briefing statement":
+      return "BRIEFING STATEMENT";
+    case "presidential action":
+      return "PRESIDENTIAL ACTION";
+    default:
+      return contentType.exec.label;
+  }
+}
 
 /**
  * Outcome hues for "who it lands on". A navigation aid, not a verdict: four

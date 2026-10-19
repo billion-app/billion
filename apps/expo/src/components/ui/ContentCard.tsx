@@ -12,11 +12,13 @@ import { useRelativeActivity } from "~/hooks/useRelativeActivity";
 import { DigestPalette, DigestRadii, fontBody, fontDisplay } from "~/styles";
 import { contentImageSource } from "~/utils/editorial-visuals";
 import { followAccessibilityLabel } from "~/utils/follow-copy";
+import { governmentContentLabel } from "~/utils/government-content";
 import { Icon } from "./Icon";
 
 export interface ContentCardItem {
   id: string;
   type: ContentTypeKey;
+  governmentContentType?: string;
   tag?: string;
   title: string;
   gist?: string;
@@ -42,7 +44,10 @@ export function ContentCard({
   saved?: boolean;
 }) {
   const { language, t } = useAppTranslation();
-  const typeLabel = t(`contentType.${item.type}`);
+  const typeLabel =
+    item.type === "exec"
+      ? governmentContentLabel(item.governmentContentType, language)
+      : t(`contentType.${item.type}`);
   const imageUri = item.imageUri ?? item.thumbnailUrl;
   const imageSource = contentImageSource(imageUri);
   const [imageFailed, setImageFailed] = useState(false);

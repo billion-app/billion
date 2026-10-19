@@ -62,6 +62,7 @@ import { trpc } from "~/utils/api";
 import { translateSessionLabel } from "~/utils/card-metadata";
 import { formatDate } from "~/utils/dates";
 import { contentImageSource } from "~/utils/editorial-visuals";
+import { governmentContentLabel } from "~/utils/government-content";
 import { isStateJurisdiction, jurisdictionText } from "~/utils/jurisdiction";
 import { findSourcePassage } from "~/utils/source-passage";
 import { buildSpeechChunks } from "~/utils/speech-script";
@@ -329,6 +330,13 @@ export default function ArticleDetailScreen() {
 
   const typeKey = resolveType(content.type);
   const t = contentType[typeKey];
+  const typeLabel =
+    content.type === "government_content"
+      ? governmentContentLabel(
+          content.governmentContentType,
+          language,
+        ).toUpperCase()
+      : tr(`readerUi.type.${typeKey}`);
   // This screen is always rendered on the dark navy canvas, independent of
   // the phone's appearance setting. Using the light system theme here made
   // valid article markdown navy-on-navy and appear completely empty.
@@ -515,7 +523,7 @@ export default function ArticleDetailScreen() {
   return (
     <View style={s.screen}>
       <NavHeader
-        title={tr(`readerUi.type.${typeKey}`)}
+        title={typeLabel}
         onBack={() => router.back()}
         action={
           <>
@@ -603,7 +611,7 @@ export default function ArticleDetailScreen() {
         ) : (
           <Placeholder
             label={tr("readerUi.headerArt", {
-              type: tr(`readerUi.type.${typeKey}`),
+              type: typeLabel,
             })}
             height={170}
             radius={16}
@@ -612,7 +620,7 @@ export default function ArticleDetailScreen() {
         )}
 
         <View style={s.badgeRow}>
-          <Badge type={typeKey} />
+          <Badge type={typeKey}>{typeLabel}</Badge>
           {displayBillNumber ? (
             <Text style={s.billNumber} testID="article-bill-number">
               {displayBillNumber}
