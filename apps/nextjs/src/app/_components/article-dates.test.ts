@@ -138,7 +138,7 @@ void test("source-specific labels and publication timezone survive every reader 
         }),
       );
       assert.ok(html.includes(labels[language]));
-      const visibleDate = html.match(/<time[^>]*>([^<]+)<\/time>/)?.[1];
+      const visibleDate = /<time[^>]*>([^<]+)<\/time>/.exec(html)?.[1];
       assert.equal(
         visibleDate,
         sourceDate.date.toLocaleDateString(
