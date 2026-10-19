@@ -78,6 +78,24 @@ const copy: Record<string, { es: string; zh: string }> = {
     zh: "下载 iPhone 版 Billion",
   },
   Introduced: { es: "Presentado", zh: "提出日期" },
+  Published: { es: "Publicado", zh: "发布日期" },
+  "Posted by White House": {
+    es: "Publicado por la Casa Blanca",
+    zh: "白宫发布于",
+  },
+  "Published in Federal Register": {
+    es: "Publicado en el Federal Register",
+    zh: "联邦公报发布于",
+  },
+  "Opinion released": { es: "Opinión publicada", zh: "意见发布于" },
+  "Latest docket entry": {
+    es: "Última entrada del expediente",
+    zh: "最新案卷记录",
+  },
+  "Court record dated": {
+    es: "Fecha del registro judicial",
+    zh: "法院记录日期",
+  },
   "Added to Billion": { es: "Añadido a Billion", zh: "收录于 Billion" },
   "Updated on Billion": { es: "Actualizado en Billion", zh: "Billion 更新于" },
   "Translation is being prepared.": {

@@ -26,12 +26,16 @@ export function formatDate(dateString: string, locale = "en-US"): string {
   });
 }
 
-export function formatArticleDate(date: Date, locale = "en-US"): string {
+export function formatArticleDate(
+  date: Date,
+  locale = "en-US",
+  timeZone = "UTC",
+): string {
   return date.toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
-    timeZone: "UTC",
+    timeZone,
   });
 }
 

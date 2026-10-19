@@ -65,3 +65,18 @@ test("Election Day does not end at UTC midnight in California", (context) => {
     else process.env.TZ = previous;
   }
 });
+
+void test("White House publication dates retain their Eastern calendar day", () => {
+  assert.equal(
+    formatArticleDate(
+      new Date("2026-10-16T00:30:00Z"),
+      "en-US",
+      "America/New_York",
+    ),
+    "Oct 15, 2026",
+  );
+  assert.equal(
+    formatArticleDate(new Date("2026-10-15T00:00:00Z")),
+    "Oct 15, 2026",
+  );
+});

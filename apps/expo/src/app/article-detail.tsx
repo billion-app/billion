@@ -533,6 +533,7 @@ export default function ArticleDetailScreen() {
   // Actions are the official legislative record from the source (congress.gov).
   const timelineSourceUrl = hasRealActions ? content.url : undefined;
   const sponsor = content.type === "bill" ? content.sponsor : undefined;
+  const sourceDate = content.sourceDate;
   const introducedDate =
     content.type === "bill" ? content.introducedDate : undefined;
   const isStateBill =
@@ -683,10 +684,17 @@ export default function ArticleDetailScreen() {
         {content.createdAt && content.updatedAt ? (
           <View style={{ gap: 4, marginBottom: 16 }} testID="article-dates">
             <Text style={s.articleDate}>
-              {tr(introducedDate ? "article.introduced" : "article.created")}{" "}
+              {tr(
+                sourceDate
+                  ? `article.${sourceDate.kind}`
+                  : introducedDate
+                    ? "article.introduced"
+                    : "article.created",
+              )}{" "}
               {formatArticleDate(
-                introducedDate ?? content.createdAt,
+                sourceDate?.date ?? introducedDate ?? content.createdAt,
                 dateLocale,
+                sourceDate?.timeZone ?? "UTC",
               )}
             </Text>
             <Text style={s.articleDate}>

@@ -179,9 +179,7 @@ export default async function ReaderPage({ params }: PageProps) {
             {content.title}
           </h1>
           <ArticleDates
-            introducedDate={
-              content.type === "bill" ? content.introducedDate : undefined
-            }
+            sourceDate={content.sourceDate}
             createdAt={content.createdAt}
             updatedAt={content.updatedAt}
           />
