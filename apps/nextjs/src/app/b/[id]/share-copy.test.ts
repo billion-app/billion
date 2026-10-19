@@ -130,8 +130,22 @@ void test("a single long token cannot collapse a truncation", () => {
 
 void test("every content type the app knows has a badge", () => {
   assert.equal(presentType("bill").label, "BILL");
-  assert.equal(presentType("government_content").label, "ORDER");
+  assert.equal(presentType("government_content").label, "EXECUTIVE");
   assert.equal(presentType("court_case").label, "CASE");
+});
+
+void test("shared presidential articles preserve their source type", () => {
+  assert.equal(
+    presentType("government_content", "Executive Order").label,
+    "ORDER",
+  );
+  assert.equal(presentType("government_content", "Notice").label, "NOTICE");
+  assert.equal(
+    presentType("government_content", "Memorandum").label,
+    "MEMORANDUM",
+  );
+  assert.equal(presentType("government_content", "unknown").label, "EXECUTIVE");
+  assert.equal(presentType("bill", "Notice").label, "BILL");
 });
 
 void test("an unknown content type falls back instead of throwing", () => {
