@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { toBillTimelineActions } from "./bill-actions";
+import { billIntroductionDate, toBillTimelineActions } from "./bill-actions";
 import { projectBillStatus } from "./bill-status";
 
 void test("combines internal Congress actions that represent one visible event", () => {
@@ -86,5 +86,50 @@ void test("ignores malformed timeline entries without losing valid events", () =
       { date: "2026-06-10", text: "Introduced" },
     ]),
     [{ date: "2026-06-10", text: "Introduced", type: undefined }],
+  );
+});
+
+void test("federal introduction dates are source metadata, independent of import time", () => {
+  const introducedDate = new Date("2026-10-15T00:00:00Z");
+  assert.equal(
+    billIntroductionDate({
+      jurisdiction: "federal",
+      introducedDate,
+      actions: [],
+    }),
+    introducedDate,
+  );
+});
+
+void test("state provider creation dates are never presented as introductions", () => {
+  const input = {
+    jurisdiction: "ca",
+    introducedDate: new Date("2026-10-17T00:00:00Z"),
+    actions: [],
+  } satisfies Parameters<typeof billIntroductionDate>[0];
+  assert.equal(billIntroductionDate(input), null);
+  assert.equal(
+    billIntroductionDate({
+      ...input,
+      actions: [{ date: "2026-10-17", type: "referral-committee" }],
+    }),
+    null,
+  );
+  assert.equal(
+    billIntroductionDate({
+      ...input,
+      actions: [{ date: "invalid", type: "introduction" }],
+    }),
+    null,
+  );
+  assert.equal(
+    billIntroductionDate({
+      ...input,
+      actions: [
+        { date: "2026-10-16", type: "reading-1" },
+        { date: "2026-10-15", type: "introduction, reading-1" },
+      ],
+    })?.toISOString(),
+    "2026-10-15T00:00:00.000Z",
   );
 });

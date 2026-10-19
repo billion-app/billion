@@ -19,7 +19,7 @@ import {
 import { parseBillBriefRecord, parseCourtBriefRecord } from "@acme/validators";
 
 import type { ContentJurisdiction } from "./content-jurisdiction";
-import { toBillTimelineActions } from "./bill-actions";
+import { billIntroductionDate, toBillTimelineActions } from "./bill-actions";
 import { parseBillSponsor, sponsorRole } from "./bill-sponsor";
 import { projectBillStatus } from "./bill-status";
 import {
@@ -228,7 +228,11 @@ export async function loadContentDetail(input: {
       {
         id: b.id,
         title: b.title,
-        introducedDate: b.introducedDate,
+        introducedDate: billIntroductionDate({
+          jurisdiction,
+          introducedDate: b.introducedDate,
+          actions: b.actions,
+        }),
         createdAt: b.createdAt,
         updatedAt: b.updatedAt ?? b.createdAt,
         description: billDescription(b.description, b.summary),
