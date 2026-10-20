@@ -26,7 +26,6 @@ export const TYPE_FILTERS = [
   "bill",
   "government_content",
   "court_case",
-  "general",
 ] as const;
 
 export type TypeFilter = (typeof TYPE_FILTERS)[number];
@@ -36,7 +35,6 @@ export const FILTERS: { id: TypeFilter; label: string }[] = [
   { id: "bill", label: "Bills" },
   { id: "government_content", label: "Executive" },
   { id: "court_case", label: "Courts" },
-  { id: "general", label: "Briefings" },
 ];
 
 export interface BrowseParams {
@@ -62,7 +60,8 @@ function isTypeFilter(value: unknown): value is TypeFilter {
 
 export function parseBrowseParams(params: RawParams): BrowseParams {
   const scope = first(params, "scope");
-  const type = first(params, "type");
+  const rawType = first(params, "type");
+  const type = rawType === "general" ? "government_content" : rawType;
   return {
     scope: isScope(scope) ? scope : null,
     type: isTypeFilter(type) ? type : "all",

@@ -195,7 +195,6 @@ export const feedStrings = {
     zh: "行政",
   },
   "browse.filter.court_case": { en: "Courts", es: "Tribunales", zh: "法院" },
-  "browse.filter.general": { en: "Briefings", es: "Resúmenes", zh: "简报" },
   "browse.refreshFailedTitle": {
     en: "Unable to refresh",
     es: "No se pudo actualizar",

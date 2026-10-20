@@ -26,6 +26,12 @@ The California statewide guide lists every proposition returned by the current o
 
 The Feed tab is a short brief. [DigestHome](../apps/expo/src/components/DigestHome.tsx) shows up to seven featured local bills under “Today’s local news”; Massachusetts uses the recent mixed feed so bills and court dockets can both appear. “Also today” shows up to seven unread featured federal bills, falling back to recent federal bills only when no featured bills are available. It preserves the API's ordering rather than inventing a daily ranking or filtering by calendar date. Opening a successfully loaded [article detail](../apps/expo/src/app/article-detail.tsx) records its ID in [device-local read history](../apps/expo/src/utils/read-content.ts), so returning Home removes it from “Also today”. When that selection is empty or fully read, the section says “No new articles today”; loading and request failures remain separate states. Read history does not require an account, sync across devices, or affect Browse and the local rail. Saving a bill, case, or order reuses the separate device-local saved set; the article page draws a four-stop legislative path from the projected status label and does not invent chamber passage. The home greeting starts as soon as the splash has hidden and the local brief has settled, so a cold start does not consume the ceremony behind the splash or a loading spinner.
 
+Mobile and web Browse offer All, Bills, Executive, and Courts. The duplicate
+Briefings filter was removed because it queried the same government records as
+Executive. Existing web links with `type=general` select Executive and preserve
+their search text and jurisdiction. Government cards keep their source-type
+badges, such as Order, Notice, or Proclamation.
+
 Article detail renders bill `brief` with `BillBrief` and court `courtBrief` with
 [CourtBrief](../apps/expo/src/components/ui/CourtBrief.tsx). Court sections explain
 the specific relief and its procedural limits, attributed reasoning and opinions,
