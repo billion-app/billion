@@ -325,7 +325,7 @@ const s = StyleSheet.create({
     fontSize: fontSize.base,
   },
   pill: {
-    // flexShrink: 0 — never compress "Briefings" into "Brief…" (CRAFT P2).
+    // Keep filter labels from shrinking into truncated text.
     flexShrink: 0,
     alignSelf: "flex-start",
     height: 36,

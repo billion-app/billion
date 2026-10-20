@@ -8,8 +8,8 @@ import { DigestSpace } from "~/styles";
 const CHIP_GAP = 8;
 
 /**
- * Chip row. Default `layout="scroll"` keeps All / Bills / Executive / Courts /
- * Briefings on one line (last chip may peek). Optional `layout="wrap"` is for
+ * Chip row. Default `layout="scroll"` keeps All / Bills / Executive / Courts
+ * on one line (last chip may peek). Optional `layout="wrap"` is for
  * screens that need a wrapping chip cloud.
  */
 export function Pills({

@@ -63,19 +63,13 @@ const MIN_SEARCH_LENGTH = 2;
 
 const PAGE_SIZE = 20;
 
-type ContentFilter =
-  | "bill"
-  | "government_content"
-  | "court_case"
-  | "general"
-  | "all";
+type ContentFilter = "bill" | "government_content" | "court_case" | "all";
 
 const FILTERS: { id: ContentFilter }[] = [
   { id: "all" },
   { id: "bill" },
   { id: "government_content" },
   { id: "court_case" },
-  { id: "general" },
 ];
 
 export function BrowseCatalog() {
