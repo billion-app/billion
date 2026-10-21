@@ -172,6 +172,7 @@ Use the focused command for the missing asset. Check its help and preview mode f
 | `retroactive-briefs`         | Generate missing or stale structured briefs; supports `--dry-run`        |
 | `retroactive-lenses`         | Generate missing or stale perspectives; supports `--dry-run`             |
 | `content-images`             | Generate header artwork                                                  |
+| `resize-content-images`      | Resize existing stored artwork; read-only until `--apply`                |
 | `bill-interest`              | Score editorial interest; supports `--dry-run`                           |
 | `notify-followers`           | Send saved-bill updates and opted-in new-bill and executive-order alerts |
 | `prune-bills`                | Inspect retention candidates; read-only until `--apply`                  |
@@ -180,6 +181,36 @@ Use the focused command for the missing asset. Check its help and preview mode f
 `--type court_case` for a bounded single-domain run. Production's manual
 `court-image-smoke` supervisor job uses `--type court_case --other-limit 1`
 with suitability review enabled; it is a real generation check, not a fixture.
+
+New generated artwork stores two immutable JPEGs. Lists use the 384-pixel card
+variant; readers use the image up to 1280 pixels wide. Both preserve aspect
+ratio and avoid enlarging small originals. Metadata is published after both
+objects pass checksum verification. Older paths keep working at their original
+size until explicitly resized.
+
+To resize existing artwork without model calls, preview a bounded batch first.
+`--target` must match the database selected by the loaded environment. Apply also
+checks that Storage belongs to that database project. The preview reads only
+metadata and downloads no images.
+
+```bash
+pnpm --filter @acme/scraper resize-content-images --target production --limit 25
+pnpm --filter @acme/scraper resize-content-images --target production --limit 25 --apply
+```
+
+Apply downloads each original once, verifies its checksum, uploads and verifies
+both variants, then updates the existing metadata only if it has not changed
+since selection. It preserves the generation revision, prompt and old objects.
+A failed upload leaves the metadata unchanged. Run another bounded batch to
+continue; already resized rows are excluded. `--limit` accepts 1 through 1000.
+The command spends Storage bandwidth but does not generate new artwork.
+
+The resize integration test uses real Postgres and a local Storage fixture.
+Use an empty, migrated local database whose name ends in `_test`:
+
+```bash
+IMAGES_TEST_DATABASE_URL=postgresql://localhost/billion_images_test pnpm --filter @acme/scraper exec tsx --test src/resize-content-images.integration.test.ts
+```
 
 For example:
 

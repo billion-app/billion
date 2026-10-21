@@ -9,6 +9,7 @@ import type { NotificationPrefs } from "~/utils/notification-prefs";
 import { Icon, Kicker, NavHeader, Toggle } from "~/components/ui";
 import { posthog } from "~/config/posthog";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { useCardTranslationPolling } from "~/hooks/useCardTranslationPolling";
 import { useNotificationPrefs } from "~/hooks/useNotificationPrefs";
 import { useOnboarding } from "~/hooks/useOnboarding";
 import { useSavedContent } from "~/hooks/useSavedContent";
@@ -21,7 +22,7 @@ import {
 } from "~/styles";
 import { prependAlert, TEST_ALERT } from "~/utils/alert-history";
 import { trpc, trpcClient } from "~/utils/api";
-import { cardTranslationPolling } from "~/utils/card-translation";
+import { PUBLIC_CONTENT_STALE_TIME } from "~/utils/card-translation";
 import { deliveryNote, scheduleLocalAlert } from "~/utils/local-notification";
 import {
   formatClock,
@@ -41,9 +42,15 @@ export default function NotificationsScreen() {
   const featured = useQuery(
     trpc.content.getFeaturedBills.queryOptions(
       { jurisdiction: "federal", language },
-      { refetchInterval: cardTranslationPolling },
+      { staleTime: PUBLIC_CONTENT_STALE_TIME },
     ),
   );
+
+  useCardTranslationPolling({
+    data: featured.data,
+    language,
+    refetch: featured.refetch,
+  });
 
   const setPref = (patch: Partial<NotificationPrefs>) => {
     prefs.update(patch);

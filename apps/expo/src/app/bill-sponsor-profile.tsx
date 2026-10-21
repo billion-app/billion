@@ -20,11 +20,12 @@ import {
   PrimaryButton,
 } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { useCardTranslationPolling } from "~/hooks/useCardTranslationPolling";
 import { translateAppLabel } from "~/i18n/app-strings";
 import { colors, fontBody, fontDisplay, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import { translateCardMetadata } from "~/utils/card-metadata";
-import { cardTranslationPolling } from "~/utils/card-translation";
+import { PUBLIC_CONTENT_STALE_TIME } from "~/utils/card-translation";
 import { formatDate } from "~/utils/dates";
 
 export default function BillSponsorProfileScreen() {
@@ -39,10 +40,14 @@ export default function BillSponsorProfileScreen() {
       billId: billId ?? "00000000-0000-0000-0000-000000000000",
     }),
     enabled: !!billId,
-    refetchInterval: (query) =>
-      cardTranslationPolling({
-        state: { data: query.state.data?.sponsoredBills },
-      }),
+    staleTime: PUBLIC_CONTENT_STALE_TIME,
+  });
+
+  const translations = useCardTranslationPolling({
+    data: query.data?.sponsoredBills,
+    language,
+    refetch: query.refetch,
+    enabled: !!billId,
   });
 
   if (query.isLoading) {
@@ -130,9 +135,9 @@ export default function BillSponsorProfileScreen() {
 
         <View style={s.section}>
           <CardTranslationNotice
-            isError={query.isError}
+            isError={translations.isError}
             items={sponsoredBills}
-            onRetry={() => void query.refetch()}
+            onRetry={translations.retry}
           />
           <Kicker>
             {tx("Sponsored legislation · {value1}", {

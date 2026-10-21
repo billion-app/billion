@@ -196,7 +196,17 @@ Address-ballot responses attach a short-lived signed translation reference. The 
 
 Candidate research is translated only after its release/publication gates pass. The catalog and full research reader use separate translation scopes. Claims, promises, finance explanations and evidence context translate; source excerpts, provenance, names, monetary values, release IDs and review digests do not change. Measure relationships and budget context follow the same rule: localized money labels live in an optional `display` object, while canonical amounts, comparison denominators and evidence remain unchanged.
 
-Alert history requests the selected language and refreshes while translation is pending. Test notifications use fixed localized copy and normalize to the current language when read. Ordinary OS push alerts still use their delivery-time copy; this does not persist a device language preference on the notification service.
+Public card lists keep their initial English cards while translations are queued.
+[Card polling](../apps/expo/src/hooks/useCardTranslationPolling.ts) checks only
+translation cache IDs and source hashes, then reloads a list when new translations
+are ready. Readiness requests use POST to support large paginated lists. Polling
+backs off from three to fifteen seconds and stops after two minutes; the existing
+Retry action starts another wait. Public content queries stay fresh for one minute
+to avoid duplicate reads when a reader moves between screens.
+
+Alert history requests the selected language through its private token-scoped
+endpoint and refreshes while translation is pending, with the same backoff and
+two-minute limit. Private alerts never use public card readiness. Test notifications use fixed localized copy and normalize to the current language when read. Ordinary OS push alerts still use their delivery-time copy; this does not persist a device language preference on the notification service.
 
 App share links carry `lang`; `/b/[id]`, its metadata, and the story/preview images use the same reader translation cache. A missing translation displays a localized preparing state instead of producing an English share image. The standalone marketing site and editorial tools have no app language selection and are outside this mobile-page audit. See the [October page audit](localization-audit.md) for coverage and intentional source-language boundaries.
 

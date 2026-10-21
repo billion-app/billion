@@ -1,5 +1,4 @@
 import pLimit from "p-limit";
-import sharp from "sharp";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
@@ -283,13 +282,10 @@ async function generate(
     return "rejected";
   }
 
-  const data = await sharp(result.generated.image.data)
-    .jpeg({ quality: 84, mozjpeg: true })
-    .toBuffer();
   const stored = await uploadContentImage({
     contentType: item.type,
     contentId: item.id,
-    data,
+    data: result.generated.image.data,
   });
   const imageValues = {
     contentType: item.type,
@@ -298,8 +294,8 @@ async function generate(
     storagePath: stored.path,
     imageHash: stored.hash,
     prompt: result.generated.prompt,
-    width: result.generated.image.width,
-    height: result.generated.image.height,
+    width: stored.width,
+    height: stored.height,
     updatedAt: new Date(),
   };
   const reviewValuesToWrite =

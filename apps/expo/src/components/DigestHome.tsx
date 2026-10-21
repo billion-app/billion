@@ -22,6 +22,7 @@ import { CAPITOL_LINE } from "~/components/digest/staticAssets";
 import { DigestGreetingBar } from "~/components/DigestGreetingBar";
 import { GoldFoilText } from "~/components/GoldBillionMark";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { useCardTranslationPolling } from "~/hooks/useCardTranslationPolling";
 import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
 import { useIdleBallotPreloading } from "~/hooks/useIdleBallotPreloading";
 import { useLastVisit } from "~/hooks/useLastVisit";
@@ -32,7 +33,7 @@ import { useUserAddress } from "~/hooks/useUserAddress";
 import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
 import { trpc } from "~/utils/api";
 import { translateCardMetadata } from "~/utils/card-metadata";
-import { cardTranslationPolling } from "~/utils/card-translation";
+import { PUBLIC_CONTENT_STALE_TIME } from "~/utils/card-translation";
 import { contentImageSource } from "~/utils/editorial-visuals";
 import {
   isStateJurisdiction,
@@ -162,7 +163,7 @@ export function DigestHome() {
       language,
     }),
     enabled: localJurisdiction !== "ma",
-    refetchInterval: cardTranslationPolling,
+    staleTime: PUBLIC_CONTENT_STALE_TIME,
   });
   const featuredEmpty =
     !featuredLocal.isLoading && (featuredLocal.data?.length ?? 0) === 0;
@@ -174,13 +175,13 @@ export function DigestHome() {
       language,
     }),
     enabled: featuredEmpty || !!featuredLocal.error,
-    refetchInterval: cardTranslationPolling,
+    staleTime: PUBLIC_CONTENT_STALE_TIME,
   });
 
   const featuredFederal = useQuery(
     trpc.content.getFeaturedBills.queryOptions(
       { jurisdiction: "federal", language },
-      { refetchInterval: cardTranslationPolling },
+      { staleTime: PUBLIC_CONTENT_STALE_TIME },
     ),
   );
   const {
@@ -201,11 +202,34 @@ export function DigestHome() {
       },
       {
         initialCursor: 0,
-        refetchInterval: cardTranslationPolling,
+        staleTime: PUBLIC_CONTENT_STALE_TIME,
         getNextPageParam: (lastPage) => lastPage.nextCursor,
       },
     ),
   );
+
+  const localTranslations = useCardTranslationPolling({
+    data: featuredLocal.data,
+    language,
+    refetch: featuredLocal.refetch,
+    enabled: localJurisdiction !== "ma",
+  });
+  const localFeedTranslations = useCardTranslationPolling({
+    data: localFeed.data,
+    language,
+    refetch: localFeed.refetch,
+    enabled: featuredEmpty || !!featuredLocal.error,
+  });
+  const federalTranslations = useCardTranslationPolling({
+    data: featuredFederal.data,
+    language,
+    refetch: featuredFederal.refetch,
+  });
+  const federalFeedTranslations = useCardTranslationPolling({
+    data: federalFeed,
+    language,
+    refetch: refetchFederalFeed,
+  });
 
   const localCards = useMemo((): DigestCard[] => {
     const featured = featuredLocal.data;
@@ -350,14 +374,18 @@ export function DigestHome() {
             !!featuredLocal.error ||
             !!localFeed.error ||
             !!featuredFederal.error ||
-            !!federalFeedError
+            !!federalFeedError ||
+            localTranslations.isError ||
+            localFeedTranslations.isError ||
+            federalTranslations.isError ||
+            federalFeedTranslations.isError
           }
           items={[...localCards, ...alsoCards]}
           onRetry={() => {
-            void featuredLocal.refetch();
-            void localFeed.refetch();
-            void featuredFederal.refetch();
-            void refetchFederalFeed();
+            localTranslations.retry();
+            localFeedTranslations.retry();
+            federalTranslations.retry();
+            federalFeedTranslations.retry();
           }}
         />
         {localLoading ? (
