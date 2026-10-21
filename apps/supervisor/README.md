@@ -200,6 +200,17 @@ configured by `SCRAPER_FALLBACK_BASE_URL` and `SCRAPER_FALLBACK_MODEL`. It selec
 only that provider; paid scraper fallbacks are not used for translations. The
 worker runs separately because ingestion jobs can occupy the supervisor for hours.
 
+The worker also prepares Chinese readers in pages of ten when the runnable queue
+has fewer than twenty requests. Each archive sweep fetches row IDs and revisions
+for source content, briefs, lenses, and cached translations. Readers already
+validated by that worker skip full-text reads until a revision changes or a day
+passes. The revision includes PostgreSQL `xmin`, so direct SQL edits invalidate
+the check even when timestamps stay unchanged. Deleted or corrupt translations
+are rechecked, and pending or failed preparation is never cached. Restarting the
+worker performs a full check. After finishing the archive, it waits five minutes
+before the next sweep. Interactive queue polling still runs every five seconds.
+The explicit `--prepare-only` command always validates full readers.
+
 Vercel queues a cache miss and returns the existing English fallback. The reader
 retries until the completed translation is available. Repeated reads deduplicate
 requests and preserve retries and leases. A changed English source replaces the

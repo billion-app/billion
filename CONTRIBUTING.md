@@ -158,3 +158,15 @@ TRANSLATIONS_TEST_DATABASE_URL=postgresql://localhost/billion_translations_test 
 This test uses real Postgres with a stub translator to verify concurrent claims,
 cache hits, backoff, source revisions, and recovery after an expired lease. It
 skips unless `TRANSLATIONS_TEST_DATABASE_URL` is explicitly set.
+
+### Content projection and archive preparation integration tests
+
+Use an empty, migrated local database whose name ends in `_test`. Run the content
+suites sequentially because they exercise public lists against the same fixture
+database. These checks verify card fields, search matches, Featured ranking,
+reader source hashes, and archive translation invalidation without paid generation.
+
+```bash
+CONTENT_PROJECTION_TEST_DATABASE_URL=postgresql://localhost/billion_content_test pnpm --filter @acme/api exec tsx --test --test-concurrency=1 test/content-projection-db.test.ts test/featured-bills-db.test.ts
+READER_TRANSLATIONS_TEST_DATABASE_URL=postgresql://localhost/billion_content_test pnpm --filter @acme/api exec tsx --test test/pretranslate-readers-db.test.ts
+```
