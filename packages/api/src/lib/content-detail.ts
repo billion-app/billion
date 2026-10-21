@@ -47,6 +47,7 @@ interface ContentImageRef {
 
 export async function attachContentImages<T extends ContentImageRef>(
   items: readonly T[],
+  variant: "card" | "reader" = "card",
 ): Promise<(T & { imageUri?: string })[]> {
   if (items.length === 0) return [];
 
@@ -93,6 +94,7 @@ export async function attachContentImages<T extends ContentImageRef>(
       item.type === "government_content" && executiveOrderIds.has(item.id)
         ? EXECUTIVE_ORDER_FALLBACK_IMAGE_URL
         : undefined,
+      variant,
     ),
   }));
 }
@@ -188,7 +190,8 @@ export async function loadContentDetail(input: {
     ? <T extends ContentImageRef>(
         items: readonly T[],
       ): Promise<(T & { imageUri?: string })[]> => Promise.resolve([...items])
-    : attachContentImages;
+    : <T extends ContentImageRef>(items: readonly T[]) =>
+        attachContentImages(items, "reader");
   // Try to find in bills
   const bill = await db
     .select({

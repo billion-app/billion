@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import sharp from "sharp";
 
 import {
   CONTENT_IMAGE_BUCKET,
@@ -26,11 +27,7 @@ function encodePath(path: string): string {
     .join("/");
 }
 
-export async function uploadContentImage(args: {
-  contentType: "bill" | "government_content" | "court_case";
-  contentId: string;
-  data: Buffer;
-}): Promise<{ hash: string; path: string }> {
+async function uploadImage(path: string, data: Buffer): Promise<void> {
   const origin = supabaseStorageOrigin();
   if (!origin) {
     throw new Error(
@@ -38,8 +35,7 @@ export async function uploadContentImage(args: {
     );
   }
   const secret = storageSecret();
-  const hash = createHash("sha256").update(args.data).digest("hex");
-  const path = `content/${args.contentType}/${args.contentId}/${hash}.jpg`;
+  const hash = createHash("sha256").update(data).digest("hex");
   const response = await fetch(
     `${origin}/storage/v1/object/${CONTENT_IMAGE_BUCKET}/${encodePath(path)}`,
     {
@@ -51,7 +47,7 @@ export async function uploadContentImage(args: {
         "Cache-Control": `max-age=${CONTENT_IMAGE_CACHE_SECONDS}`,
         "x-upsert": "true",
       },
-      body: args.data,
+      body: data,
     },
   );
   if (!response.ok) {
@@ -73,6 +69,35 @@ export async function uploadContentImage(args: {
   if (downloadedHash !== hash) {
     throw new Error(`Storage checksum mismatch for ${path}`);
   }
+}
 
-  return { hash, path };
+export async function uploadContentImage(args: {
+  contentType: "bill" | "government_content" | "court_case";
+  contentId: string;
+  data: Buffer;
+}): Promise<{ hash: string; path: string; width: number; height: number }> {
+  const reader = await sharp(args.data)
+    .rotate()
+    .resize({ width: 1280, withoutEnlargement: true })
+    .jpeg({ quality: 84, mozjpeg: true })
+    .toBuffer({ resolveWithObject: true });
+  const card = await sharp(args.data)
+    .rotate()
+    .resize({ width: 384, withoutEnlargement: true })
+    .jpeg({ quality: 78, mozjpeg: true })
+    .toBuffer();
+  const hash = createHash("sha256").update(reader.data).digest("hex");
+  const pairHash = createHash("sha256")
+    .update(reader.data)
+    .update(card)
+    .digest("hex");
+  const directory = `content/${args.contentType}/${args.contentId}/v1/${pairHash}`;
+  await uploadImage(`${directory}/card.jpg`, card);
+  await uploadImage(`${directory}/reader.jpg`, reader.data);
+  return {
+    hash,
+    path: `${directory}/reader.jpg`,
+    width: reader.info.width,
+    height: reader.info.height,
+  };
 }

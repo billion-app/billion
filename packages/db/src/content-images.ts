@@ -44,13 +44,31 @@ export function contentImagePublicUrl(
   return `${origin}/storage/v1/object/public/${CONTENT_IMAGE_BUCKET}/${encodeStoragePath(path)}`;
 }
 
+function contentImageVariantPath(
+  path: string,
+  variant: "card" | "reader",
+): string {
+  return path.replace(
+    /\/v1\/([a-f0-9]{64})\/reader\.jpg$/,
+    `/v1/$1/${variant}.jpg`,
+  );
+}
+
 export function resolveContentImageUrl(
   sourceThumbnailUrl: string | null | undefined,
   generatedImagePath: string | null | undefined,
   supabaseUrl: string | undefined = process.env.SUPABASE_URL,
   fallbackUrl?: string,
+  variant: "card" | "reader" = "reader",
 ): string | undefined {
   const sourceUrl = sourceThumbnailUrl?.trim();
   if (sourceUrl) return sourceUrl;
-  return contentImagePublicUrl(supabaseUrl, generatedImagePath) ?? fallbackUrl;
+  return (
+    contentImagePublicUrl(
+      supabaseUrl,
+      generatedImagePath
+        ? contentImageVariantPath(generatedImagePath, variant)
+        : undefined,
+    ) ?? fallbackUrl
+  );
 }
