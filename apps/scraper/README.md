@@ -172,7 +172,7 @@ Use the focused command for the missing asset. Check its help and preview mode f
 | `retroactive-briefs`         | Generate missing or stale structured briefs; supports `--dry-run`        |
 | `retroactive-lenses`         | Generate missing or stale perspectives; supports `--dry-run`             |
 | `content-images`             | Generate header artwork                                                  |
-| `resize-content-images`      | Resize existing stored artwork; read-only until `--apply`                 |
+| `resize-content-images`      | Resize existing stored artwork; read-only until `--apply`                |
 | `bill-interest`              | Score editorial interest; supports `--dry-run`                           |
 | `notify-followers`           | Send saved-bill updates and opted-in new-bill and executive-order alerts |
 | `prune-bills`                | Inspect retention candidates; read-only until `--apply`                  |
