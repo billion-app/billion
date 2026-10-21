@@ -2,7 +2,20 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
 import type { BillLifecycleAction } from "@acme/validators";
-import { and, desc, eq, inArray, sql, unionAll } from "@acme/db";
+import {
+  and,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNull,
+  lte,
+  notExists,
+  or,
+  sql,
+  unionAll,
+} from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
@@ -40,7 +53,7 @@ import {
 import { getFederalOfficialByName } from "../lib/elected-officials";
 import {
   FEATURED_BILL_LIMIT,
-  rankFeaturedBillCandidates,
+  FEATURED_BILL_RECENT_DAYS,
 } from "../lib/featured-bills";
 import { translateContentDetail } from "../lib/reader-translation";
 import { protectedProcedure, publicProcedure } from "../trpc";
@@ -315,70 +328,76 @@ export const contentRouter = {
         const jurisdictionCondition = billJurisdictionCondition(
           input.jurisdiction,
         );
-        const editorialQuery = db
+        const now = new Date();
+        const editorialRows = await db
           .select({
             bill: BILL_CARD_COLUMNS,
             rationale: FeaturedBill.rationale,
-            displayOrder: FeaturedBill.displayOrder,
-            overrideActive: FeaturedBill.active,
-            startsAt: FeaturedBill.startsAt,
-            endsAt: FeaturedBill.endsAt,
           })
           .from(FeaturedBill)
           .innerJoin(Bill, eq(Bill.id, FeaturedBill.billId))
-          .where(and(jurisdictionCondition, billDiscoveryCondition))
+          .where(
+            and(
+              jurisdictionCondition,
+              sql`(${billDiscoveryCondition})`,
+              eq(FeaturedBill.active, true),
+              or(
+                isNull(FeaturedBill.startsAt),
+                lte(FeaturedBill.startsAt, now),
+              ),
+              or(isNull(FeaturedBill.endsAt), gt(FeaturedBill.endsAt, now)),
+            ),
+          )
           .orderBy(
             FeaturedBill.displayOrder,
             desc(FeaturedBill.updatedAt),
             desc(FeaturedBill.billId),
-          );
+          )
+          .limit(FEATURED_BILL_LIMIT);
 
-        const scoredQuery = db
-          .select({
-            bill: BILL_CARD_COLUMNS,
-            interestScore: BillInterest.interestScore,
-            controversyScore: BillInterest.controversyScore,
-            attentionScore: BillInterest.attentionScore,
-          })
-          .from(Bill)
-          .innerJoin(BillInterest, eq(BillInterest.billId, Bill.id))
-          .where(
-            and(
-              jurisdictionCondition,
-              billDiscoveryCondition,
-              eq(BillInterest.contentHash, Bill.contentHash),
-            ),
-          );
-
-        const [editorialRows, scoredRows] = await Promise.all([
-          editorialQuery,
-          scoredQuery,
-        ]);
-        const now = new Date();
-        const liveEditorialRows = editorialRows.filter(
-          (row) =>
-            row.overrideActive &&
-            (!row.startsAt || row.startsAt <= now) &&
-            (!row.endsAt || row.endsAt > now),
+        const score = sql<number>`
+          ${BillInterest.interestScore}::double precision * 0.5 +
+          ${BillInterest.controversyScore}::double precision * 0.3 +
+          ${BillInterest.attentionScore}::double precision * 0.2
+        `;
+        const recentCutoff = new Date(
+          now.getTime() - FEATURED_BILL_RECENT_DAYS * 86_400_000,
         );
-        const overriddenIds = new Set(editorialRows.map((row) => row.bill.id));
-
-        const rankedRows = rankFeaturedBillCandidates(
-          scoredRows
-            .filter((row) => !overriddenIds.has(row.bill.id))
-            .map((row) => ({
-              ...row,
-              id: row.bill.id,
-              activityAt:
-                row.bill.lastActionAt ??
-                row.bill.introducedDate ??
-                row.bill.createdAt,
-            })),
-          now,
-        );
+        const remaining = FEATURED_BILL_LIMIT - editorialRows.length;
+        const rankedRows =
+          remaining > 0
+            ? await db
+                .select({
+                  bill: BILL_CARD_COLUMNS,
+                })
+                .from(Bill)
+                .innerJoin(BillInterest, eq(BillInterest.billId, Bill.id))
+                .where(
+                  and(
+                    jurisdictionCondition,
+                    sql`(${billDiscoveryCondition})`,
+                    eq(BillInterest.contentHash, Bill.contentHash),
+                    gte(BillInterest.interestScore, 60),
+                    or(gte(BILL_ACTIVITY_AT, recentCutoff), gte(score, 75)),
+                    notExists(
+                      db
+                        .select({ id: FeaturedBill.billId })
+                        .from(FeaturedBill)
+                        .where(eq(FeaturedBill.billId, Bill.id)),
+                    ),
+                  ),
+                )
+                .orderBy(
+                  desc(score),
+                  desc(BillInterest.attentionScore),
+                  desc(BILL_ACTIVITY_AT),
+                  desc(Bill.id),
+                )
+                .limit(remaining)
+            : [];
 
         const selected = [
-          ...liveEditorialRows.map((row) => ({
+          ...editorialRows.map((row) => ({
             bill: row.bill,
             featureTakeaway: row.rationale ?? undefined,
           })),
@@ -386,7 +405,7 @@ export const contentRouter = {
             bill: row.bill,
             featureTakeaway: undefined,
           })),
-        ].slice(0, FEATURED_BILL_LIMIT);
+        ];
 
         const cards = selected.map(({ bill, featureTakeaway }, index) => ({
           ...toBillCard(bill),
