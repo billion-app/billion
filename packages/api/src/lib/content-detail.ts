@@ -191,7 +191,25 @@ export async function loadContentDetail(input: {
     : attachContentImages;
   // Try to find in bills
   const bill = await db
-    .select()
+    .select({
+      id: Bill.id,
+      title: Bill.title,
+      billNumber: Bill.billNumber,
+      sourceWebsite: Bill.sourceWebsite,
+      sponsor: Bill.sponsor,
+      chamber: Bill.chamber,
+      introducedDate: Bill.introducedDate,
+      actions: Bill.actions,
+      status: Bill.status,
+      createdAt: Bill.createdAt,
+      updatedAt: Bill.updatedAt,
+      description: Bill.description,
+      summary: Bill.summary,
+      aiGeneratedArticle: Bill.aiGeneratedArticle,
+      fullText: Bill.fullText,
+      thumbnailUrl: Bill.thumbnailUrl,
+      url: Bill.url,
+    })
     .from(Bill)
     .where(eq(Bill.id, input.id))
     .limit(1);
@@ -273,7 +291,21 @@ export async function loadContentDetail(input: {
 
   // Try to find in government content
   const content = await db
-    .select()
+    .select({
+      id: GovernmentContent.id,
+      title: GovernmentContent.title,
+      type: GovernmentContent.type,
+      publishedDate: GovernmentContent.publishedDate,
+      source: GovernmentContent.source,
+      createdAt: GovernmentContent.createdAt,
+      updatedAt: GovernmentContent.updatedAt,
+      description: GovernmentContent.description,
+      aiGeneratedArticle: GovernmentContent.aiGeneratedArticle,
+      fullText: GovernmentContent.fullText,
+      thumbnailUrl: GovernmentContent.thumbnailUrl,
+      url: GovernmentContent.url,
+      federalRegisterUrl: GovernmentContent.federalRegisterUrl,
+    })
     .from(GovernmentContent)
     .where(eq(GovernmentContent.id, input.id))
     .limit(1);
@@ -308,7 +340,19 @@ export async function loadContentDetail(input: {
 
   // Try to find in court cases
   const courtCase = await db
-    .select()
+    .select({
+      id: CourtCase.id,
+      title: CourtCase.title,
+      filedDate: CourtCase.filedDate,
+      createdAt: CourtCase.createdAt,
+      updatedAt: CourtCase.updatedAt,
+      description: CourtCase.description,
+      aiGeneratedArticle: CourtCase.aiGeneratedArticle,
+      fullText: CourtCase.fullText,
+      thumbnailUrl: CourtCase.thumbnailUrl,
+      url: CourtCase.url,
+      contentHash: CourtCase.contentHash,
+    })
     .from(CourtCase)
     .where(eq(CourtCase.id, input.id))
     .limit(1);
@@ -316,7 +360,10 @@ export async function loadContentDetail(input: {
     const c = courtCase[0];
     const [briefRows, lensData] = await Promise.all([
       db
-        .select()
+        .select({
+          contentHash: ContentBrief.contentHash,
+          brief: ContentBrief.brief,
+        })
         .from(ContentBrief)
         .where(
           and(

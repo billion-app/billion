@@ -190,6 +190,21 @@ const BILL_CARD_COLUMNS = {
   sponsor: Bill.sponsor,
 };
 
+const GOVERNMENT_CARD_COLUMNS = {
+  id: GovernmentContent.id,
+  title: GovernmentContent.title,
+  description: GovernmentContent.description,
+  type: GovernmentContent.type,
+  thumbnailUrl: GovernmentContent.thumbnailUrl,
+};
+
+const COURT_CARD_COLUMNS = {
+  id: CourtCase.id,
+  title: CourtCase.title,
+  description: CourtCase.description,
+  thumbnailUrl: CourtCase.thumbnailUrl,
+};
+
 export function toBillCard(
   bill: BillCardSource,
 ): ContentCard & { type: "bill" } {
@@ -242,18 +257,18 @@ export const contentRouter = {
   // Get all content from database
   getAll: publicProcedure.query(async () => {
     const bills = await db
-      .select()
+      .select(BILL_CARD_COLUMNS)
       .from(Bill)
       .where(billDiscoveryCondition)
       .orderBy(desc(BILL_ACTIVITY_AT))
       .limit(20);
     const governmentContent = await db
-      .select()
+      .select(GOVERNMENT_CARD_COLUMNS)
       .from(GovernmentContent)
       .orderBy(desc(GOVERNMENT_CONTENT_ACTIVITY_AT))
       .limit(20);
     const courtCases = await db
-      .select()
+      .select(COURT_CARD_COLUMNS)
       .from(CourtCase)
       .orderBy(desc(COURT_CASE_ACTIVITY_AT))
       .limit(20);
@@ -534,7 +549,7 @@ export const contentRouter = {
 
       if (input.type === "bill") {
         const bills = await db
-          .select()
+          .select(BILL_CARD_COLUMNS)
           .from(Bill)
           .where(
             and(
@@ -561,7 +576,7 @@ export const contentRouter = {
           return { items: [] as ContentCard[], nextCursor: undefined };
         }
         const governmentContent = await db
-          .select()
+          .select(GOVERNMENT_CARD_COLUMNS)
           .from(GovernmentContent)
           .orderBy(desc(GOVERNMENT_CONTENT_ACTIVITY_AT))
           .limit(limit + 1)
@@ -592,7 +607,7 @@ export const contentRouter = {
         return { items: [] as ContentCard[], nextCursor: undefined };
       }
       const courtCases = await db
-        .select()
+        .select(COURT_CARD_COLUMNS)
         .from(CourtCase)
         .where(courtJurisdictionCondition(jurisdiction))
         .orderBy(desc(COURT_CASE_ACTIVITY_AT))
@@ -662,7 +677,7 @@ export const contentRouter = {
 
       if (type === "bill") {
         const bills = await db
-          .select()
+          .select(BILL_CARD_COLUMNS)
           .from(Bill)
           .where(
             and(
@@ -682,7 +697,7 @@ export const contentRouter = {
       if (type === "government_content" || type === "general") {
         if (jurisdiction !== "federal") return [];
         const governmentContent = await db
-          .select()
+          .select(GOVERNMENT_CARD_COLUMNS)
           .from(GovernmentContent)
           .where(govMatch)
           .orderBy(desc(govRank))
@@ -704,7 +719,7 @@ export const contentRouter = {
       if (type === "court_case") {
         if (jurisdiction !== "federal" && jurisdiction !== "ma") return [];
         const courtCases = await db
-          .select()
+          .select(COURT_CARD_COLUMNS)
           .from(CourtCase)
           .where(and(caseMatch, courtJurisdictionCondition(jurisdiction)))
           .orderBy(desc(caseRank))
@@ -892,7 +907,13 @@ export const contentRouter = {
     )
     .query(async ({ input }) => {
       const [bill] = await db
-        .select()
+        .select({
+          sponsor: Bill.sponsor,
+          sourceWebsite: Bill.sourceWebsite,
+          billNumber: Bill.billNumber,
+          chamber: Bill.chamber,
+          url: Bill.url,
+        })
         .from(Bill)
         .where(eq(Bill.id, input.billId))
         .limit(1);
