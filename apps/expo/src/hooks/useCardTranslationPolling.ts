@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState } from "react-native";
+import { useIsFocused } from "expo-router";
 
 import type {
   CardTranslationData,
@@ -19,9 +21,17 @@ export function useCardTranslationPolling({
 }: {
   data: CardTranslationData | undefined;
   language: "en" | "es" | "zh";
-  refetch: () => Promise<unknown>;
+  refetch: Parameters<typeof pollCardTranslations>[0]["refresh"];
   enabled?: boolean;
 }) {
+  const focused = useIsFocused();
+  const [active, setActive] = useState(AppState.currentState === "active");
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) =>
+      setActive(state === "active"),
+    );
+    return () => subscription.remove();
+  }, []);
   const [attempt, setAttempt] = useState(0);
   const [failedKey, setFailedKey] = useState<string | null>(null);
   const session = useRef<CardTranslationWait | null>(null);
@@ -30,7 +40,11 @@ export function useCardTranslationPolling({
   const key = `${language}:${sourceKey}:${attempt}`;
 
   useEffect(() => {
-    if (!enabled || language === "en" || !lookups.length) return;
+    if (language === "en" || !lookups.length) {
+      session.current = null;
+      return;
+    }
+    if (!enabled || !focused || !active) return;
     const controller = new AbortController();
     const pending = lookups;
     session.current = cardTranslationWait(
@@ -80,12 +94,12 @@ export function useCardTranslationPolling({
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [enabled, key, language, lookups, refetch]);
+  }, [active, enabled, focused, key, language, lookups, refetch]);
 
   const retry = useCallback(() => {
     session.current = null;
     setAttempt((value) => value + 1);
-    void refetch();
+    void refetch({});
   }, [refetch]);
   return { isError: failedKey === key, retry };
 }

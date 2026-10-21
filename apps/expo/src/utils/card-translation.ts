@@ -1,3 +1,5 @@
+import type { RefetchOptions } from "@tanstack/react-query";
+
 import type { RouterInputs, RouterOutputs } from "./api";
 
 export type CardTranslationLookup =
@@ -16,6 +18,7 @@ export interface CardTranslationState {
 export type CardTranslationData =
   | CardTranslationState[]
   | { items: CardTranslationState[] }
+  | { sponsoredBills: CardTranslationState[] }
   | { pages: { items: CardTranslationState[] }[] };
 
 export function cardTranslationItems(
@@ -25,7 +28,9 @@ export function cardTranslationItems(
   if (Array.isArray(data)) return data;
   return "pages" in data
     ? data.pages.flatMap((page) => page.items)
-    : data.items;
+    : "sponsoredBills" in data
+      ? data.sponsoredBills
+      : data.items;
 }
 
 export function pendingCardTranslations(data: CardTranslationData | undefined) {
@@ -78,7 +83,9 @@ export async function pollCardTranslations(input: {
   deadline: number;
   signal: AbortSignal;
   ready: (lookups: CardTranslationLookup[]) => Promise<ReadyCardTranslation[]>;
-  refresh: () => Promise<unknown>;
+  refresh: (options: RefetchOptions) => Promise<{
+    data: CardTranslationData | null | undefined;
+  }>;
   wait: (ms: number) => Promise<void>;
   now?: () => number;
 }): Promise<"ready" | "expired" | "cancelled"> {
@@ -105,10 +112,22 @@ export async function pollCardTranslations(input: {
       .map(cardTranslationKey)
       .filter((key) => requested.has(key) && !refreshed.has(key));
     if (newReady.length) {
-      newReady.forEach((key) => refreshed.add(key));
-      await input.refresh();
+      try {
+        const result = await input.refresh({ throwOnError: true });
+        if (result.data) {
+          const pending = new Set(
+            pendingCardTranslations(result.data).map(cardTranslationKey),
+          );
+          newReady
+            .filter((key) => !pending.has(key))
+            .forEach((key) => refreshed.add(key));
+        }
+      } catch {
+        if (cancelled()) return "cancelled";
+      }
     }
     if (cancelled()) return "cancelled";
+    if (now() >= input.deadline) return "expired";
     if (refreshed.size === requested.size) return "ready";
     await input.wait(
       Math.min(cardTranslationDelay(attempt++), input.deadline - now()),

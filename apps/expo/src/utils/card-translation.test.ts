@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { QueryClient, QueryObserver } from "@tanstack/react-query";
 
+import type { CardTranslationData } from "./card-translation";
 import {
   cardTranslationDelay,
   cardTranslationState,
@@ -26,7 +28,12 @@ void test("array, saved and infinite feeds deduplicate pending lookup revisions"
     { translationState: "pending" as const, translationLookup: lookup },
     { translationState: "pending" as const, translationLookup: lookup },
   ];
-  for (const data of [items, { items }, { pages: [{ items }, { items }] }])
+  for (const data of [
+    items,
+    { items },
+    { sponsoredBills: items },
+    { pages: [{ items }, { items }] },
+  ])
     assert.deepEqual(pendingCardTranslations(data), [lookup]);
   assert.deepEqual(pendingCardTranslations(undefined), []);
 });
@@ -51,7 +58,7 @@ void test("queued cards only read readiness; partial completion refreshes once p
     },
     refresh: () => {
       refreshes++;
-      return Promise.resolve();
+      return Promise.resolve({ data: [] });
     },
     wait: (ms) => {
       now += ms;
@@ -81,7 +88,7 @@ void test("unavailable workers and network errors stop at two minutes without fe
             : Promise.resolve([]),
         refresh: () => {
           refreshes++;
-          return Promise.resolve();
+          return Promise.resolve({ data: [] });
         },
         wait: (ms) => {
           now += ms;
@@ -109,7 +116,7 @@ void test("readiness from an older source cannot refresh a changed revision", as
       ready: () => Promise.resolve([lookup]),
       refresh: () => {
         refreshes++;
-        return Promise.resolve();
+        return Promise.resolve({ data: [] });
       },
       wait: (ms) => {
         now += ms;
@@ -159,7 +166,7 @@ void test("changing language cancels in-flight readiness before it can refresh t
       },
       refresh: () => {
         refreshes++;
-        return Promise.resolve();
+        return Promise.resolve({ data: [] });
       },
       wait: () => Promise.resolve(),
     }),
@@ -188,7 +195,7 @@ void test("large infinite feeds use bounded readiness batches and one refresh", 
       },
       refresh: () => {
         refreshes++;
-        return Promise.resolve();
+        return Promise.resolve({ data: [] });
       },
       wait: () => Promise.resolve(),
     }),
@@ -231,4 +238,84 @@ void test("network failure offers retry without hiding an already complete cache
     cardTranslationState([{ translationState: "translated" }], "zh", true),
     "translated",
   );
+});
+
+void test("a real QueryObserver retries failed and still-pending refreshes until translated data arrives", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  let requests = 0;
+  const pending: CardTranslationData = [
+    { translationState: "pending", translationLookup: lookup },
+  ];
+  const observer = new QueryObserver<CardTranslationData>(client, {
+    queryKey: ["translation-refresh"],
+    initialData: pending,
+    queryFn: () => {
+      requests++;
+      if (requests === 1) return Promise.reject(new Error("offline"));
+      return Promise.resolve<CardTranslationData>(
+        requests === 2 ? pending : [{ translationState: "translated" }],
+      );
+    },
+  });
+  let now = 0;
+  try {
+    const result = await pollCardTranslations({
+      lookups: [lookup],
+      deadline: 120_000,
+      signal: new AbortController().signal,
+      ready: () => Promise.resolve([lookup]),
+      refresh: (options) => observer.refetch(options),
+      now: () => now,
+      wait: (ms) => {
+        assert.deepEqual(observer.getCurrentResult().data, pending);
+        now += ms;
+        return Promise.resolve();
+      },
+    });
+    assert.equal(result, "ready");
+    assert.equal(requests, 3);
+    assert.equal(now, 9000);
+    assert.equal(observer.getCurrentResult().isError, false);
+  } finally {
+    observer.destroy();
+    client.clear();
+  }
+});
+
+void test("a real QueryObserver with ready status but a stale feed expires at the original deadline", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const pending: CardTranslationData = [
+    { translationState: "pending", translationLookup: lookup },
+  ];
+  const observer = new QueryObserver<CardTranslationData>(client, {
+    queryKey: ["stale-translation-refresh"],
+    initialData: pending,
+    queryFn: () => Promise.resolve(pending),
+  });
+  let now = 0;
+  try {
+    assert.equal(
+      await pollCardTranslations({
+        lookups: [lookup],
+        deadline: 120_000,
+        signal: new AbortController().signal,
+        ready: () => Promise.resolve([lookup]),
+        refresh: (options) => observer.refetch(options),
+        now: () => now,
+        wait: (ms) => {
+          now += ms;
+          return Promise.resolve();
+        },
+      }),
+      "expired",
+    );
+    assert.equal(now, 120_000);
+  } finally {
+    observer.destroy();
+    client.clear();
+  }
 });

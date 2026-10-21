@@ -1,20 +1,24 @@
 /** Server-accepted pushes on phones; scheduled local tests on simulators. */
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import * as Device from "expo-device";
 import { useFocusEffect } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import type { AlertTranslationWait } from "~/utils/alert-translation-wait";
 import { parseAlertHistory, readAlertHistory } from "~/utils/alert-history";
+import { alertTranslationWait } from "~/utils/alert-translation-wait";
 import { trpcClient } from "~/utils/api";
 import { cardTranslationDelay } from "~/utils/card-translation";
 import { ensurePushToken } from "~/utils/push-sync";
 import { useAppTranslation } from "./useAppTranslation";
-import { useTranslationWait } from "./useTranslationWait";
 
 export function useAlertHistory() {
   const { language, t } = useAppTranslation();
-  const translationWait = useTranslationWait(language, language !== "en");
-  const { data, isPending, error, refetch } = useQuery({
+  const [wait, setWait] = useState<AlertTranslationWait | null>(null);
+  const [expiredWait, setExpiredWait] = useState<AlertTranslationWait | null>(
+    null,
+  );
+  const { data, dataUpdatedAt, isPending, error, refetch } = useQuery({
     queryKey: ["notification-history", language],
     queryFn: async () => {
       if (!Device.isDevice)
@@ -37,11 +41,23 @@ export function useAlertHistory() {
       return parseAlertHistory(JSON.stringify(rows));
     },
     refetchInterval: (query) =>
-      !translationWait.expired &&
+      wait !== null &&
+      Date.now() < wait.deadline &&
       query.state.data?.some((item) => item.translationState === "pending")
         ? cardTranslationDelay(query.state.dataUpdateCount - 1)
         : false,
   });
+  const nextWait = alertTranslationWait(wait, language, data, dataUpdatedAt);
+  if (nextWait !== wait)
+    setWait(() => alertTranslationWait(wait, language, data, Date.now()));
+  useEffect(() => {
+    if (!wait) return;
+    const timeout = setTimeout(
+      () => setExpiredWait(wait),
+      Math.max(0, wait.deadline - Date.now()),
+    );
+    return () => clearTimeout(timeout);
+  }, [wait]);
   useFocusEffect(
     useCallback(() => {
       void refetch();
@@ -51,9 +67,9 @@ export function useAlertHistory() {
     items: data ?? [],
     isLoading: isPending,
     error,
-    translationUnavailable: translationWait.expired,
+    translationUnavailable: wait !== null && expiredWait === wait,
     retry: () => {
-      translationWait.retry();
+      setWait(alertTranslationWait(null, language, data, Date.now()));
       void refetch();
     },
   };
