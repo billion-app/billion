@@ -4,7 +4,7 @@ Start with the [architecture tour](docs/architecture.md) if you are still figuri
 
 ## Prerequisites
 
-- Node `>=22.20.0` and pnpm `10.15.1`, as pinned in `package.json`.
+- Node `22.23.4` and pnpm `10.15.1`, as pinned in `.nvmrc` and `package.json`.
 - PostgreSQL. Onboarding can use Postgres.app, Homebrew Postgres, or the repository's Docker Compose service.
 - For iOS development, macOS with Xcode, command-line tools, and an iOS Simulator. For Android, Android Studio with an SDK, emulator, and compatible JDK. See [Android setup and Google Play release](docs/android-release.md) for installation and release steps.
 
