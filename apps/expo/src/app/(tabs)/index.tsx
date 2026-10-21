@@ -33,6 +33,7 @@ import { Text } from "~/components/Themed";
 import { ContentCard, Icon, Pill, Pills, SearchInput } from "~/components/ui";
 import { posthog } from "~/config/posthog";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { useCardTranslationPolling } from "~/hooks/useCardTranslationPolling";
 import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
 import { useDebounced } from "~/hooks/useDebounce";
 import { isSaveable, useSavedContent } from "~/hooks/useSavedContent";
@@ -46,7 +47,7 @@ import {
   fontDisplay,
 } from "~/styles";
 import { queryClient, trpc, trpcClient } from "~/utils/api";
-import { cardTranslationPolling } from "~/utils/card-translation";
+import { PUBLIC_CONTENT_STALE_TIME } from "~/utils/card-translation";
 import { toCardItem } from "~/utils/content";
 import { daysUntil, isWithinDays } from "~/utils/dates";
 import { electionsAreLive } from "~/utils/elections-live";
@@ -130,6 +131,7 @@ export function BrowseCatalog() {
 
   const {
     data,
+    refetch,
     isLoading,
     error,
     fetchNextPage,
@@ -140,7 +142,7 @@ export function BrowseCatalog() {
       { type: filter, limit: PAGE_SIZE, jurisdiction, language },
       {
         initialCursor: 0,
-        refetchInterval: cardTranslationPolling,
+        staleTime: PUBLIC_CONTENT_STALE_TIME,
         getNextPageParam: (lastPage) => lastPage.nextCursor,
       },
     ),
@@ -160,7 +162,7 @@ export function BrowseCatalog() {
   const featuredQuery = useQuery({
     ...trpc.content.getFeaturedBills.queryOptions({ jurisdiction, language }),
     enabled: showFeatured,
-    refetchInterval: cardTranslationPolling,
+    staleTime: PUBLIC_CONTENT_STALE_TIME,
   });
   const searchQuery = useQuery({
     ...trpc.content.search.queryOptions({
@@ -170,7 +172,7 @@ export function BrowseCatalog() {
       jurisdiction,
     }),
     enabled: isSearching,
-    refetchInterval: cardTranslationPolling,
+    staleTime: PUBLIC_CONTENT_STALE_TIME,
   });
   const otherSearchQuery = useQuery({
     ...trpc.content.search.queryOptions({
@@ -181,7 +183,32 @@ export function BrowseCatalog() {
       limit: 3,
     }),
     enabled: isSearching,
-    refetchInterval: cardTranslationPolling,
+    staleTime: PUBLIC_CONTENT_STALE_TIME,
+  });
+
+  const browseTranslations = useCardTranslationPolling({
+    data,
+    language,
+    refetch,
+    enabled: !isSearching,
+  });
+  const featuredTranslations = useCardTranslationPolling({
+    data: featuredQuery.data,
+    language,
+    refetch: featuredQuery.refetch,
+    enabled: showFeatured,
+  });
+  const searchTranslations = useCardTranslationPolling({
+    data: searchQuery.data,
+    language,
+    refetch: searchQuery.refetch,
+    enabled: isSearching,
+  });
+  const otherSearchTranslations = useCardTranslationPolling({
+    data: otherSearchQuery.data,
+    language,
+    refetch: otherSearchQuery.refetch,
+    enabled: isSearching,
   });
 
   const featuredBills = useMemo(
@@ -344,14 +371,27 @@ export function BrowseCatalog() {
                 isError={
                   !!listError ||
                   (showFeatured && !!featuredQuery.error) ||
-                  (isSearching && !!otherSearchQuery.error)
+                  (isSearching && !!otherSearchQuery.error) ||
+                  (!isSearching && browseTranslations.isError) ||
+                  (showFeatured && featuredTranslations.isError) ||
+                  (isSearching &&
+                    (searchTranslations.isError ||
+                      otherSearchTranslations.isError))
                 }
                 items={[
                   ...items,
                   ...(showFeatured ? featuredBills : []),
                   ...(isSearching ? (otherSearchQuery.data ?? []) : []),
                 ]}
-                onRetry={() => void handleRefresh()}
+                onRetry={() => {
+                  if (isSearching) {
+                    searchTranslations.retry();
+                    otherSearchTranslations.retry();
+                  } else {
+                    browseTranslations.retry();
+                    if (showFeatured) featuredTranslations.retry();
+                  }
+                }}
               />
             </View>
 

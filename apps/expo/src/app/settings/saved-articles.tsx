@@ -16,6 +16,7 @@ import { EmptySearchMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
 import { ContentCard, NavHeader } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { useCardTranslationPolling } from "~/hooks/useCardTranslationPolling";
 import { useSavedContent } from "~/hooks/useSavedContent";
 import {
   DigestHair,
@@ -25,7 +26,7 @@ import {
   DigestPalette as P,
 } from "~/styles";
 import { trpc } from "~/utils/api";
-import { cardTranslationPolling } from "~/utils/card-translation";
+import { PUBLIC_CONTENT_STALE_TIME } from "~/utils/card-translation";
 import { toCardItem } from "~/utils/content";
 
 function SwipeableSavedCard({
@@ -80,9 +81,15 @@ export default function SavedArticlesScreen() {
   const { data, isLoading, error, refetch } = useQuery({
     ...trpc.content.byIds.queryOptions({ ids: savedIds, language }),
     enabled: savedIds.length > 0,
-    refetchInterval: cardTranslationPolling,
+    staleTime: PUBLIC_CONTENT_STALE_TIME,
   });
 
+  const translations = useCardTranslationPolling({
+    data,
+    language,
+    refetch,
+    enabled: savedIds.length > 0,
+  });
   const list = data?.items ?? [];
 
   return (
@@ -117,7 +124,8 @@ export default function SavedArticlesScreen() {
               <>
                 <CardTranslationNotice
                   items={list}
-                  onRetry={() => void refetch()}
+                  isError={translations.isError}
+                  onRetry={translations.retry}
                 />
                 <Text style={s.intro}>
                   {t("saved.count", { count: list.length })}

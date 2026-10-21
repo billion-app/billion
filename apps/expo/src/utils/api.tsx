@@ -46,7 +46,9 @@ export const trpcClient = createTRPCClient<AppRouter>({
       colorMode: "ansi",
     }),
     splitLink({
-      condition: (operation) => operation.path === "civic.getBallotTranslation",
+      condition: (operation) =>
+        operation.path === "civic.getBallotTranslation" ||
+        operation.path === "content.translationStatus",
       true: httpLink({ ...httpOptions, methodOverride: "POST" }),
       false: httpBatchLink(httpOptions),
     }),

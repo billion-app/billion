@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 
+import type { CardTranslationLookup } from "./card-translation-status";
 import type { TranslationLanguage } from "./content-translation";
-import { collectSegments } from "./content-translation";
+import { collectSegments, hashSegments } from "./content-translation";
 import { getSegmentTranslationsMany } from "./content-translation-store";
 
 export interface TranslatableCard {
@@ -69,6 +70,7 @@ export async function localizeContentCards<T extends TranslatableCard>(
 ): Promise<
   (T & {
     translationState: "original" | "pending" | "translated" | "unavailable";
+    translationLookup?: CardTranslationLookup;
   })[]
 > {
   if (language === "en")
@@ -77,12 +79,34 @@ export async function localizeContentCards<T extends TranslatableCard>(
       translationState: "original" as const,
     }));
   try {
-    const payloads = await getSegmentTranslationsMany(
-      cards.map((card) => cardTranslationRequest(card, language)),
+    const requests = cards.map((card) =>
+      cardTranslationRequest(card, language),
     );
-    return cards.map((card, index) =>
-      applyCardTranslation(card, payloads[index] ?? null),
-    );
+    const payloads = await getSegmentTranslationsMany(requests);
+    return cards.map((card, index) => {
+      const translated = applyCardTranslation(card, payloads[index] ?? null);
+      const request = requests[index];
+      return {
+        ...translated,
+        ...(translated.translationState === "pending" && request
+          ? {
+              translationLookup: {
+                contentId: request.contentId,
+                sourceHash: hashSegments(request.segments),
+                fields: (
+                  [
+                    "card.title",
+                    "card.description",
+                    "card.featureTakeaway",
+                  ] as const
+                ).filter((field) =>
+                  request.segments.some((segment) => segment.key === field),
+                ),
+              },
+            }
+          : {}),
+      };
+    });
   } catch (error) {
     console.error("Unable to translate content cards", error);
     return cards.map((card) => ({

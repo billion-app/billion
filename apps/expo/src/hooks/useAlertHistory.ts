@@ -6,11 +6,14 @@ import { useQuery } from "@tanstack/react-query";
 
 import { parseAlertHistory, readAlertHistory } from "~/utils/alert-history";
 import { trpcClient } from "~/utils/api";
+import { cardTranslationDelay } from "~/utils/card-translation";
 import { ensurePushToken } from "~/utils/push-sync";
 import { useAppTranslation } from "./useAppTranslation";
+import { useTranslationWait } from "./useTranslationWait";
 
 export function useAlertHistory() {
   const { language, t } = useAppTranslation();
+  const translationWait = useTranslationWait(language, language !== "en");
   const { data, isPending, error, refetch } = useQuery({
     queryKey: ["notification-history", language],
     queryFn: async () => {
@@ -34,8 +37,9 @@ export function useAlertHistory() {
       return parseAlertHistory(JSON.stringify(rows));
     },
     refetchInterval: (query) =>
+      !translationWait.expired &&
       query.state.data?.some((item) => item.translationState === "pending")
-        ? 3_000
+        ? cardTranslationDelay(query.state.dataUpdateCount - 1)
         : false,
   });
   useFocusEffect(
@@ -47,6 +51,10 @@ export function useAlertHistory() {
     items: data ?? [],
     isLoading: isPending,
     error,
-    retry: () => void refetch(),
+    translationUnavailable: translationWait.expired,
+    retry: () => {
+      translationWait.retry();
+      void refetch();
+    },
   };
 }

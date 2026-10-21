@@ -20,7 +20,8 @@ import { formatAlertTime, groupAlertsByDay } from "~/utils/alert-history";
 export default function AlertsScreen() {
   const router = useRouter();
   const { language, t } = useAppTranslation();
-  const { items, isLoading, error, retry } = useAlertHistory();
+  const { items, isLoading, error, retry, translationUnavailable } =
+    useAlertHistory();
   const groups = groupAlertsByDay(items, new Date(), language);
 
   return (
@@ -34,7 +35,7 @@ export default function AlertsScreen() {
         <CardTranslationNotice
           items={items.filter((item) => item.translationState)}
           onRetry={retry}
-          isError={!!error}
+          isError={!!error || translationUnavailable}
         />
         {groups.length === 0 ? (
           <View>

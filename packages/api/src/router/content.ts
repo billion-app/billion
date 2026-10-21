@@ -32,6 +32,10 @@ import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
 import { projectBillStatus } from "../lib/bill-status";
 import { localizeContentCards } from "../lib/card-translation";
 import {
+  cardTranslationLookupSchema,
+  readyCardTranslations,
+} from "../lib/card-translation-status";
+import {
   attachContentImages,
   billDescription,
   courtJurisdiction,
@@ -162,6 +166,7 @@ const ContentCardSchema = z.object({
   sponsor: z.string().optional(),
   sessionLabel: z.string().optional(),
   sourceLabel: z.string().optional(),
+  translationLookup: cardTranslationLookupSchema.optional(),
   translationState: z
     .enum(["original", "pending", "translated", "unavailable"])
     .optional(),
@@ -267,6 +272,15 @@ const _ContentDetailSchema = ContentCardSchema.extend({
 export type ContentDetail = z.infer<typeof _ContentDetailSchema>;
 
 export const contentRouter = {
+  translationStatus: publicProcedure
+    .input(
+      z.object({
+        language: z.enum(["es", "zh"]),
+        lookups: z.array(cardTranslationLookupSchema).max(100),
+      }),
+    )
+    .query(({ input }) => readyCardTranslations(input)),
+
   // Get all content from database
   getAll: publicProcedure.query(async () => {
     const bills = await db
