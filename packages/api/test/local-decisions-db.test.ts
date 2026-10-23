@@ -198,15 +198,13 @@ void test(
             assert.ok(decision);
             const localBodyId = randomUUID();
             const meetingId = randomUUID();
-            await db
-              .insert(LocalBody)
-              .values({
-                id: localBodyId,
-                jurisdictionKey: key,
-                sourceBodyId: 1,
-                name: "Council",
-                included: true,
-              });
+            await db.insert(LocalBody).values({
+              id: localBodyId,
+              jurisdictionKey: key,
+              sourceBodyId: 1,
+              name: "Council",
+              included: true,
+            });
             await db.insert(LocalMeeting).values({
               id: meetingId,
               jurisdictionKey: key,
@@ -216,14 +214,12 @@ void test(
               localDate: now.toISOString().slice(0, 10),
               sourceUpdatedAt: now,
             });
-            await db
-              .insert(LocalMeetingItem)
-              .values({
-                meetingId,
-                decisionId: decision.id,
-                sourceEventItemId: 1,
-                sourceUpdatedAt: now,
-              });
+            await db.insert(LocalMeetingItem).values({
+              meetingId,
+              decisionId: decision.id,
+              sourceEventItemId: 1,
+              sourceUpdatedAt: now,
+            });
           }
           assert.deepEqual(
             (await api.legistar.listJurisdictions())
@@ -304,6 +300,8 @@ void test(
                 return {
                   id: item.id,
                   startsAt: meeting.startsAt,
+                  cancelled: false,
+                  location: null,
                   action: item.actionName,
                   proposedAction: item.actionText,
                   passed: item.passedFlagName,
@@ -332,6 +330,28 @@ void test(
             (await api.legistar.getDecision({ id: repeatedId })).brief,
             brief,
           );
+          for (const change of [
+            { cancelled: true },
+            { location: "Updated public meeting room" },
+          ]) {
+            await db
+              .update(LocalMeeting)
+              .set(change)
+              .where(eq(LocalMeeting.id, newest.id));
+            assert.equal(
+              (await api.legistar.getDecision({ id: repeatedId })).brief,
+              null,
+              "Changed meeting logistics hide the previously verified brief",
+            );
+            await db
+              .update(LocalMeeting)
+              .set({ cancelled: false, location: null })
+              .where(eq(LocalMeeting.id, newest.id));
+            assert.deepEqual(
+              (await api.legistar.getDecision({ id: repeatedId })).brief,
+              brief,
+            );
+          }
           for (const invalid of [
             { claims: [] },
             { ...brief, sourceContext: "stale source context" },

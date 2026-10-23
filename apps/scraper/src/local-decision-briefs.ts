@@ -69,6 +69,8 @@ for (const decision of decisions) {
       .select({
         id: LocalMeetingItem.id,
         startsAt: LocalMeeting.startsAt,
+        cancelled: LocalMeeting.cancelled,
+        location: LocalMeeting.location,
         action: LocalMeetingItem.actionName,
         proposedAction: LocalMeetingItem.actionText,
         passed: LocalMeetingItem.passedFlagName,

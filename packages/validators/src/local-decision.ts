@@ -108,6 +108,8 @@ export function computeLocalDecisionSourceContext(input: {
   occurrences: readonly {
     id: string;
     startsAt: Date | string | null;
+    cancelled: boolean;
+    location: string | null;
     action: string | null;
     proposedAction: string | null;
     passed: string | null;
@@ -124,6 +126,8 @@ export function computeLocalDecisionSourceContext(input: {
       .map((item) => ({
         id: item.id,
         startsAt: item.startsAt === null ? null : date(item.startsAt),
+        cancelled: item.cancelled,
+        location: item.location,
         action: item.action,
         proposedAction: item.proposedAction,
         passed: item.passed,

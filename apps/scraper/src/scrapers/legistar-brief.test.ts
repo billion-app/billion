@@ -87,6 +87,8 @@ test("context follows source changes and ignores occurrence ordering", () => {
   const occurrence = {
     id: "1",
     startsAt: "2026-10-23T00:00:00Z",
+    cancelled: false,
+    location: "City Hall",
     action: null,
     proposedAction: null,
     passed: null,
@@ -106,6 +108,21 @@ test("context follows source changes and ignores occurrence ordering", () => {
     }),
     context,
   );
+  for (const patch of [{ cancelled: true }, { location: "Library" }]) {
+    const changedContext = computeLocalDecisionSourceContext({
+      ...input,
+      occurrences: input.occurrences.map((item) => ({ ...item, ...patch })),
+    });
+    assert.equal(
+      validateLocalDecisionBrief(
+        { ...brief, sourceContext: context },
+        [document],
+        changedContext,
+      ),
+      null,
+      "Changed meeting logistics invalidate an otherwise verified brief",
+    );
+  }
   assert.notEqual(
     computeLocalDecisionSourceContext({ ...input, status: "Approved" }),
     context,
