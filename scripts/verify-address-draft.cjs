@@ -19,12 +19,13 @@ const { build } = req(
    import React, { useState } from 'react';
    import { createRoot } from 'react-dom/client';
    import { AddressAutocomplete } from './src/components/AddressAutocomplete';
+   import { AddressForm } from './src/components/AddressForm';
    window.saved = [];
    function Host() {
     const [cancelled, setCancelled] = useState(false);
     return <div style={{width:320,background:'#0E1530',padding:16}}>{cancelled ? <p id="cancelled">Cancelled</p> : <AddressAutocomplete inline onSubmit={address => window.saved.push(address)} onCancel={() => setCancelled(true)} />}</div>;
    }
-   createRoot(document.getElementById('root')).render(<Host />);`,
+   createRoot(document.getElementById('root')).render(window.location.search === '?manual' ? <div style={{width:320,background:'#0E1530',padding:16}}><AddressForm inline onSubmit={address => window.saved.push(address)} /></div> : <Host />);`,
       loader: "tsx",
       resolveDir: app,
     },
@@ -74,7 +75,10 @@ const { build } = req(
     if (request.url === "/app.js") {
       response.setHeader("Content-Type", "text/javascript");
       response.end(bundle.outputFiles[0].text);
-    } else response.end('<div id="root"></div><script src="/app.js"></script>');
+    } else
+      response.end(
+        '<style>body{margin:0;background:#0E1530;min-height:100vh}</style><div id="root"></div><script src="/app.js"></script>',
+      );
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   const browser = await chromium.launch();
@@ -82,60 +86,88 @@ const { build } = req(
     const page = await browser.newPage({
       viewport: { width: 360, height: 640 },
     });
-    await page.goto(`http://127.0.0.1:${server.address().port}`);
-    await page
-      .getByRole("button", { name: "Use my location", exact: true })
-      .click();
-    await page.getByText("Finding your location…", { exact: true }).waitFor();
-    await page.evaluate(() => window.finishFix());
-    const field = page.getByRole("textbox");
-    await field.filter({ visible: true }).waitFor();
-    await page.waitForFunction(() =>
-      document.querySelector("input")?.value.includes("123 Main Street"),
-    );
-    assert.deepEqual(
-      await page.evaluate(() => window.saved),
-      [],
-      "GPS fills a draft; it must not save automatically",
-    );
-    assert.match(
-      await page.locator("body").innerText(),
-      /Check it, then tap Save/,
-    );
-    fs.mkdirSync("/tmp/billion-address-audit-fixes", { recursive: true });
-    await page.screenshot({
-      path: "/tmp/billion-address-audit-fixes/filled-device-draft.png",
-    });
-    await page.getByRole("button", { name: "Save", exact: true }).click();
-    assert.equal((await page.evaluate(() => window.saved)).length, 1);
-    await page.reload();
-    await page
-      .getByRole("button", { name: "Use my location", exact: true })
-      .click();
-    await page.getByText("Finding your location…", { exact: true }).waitFor();
-    await page.getByRole("textbox").fill("A manually chosen address");
-    await page.evaluate(() => window.finishFix());
+    if (!process.argv.includes("--manual-only")) {
+      await page.goto(`http://127.0.0.1:${server.address().port}`);
+      await page
+        .getByRole("button", { name: "Use my location", exact: true })
+        .click();
+      await page.getByText("Finding your location…", { exact: true }).waitFor();
+      await page.evaluate(() => window.finishFix());
+      const field = page.getByRole("textbox");
+      await field.filter({ visible: true }).waitFor();
+      await page.waitForFunction(() =>
+        document.querySelector("input")?.value.includes("123 Main Street"),
+      );
+      assert.deepEqual(
+        await page.evaluate(() => window.saved),
+        [],
+        "GPS fills a draft; it must not save automatically",
+      );
+      assert.match(
+        await page.locator("body").innerText(),
+        /Check it, then tap Save/,
+      );
+      fs.mkdirSync("/tmp/billion-address-audit-fixes", { recursive: true });
+      await page.screenshot({
+        path: "/tmp/billion-address-audit-fixes/filled-device-draft.png",
+      });
+      await page.getByRole("button", { name: "Save", exact: true }).click();
+      assert.equal((await page.evaluate(() => window.saved)).length, 1);
+      await page.reload();
+      await page
+        .getByRole("button", { name: "Use my location", exact: true })
+        .click();
+      await page.getByText("Finding your location…", { exact: true }).waitFor();
+      await page.getByRole("textbox").fill("A manually chosen address");
+      await page.evaluate(() => window.finishFix());
+      assert.equal(
+        await page.getByRole("textbox").inputValue(),
+        "A manually chosen address",
+        "late GPS must not replace typing",
+      );
+      assert.deepEqual(await page.evaluate(() => window.saved), []);
+      await page.reload();
+      await page
+        .getByRole("button", { name: "Use my location", exact: true })
+        .click();
+      await page.getByText("Finding your location…", { exact: true }).waitFor();
+      await page.getByRole("button", { name: "Cancel", exact: true }).click();
+      await page.evaluate(() => window.finishFix());
+      await page.locator("#cancelled").waitFor();
+      assert.deepEqual(
+        await page.evaluate(() => window.saved),
+        [],
+        "cancelled GPS must not commit",
+      );
+    }
+    await page.goto(`http://127.0.0.1:${server.address().port}/?manual`);
     assert.equal(
-      await page.getByRole("textbox").inputValue(),
-      "A manually chosen address",
-      "late GPS must not replace typing",
+      await page
+        .getByRole("button", { name: "Use my location", exact: true })
+        .count(),
+      0,
     );
-    assert.deepEqual(await page.evaluate(() => window.saved), []);
-    await page.reload();
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Save", exact: true })
+        .isDisabled(),
+      true,
+    );
     await page
-      .getByRole("button", { name: "Use my location", exact: true })
-      .click();
-    await page.getByText("Finding your location…", { exact: true }).waitFor();
-    await page.getByRole("button", { name: "Cancel", exact: true }).click();
-    await page.evaluate(() => window.finishFix());
-    await page.locator("#cancelled").waitFor();
-    assert.deepEqual(
-      await page.evaluate(() => window.saved),
-      [],
-      "cancelled GPS must not commit",
-    );
+      .getByRole("textbox")
+      .fill("  200 E Santa Clara St, San Jose, CA 95113  ");
+    assert.deepEqual(await page.evaluate(() => window.saved), []);
+    await page.getByRole("textbox").press("Enter");
+    assert.deepEqual(await page.evaluate(() => window.saved), [
+      "200 E Santa Clara St, San Jose, CA 95113",
+    ]);
+    await page.screenshot({
+      path: "/tmp/billion-address-audit-fixes/manual-address.png",
+    });
     console.log(
-      "Verified real address component/hook: filled device draft needs Save, manual typing wins over late GPS, Cancel prevents commit. OS provider is simulated.",
+      process.argv.includes("--manual-only")
+        ? "Verified manual address entry without location: blank Save disabled, typing requires confirmation, submitted address trimmed."
+        : "Verified manual and device address entry: GPS fills a draft, Save confirms, typing wins over late GPS, Cancel prevents commit. OS provider is simulated.",
     );
   } finally {
     await browser.close();
