@@ -34,7 +34,9 @@ export default async function LocalPage() {
             className="border-chrome bg-slate hover:border-spark rounded-2xl border p-6 no-underline"
           >
             <h2 className="font-display text-2xl font-bold">{city.name}</h2>
-            <p className="text-ink-night mt-2">Upcoming and recent decisions →</p>
+            <p className="text-ink-night mt-2">
+              Upcoming and recent decisions →
+            </p>
           </Link>
         ))}
         {cities.length === 0 && (
