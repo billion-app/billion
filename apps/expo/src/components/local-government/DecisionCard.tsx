@@ -158,12 +158,12 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 11.5,
     flexShrink: 1,
-    color: DigestPalette.quiet,
+    color: DigestPalette.inkOnNight,
   },
   sourceCaption: {
     fontFamily: fontBody.regular,
     fontSize: 10.5,
-    color: DigestPalette.quiet,
+    color: DigestPalette.inkOnNight,
     marginBottom: 4,
   },
   title: {
@@ -199,6 +199,6 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 11.5,
     flexShrink: 1,
-    color: DigestPalette.quiet,
+    color: DigestPalette.inkOnNight,
   },
 });
