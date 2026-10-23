@@ -435,9 +435,9 @@ export const settingsStrings = {
     zh: "你关注的内容",
   },
   "notify.followingSub": {
-    en: "Bills, elections, courts & topics",
-    es: "Proyectos de ley, elecciones, tribunales y temas",
-    zh: "法案、选举、法院与话题",
+    en: "Bills and city decisions",
+    es: "Proyectos de ley y decisiones municipales",
+    zh: "法案与市政决策",
   },
   "notify.exec": {
     en: "Executive orders",

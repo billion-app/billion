@@ -32,6 +32,9 @@ export function SiteBar() {
           <NavLink href="/browse" active={onBrowse}>
             Browse
           </NavLink>
+          <NavLink href="/local" active={pathname.startsWith("/local")}>
+            Local
+          </NavLink>
           <NavLink href="/browse/saved" active={onSaved}>
             <Icon
               name={onSaved ? "bookmarkFill" : "bookmark"}

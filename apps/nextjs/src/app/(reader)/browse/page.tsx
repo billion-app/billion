@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
+import Link from "next/link";
 
 import {
   MIN_SEARCH_LENGTH,
@@ -59,6 +60,11 @@ export default async function BrowsePage({ searchParams }: PageProps) {
 
   return (
     <HydrateClient>
+      <div className="mx-auto max-w-[1240px] px-4 pt-5 md:px-8">
+        <Link href="/local" className="text-spark text-sm">
+          Explore city decisions and official meeting agendas →
+        </Link>
+      </div>
       {/* useSearchParams needs a Suspense boundary to render on the server. */}
       <Suspense>
         <BrowseCatalog defaultScope={defaultScope} />

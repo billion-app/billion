@@ -2,7 +2,20 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
 import type { BillLifecycleAction } from "@acme/validators";
-import { and, desc, eq, inArray, sql, unionAll } from "@acme/db";
+import {
+  and,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNull,
+  lte,
+  notExists,
+  or,
+  sql,
+  unionAll,
+} from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
@@ -18,6 +31,10 @@ import { billDiscoveryCondition } from "../lib/bill-discovery";
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
 import { projectBillStatus } from "../lib/bill-status";
 import { localizeContentCards } from "../lib/card-translation";
+import {
+  cardTranslationLookupSchema,
+  readyCardTranslations,
+} from "../lib/card-translation-status";
 import {
   attachContentImages,
   billDescription,
@@ -40,7 +57,7 @@ import {
 import { getFederalOfficialByName } from "../lib/elected-officials";
 import {
   FEATURED_BILL_LIMIT,
-  rankFeaturedBillCandidates,
+  FEATURED_BILL_RECENT_DAYS,
 } from "../lib/featured-bills";
 import { translateContentDetail } from "../lib/reader-translation";
 import { protectedProcedure, publicProcedure } from "../trpc";
@@ -136,6 +153,7 @@ const ContentCardSchema = z.object({
   title: z.string(),
   description: z.string(),
   type: z.enum(["bill", "government_content", "court_case", "general"]),
+  governmentContentType: z.string().optional(),
   isAIGenerated: z.boolean(),
   thumbnailUrl: z.string().optional(),
   imageUri: z.string().optional(), // Add support for AI-generated data URIs
@@ -148,6 +166,7 @@ const ContentCardSchema = z.object({
   sponsor: z.string().optional(),
   sessionLabel: z.string().optional(),
   sourceLabel: z.string().optional(),
+  translationLookup: cardTranslationLookupSchema.optional(),
   translationState: z
     .enum(["original", "pending", "translated", "unavailable"])
     .optional(),
@@ -187,6 +206,21 @@ const BILL_CARD_COLUMNS = {
   createdAt: Bill.createdAt,
   chamber: Bill.chamber,
   sponsor: Bill.sponsor,
+};
+
+const GOVERNMENT_CARD_COLUMNS = {
+  id: GovernmentContent.id,
+  title: GovernmentContent.title,
+  description: GovernmentContent.description,
+  type: GovernmentContent.type,
+  thumbnailUrl: GovernmentContent.thumbnailUrl,
+};
+
+const COURT_CARD_COLUMNS = {
+  id: CourtCase.id,
+  title: CourtCase.title,
+  description: CourtCase.description,
+  thumbnailUrl: CourtCase.thumbnailUrl,
 };
 
 export function toBillCard(
@@ -238,21 +272,30 @@ const _ContentDetailSchema = ContentCardSchema.extend({
 export type ContentDetail = z.infer<typeof _ContentDetailSchema>;
 
 export const contentRouter = {
+  translationStatus: publicProcedure
+    .input(
+      z.object({
+        language: z.enum(["es", "zh"]),
+        lookups: z.array(cardTranslationLookupSchema).max(100),
+      }),
+    )
+    .query(({ input }) => readyCardTranslations(input)),
+
   // Get all content from database
   getAll: publicProcedure.query(async () => {
     const bills = await db
-      .select()
+      .select(BILL_CARD_COLUMNS)
       .from(Bill)
       .where(billDiscoveryCondition)
       .orderBy(desc(BILL_ACTIVITY_AT))
       .limit(20);
     const governmentContent = await db
-      .select()
+      .select(GOVERNMENT_CARD_COLUMNS)
       .from(GovernmentContent)
       .orderBy(desc(GOVERNMENT_CONTENT_ACTIVITY_AT))
       .limit(20);
     const courtCases = await db
-      .select()
+      .select(COURT_CARD_COLUMNS)
       .from(CourtCase)
       .orderBy(desc(COURT_CASE_ACTIVITY_AT))
       .limit(20);
@@ -266,6 +309,7 @@ export const contentRouter = {
         title: content.title,
         description: content.description ?? "",
         type: "government_content" as const,
+        governmentContentType: content.type,
         isAIGenerated: false,
         thumbnailUrl: content.thumbnailUrl ?? undefined,
       })),
@@ -298,70 +342,76 @@ export const contentRouter = {
         const jurisdictionCondition = billJurisdictionCondition(
           input.jurisdiction,
         );
-        const editorialQuery = db
+        const now = new Date();
+        const editorialRows = await db
           .select({
             bill: BILL_CARD_COLUMNS,
             rationale: FeaturedBill.rationale,
-            displayOrder: FeaturedBill.displayOrder,
-            overrideActive: FeaturedBill.active,
-            startsAt: FeaturedBill.startsAt,
-            endsAt: FeaturedBill.endsAt,
           })
           .from(FeaturedBill)
           .innerJoin(Bill, eq(Bill.id, FeaturedBill.billId))
-          .where(and(jurisdictionCondition, billDiscoveryCondition))
+          .where(
+            and(
+              jurisdictionCondition,
+              sql`(${billDiscoveryCondition})`,
+              eq(FeaturedBill.active, true),
+              or(
+                isNull(FeaturedBill.startsAt),
+                lte(FeaturedBill.startsAt, now),
+              ),
+              or(isNull(FeaturedBill.endsAt), gt(FeaturedBill.endsAt, now)),
+            ),
+          )
           .orderBy(
             FeaturedBill.displayOrder,
             desc(FeaturedBill.updatedAt),
             desc(FeaturedBill.billId),
-          );
+          )
+          .limit(FEATURED_BILL_LIMIT);
 
-        const scoredQuery = db
-          .select({
-            bill: BILL_CARD_COLUMNS,
-            interestScore: BillInterest.interestScore,
-            controversyScore: BillInterest.controversyScore,
-            attentionScore: BillInterest.attentionScore,
-          })
-          .from(Bill)
-          .innerJoin(BillInterest, eq(BillInterest.billId, Bill.id))
-          .where(
-            and(
-              jurisdictionCondition,
-              billDiscoveryCondition,
-              eq(BillInterest.contentHash, Bill.contentHash),
-            ),
-          );
-
-        const [editorialRows, scoredRows] = await Promise.all([
-          editorialQuery,
-          scoredQuery,
-        ]);
-        const now = new Date();
-        const liveEditorialRows = editorialRows.filter(
-          (row) =>
-            row.overrideActive &&
-            (!row.startsAt || row.startsAt <= now) &&
-            (!row.endsAt || row.endsAt > now),
+        const score = sql<number>`
+          ${BillInterest.interestScore}::double precision * 0.5 +
+          ${BillInterest.controversyScore}::double precision * 0.3 +
+          ${BillInterest.attentionScore}::double precision * 0.2
+        `;
+        const recentCutoff = new Date(
+          now.getTime() - FEATURED_BILL_RECENT_DAYS * 86_400_000,
         );
-        const overriddenIds = new Set(editorialRows.map((row) => row.bill.id));
-
-        const rankedRows = rankFeaturedBillCandidates(
-          scoredRows
-            .filter((row) => !overriddenIds.has(row.bill.id))
-            .map((row) => ({
-              ...row,
-              id: row.bill.id,
-              activityAt:
-                row.bill.lastActionAt ??
-                row.bill.introducedDate ??
-                row.bill.createdAt,
-            })),
-          now,
-        );
+        const remaining = FEATURED_BILL_LIMIT - editorialRows.length;
+        const rankedRows =
+          remaining > 0
+            ? await db
+                .select({
+                  bill: BILL_CARD_COLUMNS,
+                })
+                .from(Bill)
+                .innerJoin(BillInterest, eq(BillInterest.billId, Bill.id))
+                .where(
+                  and(
+                    jurisdictionCondition,
+                    sql`(${billDiscoveryCondition})`,
+                    eq(BillInterest.contentHash, Bill.contentHash),
+                    gte(BillInterest.interestScore, 60),
+                    or(gte(BILL_ACTIVITY_AT, recentCutoff), gte(score, 75)),
+                    notExists(
+                      db
+                        .select({ id: FeaturedBill.billId })
+                        .from(FeaturedBill)
+                        .where(eq(FeaturedBill.billId, Bill.id)),
+                    ),
+                  ),
+                )
+                .orderBy(
+                  desc(score),
+                  desc(BillInterest.attentionScore),
+                  desc(BILL_ACTIVITY_AT),
+                  desc(Bill.id),
+                )
+                .limit(remaining)
+            : [];
 
         const selected = [
-          ...liveEditorialRows.map((row) => ({
+          ...editorialRows.map((row) => ({
             bill: row.bill,
             featureTakeaway: row.rationale ?? undefined,
           })),
@@ -369,7 +419,7 @@ export const contentRouter = {
             bill: row.bill,
             featureTakeaway: undefined,
           })),
-        ].slice(0, FEATURED_BILL_LIMIT);
+        ];
 
         const cards = selected.map(({ bill, featureTakeaway }, index) => ({
           ...toBillCard(bill),
@@ -429,6 +479,7 @@ export const contentRouter = {
               title: Bill.title,
               description: sql<string>`coalesce(${Bill.description}, ${Bill.summary}, '')`,
               type: sql<string>`'bill'`,
+              governmentContentType: sql<string | null>`null`,
               thumbnailUrl: Bill.thumbnailUrl,
               billNumber: sql<string | null>`${Bill.billNumber}`,
               sourceWebsite: sql<string | null>`${Bill.sourceWebsite}`,
@@ -453,6 +504,9 @@ export const contentRouter = {
               title: GovernmentContent.title,
               description: sql<string>`coalesce(${GovernmentContent.description}, '')`,
               type: sql<string>`'government_content'`,
+              governmentContentType: sql<
+                string | null
+              >`${GovernmentContent.type}`,
               thumbnailUrl: GovernmentContent.thumbnailUrl,
               billNumber: sql<string | null>`null`,
               sourceWebsite: sql<string | null>`null`,
@@ -472,6 +526,7 @@ export const contentRouter = {
               title: CourtCase.title,
               description: sql<string>`coalesce(${CourtCase.description}, '')`,
               type: sql<string>`'court_case'`,
+              governmentContentType: sql<string | null>`null`,
               thumbnailUrl: CourtCase.thumbnailUrl,
               billNumber: sql<string | null>`null`,
               sourceWebsite: sql<string | null>`null`,
@@ -505,6 +560,7 @@ export const contentRouter = {
                 title: row.title,
                 description: row.description,
                 type: row.type as ContentCard["type"],
+                governmentContentType: row.governmentContentType ?? undefined,
                 isAIGenerated: false,
                 thumbnailUrl: row.thumbnailUrl ?? undefined,
                 jurisdiction:
@@ -526,7 +582,7 @@ export const contentRouter = {
 
       if (input.type === "bill") {
         const bills = await db
-          .select()
+          .select(BILL_CARD_COLUMNS)
           .from(Bill)
           .where(
             and(
@@ -553,7 +609,7 @@ export const contentRouter = {
           return { items: [] as ContentCard[], nextCursor: undefined };
         }
         const governmentContent = await db
-          .select()
+          .select(GOVERNMENT_CARD_COLUMNS)
           .from(GovernmentContent)
           .orderBy(desc(GOVERNMENT_CONTENT_ACTIVITY_AT))
           .limit(limit + 1)
@@ -567,6 +623,7 @@ export const contentRouter = {
           title: content.title,
           description: content.description ?? "",
           type: "government_content" as const,
+          governmentContentType: content.type,
           isAIGenerated: false,
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
@@ -583,7 +640,7 @@ export const contentRouter = {
         return { items: [] as ContentCard[], nextCursor: undefined };
       }
       const courtCases = await db
-        .select()
+        .select(COURT_CARD_COLUMNS)
         .from(CourtCase)
         .where(courtJurisdictionCondition(jurisdiction))
         .orderBy(desc(COURT_CASE_ACTIVITY_AT))
@@ -653,7 +710,7 @@ export const contentRouter = {
 
       if (type === "bill") {
         const bills = await db
-          .select()
+          .select(BILL_CARD_COLUMNS)
           .from(Bill)
           .where(
             and(
@@ -673,7 +730,7 @@ export const contentRouter = {
       if (type === "government_content" || type === "general") {
         if (jurisdiction !== "federal") return [];
         const governmentContent = await db
-          .select()
+          .select(GOVERNMENT_CARD_COLUMNS)
           .from(GovernmentContent)
           .where(govMatch)
           .orderBy(desc(govRank))
@@ -683,6 +740,7 @@ export const contentRouter = {
           title: content.title,
           description: content.description ?? "",
           type: "government_content" as const,
+          governmentContentType: content.type,
           isAIGenerated: false,
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
@@ -694,7 +752,7 @@ export const contentRouter = {
       if (type === "court_case") {
         if (jurisdiction !== "federal" && jurisdiction !== "ma") return [];
         const courtCases = await db
-          .select()
+          .select(COURT_CARD_COLUMNS)
           .from(CourtCase)
           .where(and(caseMatch, courtJurisdictionCondition(jurisdiction)))
           .orderBy(desc(caseRank))
@@ -728,6 +786,7 @@ export const contentRouter = {
                 "description",
               ),
             type: sql<string>`'bill'`.as("type"),
+            governmentContentType: sql<string | null>`null`,
             thumbnailUrl: Bill.thumbnailUrl,
             billNumber: sql<string | null>`${Bill.billNumber}`,
             sourceWebsite: sql<string | null>`${Bill.sourceWebsite}`,
@@ -756,6 +815,9 @@ export const contentRouter = {
                 "description",
               ),
             type: sql<string>`'government_content'`.as("type"),
+            governmentContentType: sql<
+              string | null
+            >`${GovernmentContent.type}`,
             thumbnailUrl: GovernmentContent.thumbnailUrl,
             billNumber: sql<string | null>`null`,
             sourceWebsite: sql<string | null>`null`,
@@ -777,6 +839,7 @@ export const contentRouter = {
               "description",
             ),
             type: sql<string>`'court_case'`.as("type"),
+            governmentContentType: sql<string | null>`null`,
             thumbnailUrl: CourtCase.thumbnailUrl,
             billNumber: sql<string | null>`null`,
             sourceWebsite: sql<string | null>`null`,
@@ -806,6 +869,7 @@ export const contentRouter = {
               title: row.title,
               description: row.description,
               type: row.type as ContentCard["type"],
+              governmentContentType: row.governmentContentType ?? undefined,
               isAIGenerated: false,
               thumbnailUrl: row.thumbnailUrl ?? undefined,
               jurisdiction:
@@ -876,7 +940,13 @@ export const contentRouter = {
     )
     .query(async ({ input }) => {
       const [bill] = await db
-        .select()
+        .select({
+          sponsor: Bill.sponsor,
+          sourceWebsite: Bill.sourceWebsite,
+          billNumber: Bill.billNumber,
+          chamber: Bill.chamber,
+          url: Bill.url,
+        })
         .from(Bill)
         .where(eq(Bill.id, input.billId))
         .limit(1);
@@ -984,6 +1054,7 @@ export const contentRouter = {
           .select({
             id: GovernmentContent.id,
             title: GovernmentContent.title,
+            governmentContentType: GovernmentContent.type,
             description: GovernmentContent.description,
             thumbnailUrl: GovernmentContent.thumbnailUrl,
           })
@@ -1094,6 +1165,7 @@ export const contentRouter = {
                 .select({
                   id: GovernmentContent.id,
                   title: GovernmentContent.title,
+                  governmentContentType: GovernmentContent.type,
                   description: GovernmentContent.description,
                   thumbnailUrl: GovernmentContent.thumbnailUrl,
                 })

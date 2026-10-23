@@ -14,6 +14,8 @@ Expo Router maps files in `apps/expo/src/app/` to routes. Start with the route, 
 | Browse, filters, and search                         | [Browse catalog](<../apps/expo/src/app/(tabs)/index.tsx>) (`BrowseCatalog`) on the Browse tab (`feed` route)                                                                                                                                                                                                                               |
 | Home address and coverage                           | Feed lockup menu in [DigestGreetingBar](../apps/expo/src/components/DigestGreetingBar.tsx); Browse [JurisdictionPicker](../apps/expo/src/components/JurisdictionPicker.tsx)                                                                                                                                                                |
 | Address-based ballot lookup                         | [Elections route](<../apps/expo/src/app/(tabs)/elections.tsx>) — California preview entry followed by the address-based ballot                                                                                                                                                                                                             |
+| Voting logistics (How to Vote)                      | [How to Vote route](../apps/expo/src/app/how-to-vote.tsx) ; the derivation model is [utils/voting.ts](../apps/expo/src/utils/voting.ts)                                                                                                                                                                                                    |
+| Voting guide (How to Vote)                          | [How to Vote guide route](../apps/expo/src/app/how-to-vote-guide.tsx) — static, address-free guide entered from the top of the Elections tab; links to the method details in the How to Vote lookup                                                                                                                                        |
 | Original content, explanation, brief, and citations | [Article detail](../apps/expo/src/app/article-detail.tsx)                                                                                                                                                                                                                                                                                  |
 | Candidate race and ballot measure details           | [Contest detail](../apps/expo/src/app/contest-detail.tsx), [measure detail](../apps/expo/src/app/measure-detail.tsx)                                                                                                                                                                                                                       |
 | Tab registration and visibility                     | [Tab layout](<../apps/expo/src/app/(tabs)/_layout.tsx>) and [custom TabBar](../apps/expo/src/components/ui/TabBar.tsx)                                                                                                                                                                                                                     |
@@ -24,6 +26,12 @@ The California statewide guide lists every proposition returned by the current o
 
 The Feed tab is a short brief. [DigestHome](../apps/expo/src/components/DigestHome.tsx) shows up to seven featured local bills under “Today’s local news”; Massachusetts uses the recent mixed feed so bills and court dockets can both appear. “Also today” shows up to seven unread featured federal bills, falling back to recent federal bills only when no featured bills are available. It preserves the API's ordering rather than inventing a daily ranking or filtering by calendar date. Opening a successfully loaded [article detail](../apps/expo/src/app/article-detail.tsx) records its ID in [device-local read history](../apps/expo/src/utils/read-content.ts), so returning Home removes it from “Also today”. When that selection is empty or fully read, the section says “No new articles today”; loading and request failures remain separate states. Read history does not require an account, sync across devices, or affect Browse and the local rail. Saving a bill, case, or order reuses the separate device-local saved set; the article page draws a four-stop legislative path from the projected status label and does not invent chamber passage. The home greeting starts as soon as the splash has hidden and the local brief has settled, so a cold start does not consume the ceremony behind the splash or a loading spinner.
 
+Mobile and web Browse offer All, Bills, Executive, and Courts. The duplicate
+Briefings filter was removed because it queried the same government records as
+Executive. Existing web links with `type=general` select Executive and preserve
+their search text and jurisdiction. Government cards keep their source-type
+badges, such as Order, Notice, or Proclamation.
+
 Article detail renders bill `brief` with `BillBrief` and court `courtBrief` with
 [CourtBrief](../apps/expo/src/components/ui/CourtBrief.tsx). Court sections explain
 the specific relief and its procedural limits, attributed reasoning and opinions,
@@ -32,9 +40,7 @@ as interim relief. Legislative stages appear only for bills. Records missing a
 current court brief keep their Markdown or original-text fallback; the original
 text tab remains available alongside the brief and cited lenses.
 
-Feed, Browse, and Elections are visible tabs. Feedback and Settings are reached from the profile mark. The Elections tab starts with a California preview invitation. The statewide guide links to California's official voter lookup and county offices while production address-based ballot access is unconfigured; its official-ballot link offers election-office resources, with retry when the release-state check fails. If the in-app statewide preview is missing, the entry opens California’s official guide directly. Development builds expose the address lookup and synthetic scenarios for testing. The standalone ballot route reads `civic.getBallotAvailability`; local elections remains development-only. Home address and coverage (federal, California, Massachusetts bills and court records, North Carolina, Texas) are available from the Feed lockup dropdown or the Browse jurisdiction sheet. Check both Expo Router options and the custom `TabBar` when changing visibility.
-
-City decisions come from the explicit `LOCAL_JURISDICTIONS` registry in [local-government.ts](../apps/expo/src/utils/local-government.ts), which currently holds only the City of San José. The Elections entry lists it below the California guide, and the Browse sheet nests it under California. Both open [local decisions](../apps/expo/src/app/local-decisions.tsx) with an explicit `jurisdiction` parameter, so neither needs a saved address. The nested row opens that list and leaves Browse scope unchanged, because Browse lists state and federal records. Without the parameter, the list falls back to the saved address. Detection requires the city to be the locality component, so county-only placemarks and other Legistar clients known to the API (Santa Clara, Sunnyvale) are never offered.
+Feed, Browse, and Elections are visible tabs. Feedback and Settings are reached from the profile mark. The Elections tab starts with a California preview invitation, preceded by a [How to Vote guide](../apps/expo/src/app/how-to-vote-guide.tsx) card. That guide is static — no address and no provider call — and answers "what are my options, and what does each take?" in short, icon-led lines before handing off to the How to Vote lookup (`/how-to-vote?method=…` for a single method), election access, and election process. The statewide guide links to California's official voter lookup and county offices while production address-based ballot access is unconfigured; its official-ballot link offers election-office resources, with retry when the release-state check fails. If the in-app statewide preview is missing, the entry opens California’s official guide directly. Development builds expose the address lookup and synthetic scenarios for testing. The standalone ballot route reads `civic.getBallotAvailability`; local elections remains development-only. Home address and coverage (federal, California, Massachusetts bills and court records, North Carolina, Texas) are available from the Feed lockup dropdown or the Browse jurisdiction sheet. City decisions come from the explicit `LOCAL_JURISDICTIONS` registry in [local-government.ts](../apps/expo/src/utils/local-government.ts), which currently holds only the City of San José. The Elections entry lists it below the California guide, and the Browse sheet nests it under California. Both open [local decisions](../apps/expo/src/app/local-decisions.tsx) with an explicit `jurisdiction` parameter, so neither needs a saved address. The nested row opens that list and leaves Browse scope unchanged, because Browse lists state and federal records. Without the parameter, the list falls back to the saved address. Detection requires the city to be the locality component, so county-only placemarks and other Legistar clients known to the API (Santa Clara, Sunnyvale) are never offered. The address field takes a typed entry or resolves a one-shot native device location fix. Check both Expo Router options and the custom `TabBar` when changing visibility.
 
 The gated [national ballot route](../apps/expo/src/app/ballot.tsx) offers an election-office fallback until launch. The Elections tab displays the selected provider ballot in a card layout with Candidates/Measures tabs. The separate ballot route remains available from [local elections](../apps/expo/src/app/local-elections.tsx). The initial handoff reuses the caller’s query result; changing the lookup address or retrying fetches again. Lookup edits last for that mounted experience and do not replace the saved home address.
 
@@ -138,6 +144,8 @@ Web requests carry session cookies. The Expo auth client stores its session loca
 
 On a physical phone, Your alerts loads the server history when the screen opens. These are pushes accepted by Expo; entries are removed if a later receipt reports failure or delivery remains unknown after 24 hours. Receipt success confirms provider acceptance, not display on the phone. Empty history stays empty; old sample entries are discarded. Test reports push failures without substituting a local notification. Simulators use local OS notifications and keep only successfully scheduled tests in local history.
 
+Settings offers **New bills in Congress** after Executive orders. It defaults off for every installation, including new ones, and onboarding does not enable it. The choice persists locally and syncs through `PushSync`, including when the app returns to the foreground. Each eligible bill gets one alert that opens its article; new-bill alerts also appear in Your alerts.
+
 Push registration waits for onboarding to finish and notification preferences to load. Completing onboarding writes the selected instant and recap choices to the notification store before registration starts. Later Settings edits remain authoritative across launches.
 
 The [election-process education route](../apps/expo/src/app/election-process.tsx) is reached from the Elections invitation. It uses hand-authored summaries of linked official sources to compare presidential nomination, California congressional top-two elections and Texas party primaries. These are labeled educational examples, not personalized ballots or live contest timelines. Current stage and next milestone remain unavailable; official registration and election-office links provide the next action. Candidate-status distinctions do not create a 2028 roster. [Prototype gates](evidence/419/README.md) record the remaining editorial, reader and native verification work.
@@ -148,7 +156,7 @@ The Elections invitation opens the live, statewide California official guide cac
 
 These screens call the local `civic.getVoterInfo` API with explicit `mock:full`, `mock:partial`, `mock:empty` or `mock:error` addresses. The server recognizes them only when `NODE_ENV=development`, before any provider or cache operation. Production never returns these fixtures. Names, instructions and schedules in the fixtures are fictional.
 
-Article detail on mobile, the web reader, and shared article pages shows Created and Last updated beneath the title. These come from the stored record’s `createdAt` and `updatedAt` through `content.getById`, rather than the official publication or action date. If no update timestamp exists, Last updated uses the creation timestamp.
+Article detail on mobile, the web reader, and shared article pages shows Introduced for bills with a source introduction date from `content.getById`. Federal bills use the stored `introducedDate`; state bills require a dated introduction action because older records can store the provider’s creation date in that column. Government content shows Posted by White House or Published in Federal Register using its source publication date; this is not the signing date or a later citation added to a White House record. Supreme Court opinion-index dates are labeled Opinion released; eCourt docket activity is labeled Latest docket entry. Other court source dates use Court record dated. The underlying court column is named `filedDate`, but it can represent an opinion or docket activity, so the header does not call every date a filing or final decision. The shared `sourceDate` API metadata carries the date kind and source timezone to every reader. White House posts use Eastern time; date-only legislative, Federal Register, and court records use UTC. Records without a source date show Added to Billion using `createdAt`; this is when Billion first stored the record, not an official event date. Updated on Billion uses `updatedAt`, falling back to `createdAt` if no update timestamp exists. Source dates keep their source timezone rather than the reader’s device timezone. Labels and date formats follow the selected language.
 
 The voting plan opens inline in the statewide guide and the address ballot, so
 readers keep their election, tab and ballot position while checking official
@@ -163,7 +171,24 @@ production personalized-ballot path and real-reader flow verification.
 
 ### Ballot measure loading
 
+TanStack Query owns graph fetching, deduplication, failure handling, and caching. Expo Router’s `useIsFocused` supplies navigation focus; React Native’s `AppState` supplies foreground state and `requestIdleCallback` schedules spare-time work. The custom queue only serializes requests and pauses them for visibility, touch, and scrolling.
+
+After the Feed queries settle, idle preloading fills the shared California guide cache, including measure text, and prepares Elections with Expo Router's `router.prefetch`. On Measures, React Native FlatList viewability selects the rows actually visible in the viewport, including partially visible rows. Once scrolling stops, idle work warms those graphs and prepares their screens. Measure-number route identities let navigation adopt the matching screen. Each new viewport releases only hidden measure screens that are no longer visible; active readers, Back history, unrelated preloads, and cached data remain intact. The viewport bounds retained hidden readers instead of a fixed first-two limit.
+
+Each preload starts in a new idle callback while its source screen is focused and the app is active. Touches and scrolling pause the queue; navigation, backgrounding, or unmounting cancel queued callbacks. An existing query can finish so navigation can share it. The guide and graph queries use a one-minute freshness window. Hidden guide and graph observers read the cache without fetching. Focusing a prepared screen enables its query, so stale or failed preparation can fetch again without discarding available content. Background guide and graph requests do not retry. Expo owns the prepared screens; the custom queue only schedules idle work and bounds reader preparation.
+
+Hidden readers can load their DOM content and fonts before navigation. iOS defers their paint callbacks until they are visible, so the native skeleton still covers the first paint. Cold or incomplete preparation also retains the skeleton. Hidden readers do not start the reader failure deadline or translation polling, and their speech cleanup cannot stop a visible reader.
+
 The [native debate host](../apps/expo/src/components/trillion/TrillionScreen.tsx) keeps its header and skeleton visible while the DOM reader mounts. Storage completion is not a visual-ready signal: the reader waits for its stylesheet, fonts, and a painted frame before revealing content. A two-second typography deadline selects system fonts for that document if font loading stalls, preventing both indefinite loading and a late font swap. The DOM root has an explicit full column width, and the native navigation container shares the navy canvas so iOS rounded transitions cannot expose white corners. [Runtime evidence](evidence/measure-loading/README.md) records the verified states and limits.
+
+The How to Vote entry opens an address-free California guide with official
+registration, voting-location, ID and same-day registration links. Its wording
+and controls follow the selected app language; source names and published
+wording remain as supplied. The personalized `/how-to-vote` route keeps the
+server launch gate and selected election context. It reuses the shared official
+voting-guidance reader, retains citations on individual locations, and lets a
+reader edit an address after a failed lookup. A partially dated set of locations
+cannot establish that an entire voting method is closed or not open yet.
 
 ### Ballot, research, and shared readers
 
@@ -171,6 +196,36 @@ Address-ballot responses attach a short-lived signed translation reference. The 
 
 Candidate research is translated only after its release/publication gates pass. The catalog and full research reader use separate translation scopes. Claims, promises, finance explanations and evidence context translate; source excerpts, provenance, names, monetary values, release IDs and review digests do not change. Measure relationships and budget context follow the same rule: localized money labels live in an optional `display` object, while canonical amounts, comparison denominators and evidence remain unchanged.
 
-Alert history requests the selected language and refreshes while translation is pending. Test notifications use fixed localized copy and normalize to the current language when read. Ordinary OS push alerts still use their delivery-time copy; this does not persist a device language preference on the notification service.
+Public card lists keep their initial English cards while translations are queued.
+[Card polling](../apps/expo/src/hooks/useCardTranslationPolling.ts) checks only
+translation cache IDs and source hashes, then reloads a list when new translations
+are ready. Readiness requests use POST to support large paginated lists. Polling
+backs off from three to fifteen seconds and stops after two minutes; the existing
+Retry action starts another wait. Public content queries stay fresh for one minute
+to avoid duplicate reads when a reader moves between screens.
+
+Alert history requests the selected language through its private token-scoped
+endpoint and refreshes while translation is pending, with the same backoff and
+two-minute limit. Private alerts never use public card readiness. Test notifications use fixed localized copy and normalize to the current language when read. Ordinary OS push alerts still use their delivery-time copy; this does not persist a device language preference on the notification service.
 
 App share links carry `lang`; `/b/[id]`, its metadata, and the story/preview images use the same reader translation cache. A missing translation displays a localized preparing state instead of producing an English share image. The standalone marketing site and editorial tools have no app language selection and are outside this mobile-page audit. See the [October page audit](localization-audit.md) for coverage and intentional source-language boundaries.
+
+### Address confirmation, privacy, and updates
+
+Device location fills an editable draft. Both full forms and compact news menus
+require a visible confirmation action; Cancel discards the draft and invalidates
+pending location requests. News copy refers to a coverage address, while ballot
+copy asks for the registered voting address. The address-free voting guide labels
+its links as deadlines to check with official sources instead of presenting them
+as current dates. Settings → Privacy opens the Privacy Policy first and links
+directly to address and OS permission controls.
+
+[UpdatePrompt](../apps/expo/src/components/UpdatePrompt.tsx) owns the optional
+update notices. Its OTA card stays dismissible while preparing a restart; dismiss
+cancels restart intent, and a stalled preparation times out. Reduced motion does
+not change the action's urgency. The localized
+[App Store card](../apps/expo/src/components/AppStoreUpdateBanner.tsx) is suppressed
+while the OTA notice or preparation is active. Both notices sit above the tab
+bar so Back and the language selector remain reachable. It uses the installed native
+version and a validated public Apple listing through `appRelease.latestIos`.
+Development builds do not offer real App Store updates.

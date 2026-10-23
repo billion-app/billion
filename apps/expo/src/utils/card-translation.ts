@@ -1,3 +1,5 @@
+export const PUBLIC_CONTENT_STALE_TIME = 60_000;
+
 export interface CardTranslationState {
   translationState?: "original" | "pending" | "translated" | "unavailable";
 }

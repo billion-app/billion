@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import { getDocumentProxy } from "unpdf";
 
 import type {
-  Jurisdiction,
   LegistarAgendaItem,
   LegistarAttachment,
   LegistarBody,
@@ -27,6 +26,7 @@ import {
 } from "@acme/db/schema";
 
 import type { Scraper } from "../utils/types.js";
+import type { IngestedJurisdiction } from "./legistar-policy.js";
 import { getItemLimit } from "../utils/concurrency.js";
 import { incrementTotalProcessed } from "../utils/db/metrics.js";
 import { fetchWithRetry } from "../utils/fetch.js";
@@ -38,10 +38,9 @@ import {
   inferGeographicScope,
   isDecisionItem,
 } from "./legistar-policy.js";
-import { legistarConfig } from "./legistar.config.js";
+import { legistarConfig, santaClaraLegistarConfig } from "./legistar.config.js";
 
 const logger = createLogger("Legistar");
-const JURISDICTION: Jurisdiction = "sanjose";
 const DEFAULT_PAST_DAYS = 45;
 const DEFAULT_FUTURE_DAYS = 120;
 const DEFAULT_MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;
@@ -63,6 +62,7 @@ interface IngestionCounts extends Record<string, number> {
 interface ExtractedDocument {
   status: "native" | "ocr_required" | "skipped" | "failed";
   text: string | null;
+  pages: string[] | null;
   method: "pdf_native" | null;
   quality: number | null;
   pageCount: number | null;
@@ -137,11 +137,6 @@ export function parseLegistarMeetingStart(
   return new Date(wantedUtc - (renderedUtc - wantedUtc));
 }
 
-function publicMatterUrl(matter: LegistarMatter): string {
-  const portal = JURISDICTIONS[JURISDICTION].publicPortalUrl;
-  return `${portal}/LegislationDetail.aspx?ID=${matter.MatterId}&GUID=${encodeURIComponent(matter.MatterGuid)}`;
-}
-
 function sourcePayload(value: object): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
@@ -168,7 +163,7 @@ export function needsOcr(text: string, pageCount: number): boolean {
   );
 }
 
-async function extractPdf(
+export async function extractPdf(
   url: string,
   maxBytes: number,
 ): Promise<ExtractedDocument> {
@@ -179,6 +174,7 @@ async function extractPdf(
       return {
         status: "skipped",
         text: null,
+        pages: null,
         method: null,
         quality: null,
         pageCount: null,
@@ -192,6 +188,7 @@ async function extractPdf(
       return {
         status: "skipped",
         text: null,
+        pages: null,
         method: null,
         quality: null,
         pageCount: null,
@@ -206,6 +203,7 @@ async function extractPdf(
       return {
         status: "skipped",
         text: null,
+        pages: null,
         method: null,
         quality: null,
         pageCount: null,
@@ -215,6 +213,8 @@ async function extractPdf(
       };
     }
 
+    const byteSize = bytes.byteLength;
+    const contentHash = createHash("sha256").update(bytes).digest("hex");
     const document = await getDocumentProxy(bytes);
     const pages: string[] = [];
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber++) {
@@ -230,15 +230,15 @@ async function extractPdf(
     const text = pages.filter(Boolean).join("\n\n").trim();
     const pageCount = document.numPages;
     await document.destroy();
-    const contentHash = createHash("sha256").update(bytes).digest("hex");
     if (needsOcr(text, pageCount)) {
       return {
         status: "ocr_required",
         text: null,
+        pages: null,
         method: null,
         quality: nativeTextQuality(text, pageCount),
         pageCount,
-        byteSize: bytes.byteLength,
+        byteSize,
         mimeType: mimeType ?? "application/pdf",
         contentHash,
       };
@@ -246,10 +246,11 @@ async function extractPdf(
     return {
       status: "native",
       text,
+      pages,
       method: "pdf_native",
       quality: nativeTextQuality(text, pageCount),
       pageCount,
-      byteSize: bytes.byteLength,
+      byteSize,
       mimeType: mimeType ?? "application/pdf",
       contentHash,
     };
@@ -258,6 +259,7 @@ async function extractPdf(
     return {
       status: "failed",
       text: null,
+      pages: null,
       method: null,
       quality: null,
       pageCount: null,
@@ -272,59 +274,45 @@ const client = new LegistarClient((input, init) =>
   fetchWithRetry(String(input), init),
 );
 
-async function upsertJurisdiction(): Promise<void> {
-  const config = JURISDICTIONS[JURISDICTION];
-  await db
-    .insert(LocalJurisdiction)
-    .values({
-      key: JURISDICTION,
-      name: config.name,
-      state: config.state,
-      governmentLevel: "city",
-      timezone: config.timezone,
-      sourceType: "legistar",
-      sourceClient: config.client,
-      sourceBaseUrl: config.baseUrl,
-      publicPortalUrl: config.publicPortalUrl,
-    })
-    .onConflictDoUpdate({
-      target: LocalJurisdiction.key,
-      set: {
+function createLegistarScraper(
+  jurisdiction: IngestedJurisdiction,
+  config: typeof legistarConfig | typeof santaClaraLegistarConfig,
+): Scraper {
+  async function upsertJurisdiction(): Promise<void> {
+    const config = JURISDICTIONS[jurisdiction];
+    await db
+      .insert(LocalJurisdiction)
+      .values({
+        key: jurisdiction,
         name: config.name,
         state: config.state,
+        governmentLevel: "city",
         timezone: config.timezone,
+        sourceType: "legistar",
+        sourceClient: config.client,
         sourceBaseUrl: config.baseUrl,
         publicPortalUrl: config.publicPortalUrl,
-        active: true,
-      },
-    });
-}
+      })
+      .onConflictDoUpdate({
+        target: LocalJurisdiction.key,
+        set: {
+          name: config.name,
+          state: config.state,
+          timezone: config.timezone,
+          sourceBaseUrl: config.baseUrl,
+          publicPortalUrl: config.publicPortalUrl,
+          active: true,
+        },
+      });
+  }
 
-async function upsertBody(body: LegistarBody, seenAt: Date): Promise<string> {
-  const policy = bodyPolicy(body.BodyId);
-  const [row] = await db
-    .insert(LocalBody)
-    .values({
-      jurisdictionKey: JURISDICTION,
-      sourceBodyId: body.BodyId,
-      sourceGuid: body.BodyGuid,
-      name: body.BodyName,
-      typeName: body.BodyTypeName,
-      active: body.BodyActiveFlag === 1,
-      included: policy.included,
-      relevanceTier: policy.relevanceTier,
-      numberOfMembers: body.BodyNumberOfMembers,
-      description: body.BodyDescription,
-      contactName: body.BodyContactFullName,
-      contactEmail: body.BodyContactEmail,
-      contactPhone: body.BodyContactPhone,
-      sourceUpdatedAt: nullableDate(body.BodyLastModifiedUtc),
-      lastSeenAt: seenAt,
-      sourcePayload: sourcePayload(body),
-    })
-    .onConflictDoUpdate({
-      target: [LocalBody.jurisdictionKey, LocalBody.sourceBodyId],
-      set: {
+  async function upsertBody(body: LegistarBody, seenAt: Date): Promise<string> {
+    const policy = bodyPolicy(body.BodyId, jurisdiction);
+    const [row] = await db
+      .insert(LocalBody)
+      .values({
+        jurisdictionKey: jurisdiction,
+        sourceBodyId: body.BodyId,
         sourceGuid: body.BodyGuid,
         name: body.BodyName,
         typeName: body.BodyTypeName,
@@ -339,50 +327,42 @@ async function upsertBody(body: LegistarBody, seenAt: Date): Promise<string> {
         sourceUpdatedAt: nullableDate(body.BodyLastModifiedUtc),
         lastSeenAt: seenAt,
         sourcePayload: sourcePayload(body),
-      },
-    })
-    .returning({ id: LocalBody.id });
-  return row!.id;
-}
+      })
+      .onConflictDoUpdate({
+        target: [LocalBody.jurisdictionKey, LocalBody.sourceBodyId],
+        set: {
+          sourceGuid: body.BodyGuid,
+          name: body.BodyName,
+          typeName: body.BodyTypeName,
+          active: body.BodyActiveFlag === 1,
+          included: policy.included,
+          relevanceTier: policy.relevanceTier,
+          numberOfMembers: body.BodyNumberOfMembers,
+          description: body.BodyDescription,
+          contactName: body.BodyContactFullName,
+          contactEmail: body.BodyContactEmail,
+          contactPhone: body.BodyContactPhone,
+          sourceUpdatedAt: nullableDate(body.BodyLastModifiedUtc),
+          lastSeenAt: seenAt,
+          sourcePayload: sourcePayload(body),
+        },
+      })
+      .returning({ id: LocalBody.id });
+    return row!.id;
+  }
 
-async function upsertMeeting(
-  meeting: LegistarMeeting,
-  bodyId: string,
-  seenAt: Date,
-): Promise<string> {
-  const timezone = JURISDICTIONS[JURISDICTION].timezone;
-  const [row] = await db
-    .insert(LocalMeeting)
-    .values({
-      jurisdictionKey: JURISDICTION,
-      bodyId,
-      sourceEventId: meeting.EventId,
-      sourceGuid: meeting.EventGuid,
-      startsAt: parseLegistarMeetingStart(
-        meeting.EventDate,
-        meeting.EventTime,
-        timezone,
-      ),
-      localDate: meeting.EventDate.slice(0, 10),
-      timeLabel: meeting.EventTime,
-      location: meeting.EventLocation,
-      agendaUrl: meeting.EventAgendaFile,
-      minutesUrl: meeting.EventMinutesFile,
-      videoUrl: meeting.EventVideoPath,
-      sourceUrl: meeting.EventInSiteURL,
-      agendaStatusName: meeting.EventAgendaStatusName,
-      minutesStatusName: meeting.EventMinutesStatusName,
-      comment: meeting.EventComment,
-      cancelled: isCancelled(meeting),
-      sourceUpdatedAt: nullableDate(meeting.EventLastModifiedUtc) ?? seenAt,
-      lastSeenAt: seenAt,
-      sourceDeletedAt: null,
-      sourcePayload: sourcePayload(meeting),
-    })
-    .onConflictDoUpdate({
-      target: [LocalMeeting.jurisdictionKey, LocalMeeting.sourceEventId],
-      set: {
+  async function upsertMeeting(
+    meeting: LegistarMeeting,
+    bodyId: string,
+    seenAt: Date,
+  ): Promise<string> {
+    const timezone = JURISDICTIONS[jurisdiction].timezone;
+    const [row] = await db
+      .insert(LocalMeeting)
+      .values({
+        jurisdictionKey: jurisdiction,
         bodyId,
+        sourceEventId: meeting.EventId,
         sourceGuid: meeting.EventGuid,
         startsAt: parseLegistarMeetingStart(
           meeting.EventDate,
@@ -404,222 +384,234 @@ async function upsertMeeting(
         lastSeenAt: seenAt,
         sourceDeletedAt: null,
         sourcePayload: sourcePayload(meeting),
-      },
-    })
-    .returning({ id: LocalMeeting.id });
-  return row!.id;
-}
-
-async function upsertDecision(
-  matter: LegistarMatter,
-  item: LegistarAgendaItem,
-  bodyId: string | null,
-  seenAt: Date,
-): Promise<string> {
-  const scope = inferGeographicScope(matter, item);
-  const values = {
-    primaryBodyId: bodyId,
-    sourceGuid: matter.MatterGuid,
-    fileNumber: matter.MatterFile || null,
-    title: matter.MatterTitle || item.EventItemTitle || "Untitled decision",
-    name: matter.MatterName,
-    typeName: matter.MatterTypeName,
-    statusName: matter.MatterStatusName,
-    topic: classifyTopic(matter),
-    scopeKind: scope.kind,
-    districtNumbers: scope.districtNumbers,
-    geographicText: scope.text,
-    introDate: nullableDate(matter.MatterIntroDate),
-    agendaDate: nullableDate(matter.MatterAgendaDate),
-    passedDate: nullableDate(matter.MatterPassedDate),
-    enactmentDate: nullableDate(matter.MatterEnactmentDate),
-    enactmentNumber: matter.MatterEnactmentNumber,
-    requester: matter.MatterRequester,
-    notes: matter.MatterNotes,
-    sourceUrl: publicMatterUrl(matter),
-    sourceUpdatedAt: nullableDate(matter.MatterLastModifiedUtc) ?? seenAt,
-    lastSeenAt: seenAt,
-    sourceDeletedAt: null,
-    sourcePayload: sourcePayload(matter),
-  };
-  const [row] = await db
-    .insert(LocalDecision)
-    .values({
-      jurisdictionKey: JURISDICTION,
-      sourceMatterId: matter.MatterId,
-      ...values,
-    })
-    .onConflictDoUpdate({
-      target: [LocalDecision.jurisdictionKey, LocalDecision.sourceMatterId],
-      set: values,
-    })
-    .returning({ id: LocalDecision.id });
-  return row!.id;
-}
-
-async function upsertMeetingItem(
-  item: LegistarAgendaItem,
-  meetingId: string,
-  decisionId: string | null,
-  seenAt: Date,
-): Promise<string> {
-  const values = {
-    decisionId,
-    sourceGuid: item.EventItemGuid,
-    agendaSequence: item.EventItemAgendaSequence,
-    minutesSequence: item.EventItemMinutesSequence,
-    agendaNumber: item.EventItemAgendaNumber,
-    title: item.EventItemTitle,
-    actionName: item.EventItemActionName,
-    actionText: item.EventItemActionText,
-    passedFlagName: item.EventItemPassedFlagName,
-    tally: item.EventItemTally,
-    moverName: item.EventItemMover,
-    seconderName: item.EventItemSeconder,
-    consent: item.EventItemConsent === 1,
-    rollCall: item.EventItemRollCallFlag === 1,
-    agendaNote: item.EventItemAgendaNote,
-    minutesNote: item.EventItemMinutesNote,
-    videoIndex: item.EventItemVideoIndex,
-    sourceUpdatedAt: nullableDate(item.EventItemLastModifiedUtc) ?? seenAt,
-    lastSeenAt: seenAt,
-    sourceDeletedAt: null,
-    sourcePayload: sourcePayload(item),
-  };
-  const [row] = await db
-    .insert(LocalMeetingItem)
-    .values({
-      meetingId,
-      sourceEventItemId: item.EventItemId,
-      ...values,
-    })
-    .onConflictDoUpdate({
-      target: [LocalMeetingItem.meetingId, LocalMeetingItem.sourceEventItemId],
-      set: values,
-    })
-    .returning({ id: LocalMeetingItem.id });
-  return row!.id;
-}
-
-async function documentExtraction(
-  attachment: LegistarAttachment,
-  processingPolicy: "extract_text" | "link_only",
-  maxBytes: number,
-  skipText: boolean,
-): Promise<ExtractedDocument> {
-  if (processingPolicy === "link_only" || skipText) {
-    return {
-      status: "skipped",
-      text: null,
-      method: null,
-      quality: null,
-      pageCount: null,
-      byteSize: null,
-      mimeType: null,
-      contentHash: null,
-    };
+      })
+      .onConflictDoUpdate({
+        target: [LocalMeeting.jurisdictionKey, LocalMeeting.sourceEventId],
+        set: {
+          bodyId,
+          sourceGuid: meeting.EventGuid,
+          startsAt: parseLegistarMeetingStart(
+            meeting.EventDate,
+            meeting.EventTime,
+            timezone,
+          ),
+          localDate: meeting.EventDate.slice(0, 10),
+          timeLabel: meeting.EventTime,
+          location: meeting.EventLocation,
+          agendaUrl: meeting.EventAgendaFile,
+          minutesUrl: meeting.EventMinutesFile,
+          videoUrl: meeting.EventVideoPath,
+          sourceUrl: meeting.EventInSiteURL,
+          agendaStatusName: meeting.EventAgendaStatusName,
+          minutesStatusName: meeting.EventMinutesStatusName,
+          comment: meeting.EventComment,
+          cancelled: isCancelled(meeting),
+          sourceUpdatedAt: nullableDate(meeting.EventLastModifiedUtc) ?? seenAt,
+          lastSeenAt: seenAt,
+          sourceDeletedAt: null,
+          sourcePayload: sourcePayload(meeting),
+        },
+      })
+      .returning({ id: LocalMeeting.id });
+    return row!.id;
   }
 
-  const [existing] = await db
-    .select({
-      sourceUpdatedAt: LocalDecisionDocument.sourceUpdatedAt,
-      extractionStatus: LocalDecisionDocument.extractionStatus,
-      extractedText: LocalDecisionDocument.extractedText,
-      extractionMethod: LocalDecisionDocument.extractionMethod,
-      extractionQuality: LocalDecisionDocument.extractionQuality,
-      pageCount: LocalDecisionDocument.pageCount,
-      byteSize: LocalDecisionDocument.byteSize,
-      mimeType: LocalDecisionDocument.mimeType,
-      contentHash: LocalDecisionDocument.contentHash,
-    })
-    .from(LocalDecisionDocument)
-    .where(
-      and(
-        eq(LocalDecisionDocument.jurisdictionKey, JURISDICTION),
-        eq(
-          LocalDecisionDocument.sourceAttachmentId,
-          attachment.MatterAttachmentId,
-        ),
-      ),
-    )
-    .limit(1);
-  const sourceUpdatedAt = nullableDate(
-    attachment.MatterAttachmentLastModifiedUtc,
-  );
-  if (
-    existing &&
-    existing.sourceUpdatedAt?.getTime() === sourceUpdatedAt?.getTime() &&
-    (["native", "ocr_required"].includes(existing.extractionStatus) ||
-      (existing.extractionStatus === "skipped" &&
-        ((existing.byteSize !== null && existing.byteSize > maxBytes) ||
-          (existing.mimeType !== null &&
-            existing.mimeType !== "application/pdf"))))
-  ) {
-    return {
-      status: existing.extractionStatus as ExtractedDocument["status"],
-      text: existing.extractedText,
-      method: existing.extractionMethod === "pdf_native" ? "pdf_native" : null,
-      quality: existing.extractionQuality,
-      pageCount: existing.pageCount,
-      byteSize: existing.byteSize,
-      mimeType: existing.mimeType,
-      contentHash: existing.contentHash,
-    };
-  }
-  return extractPdf(attachment.MatterAttachmentHyperlink, maxBytes);
-}
-
-async function upsertDocument(
-  attachment: LegistarAttachment,
-  decisionId: string,
-  seenAt: Date,
-  counts: IngestionCounts,
-  maxBytes: number,
-  skipText: boolean,
-): Promise<void> {
-  const policy = classifyDocument(attachment);
-  const extraction = await documentExtraction(
-    attachment,
-    policy.processingPolicy,
-    maxBytes,
-    skipText,
-  );
-  await db
-    .insert(LocalDecisionDocument)
-    .values({
-      jurisdictionKey: JURISDICTION,
-      decisionId,
-      sourceAttachmentId: attachment.MatterAttachmentId,
-      sourceGuid: attachment.MatterAttachmentGuid,
-      name: attachment.MatterAttachmentName,
-      description: attachment.MatterAttachmentDescription,
-      url: attachment.MatterAttachmentHyperlink,
-      fileName: attachment.MatterAttachmentFileName,
-      category: policy.category,
-      sortOrder: attachment.MatterAttachmentSort,
-      isSupportingDocument: attachment.MatterAttachmentIsSupportingDocument,
-      isPublicComment: policy.isPublicComment,
-      processingPolicy: policy.processingPolicy,
-      extractionStatus: extraction.status,
-      extractedText: extraction.text,
-      extractionMethod: extraction.method,
-      extractionQuality: extraction.quality,
-      pageCount: extraction.pageCount,
-      byteSize: extraction.byteSize,
-      mimeType: extraction.mimeType,
-      contentHash: extraction.contentHash,
-      sourceUpdatedAt: nullableDate(attachment.MatterAttachmentLastModifiedUtc),
+  async function upsertDecision(
+    matter: LegistarMatter,
+    meeting: LegistarMeeting,
+    item: LegistarAgendaItem,
+    bodyId: string | null,
+    seenAt: Date,
+  ): Promise<string> {
+    const scope = inferGeographicScope(matter, item);
+    const values = {
+      primaryBodyId: bodyId,
+      sourceGuid: matter.MatterGuid,
+      fileNumber: matter.MatterFile || null,
+      title: matter.MatterTitle || item.EventItemTitle || "Untitled decision",
+      name: matter.MatterName,
+      typeName: matter.MatterTypeName,
+      statusName: matter.MatterStatusName,
+      topic: classifyTopic(matter),
+      scopeKind: scope.kind,
+      districtNumbers: scope.districtNumbers,
+      geographicText: scope.text,
+      introDate: nullableDate(matter.MatterIntroDate),
+      agendaDate: nullableDate(matter.MatterAgendaDate),
+      passedDate: nullableDate(matter.MatterPassedDate),
+      enactmentDate: nullableDate(matter.MatterEnactmentDate),
+      enactmentNumber: matter.MatterEnactmentNumber,
+      requester: matter.MatterRequester,
+      notes: matter.MatterNotes,
+      sourceUrl:
+        meeting.EventInSiteURL ?? JURISDICTIONS[jurisdiction].publicPortalUrl,
+      sourceUpdatedAt: nullableDate(matter.MatterLastModifiedUtc) ?? seenAt,
       lastSeenAt: seenAt,
       sourceDeletedAt: null,
-      sourcePayload: sourcePayload(attachment),
-    })
-    .onConflictDoUpdate({
-      target: [
-        LocalDecisionDocument.jurisdictionKey,
-        LocalDecisionDocument.sourceAttachmentId,
-      ],
-      set: {
+      sourcePayload: sourcePayload(matter),
+    };
+    const [row] = await db
+      .insert(LocalDecision)
+      .values({
+        jurisdictionKey: jurisdiction,
+        sourceMatterId: matter.MatterId,
+        ...values,
+      })
+      .onConflictDoUpdate({
+        target: [LocalDecision.jurisdictionKey, LocalDecision.sourceMatterId],
+        set: values,
+      })
+      .returning({ id: LocalDecision.id });
+    return row!.id;
+  }
+
+  async function upsertMeetingItem(
+    item: LegistarAgendaItem,
+    meetingId: string,
+    decisionId: string | null,
+    seenAt: Date,
+  ): Promise<string> {
+    const values = {
+      decisionId,
+      sourceGuid: item.EventItemGuid,
+      agendaSequence: item.EventItemAgendaSequence,
+      minutesSequence: item.EventItemMinutesSequence,
+      agendaNumber: item.EventItemAgendaNumber,
+      title: item.EventItemTitle,
+      actionName: item.EventItemActionName,
+      actionText: item.EventItemActionText,
+      passedFlagName: item.EventItemPassedFlagName,
+      tally: item.EventItemTally,
+      moverName: item.EventItemMover,
+      seconderName: item.EventItemSeconder,
+      consent: item.EventItemConsent === 1,
+      rollCall: item.EventItemRollCallFlag === 1,
+      agendaNote: item.EventItemAgendaNote,
+      minutesNote: item.EventItemMinutesNote,
+      videoIndex: item.EventItemVideoIndex,
+      sourceUpdatedAt: nullableDate(item.EventItemLastModifiedUtc) ?? seenAt,
+      lastSeenAt: seenAt,
+      sourceDeletedAt: null,
+      sourcePayload: sourcePayload(item),
+    };
+    const [row] = await db
+      .insert(LocalMeetingItem)
+      .values({
+        meetingId,
+        sourceEventItemId: item.EventItemId,
+        ...values,
+      })
+      .onConflictDoUpdate({
+        target: [
+          LocalMeetingItem.meetingId,
+          LocalMeetingItem.sourceEventItemId,
+        ],
+        set: values,
+      })
+      .returning({ id: LocalMeetingItem.id });
+    return row!.id;
+  }
+
+  async function documentExtraction(
+    attachment: LegistarAttachment,
+    processingPolicy: "extract_text" | "link_only",
+    maxBytes: number,
+    skipText: boolean,
+  ): Promise<ExtractedDocument> {
+    if (processingPolicy === "link_only" || skipText) {
+      return {
+        status: "skipped",
+        text: null,
+        pages: null,
+        method: null,
+        quality: null,
+        pageCount: null,
+        byteSize: null,
+        mimeType: null,
+        contentHash: null,
+      };
+    }
+
+    const [existing] = await db
+      .select({
+        sourceUpdatedAt: LocalDecisionDocument.sourceUpdatedAt,
+        url: LocalDecisionDocument.url,
+        extractedPages: LocalDecisionDocument.extractedPages,
+        extractionStatus: LocalDecisionDocument.extractionStatus,
+        extractedText: LocalDecisionDocument.extractedText,
+        extractionMethod: LocalDecisionDocument.extractionMethod,
+        extractionQuality: LocalDecisionDocument.extractionQuality,
+        pageCount: LocalDecisionDocument.pageCount,
+        byteSize: LocalDecisionDocument.byteSize,
+        mimeType: LocalDecisionDocument.mimeType,
+        contentHash: LocalDecisionDocument.contentHash,
+      })
+      .from(LocalDecisionDocument)
+      .where(
+        and(
+          eq(LocalDecisionDocument.jurisdictionKey, jurisdiction),
+          eq(
+            LocalDecisionDocument.sourceAttachmentId,
+            attachment.MatterAttachmentId,
+          ),
+        ),
+      )
+      .limit(1);
+    const sourceUpdatedAt = nullableDate(
+      attachment.MatterAttachmentLastModifiedUtc,
+    );
+    if (
+      existing &&
+      existing.url === attachment.MatterAttachmentHyperlink &&
+      existing.contentHash !==
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" &&
+      (existing.extractionStatus !== "native" ||
+        existing.extractedPages !== null) &&
+      existing.sourceUpdatedAt?.getTime() === sourceUpdatedAt?.getTime() &&
+      (["native", "ocr_required"].includes(existing.extractionStatus) ||
+        (existing.extractionStatus === "skipped" &&
+          ((existing.byteSize !== null && existing.byteSize > maxBytes) ||
+            (existing.mimeType !== null &&
+              existing.mimeType !== "application/pdf"))))
+    ) {
+      return {
+        status: existing.extractionStatus as ExtractedDocument["status"],
+        text: existing.extractedText,
+        pages: existing.extractedPages,
+        method:
+          existing.extractionMethod === "pdf_native" ? "pdf_native" : null,
+        quality: existing.extractionQuality,
+        pageCount: existing.pageCount,
+        byteSize: existing.byteSize,
+        mimeType: existing.mimeType,
+        contentHash: existing.contentHash,
+      };
+    }
+    return extractPdf(attachment.MatterAttachmentHyperlink, maxBytes);
+  }
+
+  async function upsertDocument(
+    attachment: LegistarAttachment,
+    decisionId: string,
+    seenAt: Date,
+    counts: IngestionCounts,
+    maxBytes: number,
+    skipText: boolean,
+  ): Promise<void> {
+    const policy = classifyDocument(attachment);
+    const extraction = await documentExtraction(
+      attachment,
+      policy.processingPolicy,
+      maxBytes,
+      skipText,
+    );
+    await db
+      .insert(LocalDecisionDocument)
+      .values({
+        jurisdictionKey: jurisdiction,
         decisionId,
+        sourceAttachmentId: attachment.MatterAttachmentId,
+        sourceGuid: attachment.MatterAttachmentGuid,
         name: attachment.MatterAttachmentName,
         description: attachment.MatterAttachmentDescription,
         url: attachment.MatterAttachmentHyperlink,
@@ -631,6 +623,7 @@ async function upsertDocument(
         processingPolicy: policy.processingPolicy,
         extractionStatus: extraction.status,
         extractedText: extraction.text,
+        extractedPages: extraction.pages,
         extractionMethod: extraction.method,
         extractionQuality: extraction.quality,
         pageCount: extraction.pageCount,
@@ -643,293 +636,343 @@ async function upsertDocument(
         lastSeenAt: seenAt,
         sourceDeletedAt: null,
         sourcePayload: sourcePayload(attachment),
-      },
-    });
-  counts.documents++;
-  if (policy.isPublicComment) counts.publicCommentsLinked++;
-  if (extraction.status === "native") counts.documentsExtracted++;
-  if (extraction.status === "ocr_required") counts.documentsNeedingOcr++;
-}
+      })
+      .onConflictDoUpdate({
+        target: [
+          LocalDecisionDocument.jurisdictionKey,
+          LocalDecisionDocument.sourceAttachmentId,
+        ],
+        set: {
+          decisionId,
+          name: attachment.MatterAttachmentName,
+          description: attachment.MatterAttachmentDescription,
+          url: attachment.MatterAttachmentHyperlink,
+          fileName: attachment.MatterAttachmentFileName,
+          category: policy.category,
+          sortOrder: attachment.MatterAttachmentSort,
+          isSupportingDocument: attachment.MatterAttachmentIsSupportingDocument,
+          isPublicComment: policy.isPublicComment,
+          processingPolicy: policy.processingPolicy,
+          extractionStatus: extraction.status,
+          extractedText: extraction.text,
+          extractedPages: extraction.pages,
+          extractionMethod: extraction.method,
+          extractionQuality: extraction.quality,
+          pageCount: extraction.pageCount,
+          byteSize: extraction.byteSize,
+          mimeType: extraction.mimeType,
+          contentHash: extraction.contentHash,
+          sourceUpdatedAt: nullableDate(
+            attachment.MatterAttachmentLastModifiedUtc,
+          ),
+          lastSeenAt: seenAt,
+          sourceDeletedAt: null,
+          sourcePayload: sourcePayload(attachment),
+        },
+      });
+    counts.documents++;
+    if (policy.isPublicComment) counts.publicCommentsLinked++;
+    if (extraction.status === "native") counts.documentsExtracted++;
+    if (extraction.status === "ocr_required") counts.documentsNeedingOcr++;
+  }
 
-async function upsertHistory(
-  history: LegistarMatterHistory,
-  decisionId: string,
-): Promise<void> {
-  const values = {
-    sourceEventId: history.MatterHistoryEventId,
-    sourceEventItemId: history.MatterHistoryEventItemId,
-    bodyName: history.MatterHistoryBodyName,
-    actionName: history.MatterHistoryActionName,
-    actionText: history.MatterHistoryDescription,
-    actionDate: nullableDate(history.MatterHistoryActionDate),
-    agendaNumber: history.MatterHistoryAgendaNumber,
-    sourcePayload: sourcePayload(history),
-  };
-  await db
-    .insert(LocalDecisionHistory)
-    .values({
-      decisionId,
-      sourceHistoryId: history.MatterHistoryId,
-      ...values,
-    })
-    .onConflictDoUpdate({
-      target: [
-        LocalDecisionHistory.decisionId,
-        LocalDecisionHistory.sourceHistoryId,
-      ],
-      set: values,
-    });
-}
+  async function upsertHistory(
+    history: LegistarMatterHistory,
+    decisionId: string,
+  ): Promise<void> {
+    const values = {
+      sourceEventId: history.MatterHistoryEventId,
+      sourceEventItemId: history.MatterHistoryEventItemId,
+      bodyName: history.MatterHistoryBodyName,
+      actionName: history.MatterHistoryActionName,
+      actionText: history.MatterHistoryDescription,
+      actionDate: nullableDate(history.MatterHistoryActionDate),
+      agendaNumber: history.MatterHistoryAgendaNumber,
+      sourcePayload: sourcePayload(history),
+    };
+    await db
+      .insert(LocalDecisionHistory)
+      .values({
+        decisionId,
+        sourceHistoryId: history.MatterHistoryId,
+        ...values,
+      })
+      .onConflictDoUpdate({
+        target: [
+          LocalDecisionHistory.decisionId,
+          LocalDecisionHistory.sourceHistoryId,
+        ],
+        set: values,
+      });
+  }
 
-async function upsertVote(
-  vote: LegistarVote,
-  meetingItemId: string,
-  seenAt: Date,
-): Promise<void> {
-  const values = {
-    sourcePersonId: vote.VotePersonId,
-    personName: vote.VotePersonName,
-    valueName: vote.VoteValueName,
-    sortOrder: vote.VoteSort,
-    sourceUpdatedAt: nullableDate(vote.VoteLastModifiedUtc) ?? seenAt,
-    sourcePayload: sourcePayload(vote),
-  };
-  await db
-    .insert(LocalDecisionVote)
-    .values({ meetingItemId, sourceVoteId: vote.VoteId, ...values })
-    .onConflictDoUpdate({
-      target: [LocalDecisionVote.meetingItemId, LocalDecisionVote.sourceVoteId],
-      set: values,
-    });
-}
+  async function upsertVote(
+    vote: LegistarVote,
+    meetingItemId: string,
+    seenAt: Date,
+  ): Promise<void> {
+    const values = {
+      sourcePersonId: vote.VotePersonId,
+      personName: vote.VotePersonName,
+      valueName: vote.VoteValueName,
+      sortOrder: vote.VoteSort,
+      sourceUpdatedAt: nullableDate(vote.VoteLastModifiedUtc) ?? seenAt,
+      sourcePayload: sourcePayload(vote),
+    };
+    await db
+      .insert(LocalDecisionVote)
+      .values({ meetingItemId, sourceVoteId: vote.VoteId, ...values })
+      .onConflictDoUpdate({
+        target: [
+          LocalDecisionVote.meetingItemId,
+          LocalDecisionVote.sourceVoteId,
+        ],
+        set: values,
+      });
+  }
 
-async function processMeeting(
-  meeting: LegistarMeeting,
-  bodyIds: ReadonlyMap<number, string>,
-  seenAt: Date,
-  counts: IngestionCounts,
-  maxBytes: number,
-  skipText: boolean,
-  seenAttachments: Map<string, Set<number>>,
-): Promise<void> {
-  const bodyId = bodyIds.get(meeting.EventBodyId);
-  if (!bodyId) return;
-  const meetingId = await upsertMeeting(meeting, bodyId, seenAt);
-  counts.meetings++;
+  async function processMeeting(
+    meeting: LegistarMeeting,
+    bodyIds: ReadonlyMap<number, string>,
+    seenAt: Date,
+    counts: IngestionCounts,
+    maxBytes: number,
+    skipText: boolean,
+    seenAttachments: Map<string, Set<number>>,
+  ): Promise<void> {
+    const bodyId = bodyIds.get(meeting.EventBodyId);
+    if (!bodyId) return;
+    const meetingId = await upsertMeeting(meeting, bodyId, seenAt);
+    counts.meetings++;
 
-  const items = await client.getAgendaItems(JURISDICTION, meeting.EventId);
-  const decisionItems = items.filter(isDecisionItem);
-  for (const item of decisionItems) {
-    const matter = await client.getMatter(
-      JURISDICTION,
-      item.EventItemMatterId!,
-    );
-    const matterBodyId = bodyIds.get(matter.MatterBodyId) ?? bodyId;
-    const decisionId = await upsertDecision(matter, item, matterBodyId, seenAt);
-    const meetingItemId = await upsertMeetingItem(
-      item,
-      meetingId,
-      decisionId,
-      seenAt,
-    );
-    counts.decisions++;
-    counts.items++;
-    incrementTotalProcessed();
-
-    const attachments = item.EventItemMatterAttachments ?? [];
-    const attachmentIds = seenAttachments.get(decisionId) ?? new Set<number>();
-    seenAttachments.set(decisionId, attachmentIds);
-    for (const attachment of attachments) {
-      attachmentIds.add(attachment.MatterAttachmentId);
-      await upsertDocument(
-        attachment,
+    const items = await client.getAgendaItems(jurisdiction, meeting.EventId);
+    const decisionItems = items.filter(isDecisionItem);
+    for (const item of decisionItems) {
+      const matter = await client.getMatter(
+        jurisdiction,
+        item.EventItemMatterId!,
+      );
+      const matterBodyId = bodyIds.get(matter.MatterBodyId) ?? bodyId;
+      const decisionId = await upsertDecision(
+        matter,
+        meeting,
+        item,
+        matterBodyId,
+        seenAt,
+      );
+      const meetingItemId = await upsertMeetingItem(
+        item,
+        meetingId,
         decisionId,
         seenAt,
-        counts,
-        maxBytes,
-        skipText,
       );
-    }
+      counts.decisions++;
+      counts.items++;
+      incrementTotalProcessed();
 
-    // San José currently returns empty histories for sampled matters, but keep
-    // the capability live for jurisdictions/records that publish them. Limit
-    // the extra call to non-agenda-ready records where history is most useful.
-    if (!/agenda ready/i.test(matter.MatterStatusName)) {
-      const histories = await client.getMatterHistories(
-        JURISDICTION,
-        matter.MatterId,
-      );
-      for (const history of histories) {
-        await upsertHistory(history, decisionId);
-        counts.histories++;
+      const attachments = item.EventItemMatterAttachments ?? [];
+      const attachmentIds =
+        seenAttachments.get(decisionId) ?? new Set<number>();
+      seenAttachments.set(decisionId, attachmentIds);
+      for (const attachment of attachments) {
+        attachmentIds.add(attachment.MatterAttachmentId);
+        await upsertDocument(
+          attachment,
+          decisionId,
+          seenAt,
+          counts,
+          maxBytes,
+          skipText,
+        );
+      }
+
+      // San José currently returns empty histories for sampled matters, but keep
+      // the capability live for jurisdictions/records that publish them. Limit
+      // the extra call to non-agenda-ready records where history is most useful.
+      if (!/agenda ready/i.test(matter.MatterStatusName)) {
+        const histories = await client.getMatterHistories(
+          jurisdiction,
+          matter.MatterId,
+        );
+        for (const history of histories) {
+          await upsertHistory(history, decisionId);
+          counts.histories++;
+        }
+      }
+
+      if (
+        item.EventItemRollCallFlag === 1 ||
+        item.EventItemTally ||
+        item.EventItemActionName
+      ) {
+        const votes = await client.getVotes(jurisdiction, item.EventItemId);
+        for (const vote of votes) {
+          await upsertVote(vote, meetingItemId, seenAt);
+          counts.votes++;
+        }
       }
     }
 
-    if (
-      item.EventItemRollCallFlag === 1 ||
-      item.EventItemTally ||
-      item.EventItemActionName
-    ) {
-      const votes = await client.getVotes(JURISDICTION, item.EventItemId);
-      for (const vote of votes) {
-        await upsertVote(vote, meetingItemId, seenAt);
-        counts.votes++;
-      }
-    }
+    await db
+      .update(LocalMeetingItem)
+      .set({ sourceDeletedAt: seenAt })
+      .where(
+        and(
+          eq(LocalMeetingItem.meetingId, meetingId),
+          lt(LocalMeetingItem.lastSeenAt, seenAt),
+        ),
+      );
   }
 
-  await db
-    .update(LocalMeetingItem)
-    .set({ sourceDeletedAt: seenAt })
-    .where(
-      and(
-        eq(LocalMeetingItem.meetingId, meetingId),
-        lt(LocalMeetingItem.lastSeenAt, seenAt),
-      ),
+  async function runLegistarScrape(maxItems?: number): Promise<void> {
+    const seenAt = new Date();
+    const pastDays = positiveInteger(
+      process.env.LEGISTAR_PAST_DAYS,
+      DEFAULT_PAST_DAYS,
     );
-}
-
-async function runLegistarScrape(maxItems?: number): Promise<void> {
-  const seenAt = new Date();
-  const pastDays = positiveInteger(
-    process.env.LEGISTAR_PAST_DAYS,
-    DEFAULT_PAST_DAYS,
-  );
-  const futureDays = positiveInteger(
-    process.env.LEGISTAR_FUTURE_DAYS,
-    DEFAULT_FUTURE_DAYS,
-  );
-  const maxBytes = positiveInteger(
-    process.env.LEGISTAR_MAX_DOCUMENT_BYTES,
-    DEFAULT_MAX_DOCUMENT_BYTES,
-  );
-  const skipText = process.env.LEGISTAR_SKIP_DOCUMENT_TEXT === "1";
-  const windowStart = addDays(seenAt, -pastDays);
-  const windowEnd = addDays(seenAt, futureDays);
-  const counts: IngestionCounts = {
-    bodies: 0,
-    meetings: 0,
-    decisions: 0,
-    items: 0,
-    documents: 0,
-    documentsExtracted: 0,
-    documentsNeedingOcr: 0,
-    publicCommentsLinked: 0,
-    histories: 0,
-    votes: 0,
-  };
-
-  await upsertJurisdiction();
-  const [run] = await db
-    .insert(LocalIngestionRun)
-    .values({
-      jurisdictionKey: JURISDICTION,
-      status: "running",
-      windowStart,
-      windowEnd,
-      counts,
-    })
-    .returning({ id: LocalIngestionRun.id });
-
-  try {
-    const bodies = await client.getBodies(JURISDICTION);
-    const bodyIds = new Map<number, string>();
-    for (const body of bodies) {
-      const id = await upsertBody(body, seenAt);
-      if (bodyPolicy(body.BodyId).included) bodyIds.set(body.BodyId, id);
-      counts.bodies++;
-    }
-
-    const fetchedMeetings = await client.getMeetings(JURISDICTION, {
-      start: windowStart,
-      end: windowEnd,
-    });
-    const relevantMeetings = fetchedMeetings.filter((meeting) =>
-      bodyIds.has(meeting.EventBodyId),
+    const futureDays = positiveInteger(
+      process.env.LEGISTAR_FUTURE_DAYS,
+      DEFAULT_FUTURE_DAYS,
     );
-    const meetings = relevantMeetings.slice(0, maxItems);
-    const seenAttachments = new Map<string, Set<number>>();
-    const limit = getItemLimit();
-    await Promise.all(
-      meetings.map((meeting) =>
-        limit(() =>
-          processMeeting(
-            meeting,
-            bodyIds,
-            seenAt,
-            counts,
-            maxBytes,
-            skipText,
-            seenAttachments,
+    const maxBytes = positiveInteger(
+      process.env.LEGISTAR_MAX_DOCUMENT_BYTES,
+      DEFAULT_MAX_DOCUMENT_BYTES,
+    );
+    const skipText = process.env.LEGISTAR_SKIP_DOCUMENT_TEXT === "1";
+    const windowStart = addDays(seenAt, -pastDays);
+    const windowEnd = addDays(seenAt, futureDays);
+    const counts: IngestionCounts = {
+      bodies: 0,
+      meetings: 0,
+      decisions: 0,
+      items: 0,
+      documents: 0,
+      documentsExtracted: 0,
+      documentsNeedingOcr: 0,
+      publicCommentsLinked: 0,
+      histories: 0,
+      votes: 0,
+    };
+
+    await upsertJurisdiction();
+    const [run] = await db
+      .insert(LocalIngestionRun)
+      .values({
+        jurisdictionKey: jurisdiction,
+        status: "running",
+        windowStart,
+        windowEnd,
+        counts,
+      })
+      .returning({ id: LocalIngestionRun.id });
+
+    try {
+      const bodies = await client.getBodies(jurisdiction);
+      const bodyIds = new Map<number, string>();
+      for (const body of bodies) {
+        const id = await upsertBody(body, seenAt);
+        if (bodyPolicy(body.BodyId, jurisdiction).included)
+          bodyIds.set(body.BodyId, id);
+        counts.bodies++;
+      }
+
+      const fetchedMeetings = await client.getMeetings(jurisdiction, {
+        start: windowStart,
+        end: windowEnd,
+      });
+      const relevantMeetings = fetchedMeetings.filter((meeting) =>
+        bodyIds.has(meeting.EventBodyId),
+      );
+      const meetings = relevantMeetings.slice(0, maxItems);
+      const seenAttachments = new Map<string, Set<number>>();
+      const limit = getItemLimit();
+      await Promise.all(
+        meetings.map((meeting) =>
+          limit(() =>
+            processMeeting(
+              meeting,
+              bodyIds,
+              seenAt,
+              counts,
+              maxBytes,
+              skipText,
+              seenAttachments,
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    // Attachments are returned as a complete snapshot on every processed
-    // matter occurrence. Keep removed source files for auditability, but hide
-    // them from normal reads by recording when they disappeared.
-    for (const [decisionId, attachmentIds] of seenAttachments) {
-      const predicates = [
-        eq(LocalDecisionDocument.decisionId, decisionId),
-        eq(LocalDecisionDocument.jurisdictionKey, JURISDICTION),
-        isNull(LocalDecisionDocument.sourceDeletedAt),
-      ];
-      if (attachmentIds.size > 0) {
-        predicates.push(
-          notInArray(LocalDecisionDocument.sourceAttachmentId, [
-            ...attachmentIds,
-          ]),
-        );
+      // Attachments are returned as a complete snapshot on every processed
+      // matter occurrence. Keep removed source files for auditability, but hide
+      // them from normal reads by recording when they disappeared.
+      for (const [decisionId, attachmentIds] of seenAttachments) {
+        const predicates = [
+          eq(LocalDecisionDocument.decisionId, decisionId),
+          eq(LocalDecisionDocument.jurisdictionKey, jurisdiction),
+          isNull(LocalDecisionDocument.sourceDeletedAt),
+        ];
+        if (attachmentIds.size > 0) {
+          predicates.push(
+            notInArray(LocalDecisionDocument.sourceAttachmentId, [
+              ...attachmentIds,
+            ]),
+          );
+        }
+        await db
+          .update(LocalDecisionDocument)
+          .set({ sourceDeletedAt: seenAt })
+          .where(and(...predicates));
       }
-      await db
-        .update(LocalDecisionDocument)
-        .set({ sourceDeletedAt: seenAt })
-        .where(and(...predicates));
-    }
 
-    // Only a complete window walk can prove a meeting disappeared. Targeted
-    // --max-items runs intentionally skip tombstoning.
-    if (maxItems === undefined || relevantMeetings.length <= maxItems) {
-      await db
-        .update(LocalMeeting)
-        .set({ sourceDeletedAt: seenAt })
-        .where(
-          and(
-            eq(LocalMeeting.jurisdictionKey, JURISDICTION),
-            inArray(LocalMeeting.bodyId, [...bodyIds.values()]),
-            gte(LocalMeeting.startsAt, windowStart),
-            lte(LocalMeeting.startsAt, windowEnd),
-            lt(LocalMeeting.lastSeenAt, seenAt),
-          ),
-        );
-    }
+      // Only a complete window walk can prove a meeting disappeared. Targeted
+      // --max-items runs intentionally skip tombstoning.
+      if (maxItems === undefined || relevantMeetings.length <= maxItems) {
+        await db
+          .update(LocalMeeting)
+          .set({ sourceDeletedAt: seenAt })
+          .where(
+            and(
+              eq(LocalMeeting.jurisdictionKey, jurisdiction),
+              inArray(LocalMeeting.bodyId, [...bodyIds.values()]),
+              gte(LocalMeeting.startsAt, windowStart),
+              lte(LocalMeeting.startsAt, windowEnd),
+              lt(LocalMeeting.lastSeenAt, seenAt),
+            ),
+          );
+      }
 
-    await db
-      .update(LocalIngestionRun)
-      .set({ status: "succeeded", completedAt: new Date(), counts })
-      .where(eq(LocalIngestionRun.id, run!.id));
-    logger.success(
-      `Stored ${counts.decisions} decision occurrences across ${counts.meetings} meetings`,
-    );
-  } catch (error) {
-    await db
-      .update(LocalIngestionRun)
-      .set({
-        status: "failed",
-        completedAt: new Date(),
-        counts,
-        error: error instanceof Error ? error.message : String(error),
-      })
-      .where(eq(LocalIngestionRun.id, run!.id));
-    throw error;
+      await db
+        .update(LocalIngestionRun)
+        .set({ status: "succeeded", completedAt: new Date(), counts })
+        .where(eq(LocalIngestionRun.id, run!.id));
+      logger.success(
+        `Stored ${counts.decisions} decision occurrences across ${counts.meetings} meetings`,
+      );
+    } catch (error) {
+      await db
+        .update(LocalIngestionRun)
+        .set({
+          status: "failed",
+          completedAt: new Date(),
+          counts,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        .where(eq(LocalIngestionRun.id, run!.id));
+      throw error;
+    }
   }
+
+  return {
+    ...config,
+    scrape: async ({ maxItems } = {}) =>
+      runLegistarScrape(
+        maxItems ?? positiveInteger(process.env.LEGISTAR_MAX_ITEMS, 100),
+      ),
+  };
 }
 
-export const legistarScraper: Scraper = {
-  ...legistarConfig,
-  scrape: async ({ maxItems } = {}) =>
-    runLegistarScrape(
-      maxItems ?? positiveInteger(process.env.LEGISTAR_MAX_ITEMS, 100),
-    ),
-};
+export const legistarScraper = createLegistarScraper("sanjose", legistarConfig);
+export const santaClaraLegistarScraper = createLegistarScraper(
+  "santaclara",
+  santaClaraLegistarConfig,
+);

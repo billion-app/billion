@@ -84,6 +84,16 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 24,
   },
   {
+    id: "legistar-santaclara-daily",
+    description: "Refresh Santa Clara local-government decisions",
+    script: "main.js",
+    args: ["legistar-santaclara", "--concurrency", "2"],
+    schedule: { kind: "daily", hour: 4, minute: 0 },
+    priority: 4,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 24,
+  },
+  {
     id: "bill-interest-daily",
     description:
       "Score missing or changed bills for interest, controversy, and attention",

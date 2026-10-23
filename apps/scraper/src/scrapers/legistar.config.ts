@@ -18,3 +18,9 @@ export const legistarConfig = {
     ],
   },
 } as const satisfies ScraperEnvContract;
+
+export const santaClaraLegistarConfig = {
+  ...legistarConfig,
+  id: "legistar-santaclara",
+  name: "Santa Clara local decisions",
+} as const satisfies ScraperEnvContract;

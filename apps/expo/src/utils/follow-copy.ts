@@ -9,6 +9,8 @@ import { translateApp } from "~/i18n/app-strings";
 
 export function followNoun(type: string | undefined): string {
   switch (type) {
+    case "local_decision":
+      return "decision";
     case "bill":
       return "bill";
     case "court_case":
@@ -24,6 +26,7 @@ export function followNoun(type: string | undefined): string {
 
 const NOUN_KEYS: Record<string, { save: AppStringKey; remove: AppStringKey }> =
   {
+    decision: { save: "follow.saveDecision", remove: "follow.removeDecision" },
     bill: { save: "follow.saveBill", remove: "follow.removeBill" },
     case: { save: "follow.saveCase", remove: "follow.removeCase" },
     order: { save: "follow.saveOrder", remove: "follow.removeOrder" },

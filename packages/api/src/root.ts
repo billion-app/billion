@@ -1,3 +1,4 @@
+import { appReleaseRouter } from "./router/app-release";
 import { authRouter } from "./router/auth";
 import { candidateBriefsRouter } from "./router/candidate-briefs";
 import { candidateResearchEditorialRouter } from "./router/candidate-research-editorial";
@@ -7,7 +8,6 @@ import { feedbackRouter } from "./router/feedback";
 import { legistarRouter } from "./router/legistar";
 import { notificationsRouter } from "./router/notifications";
 import { openStatesRouter } from "./router/open-states";
-import { placesRouter } from "./router/places";
 import { postRouter } from "./router/post";
 import { userRouter } from "./router/user";
 import { videoRouter } from "./router/video";
@@ -15,12 +15,12 @@ import { createCallerFactory, createTRPCRouter } from "./trpc";
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
+  appRelease: appReleaseRouter,
   civic: civicRouter,
   candidateBriefs: candidateBriefsRouter,
   candidateResearchEditorial: candidateResearchEditorialRouter,
   legistar: legistarRouter,
   openStates: openStatesRouter,
-  places: placesRouter,
   post: postRouter,
   content: contentRouter,
   feedback: feedbackRouter,

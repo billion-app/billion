@@ -88,3 +88,45 @@ void test("executive orders have an official image while artwork is missing", ()
     undefined,
   );
 });
+
+void test("card variants are used only after paired artwork was published", () => {
+  const prefix = "content/bill/id/v1/" + "a".repeat(64);
+  assert.equal(
+    resolveContentImageUrl(
+      null,
+      `${prefix}/reader.jpg`,
+      "https://example.supabase.co",
+      undefined,
+      "card",
+    ),
+    `https://example.supabase.co/storage/v1/object/public/content-images/${prefix}/card.jpg`,
+  );
+  assert.equal(
+    resolveContentImageUrl(
+      null,
+      `${prefix}/reader.jpg`,
+      "https://example.supabase.co",
+    ),
+    `https://example.supabase.co/storage/v1/object/public/content-images/${prefix}/reader.jpg`,
+  );
+  assert.equal(
+    resolveContentImageUrl(
+      null,
+      "content/bill/id/old.jpg",
+      "https://example.supabase.co",
+      undefined,
+      "card",
+    ),
+    "https://example.supabase.co/storage/v1/object/public/content-images/content/bill/id/old.jpg",
+  );
+  assert.equal(
+    resolveContentImageUrl(
+      "https://source.example/image.jpg",
+      `${prefix}/reader.jpg`,
+      "https://example.supabase.co",
+      undefined,
+      "card",
+    ),
+    "https://source.example/image.jpg",
+  );
+});
