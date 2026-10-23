@@ -17,11 +17,12 @@ export type DecisionDetail = RouterOutputs["legistar"]["getDecision"];
 export type DecisionOccurrence = DecisionDetail["occurrences"][number];
 export type DecisionVote = DecisionDetail["votes"][number];
 
-export const LOCAL_JURISDICTION_KEYS = ["sanjose"] as const;
+export const LOCAL_JURISDICTION_KEYS = ["sanjose", "santaclara"] as const;
 export type LocalJurisdictionKey = (typeof LOCAL_JURISDICTION_KEYS)[number];
 
 export const LOCAL_JURISDICTIONS = {
   sanjose: { state: "ca" },
+  santaclara: { state: "ca" },
 } as const satisfies Record<LocalJurisdictionKey, { state: StateJurisdiction }>;
 
 export function isLocalJurisdictionKey(
@@ -57,12 +58,22 @@ const SAN_JOSE_ADDRESS = new RegExp(
   "i",
 );
 
+const SANTA_CLARA_ADDRESS = new RegExp(
+  String.raw`(?:^|[,，]\s*)(?:city of )?(?:santa clara|圣克拉拉|聖克拉拉)` +
+    String.raw`(?:[,，]\s*|\s+)(?:ca|california|加利福尼亚州|加利福尼亞州|加州)` +
+    String.raw`(?:[,，\s]+\d{5}(?:-\d{4})?)?` +
+    String.raw`(?:[,，]\s*(?:usa?|united states|ee\. uu\.|estados unidos|美国|美國))?$`,
+  "i",
+);
+
 export function detectJurisdictionKey(
   address: string | null | undefined,
 ): LocalJurisdictionKey | null {
-  return address && SAN_JOSE_ADDRESS.test(address.normalize("NFC").trim())
-    ? "sanjose"
-    : null;
+  if (!address) return null;
+  const normalized = address.normalize("NFC").trim();
+  if (SAN_JOSE_ADDRESS.test(normalized)) return "sanjose";
+  if (SANTA_CLARA_ADDRESS.test(normalized)) return "santaclara";
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -583,4 +594,25 @@ export function documentCategoryLabel(
 export function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
   return `${text.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+}
+
+export function selectHomeDecisions<
+  T extends Pick<DecisionRow, "id" | "meetingStartsAt" | "bodyRelevanceTier">,
+>(rows: readonly T[], savedIds: ReadonlySet<string>, max = 3): T[] {
+  const chronological = [...rows].sort(
+    (a, b) =>
+      (parseDate(a.meetingStartsAt)?.getTime() ?? Infinity) -
+        (parseDate(b.meetingStartsAt)?.getTime() ?? Infinity) ||
+      a.id.localeCompare(b.id),
+  );
+  const unique = new Map<string, T>();
+  for (const row of chronological)
+    if (!unique.has(row.id)) unique.set(row.id, row);
+  return [...unique.values()]
+    .sort(
+      (a, b) =>
+        Number(savedIds.has(b.id)) - Number(savedIds.has(a.id)) ||
+        Number(a.bodyRelevanceTier > 2) - Number(b.bodyRelevanceTier > 2),
+    )
+    .slice(0, max);
 }

@@ -7,14 +7,13 @@ import { StyleSheet, Text, View } from "react-native";
 import type { DecisionDetail } from "~/utils/local-government";
 import { ExternalLink } from "~/components/ExternalLink";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
-import { colors, fontBody, useTheme } from "~/styles";
+import { fontBody, useTheme } from "~/styles";
 import {
   formatMeetingDateTime,
   groupVotesByOccurrence,
   sortTimeline,
   voteAvailability,
   voteValueLabel,
-  voteValueTone,
 } from "~/utils/local-government";
 
 type Occurrence = DecisionDetail["occurrences"][number];
@@ -122,13 +121,6 @@ function OccurrenceRow({
               {availability.headline}
             </Text>
             {votes.map((vote) => {
-              const tone = voteValueTone(vote.value);
-              const tint =
-                tone === "for"
-                  ? colors.green[500]
-                  : tone === "against"
-                    ? colors.red[400]
-                    : theme.textSecondary;
               return (
                 <View
                   key={`${vote.meetingItemId}-${vote.sort}`}
@@ -140,7 +132,7 @@ function OccurrenceRow({
                   >
                     {vote.personName}
                   </Text>
-                  <Text style={[s.voteValue, { color: tint }]}>
+                  <Text style={[s.voteValue, { color: theme.foreground }]}>
                     {voteValueLabel(vote.value, language)}
                   </Text>
                 </View>

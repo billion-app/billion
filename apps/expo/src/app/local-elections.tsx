@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BallotStatusNotice } from "~/components/ballot-evidence/BallotEvidence";
 import { EmptyBallotMark } from "~/components/digest/CraftMarks";
 import { KeyDatesSection } from "~/components/KeyDatesSection";
-import { LocalDecisionsPreview } from "~/components/LocalDecisionsPreview";
+import { LocalDecisionsHomeSection } from "~/components/local-government/LocalDecisionsHomeSection";
 import { MyBallotSection } from "~/components/MyBallotSection";
 import { PollingPlacesSection } from "~/components/PollingPlacesSection";
 import { RepsSection } from "~/components/RepsSection";
@@ -117,7 +117,7 @@ export default function LocalElectionsScreen() {
 
         <RepsSection address={address} enabled={hasVerifiedCaliforniaAddress} />
 
-        <LocalDecisionsPreview address={address} />
+        <LocalDecisionsHomeSection address={address} />
       </ScrollView>
     </View>
   );
