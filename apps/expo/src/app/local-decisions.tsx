@@ -49,7 +49,10 @@ export default function LocalDecisionsScreen() {
   const { t: tx, language } = useAppTranslation();
 
   const router = useRouter();
-  const params = useLocalSearchParams<{ jurisdiction?: string }>();
+  const params = useLocalSearchParams<{
+    jurisdiction?: string;
+    timeline?: string;
+  }>();
   const requested = isLocalJurisdictionKey(params.jurisdiction)
     ? params.jurisdiction
     : null;
@@ -64,7 +67,9 @@ export default function LocalDecisionsScreen() {
     ? localJurisdictionText(jurisdiction, language).name
     : null;
 
-  const [tab, setTab] = useState<TimelineTab>("upcoming");
+  const [tab, setTab] = useState<TimelineTab>(
+    params.timeline === "recent" ? "recent" : "upcoming",
+  );
   const [topic, setTopic] = useState<string | null>(null);
 
   const listInput = useMemo(
@@ -214,6 +219,17 @@ export default function LocalDecisionsScreen() {
         </View>
       )}
 
+      <Text
+        style={{
+          color: DigestPalette.quiet,
+          marginHorizontal: DigestSpace.screenPadX,
+          marginBottom: 12,
+          fontSize: 12,
+        }}
+      >
+        {tx("local.home.source")}
+        {language !== "en" ? ` ${tx("local.sourceEnglish")}` : ""}
+      </Text>
       <SyncNote
         visible={!healthQuery.isLoading && (syncIsStale || error != null)}
         jurisdictionName={jurisdictionName}

@@ -20,9 +20,9 @@ const TINT: Record<
   (theme: Theme) => string
 > = {
   accent: () => colors.bill,
-  success: () => colors.green[500],
+  success: (theme) => theme.textSecondary,
   warning: () => colors.yellow[500],
-  danger: () => colors.red[400],
+  danger: (theme) => theme.textSecondary,
   muted: (theme) => theme.textSecondary,
 };
 
@@ -60,6 +60,7 @@ export function LifecycleChip({
 const s = StyleSheet.create({
   chip: {
     flexDirection: "row",
+    flexShrink: 1,
     alignItems: "center",
     alignSelf: "flex-start",
     gap: 5,
@@ -69,6 +70,7 @@ const s = StyleSheet.create({
   sm: { paddingHorizontal: 8, paddingVertical: 3 },
   md: { paddingHorizontal: 10, paddingVertical: 5 },
   label: {
+    flexShrink: 1,
     fontFamily: fontBody.semibold,
     fontSize: 10.5,
     letterSpacing: 0.2,

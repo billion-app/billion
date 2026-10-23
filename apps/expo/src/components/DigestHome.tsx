@@ -21,6 +21,7 @@ import type { ChangeItem } from "~/utils/what-changed";
 import { CAPITOL_LINE } from "~/components/digest/staticAssets";
 import { DigestGreetingBar } from "~/components/DigestGreetingBar";
 import { GoldFoilText } from "~/components/GoldBillionMark";
+import { LocalDecisionsHomeSection } from "~/components/local-government/LocalDecisionsHomeSection";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useCardTranslationPolling } from "~/hooks/useCardTranslationPolling";
 import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
@@ -521,6 +522,7 @@ export function DigestHome() {
           </>
         )}
 
+        <LocalDecisionsHomeSection address={address} />
         <View style={s.sectionHeadAlso}>
           <Text style={s.alsoTitle}>{tx("Also today")}</Text>
           <View style={s.alsoRule} />

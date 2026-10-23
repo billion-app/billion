@@ -7,6 +7,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { DecisionRow } from "~/utils/local-government";
 import { Icon } from "~/components/ui/Icon";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { useSavedContent } from "~/hooks/useSavedContent";
 import {
   DigestHair,
   DigestPalette,
@@ -14,6 +15,7 @@ import {
   fontBody,
   fontDisplay,
 } from "~/styles";
+import { followAccessibilityLabel } from "~/utils/follow-copy";
 import {
   classifyDecision,
   formatMeetingDate,
@@ -31,6 +33,8 @@ export function DecisionCard({
   onPress: () => void;
 }) {
   const { t: tx, language } = useAppTranslation();
+  const { isSaved, toggleSave } = useSavedContent();
+  const saved = isSaved(decision.id);
 
   const lifecycle = classifyDecision({
     status: decision.status,
@@ -51,45 +55,46 @@ export function DecisionCard({
   const relative = relativeDay(decision.meetingStartsAt, undefined, language);
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityHint={tx("Opens the full decision")}
-      style={s.card}
-    >
+    <View style={s.card}>
       <View style={s.spine} />
       <View style={s.content}>
-        <View style={s.metaRow}>
-          <LifecycleChip lifecycle={lifecycle} />
-          {topic ? (
-            <Text style={s.metaText} numberOfLines={1}>
-              {topic}
-            </Text>
-          ) : null}
-        </View>
-
-        {/* Official title — shown as-is; we never invent a summary for it. */}
-        <Text style={s.title} numberOfLines={3}>
-          {decision.title}
-        </Text>
-
-        <View style={s.facts}>
-          <View style={s.fact}>
-            <Icon name="users" size={12} color={DigestPalette.quiet} />
-            <Text style={s.factText} numberOfLines={1}>
-              {decision.body}
-            </Text>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={onPress}
+          accessibilityRole="button"
+          accessibilityLabel={`${decision.title}. ${decision.body}, ${when}.`}
+          accessibilityHint={tx("Opens the full decision")}
+        >
+          <View style={s.metaRow}>
+            <LifecycleChip lifecycle={lifecycle} />
+            {topic ? (
+              <Text style={s.metaText} numberOfLines={1}>
+                {topic}
+              </Text>
+            ) : null}
           </View>
-          <View style={s.fact}>
-            <Icon name="calendar" size={12} color={DigestPalette.quiet} />
-            <Text style={s.factText}>
-              {when}
-              {relative ? ` · ${relative}` : ""}
-            </Text>
-          </View>
-        </View>
 
+          <Text style={s.sourceCaption}>{tx("localDetail.original")}</Text>
+          <Text style={s.title} numberOfLines={3} accessibilityLanguage="en">
+            {decision.title}
+          </Text>
+
+          <View style={s.facts}>
+            <View style={s.fact}>
+              <Icon name="users" size={12} color={DigestPalette.quiet} />
+              <Text style={s.factText} numberOfLines={1}>
+                {decision.body}
+              </Text>
+            </View>
+            <View style={s.fact}>
+              <Icon name="calendar" size={12} color={DigestPalette.quiet} />
+              <Text style={s.factText}>
+                {when}
+                {relative ? ` · ${relative}` : ""}
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
         <View style={s.footerRow}>
           <View style={s.fileWrap}>
             {decision.fileNumber ? (
@@ -97,7 +102,7 @@ export function DecisionCard({
                 {tx("File {value1}{value2}", {
                   value1: decision.fileNumber,
                   value2: decision.agendaNumber
-                    ? ` · Agenda ${decision.agendaNumber}`
+                    ? ` · ${tx("local.agendaItem", { item: decision.agendaNumber })}`
                     : "",
                 })}
               </Text>
@@ -111,14 +116,43 @@ export function DecisionCard({
               </View>
             ) : null}
           </View>
-          <Icon name="chevR" size={14} color={DigestPalette.quiet} />
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={followAccessibilityLabel(
+              "local_decision",
+              saved,
+              decision.title,
+              language,
+            )}
+            accessibilityState={{ selected: saved }}
+            style={s.follow}
+            onPress={() => {
+              toggleSave({
+                id: decision.id,
+                type: "local_decision",
+                title: decision.title,
+              });
+            }}
+          >
+            <Icon
+              name={saved ? "bookmarkFill" : "bookmark"}
+              size={18}
+              color={saved ? DigestPalette.spark : DigestPalette.quiet}
+            />
+          </TouchableOpacity>
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
+  follow: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   card: {
     flexDirection: "row",
     borderRadius: DigestRadii.card,
@@ -140,6 +174,12 @@ const s = StyleSheet.create({
     fontSize: 11.5,
     flexShrink: 1,
     color: DigestPalette.quiet,
+  },
+  sourceCaption: {
+    fontFamily: fontBody.regular,
+    fontSize: 10.5,
+    color: DigestPalette.quiet,
+    marginBottom: 4,
   },
   title: {
     fontFamily: fontDisplay.bold,

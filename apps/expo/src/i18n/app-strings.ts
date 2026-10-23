@@ -20,6 +20,8 @@ import { electionStrings } from "./app/elections";
 import { feedStrings } from "./app/feed";
 import { voteGuideStrings } from "./app/how-to-vote-guide";
 import { howToVoteLookupStrings } from "./app/how-to-vote-lookup";
+import { localDetailStrings } from "./app/local-detail";
+import { localGovernmentStrings } from "./app/local-government";
 import { onboardingStrings } from "./app/onboarding";
 import { pageStrings } from "./app/pages";
 import { settingsStrings } from "./app/settings";
@@ -28,6 +30,8 @@ import { votingStrings } from "./app/voting";
 import { formatNumber } from "./format";
 
 export const CATALOG = {
+  ...localGovernmentStrings,
+  ...localDetailStrings,
   ...auditStrings,
   ...updateStrings,
   ...pageStrings,

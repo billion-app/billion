@@ -14,6 +14,7 @@ import {
   localJurisdictionsInState,
   localJurisdictionText,
   scopeInfo,
+  selectHomeDecisions,
   sortTimeline,
   timelineSummary,
   topicLabel,
@@ -219,15 +220,18 @@ describe("vote availability language", () => {
 });
 
 describe("supported local jurisdictions", () => {
-  it("offers only San José, and only under California", () => {
-    assert.deepEqual(LOCAL_JURISDICTION_KEYS, ["sanjose"]);
-    assert.deepEqual(localJurisdictionsInState("ca"), ["sanjose"]);
+  it("offers reviewed cities only under California", () => {
+    assert.deepEqual(LOCAL_JURISDICTION_KEYS, ["sanjose", "santaclara"]);
+    assert.deepEqual(localJurisdictionsInState("ca"), [
+      "sanjose",
+      "santaclara",
+    ]);
     assert.deepEqual(localJurisdictionsInState("tx"), []);
   });
 
   it("rejects unsupported Legistar clients as route input", () => {
     assert.equal(isLocalJurisdictionKey("sanjose"), true);
-    for (const value of ["santaclara", "sunnyvale", "", undefined, null]) {
+    for (const value of ["sunnyvale", "", undefined, null]) {
       assert.equal(isLocalJurisdictionKey(value), false, String(value));
     }
   });
@@ -313,16 +317,6 @@ describe("jurisdiction detection from device locations", () => {
     [
       "a county-only iOS placemark (no locality)",
       { ...CITY_HALL, subregion: "Santa Clara County", region: "CA" },
-    ],
-    [
-      "the City of Santa Clara",
-      {
-        streetNumber: "1500",
-        street: "Warburton Ave",
-        city: "Santa Clara",
-        region: "CA",
-        postalCode: "95050",
-      },
     ],
     [
       "Sunnyvale",
@@ -420,4 +414,59 @@ it("localized labels preserve vote meaning and published source values", () => {
     scopeInfo("district", [1, 2], null, "zh").sentence,
     "影响第 1 选区、第 2 选区。",
   );
+});
+
+describe("Santa Clara city address matching", () => {
+  it("accepts the city while rejecting county and street names", () => {
+    for (const address of [
+      "1500 Warburton Ave, Santa Clara, CA 95050",
+      "City of Santa Clara, California, USA",
+      "圣克拉拉, 加州",
+    ])
+      assert.equal(detectJurisdictionKey(address), "santaclara");
+    for (const address of [
+      "Santa Clara County, CA",
+      "Unincorporated Santa Clara, CA",
+      "123 Santa Clara St, Sunnyvale, CA",
+      "Santa Clara, UT",
+      "Santa Clara",
+    ])
+      assert.equal(detectJurisdictionKey(address), null);
+    assert.equal(
+      detectJurisdictionKey("200 E Santa Clara St, San Jose, CA"),
+      "sanjose",
+    );
+    assert.equal(
+      localJurisdictionText("santaclara").body,
+      "City of Santa Clara",
+    );
+  });
+});
+
+describe("Home decision selection", () => {
+  const row = (id: string, day: number, bodyRelevanceTier = 1) => ({
+    id,
+    meetingStartsAt: new Date(Date.UTC(2026, 11, day)),
+    bodyRelevanceTier,
+  });
+  it("keeps followed records first, then relevant bodies, preserving time order", () => {
+    const rows = [
+      row("late", 5),
+      row("minor", 1, 3),
+      row("followed", 4, 3),
+      row("early", 2),
+      row("late", 7),
+    ];
+    assert.deepEqual(
+      selectHomeDecisions(rows, new Set(["followed"])).map(({ id }) => id),
+      ["followed", "early", "late"],
+    );
+    assert.equal(rows.length, 5);
+    assert.equal(
+      selectHomeDecisions(rows, new Set(), 5)
+        .find(({ id }) => id === "late")
+        ?.meetingStartsAt.getUTCDate(),
+      5,
+    );
+  });
 });

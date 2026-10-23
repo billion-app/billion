@@ -6,7 +6,9 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
+  Share,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -22,6 +24,8 @@ import {
   ParticipationCard,
 } from "~/components/local-government/DocumentsSection";
 import { LifecycleChip } from "~/components/local-government/LifecycleChip";
+import { LocalDecisionBrief } from "~/components/local-government/LocalDecisionBrief";
+import { LocalDecisionFollow } from "~/components/local-government/LocalDecisionFollow";
 import { OccurrenceTimeline } from "~/components/local-government/OccurrenceTimeline";
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui/Icon";
@@ -36,11 +40,11 @@ import {
   DigestPalette as P,
 } from "~/styles";
 import { trpc } from "~/utils/api";
+import { getBaseUrl } from "~/utils/base-url";
 import {
   classifyDecision,
   formatMeetingDate,
   latestOccurrence,
-  lifecycleLabel,
   nextUpcomingOccurrence,
   parseDate,
   scopeInfo,
@@ -60,8 +64,7 @@ export default function LocalDecisionDetailScreen() {
     retry: false,
   });
 
-  const errorCode = (query.error as { data?: { code?: string } } | null)?.data
-    ?.code;
+  const errorCode = query.error?.data?.code;
 
   if (!id || errorCode === "NOT_FOUND") {
     return (
@@ -130,13 +133,14 @@ function DecisionBody({
   const { t: tx, language } = useAppTranslation();
 
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [mode, setMode] = useState<"record" | "brief">("record");
 
   const latest = latestOccurrence(decision.occurrences);
   const lifecycle = classifyDecision({
     status: decision.status,
     type: decision.type,
     outcome: latest?.action ?? null,
-    passed: null,
+    passed: latest?.passed ?? null,
     meetingCancelled: latest?.cancelled ?? false,
     meetingStartsAt: latest?.startsAt ?? null,
   });
@@ -156,181 +160,239 @@ function DecisionBody({
         title={tx("Local decision")}
         tone="dark"
         onBack={onBack}
+        action={
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={tx("localDetail.share")}
+            style={s.shareButton}
+            onPress={() => {
+              const url = `${getBaseUrl()}/local/${encodeURIComponent(decision.jurisdictionKey)}/${encodeURIComponent(decision.id)}`;
+              void Share.share({
+                message: `${decision.title}\n${url}`,
+                url,
+              }).catch(() => Alert.alert(tx("localDetail.shareFailed")));
+            }}
+          >
+            <Icon name="share" size={20} color={P.spark} />
+          </TouchableOpacity>
+        }
       />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Dossier header — unique rhythm vs contest/measure */}
         <View style={s.dossierMark}>
           <DecisionSeal size={28} />
         </View>
         {topic ? <Text style={s.kicker}>{topic}</Text> : null}
-        <Text style={s.title} accessibilityRole="header">
+        <Text style={s.partialNote}>{tx("localDetail.original")}</Text>
+        <Text
+          style={s.title}
+          accessibilityRole="header"
+          accessibilityLanguage="en"
+        >
           {decision.title}
         </Text>
         <View style={s.flourishWrap}>
           <SectionFlourish width={72} />
         </View>
 
-        <View style={s.statusRow}>
-          <LifecycleChip lifecycle={lifecycle} size="md" />
-        </View>
-        <Text style={s.scopeSentence}>
-          {[
-            decision.jurisdiction,
-            scope.sentence ??
-              tx("Geographic area not specified in the official record."),
-          ].join(" · ")}
-        </Text>
-
-        {/* Key facts */}
         <View style={s.factsCard}>
-          <FactRow
-            label={tx("Status")}
-            value={
-              decision.status?.trim()
-                ? tx("{value1} (listed as “{value2}”)", {
-                    value1: lifecycleLabel(lifecycle, language),
-                    value2: decision.status.trim(),
-                  })
-                : lifecycleLabel(lifecycle, language)
-            }
-          />
-          {upcoming ? (
-            <FactRow
-              label={tx("Next public meeting")}
-              value={`${formatMeetingDate(upcoming.startsAt, language)} · ${upcoming.body}`}
-            />
-          ) : decision.occurrences[0] ? (
-            <FactRow
-              label={tx("Most recent meeting")}
-              value={`${formatMeetingDate(decision.occurrences.at(-1)?.startsAt, language)} · ${decision.occurrences.at(-1)?.body}`}
-            />
-          ) : (
-            <FactRow
-              label={tx("Meetings")}
-              value={tx("No meeting appearances published yet")}
-            />
-          )}
-          {decision.fileNumber ? (
-            <FactRow label={tx("File number")} value={decision.fileNumber} />
-          ) : null}
-          {decision.type ? (
-            <FactRow label={tx("Type")} value={decision.type} />
-          ) : null}
-          {parseDate(decision.introDate) ? (
-            <FactRow
-              label={tx("Introduced")}
-              value={formatMeetingDate(decision.introDate, language)}
-            />
-          ) : null}
-          {decision.enactmentNumber && parseDate(decision.enactmentDate) ? (
-            <FactRow
-              label={tx("Enacted ({value1})", {
-                value1: decision.enactmentNumber,
-              })}
-              value={formatMeetingDate(decision.enactmentDate, language)}
-            />
-          ) : null}
-        </View>
-
-        {/* Official source */}
-        {decision.sourceUrl ? (
-          <ExternalLink href={decision.sourceUrl} asChild>
-            <TouchableOpacity style={s.sourceButton} accessibilityRole="link">
-              <Icon name="link" size={13} color={P.spark} />
-              <Text style={s.sourceButtonText}>
-                {tx("Open on the official {value1} site", {
-                  value1: decision.jurisdiction,
-                })}
-              </Text>
-              <Icon name="external" size={12} color={P.spark} />
-            </TouchableOpacity>
-          </ExternalLink>
-        ) : null}
-
-        {/* Timeline of meeting occurrences */}
-        {decision.occurrences.length > 0 ? (
-          <>
-            <SectionHeading>
-              {decision.occurrences.length > 1
-                ? tx("Considered at {value1} meetings", {
-                    value1: decision.occurrences.length,
-                  })
-                : tx("Meeting appearance")}
-            </SectionHeading>
-            <OccurrenceTimeline
-              occurrences={decision.occurrences}
-              votes={decision.votes}
-            />
-          </>
-        ) : (
-          <Text style={s.partialNote}>
-            {tx(
-              "This file exists in the official record, but no meeting agenda has published it yet.",
-            )}
+          <SectionHeading>{tx("localDetail.reading")}</SectionHeading>
+          <View style={s.statusRow}>
+            <LifecycleChip lifecycle={lifecycle} size="md" />
+          </View>
+          <Text style={s.scopeSentence}>
+            {[
+              decision.jurisdiction,
+              scope.sentence ??
+                tx("Geographic area not specified in the official record."),
+            ].join(" · ")}
           </Text>
-        )}
-
-        {/* Published matter history (when Legistar provides structured history) */}
-        {decision.history.length > 0 ? (
-          <>
-            <TouchableOpacity
-              onPress={() => setHistoryOpen((open) => !open)}
-              style={s.historyToggle}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: historyOpen }}
-            >
-              <Text style={s.historyToggleText}>
-                {tx("{value1} published action history ( {value2})", {
-                  value1: historyOpen ? tx("Hide") : tx("Show"),
-                  value2: decision.history.length,
-                })}
-              </Text>
-              <Icon
-                name={historyOpen ? "chevD" : "chevR"}
-                size={14}
-                color={P.quiet}
-              />
-            </TouchableOpacity>
-            {historyOpen && (
-              <View style={s.historyCard}>
-                {decision.history.map((entry) => (
-                  <View key={entry.id} style={s.historyRow}>
-                    <Text style={s.historyDate}>
-                      {entry.actionDate
-                        ? formatMeetingDate(entry.actionDate, language)
-                        : tx("Undated")}
-                    </Text>
-                    <Text style={s.historyAction}>
-                      {[entry.body, entry.action].filter(Boolean).join(" · ")}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </>
-        ) : null}
-
-        <DocumentsSection
-          documents={decision.documents}
-          publicComments={decision.publicComments}
-        />
-
-        <ParticipationCard participation={decision.participation} />
-
-        {/* Honest provenance footer */}
-        <Text style={s.provenance}>
-          {tx(
-            "Everything above comes from {value1}'s published records, last updated {value2}. Blank fields mean the city hasn't published that information — not that it doesn't exist.",
-            {
-              value1: decision.jurisdiction,
-              value2: formatMeetingDate(decision.sourceUpdatedAt, language),
-            },
+          {decision.sourceUrl && (
+            <ExternalLink href={decision.sourceUrl} asChild>
+              <TouchableOpacity style={s.shareButton} accessibilityRole="link">
+                <Text style={s.sourceButtonText}>
+                  {tx("localDetail.evidence")}
+                </Text>
+              </TouchableOpacity>
+            </ExternalLink>
           )}
-        </Text>
+        </View>
+        <LocalDecisionFollow id={decision.id} title={decision.title} />
+        {decision.brief && (
+          <View style={s.modeRow}>
+            <TouchableOpacity
+              style={s.modeButton}
+              accessibilityRole="button"
+              accessibilityState={{ selected: mode === "record" }}
+              onPress={() => setMode("record")}
+            >
+              <Text
+                style={mode === "record" ? s.sourceButtonText : s.partialNote}
+              >
+                {tx("localDetail.record")}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.modeButton}
+              accessibilityRole="button"
+              accessibilityState={{ selected: mode === "brief" }}
+              onPress={() => setMode("brief")}
+            >
+              <Text
+                style={mode === "brief" ? s.sourceButtonText : s.partialNote}
+              >
+                {tx("localDetail.explanation")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {mode === "brief" && decision.brief ? (
+          <LocalDecisionBrief
+            brief={decision.brief}
+            documents={decision.documents}
+          />
+        ) : (
+          <>
+            <SectionHeading>{tx("localDetail.record")}</SectionHeading>
+            <View style={s.factsCard}>
+              {decision.status?.trim() && (
+                <FactRow label={tx("Status")} value={decision.status.trim()} />
+              )}
+              {upcoming ? (
+                <FactRow
+                  label={tx("Next public meeting")}
+                  value={`${formatMeetingDate(upcoming.startsAt, language)} · ${upcoming.body}`}
+                />
+              ) : decision.occurrences[0] ? (
+                <FactRow
+                  label={tx("Most recent meeting")}
+                  value={`${formatMeetingDate(latest?.startsAt, language)} · ${latest?.body}`}
+                />
+              ) : (
+                <FactRow
+                  label={tx("Meetings")}
+                  value={tx("No meeting appearances published yet")}
+                />
+              )}
+              {decision.fileNumber ? (
+                <FactRow
+                  label={tx("File number")}
+                  value={decision.fileNumber}
+                />
+              ) : null}
+              {decision.type ? (
+                <FactRow label={tx("Type")} value={decision.type} />
+              ) : null}
+              {parseDate(decision.introDate) ? (
+                <FactRow
+                  label={tx("Introduced")}
+                  value={formatMeetingDate(decision.introDate, language)}
+                />
+              ) : null}
+              {decision.enactmentNumber && parseDate(decision.enactmentDate) ? (
+                <FactRow
+                  label={tx("Enacted ({value1})", {
+                    value1: decision.enactmentNumber,
+                  })}
+                  value={formatMeetingDate(decision.enactmentDate, language)}
+                />
+              ) : null}
+            </View>
+            {decision.sourceUrl ? (
+              <ExternalLink href={decision.sourceUrl} asChild>
+                <TouchableOpacity
+                  style={s.sourceButton}
+                  accessibilityRole="link"
+                >
+                  <Icon name="link" size={13} color={P.spark} />
+                  <Text style={s.sourceButtonText}>
+                    {tx("Open on the official {value1} site", {
+                      value1: decision.jurisdiction,
+                    })}
+                  </Text>
+                  <Icon name="external" size={12} color={P.spark} />
+                </TouchableOpacity>
+              </ExternalLink>
+            ) : null}
+            {decision.occurrences.length > 0 ? (
+              <>
+                <SectionHeading>
+                  {decision.occurrences.length > 1
+                    ? tx("Considered at {value1} meetings", {
+                        value1: decision.occurrences.length,
+                      })
+                    : tx("Meeting appearance")}
+                </SectionHeading>
+                <OccurrenceTimeline
+                  occurrences={decision.occurrences}
+                  votes={decision.votes}
+                />
+              </>
+            ) : (
+              <Text style={s.partialNote}>
+                {tx(
+                  "This file exists in the official record, but no meeting agenda has published it yet.",
+                )}
+              </Text>
+            )}
+            {decision.history.length > 0 ? (
+              <>
+                <TouchableOpacity
+                  onPress={() => setHistoryOpen((open) => !open)}
+                  style={s.historyToggle}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: historyOpen }}
+                >
+                  <Text style={s.historyToggleText}>
+                    {tx("{value1} published action history ( {value2})", {
+                      value1: historyOpen ? tx("Hide") : tx("Show"),
+                      value2: decision.history.length,
+                    })}
+                  </Text>
+                  <Icon
+                    name={historyOpen ? "chevD" : "chevR"}
+                    size={14}
+                    color={P.quiet}
+                  />
+                </TouchableOpacity>
+                {historyOpen && (
+                  <View style={s.historyCard}>
+                    {decision.history.map((entry) => (
+                      <View key={entry.id} style={s.historyRow}>
+                        <Text style={s.historyDate}>
+                          {entry.actionDate
+                            ? formatMeetingDate(entry.actionDate, language)
+                            : tx("Undated")}
+                        </Text>
+                        <Text style={s.historyAction}>
+                          {[entry.body, entry.action]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </>
+            ) : null}
+
+            <DocumentsSection
+              documents={decision.documents}
+              publicComments={decision.publicComments}
+            />
+
+            <ParticipationCard participation={decision.participation} />
+
+            <Text style={s.provenance}>
+              {tx("localDetail.provenance", {
+                date: formatMeetingDate(decision.sourceUpdatedAt, language),
+              })}
+            </Text>
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -359,6 +421,20 @@ function DetailState({ title, body }: { title: string; body: string }) {
 }
 
 const s = StyleSheet.create({
+  shareButton: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  modeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
+  modeButton: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.menu,
+  },
   screen: { flex: 1, backgroundColor: P.canvas },
   scroll: { flex: 1 },
   scrollContent: {
