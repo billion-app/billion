@@ -50,7 +50,7 @@ export function LifecycleChip({
       accessibilityLabel={lifecycleAccessibilityLabel(lifecycle, language)}
     >
       <Icon name={visual.icon} size={iconSize} color={tint} />
-      <Text style={[s.label, s[`${size}Label`], { color: tint }]}>
+      <Text style={[s.label, s[`${size}Label`], { color: theme.foreground }]}>
         {lifecycleLabel(lifecycle, language)}
       </Text>
     </View>

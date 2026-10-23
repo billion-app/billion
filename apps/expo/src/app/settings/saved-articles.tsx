@@ -121,7 +121,7 @@ export default function SavedArticlesScreen() {
   return (
     <View style={s.screen}>
       <NavHeader title={t("saved.title")} onBack={() => router.back()} />
-      {isLoading && local.isLoading && savedIds.length > 0 ? (
+      {(isLoading || local.isLoading) && savedIds.length > 0 ? (
         <ActivityIndicator
           color={P.inkOnNight}
           style={{ marginTop: 40 }}

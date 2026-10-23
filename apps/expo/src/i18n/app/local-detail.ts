@@ -42,14 +42,14 @@ export const localDetailStrings = {
     zh: "此解读目前为英文。官方文件保留原始语言。",
   },
   "localDetail.quote": {
-    en: "Source passage · page {page}",
-    es: "Pasaje de la fuente · página {page}",
-    zh: "来源原文 · 第 {page} 页",
+    en: "Source passage · PDF page {page}",
+    es: "Pasaje de la fuente · página {page} del PDF",
+    zh: "来源原文 · PDF 第 {page} 页",
   },
   "localDetail.document": {
-    en: "Open official document · page {page}",
-    es: "Abrir documento oficial · página {page}",
-    zh: "打开官方文件 · 第 {page} 页",
+    en: "Open official document · PDF page {page}",
+    es: "Abrir documento oficial · página {page} del PDF",
+    zh: "打开官方文件 · PDF 第 {page} 页",
   },
   "localDetail.follow": {
     en: "Follow this decision",

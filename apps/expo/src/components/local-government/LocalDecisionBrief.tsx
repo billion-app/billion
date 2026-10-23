@@ -80,7 +80,10 @@ function SourcePassage({
           <Text accessibilityLanguage="en" style={s.quote}>
             “{citation.quote}”
           </Text>
-          <ExternalLink href={url} asChild>
+          <ExternalLink
+            href={`${url.split("#")[0]}#page=${citation.page}`}
+            asChild
+          >
             <TouchableOpacity style={s.button} accessibilityRole="link">
               <Text style={s.link}>
                 {t("localDetail.document", { page: citation.page })}
@@ -98,7 +101,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 12,
     lineHeight: 18,
-    color: P.quiet,
+    color: P.inkOnNight,
   },
   card: {
     backgroundColor: P.card,

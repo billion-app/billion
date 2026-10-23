@@ -189,7 +189,7 @@ export default function LocalDecisionsScreen() {
         <Segmented<TimelineTab>
           options={[
             { id: "upcoming", label: tx("Upcoming") },
-            { id: "recent", label: tx("Recently decided") },
+            { id: "recent", label: tx("Recent meetings") },
           ]}
           value={tab}
           onChange={(next) => {
@@ -294,8 +294,8 @@ export default function LocalDecisionsScreen() {
                       value1: jurisdictionName,
                     })
                   : topic
-                    ? tx("No recently decided items found for this topic")
-                    : tx("No recently decided items found{value1}", {
+                    ? tx("No recent meeting items found for this topic")
+                    : tx("No recent meeting items found{value1}", {
                         value1: "",
                       })
               }
@@ -309,7 +309,7 @@ export default function LocalDecisionsScreen() {
               }
               actionLabel={
                 tab === "upcoming"
-                  ? tx("See recently decided")
+                  ? tx("See recent meetings")
                   : tx("See upcoming")
               }
               onAction={() => {

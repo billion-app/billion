@@ -67,7 +67,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 19,
-    color: P.quiet,
+    color: P.inkOnNight,
   },
   button: {
     minHeight: 44,
