@@ -67,6 +67,7 @@ export default function LocalDecisionDetailScreen() {
     return (
       <View style={s.screen}>
         <NavHeader
+          large
           title={tx("Local decision")}
           tone="dark"
           onBack={() => router.back()}
@@ -85,6 +86,7 @@ export default function LocalDecisionDetailScreen() {
     return (
       <View style={s.screen}>
         <NavHeader
+          large
           title={tx("Local decision")}
           tone="dark"
           onBack={() => router.back()}
@@ -100,6 +102,7 @@ export default function LocalDecisionDetailScreen() {
     return (
       <View style={s.screen}>
         <NavHeader
+          large
           title={tx("Local decision")}
           tone="dark"
           onBack={() => router.back()}
@@ -148,7 +151,12 @@ function DecisionBody({
 
   return (
     <View style={s.screen}>
-      <NavHeader title={tx("Local decision")} tone="dark" onBack={onBack} />
+      <NavHeader
+        large
+        title={tx("Local decision")}
+        tone="dark"
+        onBack={onBack}
+      />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
@@ -230,8 +238,8 @@ function DecisionBody({
 
         {/* Official source */}
         {decision.sourceUrl ? (
-          <ExternalLink href={decision.sourceUrl}>
-            <View style={s.sourceButton}>
+          <ExternalLink href={decision.sourceUrl} asChild>
+            <TouchableOpacity style={s.sourceButton} accessibilityRole="link">
               <Icon name="link" size={13} color={P.spark} />
               <Text style={s.sourceButtonText}>
                 {tx("Open on the official {value1} site", {
@@ -239,7 +247,7 @@ function DecisionBody({
                 })}
               </Text>
               <Icon name="external" size={12} color={P.spark} />
-            </View>
+            </TouchableOpacity>
           </ExternalLink>
         ) : null}
 

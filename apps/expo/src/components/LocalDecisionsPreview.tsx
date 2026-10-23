@@ -2,7 +2,6 @@
  * Compact local-government preview for existing surfaces. Links into the full
  * decision experience — it never duplicates the list inline.
  */
-import type { Href } from "expo-router";
 import {
   Text as RNText,
   StyleSheet,
@@ -27,8 +26,8 @@ import {
   classifyDecision,
   detectJurisdictionKey,
   formatMeetingDate,
-  JURISDICTION_FALLBACK_NAMES,
   lifecycleVisual,
+  localJurisdictionText,
 } from "~/utils/local-government";
 
 const PREVIEW_COUNT = 3;
@@ -44,7 +43,7 @@ export function LocalDecisionsPreview({
 
   const jurisdiction = detectJurisdictionKey(address);
   const jurisdictionName = jurisdiction
-    ? JURISDICTION_FALLBACK_NAMES[jurisdiction]
+    ? localJurisdictionText(jurisdiction, language).name
     : null;
 
   const query = useQuery({
@@ -62,7 +61,12 @@ export function LocalDecisionsPreview({
   return (
     <TouchableOpacity
       activeOpacity={0.85}
-      onPress={() => router.push("/local-decisions" as Href)}
+      onPress={() =>
+        router.push({
+          pathname: "/local-decisions",
+          params: { jurisdiction },
+        })
+      }
       accessibilityRole="button"
       accessibilityHint={tx(
         "Opens the full list of upcoming and recent local decisions",

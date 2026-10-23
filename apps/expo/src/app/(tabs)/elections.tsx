@@ -52,6 +52,10 @@ import {
   isCaliforniaState,
   measureIsStatewide,
 } from "~/utils/elections";
+import {
+  localJurisdictionsInState,
+  localJurisdictionText,
+} from "~/utils/local-government";
 
 type BallotTab = "candidates" | "measures";
 
@@ -318,6 +322,40 @@ function CaliforniaElectionEntry({
             />
           )}
         </Card>
+        {localJurisdictionsInState("ca").map((key) => {
+          const place = localJurisdictionText(key, language);
+          const title = t("What {value1} is deciding", { value1: place.name });
+          const note = t("elections.entry.localNote", { body: place.body });
+          return (
+            <TouchableOpacity
+              key={key}
+              accessibilityRole="button"
+              accessibilityLabel={`${title}. ${note}`}
+              onPress={() =>
+                router.push({
+                  pathname: "/local-decisions",
+                  params: { jurisdiction: key },
+                })
+              }
+              style={s.entryTool}
+              testID={`elections-local-${key}`}
+            >
+              <View
+                style={s.entryIcon}
+                accessible={false}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                <Icon name="scale" size={18} color={colors.bill} />
+              </View>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={s.entryGuideTitle}>{title}</Text>
+                <Text style={s.entryNoteText}>{note}</Text>
+              </View>
+              <Icon name="chevR" size={16} color={colors.bill} />
+            </TouchableOpacity>
+          );
+        })}
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={t("elections.entry.researchA11y")}

@@ -7,7 +7,8 @@ import type { AppLanguage } from "~/i18n/language";
  * hand-mock shapes here.
  */
 import type { RouterOutputs } from "~/utils/api";
-import { appTranslator } from "~/i18n/app-strings";
+import type { StateJurisdiction } from "~/utils/jurisdiction";
+import { appTranslator, translateApp } from "~/i18n/app-strings";
 import { formatList, localeTag } from "~/i18n/format";
 
 export type DecisionListPage = RouterOutputs["legistar"]["listDecisions"];
@@ -16,45 +17,53 @@ export type DecisionDetail = RouterOutputs["legistar"]["getDecision"];
 export type DecisionOccurrence = DecisionDetail["occurrences"][number];
 export type DecisionVote = DecisionDetail["votes"][number];
 
-/** First-release jurisdictions wired into the ingestion pipeline. */
-export const LOCAL_JURISDICTIONS = [
-  "sanjose",
-  "santaclara",
-  "sunnyvale",
-] as const;
-export type LocalJurisdictionKey = (typeof LOCAL_JURISDICTIONS)[number];
+export const LOCAL_JURISDICTION_KEYS = ["sanjose"] as const;
+export type LocalJurisdictionKey = (typeof LOCAL_JURISDICTION_KEYS)[number];
 
-/**
- * Best-effort jurisdiction detection from a saved address string. Unknown or
- * missing addresses return null so callers do not expose city-specific UI to
- * people outside a supported jurisdiction.
- */
+export const LOCAL_JURISDICTIONS = {
+  sanjose: { state: "ca" },
+} as const satisfies Record<LocalJurisdictionKey, { state: StateJurisdiction }>;
+
+export function isLocalJurisdictionKey(
+  value: string | null | undefined,
+): value is LocalJurisdictionKey {
+  return LOCAL_JURISDICTION_KEYS.some((key) => key === value);
+}
+
+export function localJurisdictionsInState(
+  state: StateJurisdiction,
+): LocalJurisdictionKey[] {
+  return LOCAL_JURISDICTION_KEYS.filter(
+    (key) => LOCAL_JURISDICTIONS[key].state === state,
+  );
+}
+
+export function localJurisdictionText(
+  key: LocalJurisdictionKey,
+  language: AppLanguage = "en",
+): { name: string; body: string; description: string } {
+  return {
+    name: translateApp(language, `place.${key}.name`),
+    body: translateApp(language, `place.${key}.body`),
+    description: translateApp(language, `place.${key}.description`),
+  };
+}
+
+const SAN_JOSE_ADDRESS = new RegExp(
+  String.raw`(?:^|[,，]\s*)(?:city of )?(?:san jos[eé]|圣何塞|圣荷西|聖荷西)` +
+    String.raw`(?:(?:[,，]\s*|\s+)(?:ca|california|加利福尼亚州|加利福尼亞州|加州)` +
+    String.raw`(?:[,，\s]+\d{5}(?:-\d{4})?)?)?` +
+    String.raw`(?:[,，]\s*(?:usa?|united states|ee\. uu\.|estados unidos|美国|美國))?$`,
+  "i",
+);
+
 export function detectJurisdictionKey(
   address: string | null | undefined,
 ): LocalJurisdictionKey | null {
-  if (!address) return null;
-  const normalized = address.toLowerCase();
-  // Match a city component, not a street such as "San Jose Boulevard" in a
-  // different city. Google Places returns comma-delimited formatted addresses.
-  if (
-    /(?:^|,\s*)san jos[eé](?:,\s*ca(?:\s+\d{5}(?:-\d{4})?)?)?(?:,\s*usa)?$/.test(
-      normalized,
-    )
-  ) {
-    return "sanjose";
-  }
-  if (normalized.includes("sunnyvale")) return "sunnyvale";
-  if (/santa clara county|unincorporated/.test(normalized)) return "santaclara";
-  return null;
+  return address && SAN_JOSE_ADDRESS.test(address.normalize("NFC").trim())
+    ? "sanjose"
+    : null;
 }
-
-/** Best-effort display name while the DB record loads. */
-export const JURISDICTION_FALLBACK_NAMES: Record<LocalJurisdictionKey, string> =
-  {
-    sanjose: "San José",
-    santaclara: "Santa Clara County",
-    sunnyvale: "Sunnyvale",
-  };
 
 // ---------------------------------------------------------------------------
 // Topics

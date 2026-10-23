@@ -1,9 +1,10 @@
 /**
  * "What {City} Is Deciding" - the local-government decision list.
  *
- * Jurisdiction comes from the user's saved address via detectJurisdictionKey
- * (San José / Santa Clara / Sunnyvale). Unsupported addresses redirect back
- * to Elections — never invent a city.
+ * Entry points (Elections, the Browse jurisdiction sheet) pass an explicit
+ * `jurisdiction` from the local registry, so no address is needed. Without
+ * one, the saved address decides via detectJurisdictionKey. Anything outside
+ * the registry redirects back to Elections — never invent a city.
  */
 import type { Href } from "expo-router";
 import { useMemo, useRef, useState } from "react";
@@ -15,7 +16,7 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from "react-native";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { LanguageCorner } from "~/components/LanguageButton";
@@ -33,7 +34,8 @@ import { trpc } from "~/utils/api";
 import {
   detectJurisdictionKey,
   formatMeetingDate,
-  JURISDICTION_FALLBACK_NAMES,
+  isLocalJurisdictionKey,
+  localJurisdictionText,
   topicLabelOrFallback,
 } from "~/utils/local-government";
 
@@ -47,12 +49,19 @@ export default function LocalDecisionsScreen() {
   const { t: tx, language } = useAppTranslation();
 
   const router = useRouter();
-  const { address, isLoading: isAddressLoading } = useUserAddress();
+  const params = useLocalSearchParams<{ jurisdiction?: string }>();
+  const requested = isLocalJurisdictionKey(params.jurisdiction)
+    ? params.jurisdiction
+    : null;
+  const { address, isLoading: isStoredAddressLoading } = useUserAddress();
+  const isAddressLoading = requested === null && isStoredAddressLoading;
 
-  const detectedJurisdiction = detectJurisdictionKey(address);
-  const jurisdiction = detectedJurisdiction;
+  const jurisdiction =
+    params.jurisdiction === undefined
+      ? detectJurisdictionKey(address)
+      : requested;
   const jurisdictionName = jurisdiction
-    ? JURISDICTION_FALLBACK_NAMES[jurisdiction]
+    ? localJurisdictionText(jurisdiction, language).name
     : null;
 
   const [tab, setTab] = useState<TimelineTab>("upcoming");

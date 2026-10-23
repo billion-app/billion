@@ -597,6 +597,13 @@ export function BrowseCatalog() {
           void setJurisdiction(next);
           setJurisdictionPickerOpen(false);
         }}
+        onOpenLocal={(local) => {
+          setJurisdictionPickerOpen(false);
+          router.push({
+            pathname: "/local-decisions",
+            params: { jurisdiction: local },
+          });
+        }}
       />
     </SafeAreaView>
   );
