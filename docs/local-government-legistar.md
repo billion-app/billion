@@ -266,6 +266,10 @@ follows from that text. Publication review must compare each generated claim
 with its cited page, including proposal versus adopted-action wording. The
 validator does not replace this review.
 
+### Manually reviewed explanation pilot
+
+Explanations are a manually reviewed pilot. The supervisor ingests official records but does not schedule generation. Operators generate bounded samples in a review database, check every claim and quoted excerpt against the original PDF, and publish only reviewed text against matching production source hashes and context. The model evidence check is an additional filter, not an editorial approval. Minor source changes can hide a brief until an operator regenerates and reviews it; the official record remains readable.
+
 ## Operations and failure behavior
 
 - Production never substitutes synthetic records for failed source reads.
