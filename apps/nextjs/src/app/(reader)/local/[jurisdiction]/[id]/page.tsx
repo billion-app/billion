@@ -86,7 +86,7 @@ export default async function DecisionPage({ params }: Props) {
                         className="border-chrome rounded-lg border p-3 text-sm"
                       >
                         <summary className="text-spark cursor-pointer">
-                          {document.name} · page {citation.page}
+                          {document.name} · PDF page {citation.page}
                         </summary>
                         <blockquote
                           lang="en"
@@ -94,8 +94,10 @@ export default async function DecisionPage({ params }: Props) {
                         >
                           “{citation.quote}”
                         </blockquote>
-                        <Source href={document.url}>
-                          Open original document · page {citation.page} ↗
+                        <Source
+                          href={`${document.url.split("#")[0]}#page=${citation.page}`}
+                        >
+                          Open original document · PDF page {citation.page} ↗
                         </Source>
                       </details>
                     );
@@ -152,7 +154,9 @@ export default async function DecisionPage({ params }: Props) {
                 <p className="mt-3 font-semibold">Meeting cancelled</p>
               )}
               {occurrence.location && (
-                <p className="text-ink-night mt-2 text-sm">{occurrence.location}</p>
+                <p className="text-ink-night mt-2 text-sm">
+                  {occurrence.location}
+                </p>
               )}
               {occurrence.proposedAction && (
                 <div className="mt-4">
