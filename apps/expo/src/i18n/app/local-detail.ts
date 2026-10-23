@@ -1,6 +1,11 @@
 import type { Catalog } from "./types";
 
 export const localDetailStrings = {
+  "localDetail.participationGuidance": {
+    en: "Check the official meeting agenda for participation methods and deadlines.",
+    es: "Consulta el orden del día oficial de la reunión para conocer las formas de participar y los plazos.",
+    zh: "请查看官方会议议程，了解参与方式和截止日期。",
+  },
   "localDetail.shareFailed": {
     en: "Could not share this decision. Please try again.",
     es: "No se pudo compartir esta decisión. Inténtalo de nuevo.",

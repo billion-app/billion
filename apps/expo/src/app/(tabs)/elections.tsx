@@ -373,7 +373,7 @@ function CaliforniaElectionEntry({
             const title = t("What {value1} is deciding", {
               value1: place.name,
             });
-            const note = t("elections.entry.localNote", { body: place.body });
+            const note = t("elections.entry.localNote");
             return (
               <TouchableOpacity
                 key={key}

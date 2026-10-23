@@ -47,7 +47,6 @@ import {
   latestOccurrence,
   nextUpcomingOccurrence,
   parseDate,
-  scopeInfo,
   topicLabel,
 } from "~/utils/local-government";
 
@@ -144,12 +143,6 @@ function DecisionBody({
     meetingCancelled: latest?.cancelled ?? false,
     meetingStartsAt: latest?.startsAt ?? null,
   });
-  const scope = scopeInfo(
-    decision.scope,
-    decision.districtNumbers,
-    decision.geographicText,
-    language,
-  );
   const topic = topicLabel(decision.topic, language);
   const upcoming = nextUpcomingOccurrence(decision.occurrences);
 
@@ -203,13 +196,7 @@ function DecisionBody({
           <View style={s.statusRow}>
             <LifecycleChip lifecycle={lifecycle} size="md" />
           </View>
-          <Text style={s.scopeSentence}>
-            {[
-              decision.jurisdiction,
-              scope.sentence ??
-                tx("Geographic area not specified in the official record."),
-            ].join(" · ")}
-          </Text>
+          <Text style={s.scopeSentence}>{decision.jurisdiction}</Text>
           {decision.sourceUrl && (
             <ExternalLink href={decision.sourceUrl} asChild>
               <TouchableOpacity style={s.shareButton} accessibilityRole="link">

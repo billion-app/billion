@@ -20,7 +20,6 @@ import {
   classifyDecision,
   formatMeetingDate,
   relativeDay,
-  scopeInfo,
   topicLabel,
 } from "~/utils/local-government";
 import { LifecycleChip } from "./LifecycleChip";
@@ -44,12 +43,6 @@ export function DecisionCard({
     meetingCancelled: decision.meetingCancelled,
     meetingStartsAt: decision.meetingStartsAt,
   });
-  const scope = scopeInfo(
-    decision.scope,
-    decision.districtNumbers,
-    decision.geographicText,
-    language,
-  );
   const topic = topicLabel(decision.topic, language);
   const when = formatMeetingDate(decision.meetingStartsAt, language);
   const relative = relativeDay(decision.meetingStartsAt, undefined, language);
@@ -106,14 +99,6 @@ export function DecisionCard({
                     : "",
                 })}
               </Text>
-            ) : null}
-            {scope.label ? (
-              <View style={s.scopeBadge}>
-                <Icon name="pin" size={10} color={DigestPalette.quiet} />
-                <Text style={s.scopeText} numberOfLines={1}>
-                  {scope.label}
-                </Text>
-              </View>
             ) : null}
           </View>
           <TouchableOpacity
@@ -214,22 +199,6 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 11.5,
     flexShrink: 1,
-    color: DigestPalette.quiet,
-  },
-  scopeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: DigestPalette.border,
-    borderRadius: 999,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  scopeText: {
-    fontFamily: fontBody.semibold,
-    fontSize: 10.5,
-    maxWidth: 150,
     color: DigestPalette.quiet,
   },
 });
