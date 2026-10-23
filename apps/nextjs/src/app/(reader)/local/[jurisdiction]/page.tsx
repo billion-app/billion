@@ -45,7 +45,7 @@ export default async function CityPage({ params, searchParams }: Props) {
   });
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 md:px-8">
-      <Link href="/local" className="text-quiet text-sm">
+      <Link href="/local" className="text-ink-night text-sm">
         ← All cities
       </Link>
       <p className="text-spark mt-8 text-xs font-bold tracking-widest uppercase">
@@ -54,11 +54,11 @@ export default async function CityPage({ params, searchParams }: Props) {
       <h1 className="font-display mt-3 text-4xl font-bold">
         What {city.name.replace(/^City of /, "")} is deciding
       </h1>
-      <p className="text-quiet mt-4">
+      <p className="text-ink-night mt-4">
         From official meeting agendas. Titles remain as published.
       </p>
       <form className="border-chrome my-8 flex flex-wrap items-end gap-4 border-y py-5">
-        <label className="text-quiet grid gap-2 text-sm">
+        <label className="text-ink-night grid gap-2 text-sm">
           Meetings
           <select
             name="timeline"
@@ -70,7 +70,7 @@ export default async function CityPage({ params, searchParams }: Props) {
             <option value="all">All</option>
           </select>
         </label>
-        <label className="text-quiet grid gap-2 text-sm">
+        <label className="text-ink-night grid gap-2 text-sm">
           Topic
           <select
             name="topic"
@@ -96,7 +96,7 @@ export default async function CityPage({ params, searchParams }: Props) {
             key={decision.id}
             className="border-chrome bg-slate hover:border-spark rounded-2xl border p-5 no-underline"
           >
-            <p className="text-quiet text-sm">
+            <p className="text-ink-night text-sm">
               {decision.body} · {meetingDate(decision.meetingStartsAt)}
             </p>
             <h2
@@ -105,7 +105,7 @@ export default async function CityPage({ params, searchParams }: Props) {
             >
               {decision.title}
             </h2>
-            <p className="text-quiet mt-3 text-sm">
+            <p className="text-ink-night mt-3 text-sm">
               File {decision.fileNumber}
               {decision.agendaNumber ? ` · Item ${decision.agendaNumber}` : ""}
             </p>

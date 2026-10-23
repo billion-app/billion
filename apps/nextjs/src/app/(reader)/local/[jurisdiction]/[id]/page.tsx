@@ -30,7 +30,7 @@ export default async function DecisionPage({ params }: Props) {
     notFound();
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 md:px-8">
-      <Link href={`/local/${jurisdiction}`} className="text-quiet text-sm">
+      <Link href={`/local/${jurisdiction}`} className="text-ink-night text-sm">
         ← {decision.jurisdiction} decisions
       </Link>
       <header className="mt-8">
@@ -43,7 +43,7 @@ export default async function DecisionPage({ params }: Props) {
         >
           {decision.title}
         </h1>
-        <p className="text-quiet mt-4">
+        <p className="text-ink-night mt-4">
           {decision.jurisdiction}
           {decision.type ? ` · ${decision.type}` : ""}
         </p>
@@ -66,7 +66,7 @@ export default async function DecisionPage({ params }: Props) {
           >
             What the documents say
           </h2>
-          <p className="text-quiet mt-3 text-sm">
+          <p className="text-ink-night mt-3 text-sm">
             AI-generated explanation, separate from the city’s official wording.
             Check each claim against its cited page.
           </p>
@@ -90,7 +90,7 @@ export default async function DecisionPage({ params }: Props) {
                         </summary>
                         <blockquote
                           lang="en"
-                          className="text-quiet my-3 border-l-2 pl-3 leading-relaxed"
+                          className="text-ink-night my-3 border-l-2 pl-3 leading-relaxed"
                         >
                           “{citation.quote}”
                         </blockquote>
@@ -108,7 +108,7 @@ export default async function DecisionPage({ params }: Props) {
       )}
 
       <section className="mt-12" aria-labelledby="official-record">
-        <p className="text-quiet text-xs font-bold tracking-widest uppercase">
+        <p className="text-ink-night text-xs font-bold tracking-widest uppercase">
           As published · {decision.jurisdiction}
         </p>
         <h2
@@ -118,13 +118,13 @@ export default async function DecisionPage({ params }: Props) {
           The official record
         </h2>
         <dl className="border-chrome mt-5 grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 border-y py-5 text-sm">
-          <dt className="text-quiet">File</dt>
+          <dt className="text-ink-night">File</dt>
           <dd>{decision.fileNumber}</dd>
-          <dt className="text-quiet">Published status</dt>
+          <dt className="text-ink-night">Published status</dt>
           <dd>{decision.status ?? "Not provided"}</dd>
           {decision.enactmentNumber && (
             <>
-              <dt className="text-quiet">Enactment</dt>
+              <dt className="text-ink-night">Enactment</dt>
               <dd>{decision.enactmentNumber}</dd>
             </>
           )}
@@ -133,7 +133,7 @@ export default async function DecisionPage({ params }: Props) {
           Meetings and outcomes
         </h3>
         {decision.occurrences.length === 0 && (
-          <p className="text-quiet mt-4">No meeting record is available.</p>
+          <p className="text-ink-night mt-4">No meeting record is available.</p>
         )}
         <ol className="mt-5 space-y-5">
           {decision.occurrences.map((occurrence) => (
@@ -142,7 +142,7 @@ export default async function DecisionPage({ params }: Props) {
               className="border-chrome bg-slate rounded-2xl border p-5"
             >
               <h4 className="font-semibold">{occurrence.body}</h4>
-              <p className="text-quiet mt-1 text-sm">
+              <p className="text-ink-night mt-1 text-sm">
                 {meetingDate(occurrence.startsAt)}
                 {occurrence.agendaNumber
                   ? ` · Item ${occurrence.agendaNumber}`
@@ -152,11 +152,11 @@ export default async function DecisionPage({ params }: Props) {
                 <p className="mt-3 font-semibold">Meeting cancelled</p>
               )}
               {occurrence.location && (
-                <p className="text-quiet mt-2 text-sm">{occurrence.location}</p>
+                <p className="text-ink-night mt-2 text-sm">{occurrence.location}</p>
               )}
               {occurrence.proposedAction && (
                 <div className="mt-4">
-                  <p className="text-quiet text-xs font-semibold uppercase">
+                  <p className="text-ink-night text-xs font-semibold uppercase">
                     Published action text
                   </p>
                   <p className="mt-2 leading-relaxed whitespace-pre-line">
@@ -165,13 +165,13 @@ export default async function DecisionPage({ params }: Props) {
                 </div>
               )}
               <p className="mt-4">
-                <span className="text-quiet">Recorded outcome: </span>
+                <span className="text-ink-night">Recorded outcome: </span>
                 {[occurrence.action, occurrence.passed, occurrence.tally]
                   .filter(Boolean)
                   .join(" · ") || "No outcome published in this record."}
               </p>
               {occurrence.minutesNote && (
-                <p className="text-quiet mt-3 text-sm whitespace-pre-line">
+                <p className="text-ink-night mt-3 text-sm whitespace-pre-line">
                   {occurrence.minutesNote}
                 </p>
               )}
@@ -222,7 +222,7 @@ export default async function DecisionPage({ params }: Props) {
             <li key={document.id}>
               <Source href={document.url}>{document.name} ↗</Source>
               {document.pageCount ? (
-                <span className="text-quiet ml-2 text-sm">
+                <span className="text-ink-night ml-2 text-sm">
                   {document.pageCount} pages
                 </span>
               ) : null}
@@ -230,7 +230,7 @@ export default async function DecisionPage({ params }: Props) {
           ))}
         </ul>
         {decision.documents.length === 0 && (
-          <p className="text-quiet mt-4">
+          <p className="text-ink-night mt-4">
             No documents are attached to this record.
           </p>
         )}
@@ -238,7 +238,7 @@ export default async function DecisionPage({ params }: Props) {
 
       <section className="border-chrome mt-10 border-t pt-8">
         <h2 className="font-display text-2xl font-bold">Take part</h2>
-        <p className="text-quiet mt-3 leading-relaxed">
+        <p className="text-ink-night mt-3 leading-relaxed">
           {decision.participation.note}
         </p>
         <div className="mt-3">
@@ -252,7 +252,7 @@ export default async function DecisionPage({ params }: Props) {
               Public comments in the official record (
               {decision.publicComments.documentCount})
             </summary>
-            <p className="text-quiet mt-3 text-sm">
+            <p className="text-ink-night mt-3 text-sm">
               These links open the city’s original records. Public comments are
               not used in Billion’s generated explanations.
             </p>
@@ -280,7 +280,7 @@ function Source({
   children: React.ReactNode;
 }) {
   if (!href)
-    return <span className="text-quiet">Official link not provided</span>;
+    return <span className="text-ink-night">Official link not provided</span>;
   return (
     <a
       className="text-spark underline decoration-current/40 underline-offset-4 hover:decoration-current"

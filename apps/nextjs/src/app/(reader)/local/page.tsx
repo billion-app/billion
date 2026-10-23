@@ -22,7 +22,7 @@ export default async function LocalPage() {
       <h1 className="font-display mt-3 text-4xl font-bold">
         Decisions close to home
       </h1>
-      <p className="text-quiet mt-4 leading-relaxed">
+      <p className="text-ink-night mt-4 leading-relaxed">
         Follow the official record from a published agenda to a recorded
         outcome. Original titles and documents stay as the city published them.
       </p>
@@ -34,16 +34,16 @@ export default async function LocalPage() {
             className="border-chrome bg-slate hover:border-spark rounded-2xl border p-6 no-underline"
           >
             <h2 className="font-display text-2xl font-bold">{city.name}</h2>
-            <p className="text-quiet mt-2">Upcoming and recent decisions →</p>
+            <p className="text-ink-night mt-2">Upcoming and recent decisions →</p>
           </Link>
         ))}
         {cities.length === 0 && (
-          <p className="text-quiet">
+          <p className="text-ink-night">
             City agendas are not available yet. Please check back.
           </p>
         )}
       </div>
-      <p className="text-quiet mt-8 text-sm">
+      <p className="text-ink-night mt-8 text-sm">
         Coverage is for the listed cities. City of Santa Clara records are
         separate from Santa Clara County.
       </p>
