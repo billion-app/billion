@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
+import { setTimeout } from "node:timers/promises";
 import type { Pool } from "pg";
 
-import { eq, inArray } from "@acme/db";
+import { eq, inArray, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
@@ -54,6 +55,7 @@ void test(
     let reject = false;
     let rejectError = "DeviceNotRegistered";
     let beforeSend: (() => Promise<void>) | undefined;
+    let batchTickets: ExpoPushTicket[] | undefined;
     let receiptHttpError = false;
     let receiptRequests = 0;
     const receipts: Record<string, ExpoPushTicket> = {};
@@ -82,15 +84,17 @@ void test(
         () =>
           new Response(
             JSON.stringify({
-              data: batch.map(() =>
-                reject
-                  ? {
-                      status: "error",
-                      message: "Device not registered",
-                      details: { error: rejectError },
-                    }
-                  : { status: "ok", id: randomUUID() },
-              ),
+              data:
+                batchTickets ??
+                batch.map(() =>
+                  reject
+                    ? {
+                        status: "error",
+                        message: "Device not registered",
+                        details: { error: rejectError },
+                      }
+                    : { status: "ok", id: randomUUID() },
+                ),
             }),
           ),
       );
@@ -872,6 +876,77 @@ void test(
           assert.equal((await hourly).sent, 1);
           assert.equal((await testSend).sent, 1);
           assert.equal(messages.length - before, 1);
+        },
+      );
+      await t.test(
+        "opt-out during a mixed Expo response preserves accepted tickets without deadlock",
+        async () => {
+          const raceToken = `ExpoPushToken[${randomUUID()}]`;
+          const syncRace = (following: boolean) =>
+            caller.sync({
+              token: raceToken,
+              platform: "ios",
+              timezone: "UTC",
+              prefs: { ...prefs, following },
+              followIds: [billId],
+            });
+          const { deviceId: raceDevice } = await syncRace(true);
+          deviceIds.push(raceDevice);
+          await queue(new Date(0), raceDevice);
+          await queue(new Date(0), raceDevice);
+          const acceptedTicket = randomUUID();
+          batchTickets = [
+            { status: "ok", id: acceptedTicket },
+            {
+              status: "error",
+              message: "Device not registered",
+              details: { error: "DeviceNotRegistered" },
+            },
+          ];
+          let optOut: Promise<PromiseSettledResult<unknown>[]> | undefined;
+          beforeSend = async () => {
+            optOut = Promise.allSettled([syncRace(false)]);
+            // Observe sync holding the device and waiting for this send's outbox lock.
+            const deadline = Date.now() + 5_000;
+            while (Date.now() < deadline) {
+              const waiting = await db.execute(sql`
+                select 1 from pg_stat_activity
+                where datname = current_database() and wait_event_type = 'Lock'
+                  and query like 'delete from "notification_outbox"%'
+              `);
+              if (waiting.rows.length) return;
+              await setTimeout(10);
+            }
+            throw new Error("Opt-out did not reach the locked outbox");
+          };
+          const before = messages.length;
+          try {
+            const delivery = await drainOutbox();
+            assert.equal((await optOut)?.[0]?.status, "fulfilled");
+            assert.deepEqual(delivery, { sent: 1, failed: 1, unregistered: 1 });
+            const rows = await db
+              .select()
+              .from(NotificationOutbox)
+              .where(eq(NotificationOutbox.deviceId, raceDevice));
+            assert.equal(rows.length, 1);
+            assert.equal(rows[0]?.ticket, acceptedTicket);
+            assert.ok(rows[0].sentAt);
+            const [device] = await db
+              .select()
+              .from(PushDevice)
+              .where(eq(PushDevice.id, raceDevice));
+            assert.equal(device?.following, false);
+            assert.ok(device.disabledAt);
+            beforeSend = undefined;
+            batchTickets = undefined;
+            assert.equal((await drainOutbox()).sent, 0);
+            assert.equal(messages.length - before, 2);
+          } finally {
+            beforeSend = undefined;
+            batchTickets = undefined;
+            await optOut;
+            await db.delete(PushDevice).where(eq(PushDevice.id, raceDevice));
+          }
         },
       );
       await t.test(

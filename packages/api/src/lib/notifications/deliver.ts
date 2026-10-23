@@ -342,7 +342,8 @@ export async function drainOutbox(
   now = new Date(),
   outboxId?: string,
 ): Promise<Omit<FollowNotificationRun, "enqueued">> {
-  return db.transaction(async (tx) => {
+  const disableIds = new Set<string>();
+  const result = await db.transaction(async (tx) => {
     const due = await tx
       .select({
         id: NotificationOutbox.id,
@@ -435,7 +436,6 @@ export async function drainOutbox(
     let sent = 0;
     let failed = 0;
     let unregistered = 0;
-    const disableIds = new Set<string>();
 
     for (let i = 0; i < due.length; i++) {
       const row = due[i];
@@ -468,15 +468,17 @@ export async function drainOutbox(
         .where(eq(NotificationOutbox.id, row.id));
     }
 
-    if (disableIds.size > 0) {
-      await tx
-        .update(PushDevice)
-        .set({ disabledAt: now })
-        .where(inArray(PushDevice.id, [...disableIds]));
-    }
-
     return { sent, failed, unregistered };
   });
+  // Sync locks the device before cancelling outbox rows. Release outbox locks
+  // before touching devices so an opt-out cannot roll back accepted tickets.
+  if (disableIds.size > 0) {
+    await db
+      .update(PushDevice)
+      .set({ disabledAt: now })
+      .where(inArray(PushDevice.id, [...disableIds]));
+  }
+  return result;
 }
 
 export async function runFollowNotifications(
