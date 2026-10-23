@@ -54,7 +54,7 @@ export default defineConfig({
           new URL("./src/content-translations.ts", import.meta.url),
         ),
         "local-decision-briefs": fileURLToPath(
-          new URL("./src/local-decision-briefs-entry.ts", import.meta.url),
+          new URL("./src/local-decision-briefs.ts", import.meta.url),
         ),
         "notify-followers": fileURLToPath(
           new URL("./src/notify-followers.ts", import.meta.url),
