@@ -245,6 +245,11 @@ or deadlines. Meeting-specific instruction extraction remains follow-up work.
 active official documents with `extract_text` policy and content hashes qualify.
 Public comments never qualify. Generation supplies at most four documents and
 24,000 characters of page text, then requests one to five claims with citations.
+After exact citation validation, a separate model call checks each claim using
+only its quoted evidence. All claims must receive one supporting verdict; any
+rejection, missing verdict, or duplicate index rejects the entire brief. Each
+eligible decision permits at most two model calls with no retries or provider
+fallback. Decisions without eligible text make no model calls.
 
 `validateLocalDecisionBrief` checks every cited document, page, and quote.
 Whitespace-normalized quotes must occur on the cited original page. The brief's

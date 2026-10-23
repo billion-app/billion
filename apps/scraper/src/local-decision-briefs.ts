@@ -37,7 +37,7 @@ if (
     ))
 ) {
   throw new Error(
-    "Provide --jurisdiction sanjose|santaclara and --limit 1..20. Add --write to authorize at most that many model calls.",
+    "Provide --jurisdiction sanjose|santaclara and --limit 1..20. Add --write to authorize at most twice that many model calls.",
   );
 }
 const decisions = await db

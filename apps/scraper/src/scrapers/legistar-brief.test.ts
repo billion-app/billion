@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { MockLanguageModelV3 } from "ai/test";
 
 import type {
   LocalDecisionBrief,
@@ -10,7 +11,10 @@ import {
   validateLocalDecisionBrief,
 } from "@acme/validators/local-decision";
 
-import { localBriefSources } from "./legistar-brief.js";
+import {
+  generateLocalDecisionBrief,
+  localBriefSources,
+} from "./legistar-brief.js";
 
 const id = "f5d54c00-a6a7-4d05-8459-e0295bb9559b";
 const quote = "The proposal allocates funds to public library improvements.";
@@ -171,4 +175,124 @@ test("rejects malformed or fabricated citation locations", () => {
     ),
     null,
   );
+});
+
+function evidenceModel(outputs: unknown[]) {
+  let index = 0;
+  return new MockLanguageModelV3({
+    doGenerate: async () => ({
+      content: [{ type: "text", text: JSON.stringify(outputs[index++]) }],
+      finishReason: { unified: "stop", raw: "stop" },
+      usage: {
+        inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
+        outputTokens: { total: 1, text: 1, reasoning: 0 },
+      },
+      warnings: [],
+      providerMetadata: { scraper: { modelVersion: "fixture:local-brief" } },
+    }),
+  });
+}
+
+const generationInput = {
+  title: "Hidden title with extra context",
+  sourceContext: "hidden-context",
+  documents: [document],
+};
+
+test("publishes only after a separate quote-only evidence approval", async () => {
+  const model = evidenceModel([
+    { claims: brief.claims },
+    { verdicts: [{ index: 0, supported: true }] },
+  ]);
+  const result = await generateLocalDecisionBrief({
+    ...generationInput,
+    model,
+  });
+  assert.deepEqual(result?.brief.claims, brief.claims);
+  assert.equal(model.doGenerateCalls.length, 2);
+  const review = model.doGenerateCalls[1];
+  assert.ok(review);
+  const userMessage = review.prompt.find((message) => message.role === "user");
+  assert.deepEqual(userMessage?.content, [
+    {
+      type: "text",
+      text: JSON.stringify([
+        { index: 0, claim: brief.claims[0]?.text, quotes: [quote] },
+      ]),
+    },
+  ]);
+  assert.doesNotMatch(
+    JSON.stringify(review.prompt),
+    /hidden-context|Hidden title|documentId/,
+  );
+});
+
+test("rejects the whole brief for unsupported or incomplete evidence verdicts", async () => {
+  const claims = [...brief.claims, ...brief.claims];
+  for (const verdicts of [
+    [
+      { index: 0, supported: true },
+      { index: 1, supported: false },
+    ],
+    [{ index: 0, supported: true }],
+    [
+      { index: 0, supported: true },
+      { index: 0, supported: true },
+    ],
+    [
+      { index: 0, supported: true },
+      { index: 2, supported: true },
+    ],
+  ]) {
+    const model = evidenceModel([{ claims }, { verdicts }]);
+    assert.equal(
+      await generateLocalDecisionBrief({ ...generationInput, model }),
+      null,
+    );
+    assert.equal(model.doGenerateCalls.length, 2);
+  }
+});
+
+test("does not spend review calls on invalid citations or any calls without sources", async () => {
+  const model = evidenceModel([
+    {
+      claims: [
+        {
+          text: "Unsupported count",
+          citations: [
+            {
+              documentId: id,
+              page: 2,
+              quote: "This quote does not appear on the page.",
+            },
+          ],
+        },
+      ],
+    },
+  ]);
+  assert.equal(
+    await generateLocalDecisionBrief({ ...generationInput, model }),
+    null,
+  );
+  assert.equal(model.doGenerateCalls.length, 1);
+  for (const documents of [[], [{ ...document, isPublicComment: true }]]) {
+    const unused = evidenceModel([]);
+    assert.equal(
+      await generateLocalDecisionBrief({
+        ...generationInput,
+        documents,
+        model: unused,
+      }),
+      null,
+    );
+    assert.equal(unused.doGenerateCalls.length, 0);
+  }
+});
+
+test("does not retry a failed evidence reviewer", async () => {
+  const model = evidenceModel([{ claims: brief.claims }, { verdicts: [] }]);
+  await assert.rejects(
+    generateLocalDecisionBrief({ ...generationInput, model }),
+  );
+  assert.equal(model.doGenerateCalls.length, 2);
 });

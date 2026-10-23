@@ -133,13 +133,17 @@ Add `--write` to authorize generation and persistence for that bounded page:
 pnpm --filter @acme/scraper local-decision-briefs --jurisdiction santaclara --limit 1 --write
 ```
 
-The limit bounds selected decisions and model calls, not dollars. Decisions
+The limit bounds selected decisions, not dollars. Each eligible decision uses
+at most two model calls, one to generate and one to check quoted evidence,
+with no retries or provider fallback. The total is at most twice `--limit`. Decisions
 without eligible native page text cannot produce a brief. The output reports
 examined, attempted, and published counts. Inspect logged failures as well as
 the totals. A dry-run candidate is not proof that generation will succeed.
 
 Generation validates document hashes, current decision context, original page
-numbers, and exact supporting quotes before storing a brief. The API repeats
+numbers, and exact supporting quotes. A separate model call receives only each
+claim and its quotes. Every claim must pass that evidence check before the
+brief is stored. Missing or duplicate verdicts reject the entire brief. The API repeats
 validation on reads and hides stale or invalid briefs without calling a model.
 After a bounded write, inspect each published claim against its official PDF
 page before expanding the rollout. Confirm that the quote supports the claim
