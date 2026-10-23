@@ -1,9 +1,7 @@
-# Local Government Decisions and Legistar
+# Local government decisions and Legistar
 
-> Status: Backend foundation implemented
->
-> Initial jurisdiction: City of San José
-> Tracking issue: [#282](https://github.com/billion-app/billion/issues/282)
+> Jurisdictions: City of San José and City of Santa Clara
+> Tracking issue: [#515](https://github.com/billion-app/billion/issues/515)
 
 Legistar is a records-management system, not a feed of interchangeable “local
 bills.” A proposal can appear before several bodies and at several meetings,
@@ -42,20 +40,21 @@ card with a truthful multi-meeting timeline. Similar titles never merge records.
 flowchart LR
     api["Legistar Web API"] --> transport["Stateless paged adapter"]
     transport --> scraper["Scheduled Legistar scraper"]
-    scraper --> policy["San José policy"]
+    scraper --> policy["Jurisdiction body policy"]
     policy --> db["Normalized local_* tables"]
     db --> read["Decision-centric tRPC API"]
 ```
 
 The transport in `packages/api/src/integrations/legistar.ts` performs bounded,
 paged source reads and has no cache, mock fallback, or database side effects.
-The registered `legistar` scraper:
+The `legistar` and `legistar-santaclara` scrapers use separate jurisdiction
+contexts and body policies. Each scraper:
 
 1. discovers meetings in a bounded past/future window;
-2. restricts them to the explicit San José body policy;
+2. restricts them to its jurisdiction's explicit body policy;
 3. fetches complete EventItems, Matters, attachments, histories, and votes;
 4. classifies boilerplate, topics, geography, and document policy;
-5. extracts native PDF text and hashes official documents;
+5. extracts native PDF text by page and hashes official documents;
 6. idempotently upserts records and soft-deletes disappeared meetings,
    occurrences, and attachments;
 7. records each run, its window, counters, failure, and completion state.
@@ -87,25 +86,57 @@ authenticated policies; access is through the server API.
 
 ### Read API
 
-- `legistar.listDecisions`: upcoming/recent occurrences, text search, topic,
-  district relevance, and pagination.
-- `legistar.getDecision`: canonical detail, timeline, documents, history,
-  votes, public-comment count, and participation guidance.
-- `legistar.listBodies`: included active bodies in editorial priority order.
-- `legistar.getIngestionHealth`: latest run and active-decision count.
+- `legistar.listDecisions` returns canonical decisions with an upcoming or recent
+  meeting, text search, topic, district relevance, and pagination. It chooses one
+  occurrence per decision before pagination. Upcoming lists use the earliest
+  matching meeting, and recent lists use the latest. UUID ordering breaks ties.
+- `legistar.byIds` hydrates up to 200 saved decision UUIDs. It uses the latest
+  occurrence, including future meetings. Callers restore saved-item order.
+- `legistar.listJurisdictions` returns supported active cities with a live
+  decision occurrence at an included body. A configured city with no such
+  records is absent.
+- `legistar.getDecision` returns canonical detail, the full timeline, documents,
+  history, votes, public-comment count, participation guidance, and a validated
+  brief or `null`.
+- `legistar.listBodies` returns included active bodies in editorial priority order.
+- `legistar.getIngestionHealth` returns the latest run and active-decision count.
 
 Old wire-format endpoints remain temporarily for dormant prototype callers.
 They are deprecated, read-only source calls and are not the new UI contract.
 
-### Mobile entry points
+### Presentation and language policy
 
-The app offers only the jurisdictions in `LOCAL_JURISDICTIONS`
-(`apps/expo/src/utils/local-government.ts`). Today that is the City of San
-José. The transport and router still accept other Legistar clients, but the
-app does not show a city until the scraper has a reviewed policy for it.
-Readers reach the list from the Elections entry or from the San José row under
-California in the Browse jurisdiction sheet. Neither path needs a saved
-address. See [Frontend apps](frontend.md) for the navigation details.
+Local decisions retain their own API and identity rather than joining the mixed
+article feed. The Home module uses the saved address. Browse permits city
+exploration without changing that address. City discovery uses
+`legistar.listJurisdictions`, so support requires ingested records as well as a
+reviewed policy.
+
+UI labels are translated. Official titles, document text, and quoted evidence
+stay in their source language. English source titles are identified as original
+text in Spanish and Chinese interfaces. Generated briefs are English and carry
+a language notice. Billion's explanations remain separate from the official
+record, with document and page references beside each claim.
+
+### Follows and notifications
+
+Saved decision UUIDs use the existing account-free saved-content store.
+`notifications.sync` resolves those UUIDs and creates `DeviceFollow` records
+with `contentType` set to `local_decision`. Each follow stores a snapshot of
+occurrence IDs, meeting dates, cancellation flags, and structured outcomes.
+An outcome contains action, passed flag, and tally.
+
+The initial snapshot establishes a baseline without sending archive alerts.
+Later comparisons notify for newly scheduled or rescheduled upcoming meetings,
+upcoming cancellations, and changed structured outcomes. A newly discovered
+outcome notifies only when its meeting began at or after the follow began.
+Older backfilled meetings remain silent. Title edits, document churn, and source
+timestamps alone do not trigger notifications. Missing outcomes remain unknown.
+
+The worker locks follows and commits snapshot updates with outbox inserts.
+Alerts reuse the existing `follow` kind, quiet hours, delivery receipts, and
+opt-out cancellation. Saving a decision does not require push permission.
+Delivery still requires a registered push token and enabled follow alerts.
 
 ## San José first-release policy
 
@@ -132,6 +163,23 @@ employee-benefit bodies are excluded. Exact IDs live in
 affecting residents’ money, housing, mobility, safety, services, rights, land
 use, or participation.
 
+## City of Santa Clara policy
+
+The Legistar client `santaclara` identifies the **City of Santa Clara**. Its
+public portal is `https://santaclara.legistar.com`. It does not represent Santa
+Clara County. County decisions remain deferred because the county uses a
+separate records system and needs its own adapter and policy.
+
+`SANTA_CLARA_BODY_POLICY` in `apps/scraper/src/scrapers/legistar-policy.ts`
+contains the city's independent allowlist. City Council and Stadium Authority
+have tier 1 priority. Planning, Housing, Library, Historical and Landmarks,
+Parks and Recreation, Bicycle and Pedestrian, and Development Review have tier 2
+priority. Cultural, Senior Advisory, and Youth bodies have tier 3 priority.
+Unlisted bodies, including closed-session, video-only, deferred, and obsolete
+entries, are excluded. San José IDs never determine Santa Clara inclusion.
+
+## Shared source policy
+
 ### Geography
 
 Scope is conservative. Explicit district references produce district scope;
@@ -152,9 +200,12 @@ had no embedded text. Therefore:
   equivalent high-confidence validation);
 - OCR must not be the sole evidence for votes, money, deadlines, or addresses.
 
-The current implementation detects and records OCR work; the OCR worker is a
-follow-up. Native extraction against live PDFs produced 379,761 characters
-across 19 documents with an average quality score of 0.9947.
+Native extraction stores `extractedPages` in original PDF order, including empty
+pages. Citation page numbers are one-based indexes into that array. The scraper
+hashes the PDF bytes before the PDF parser can transfer the buffer. Cached
+native text without pages, and known empty-buffer hashes, require re-extraction.
+The current implementation detects and records OCR work. An OCR worker remains
+follow-up work.
 
 ## Public-comment privacy decision
 
@@ -180,16 +231,44 @@ Fact precedence is field-specific:
 4. other official attachments and meeting pages;
 5. official video/transcript as context only.
 
-Missing votes/history remain unknown. AI-authored explanations require
-validated citations and must not infer a vote from attendance or sentiment.
-The backend retains the source material for this layer but does not publish AI
-summaries yet. Page-aware citations, minutes fallback, and generation remain
-quality-gated follow-ups rather than silently shipping uncited text.
+Missing votes and history remain unknown. AI-authored explanations must not
+infer a vote from attendance or sentiment. Official record links use the
+source's meeting URL. API Matter IDs are not assumed to be public portal IDs.
 
-The API currently provides a labeled San José participation fallback link and
-warns readers to verify the agenda. A future extractor should prefer current
-meeting-specific instructions, method, explicit deadline/timezone, item
-identifier, and retrieval time. Never manufacture a deadline.
+Participation guidance links to the relevant city's official portal and tells
+readers to check the meeting agenda. It does not invent participation methods
+or deadlines. Meeting-specific instruction extraction remains follow-up work.
+
+### Cited briefs
+
+`LocalDecision.brief` stores an optional English brief. Only native extracted,
+active official documents with `extract_text` policy and content hashes qualify.
+Public comments never qualify. Generation supplies at most four documents and
+24,000 characters of page text, then requests one to five claims with citations.
+After exact citation validation, a separate model call checks each claim using
+only its quoted evidence. All claims must receive one supporting verdict; any
+rejection, missing verdict, or duplicate index rejects the entire brief. Each
+eligible decision permits at most two model calls with no retries or provider
+fallback. Decisions without eligible text make no model calls.
+
+`validateLocalDecisionBrief` checks every cited document, page, and quote.
+Whitespace-normalized quotes must occur on the cited original page. The brief's
+hash map must match the complete set of eligible documents. Its `sourceContext`
+must match the decision title, status, source update time, and occurrence dates
+and outcomes. Document changes or relevant record changes make the brief stale.
+
+`getDecision` returns `null` for stale or invalid briefs. Reads do not regenerate
+or overwrite them. The official record remains available. Generation is an
+explicit bounded command described in the [scraper CLI guide](../apps/scraper/README.md#prepare-local-decision-briefs).
+
+Quote matching proves where text came from. It does not prove that a claim
+follows from that text. Publication review must compare each generated claim
+with its cited page, including proposal versus adopted-action wording. The
+validator does not replace this review.
+
+### Manually reviewed explanation pilot
+
+Explanations are a manually reviewed pilot. The supervisor ingests official records but does not schedule generation. Operators generate bounded samples in a review database, check every claim and quoted excerpt against the original PDF, and publish only reviewed text against matching production source hashes and context. The model evidence check is an additional filter, not an editorial approval. Minor source changes can hide a brief until an operator regenerates and reviews it; the official record remains readable.
 
 ## Operations and failure behavior
 
@@ -201,9 +280,11 @@ identifier, and retrieval time. Never manufacture a deadline.
 - Public reads exclude soft-deleted records.
 - Fixtures and policy tests run offline.
 
-Recommended cadence is daily broad discovery, every six hours within 14 days,
-hourly within 48 hours, and continued refresh after meetings until approved
-outcomes publish. Scheduler wiring can apply this without changing the scraper.
+The supervisor defines separate daily jobs, `legistar-daily` and
+`legistar-santaclara-daily`. Deployment must install the merged scraper image
+and supervisor configuration before the second source runs in production.
+See the [scraper CLI guide](../apps/scraper/README.md#refresh-local-decisions)
+for bounded refresh and deployment steps.
 
 ## Decisions and remaining work
 
@@ -219,10 +300,10 @@ Decisions made here:
 
 Remaining product-quality work:
 
-- approved-minutes extraction and page-level citations;
+- approved-minutes extraction;
 - OCR worker and measured validation set;
 - agenda-specific participation extraction;
 - official GIS resolution for addresses and user districts;
-- cited AI explanations and amended-recommendation comparison;
+- amended-recommendation comparison;
 - measured “outcome pending” thresholds;
-- validation against a second jurisdiction before generalizing policy.
+- a separate Santa Clara County adapter and reviewed source policy.

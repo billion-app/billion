@@ -699,6 +699,17 @@ export const PushDevice = pgTable(
   }),
 );
 
+export interface LocalDecisionFollowOccurrence {
+  id: string;
+  startsAt: string;
+  cancelled: boolean;
+  outcome: {
+    action: string | null;
+    passed: string | null;
+    tally: string | null;
+  } | null;
+}
+
 /** Content this device asked us to watch. Saving on the phone is the follow. */
 export const DeviceFollow = pgTable(
   "device_follow",
@@ -710,6 +721,9 @@ export const DeviceFollow = pgTable(
       .references(() => PushDevice.id, { onDelete: "cascade" }),
     contentId: t.uuid("content_id").notNull(),
     contentType: t.varchar("content_type", { length: 20 }).notNull(),
+    localDecisionState: t
+      .jsonb("local_decision_state")
+      .$type<LocalDecisionFollowOccurrence[]>(),
     lastNotifiedActionAt: t.timestamp("last_notified_action_at", {
       withTimezone: true,
     }),
@@ -862,6 +876,7 @@ export const LocalDecision = pgTable(
     enactmentNumber: t.varchar({ length: 100 }),
     requester: t.text(),
     notes: t.text(),
+    brief: t.jsonb().$type<unknown>(),
     sourceUrl: t.text(),
     sourceUpdatedAt: t.timestamp({ withTimezone: true }).notNull(),
     lastSeenAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
@@ -1023,6 +1038,7 @@ export const LocalDecisionDocument = pgTable(
     processingPolicy: t.varchar({ length: 30 }).notNull(),
     extractionStatus: t.varchar({ length: 30 }).notNull().default("pending"),
     extractedText: t.text(),
+    extractedPages: t.jsonb().$type<string[]>(),
     extractionMethod: t.varchar({ length: 30 }),
     extractionQuality: t.real(),
     pageCount: t.integer(),

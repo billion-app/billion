@@ -31,6 +31,7 @@ import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import { posthog } from "~/config/posthog";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useBallotTranslation } from "~/hooks/useBallotTranslation";
+import { useLocalJurisdictions } from "~/hooks/useLocalJurisdictions";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import {
   colors,
@@ -267,6 +268,7 @@ function CaliforniaElectionEntry({
 }) {
   const router = useRouter();
   const { language, t } = useAppTranslation();
+  const activeLocals = useLocalJurisdictions();
   const focused = useIsFocused();
   const query = useQuery(
     trpc.civic.getCaliforniaGuide.queryOptions(undefined, { enabled: focused }),
@@ -364,40 +366,44 @@ function CaliforniaElectionEntry({
             />
           )}
         </Card>
-        {localJurisdictionsInState("ca").map((key) => {
-          const place = localJurisdictionText(key, language);
-          const title = t("What {value1} is deciding", { value1: place.name });
-          const note = t("elections.entry.localNote", { body: place.body });
-          return (
-            <TouchableOpacity
-              key={key}
-              accessibilityRole="button"
-              accessibilityLabel={`${title}. ${note}`}
-              onPress={() =>
-                router.push({
-                  pathname: "/local-decisions",
-                  params: { jurisdiction: key },
-                })
-              }
-              style={s.entryTool}
-              testID={`elections-local-${key}`}
-            >
-              <View
-                style={s.entryIcon}
-                accessible={false}
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
+        {localJurisdictionsInState("ca")
+          .filter((key) => activeLocals.includes(key))
+          .map((key) => {
+            const place = localJurisdictionText(key, language);
+            const title = t("What {value1} is deciding", {
+              value1: place.name,
+            });
+            const note = t("elections.entry.localNote");
+            return (
+              <TouchableOpacity
+                key={key}
+                accessibilityRole="button"
+                accessibilityLabel={`${title}. ${note}`}
+                onPress={() =>
+                  router.push({
+                    pathname: "/local-decisions",
+                    params: { jurisdiction: key },
+                  })
+                }
+                style={s.entryTool}
+                testID={`elections-local-${key}`}
               >
-                <Icon name="scale" size={18} color={colors.bill} />
-              </View>
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={s.entryGuideTitle}>{title}</Text>
-                <Text style={s.entryNoteText}>{note}</Text>
-              </View>
-              <Icon name="chevR" size={16} color={colors.bill} />
-            </TouchableOpacity>
-          );
-        })}
+                <View
+                  style={s.entryIcon}
+                  accessible={false}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  <Icon name="scale" size={18} color={colors.bill} />
+                </View>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={s.entryGuideTitle}>{title}</Text>
+                  <Text style={s.entryNoteText}>{note}</Text>
+                </View>
+                <Icon name="chevR" size={16} color={colors.bill} />
+              </TouchableOpacity>
+            );
+          })}
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={t("elections.entry.researchA11y")}

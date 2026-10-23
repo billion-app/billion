@@ -1,4 +1,5 @@
 import type {
+  Jurisdiction,
   LegistarAgendaItem,
   LegistarAttachment,
   LegistarMatter,
@@ -51,9 +52,37 @@ export const SAN_JOSE_BODY_POLICY: Readonly<Record<number, BodyPolicy>> = {
   256: { included: true, relevanceTier: 3 }, // Small Business
 };
 
-export function bodyPolicy(sourceBodyId: number): BodyPolicy {
+export const SANTA_CLARA_BODY_POLICY: Readonly<Record<number, BodyPolicy>> = {
+  138: { included: true, relevanceTier: 1 }, // City Council
+  180: { included: true, relevanceTier: 1 }, // Stadium Authority
+  182: { included: true, relevanceTier: 2 }, // Planning Commission
+  184: { included: true, relevanceTier: 2 }, // Housing Authority
+  197: { included: true, relevanceTier: 2 }, // Library
+  199: { included: true, relevanceTier: 2 }, // Historical and Landmarks
+  201: { included: true, relevanceTier: 2 }, // Parks and Recreation
+  232: { included: true, relevanceTier: 2 }, // Bicycle and Pedestrian
+  236: { included: true, relevanceTier: 2 }, // Development Review
+  194: { included: true, relevanceTier: 3 }, // Cultural Commission
+  202: { included: true, relevanceTier: 3 }, // Senior Advisory
+  203: { included: true, relevanceTier: 3 }, // Youth Commission
+};
+
+export type IngestedJurisdiction = Extract<
+  Jurisdiction,
+  "sanjose" | "santaclara"
+>;
+
+const BODY_POLICIES = {
+  sanjose: SAN_JOSE_BODY_POLICY,
+  santaclara: SANTA_CLARA_BODY_POLICY,
+} satisfies Record<IngestedJurisdiction, Readonly<Record<number, BodyPolicy>>>;
+
+export function bodyPolicy(
+  sourceBodyId: number,
+  jurisdiction: IngestedJurisdiction = "sanjose",
+): BodyPolicy {
   return (
-    SAN_JOSE_BODY_POLICY[sourceBodyId] ?? {
+    BODY_POLICIES[jurisdiction][sourceBodyId] ?? {
       included: false,
       relevanceTier: 4,
     }
@@ -160,7 +189,7 @@ export function classifyDocument(
 ): DocumentPolicy {
   const name = `${attachment.MatterAttachmentName} ${attachment.MatterAttachmentDescription ?? ""}`;
   if (
-    /letters? from (?:the )?public|public comments?|ecomments?|public correspondence/i.test(
+    /correspondence|written comments?|^\s*(?:\d+[.)-]?\s*)?letters?\b|letters? from (?:the )?public|public comments?|ecomments?|(?:public|written|email|e-mail) correspondence|correspondence (?:received|from)|letters? (?:received|from residents)|comments? (?:received|from residents)/i.test(
       name,
     )
   ) {

@@ -3978,10 +3978,10 @@ export const pageStrings = {
     es: "Próximos",
     zh: "即将进行",
   },
-  "Recently decided": {
-    en: "Recently decided",
-    es: "Decididos recientemente",
-    zh: "近期已决定",
+  "Recent meetings": {
+    en: "Recent meetings",
+    es: "Reuniones recientes",
+    zh: "近期会议",
   },
   "Couldn't load {value1} decisions": {
     en: "Couldn't load {value1} decisions",
@@ -3993,10 +3993,10 @@ export const pageStrings = {
     es: "Aún no hay próximas reuniones de {value1} en la lista",
     zh: "暂无{value1}即将举行的会议",
   },
-  "No recently decided items found{value1}": {
-    en: "No recently decided items found{value1}",
-    es: "No se encontraron asuntos decididos recientemente{value1}",
-    zh: "未找到近期已决定的事项{value1}",
+  "No recent meeting items found{value1}": {
+    en: "No recent meeting items found{value1}",
+    es: "No se encontraron asuntos de reuniones recientes{value1}",
+    zh: "未找到近期会议的事项{value1}",
   },
   "Try another topic, or check upcoming meetings.": {
     en: "Try another topic, or check upcoming meetings.",
@@ -4009,10 +4009,10 @@ export const pageStrings = {
       es: "Billion sincroniza diariamente las agendas y resultados publicados por {value1}. Vuelve pronto.",
       zh: "Billion 每天同步{value1}发布的议程及结果。请稍后再来查看。",
     },
-  "See recently decided": {
-    en: "See recently decided",
-    es: "Ver decisiones recientes",
-    zh: "查看近期决策",
+  "See recent meetings": {
+    en: "See recent meetings",
+    es: "Ver reuniones recientes",
+    zh: "查看近期会议",
   },
   "See upcoming": {
     en: "See upcoming",
@@ -5379,10 +5379,10 @@ export const pageStrings = {
     es: "INVESTIGACIÓN DE CANDIDATOS",
     zh: "候选人研究",
   },
-  "No recently decided items found for this topic": {
-    en: "No recently decided items found for this topic",
-    es: "No se encontraron asuntos resueltos recientemente sobre este tema",
-    zh: "未找到此议题近期已作出决定的事项",
+  "No recent meeting items found for this topic": {
+    en: "No recent meeting items found for this topic",
+    es: "No se encontraron asuntos de reuniones recientes sobre este tema",
+    zh: "未找到此议题的近期会议事项",
   },
   "documents.pageCount": {
     en: {
