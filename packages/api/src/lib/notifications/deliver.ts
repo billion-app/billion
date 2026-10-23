@@ -35,7 +35,12 @@ import {
   isUnregisteredTicket,
   sendExpoPush,
 } from "./expo-push";
-import { localDecisionChange, readLocalDecisionState } from "./local-decisions";
+import {
+  localDecisionChange,
+  localDecisionVisible,
+  localIngestionSettled,
+  readLocalDecisionState,
+} from "./local-decisions";
 import { nextDeliveryAt } from "./quiet-hours";
 
 export interface FollowNotificationRun {
@@ -141,7 +146,8 @@ export async function enqueueLocalDecisionMoves(now = new Date()) {
       .where(
         and(
           eq(DeviceFollow.contentType, "local_decision"),
-          isNull(LocalDecision.sourceDeletedAt),
+          localDecisionVisible(),
+          localIngestionSettled(now),
           isNull(PushDevice.disabledAt),
           eq(PushDevice.following, true),
         ),
@@ -397,7 +403,8 @@ export async function drainOutbox(
                             .where(
                               and(
                                 eq(LocalDecision.id, DeviceFollow.contentId),
-                                isNull(LocalDecision.sourceDeletedAt),
+                                localDecisionVisible(),
+                                localIngestionSettled(now),
                               ),
                             ),
                         ),

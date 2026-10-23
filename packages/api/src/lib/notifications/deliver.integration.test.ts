@@ -12,6 +12,7 @@ import {
   GovernmentContent,
   LocalBody,
   LocalDecision,
+  LocalIngestionRun,
   LocalJurisdiction,
   LocalMeeting,
   LocalMeetingItem,
@@ -38,7 +39,7 @@ import {
 const databaseUrl = process.env.NOTIFICATIONS_TEST_DATABASE_URL;
 void test(
   "notification delivery and API regressions",
-  { skip: !databaseUrl, timeout: 30_000 },
+  { skip: !databaseUrl, timeout: 60_000 },
   async (t) => {
     assert.ok(databaseUrl);
     const target = new URL(databaseUrl);
@@ -186,6 +187,7 @@ void test(
               jurisdictionKey: jurisdiction,
               sourceBodyId: 1,
               name: "Council",
+              included: true,
             });
             await db.insert(LocalDecision).values({
               id: decisionId,
@@ -244,6 +246,25 @@ void test(
             assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
             await syncLocal();
             assert.deepEqual((await follow())?.localDecisionState, baseline);
+            const runId = randomUUID();
+            await db.insert(LocalIngestionRun).values({
+              id: runId,
+              jurisdictionKey: jurisdiction,
+              status: "running",
+              startedAt: now,
+              windowStart: now,
+              windowEnd: now,
+            });
+            await db
+              .update(LocalMeeting)
+              .set({ startsAt: new Date("2026-10-24T11:00:00Z") })
+              .where(eq(LocalMeeting.id, meetingId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            assert.deepEqual((await follow())?.localDecisionState, baseline);
+            await db
+              .update(LocalIngestionRun)
+              .set({ status: "completed", completedAt: now })
+              .where(eq(LocalIngestionRun.id, runId));
             await db
               .update(LocalMeeting)
               .set({ startsAt: new Date("2026-10-24T12:00:00Z") })
@@ -366,6 +387,99 @@ void test(
               .set({ sourceDeletedAt: null, tally: "8-0" })
               .where(eq(LocalMeetingItem.id, itemId));
             assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 1);
+            for (const visibility of [
+              "jurisdiction",
+              "body",
+              "meetings",
+              "items",
+            ] as const) {
+              const hide = async (hidden: boolean) => {
+                if (visibility === "jurisdiction")
+                  await db
+                    .update(LocalJurisdiction)
+                    .set({ active: !hidden })
+                    .where(eq(LocalJurisdiction.key, jurisdiction));
+                if (visibility === "body")
+                  await db
+                    .update(LocalBody)
+                    .set({ included: !hidden })
+                    .where(eq(LocalBody.id, bodyId));
+                if (visibility === "meetings")
+                  await db
+                    .update(LocalMeeting)
+                    .set({ sourceDeletedAt: hidden ? now : null })
+                    .where(eq(LocalMeeting.jurisdictionKey, jurisdiction));
+                if (visibility === "items")
+                  await db
+                    .update(LocalMeetingItem)
+                    .set({ sourceDeletedAt: hidden ? now : null })
+                    .where(eq(LocalMeetingItem.decisionId, decisionId));
+              };
+              await hide(true);
+              assert.equal(
+                (await enqueueLocalDecisionMoves(now)).enqueued,
+                0,
+                visibility,
+              );
+              assert.equal(
+                (await drainOutbox(new Date("2026-10-23T07:00:00Z"))).sent,
+                0,
+                visibility,
+              );
+              await syncLocal(true, []);
+              await syncLocal();
+              assert.equal(await follow(), undefined, visibility);
+              await hide(false);
+              await syncLocal();
+              await db
+                .update(LocalMeetingItem)
+                .set({ tally: visibility })
+                .where(eq(LocalMeetingItem.id, itemId));
+              assert.equal(
+                (await enqueueLocalDecisionMoves(now)).enqueued,
+                1,
+                visibility,
+              );
+            }
+            await db
+              .update(LocalIngestionRun)
+              .set({ status: "running", startedAt: now, completedAt: null })
+              .where(eq(LocalIngestionRun.id, runId));
+            assert.equal(
+              (await drainOutbox(new Date("2026-10-23T07:00:00Z"))).sent,
+              0,
+            );
+            await db
+              .update(LocalMeetingItem)
+              .set({ tally: "final" })
+              .where(eq(LocalMeetingItem.id, itemId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await db
+              .update(LocalIngestionRun)
+              .set({ startedAt: new Date(now.getTime() - 26 * 60 * 60 * 1000) })
+              .where(eq(LocalIngestionRun.id, runId));
+            assert.equal(
+              (await enqueueLocalDecisionMoves(now)).enqueued,
+              1,
+              "abandoned run expires after supervisor maximum runtime",
+            );
+            await syncLocal(true, []);
+            await db
+              .update(LocalIngestionRun)
+              .set({ status: "running", startedAt: new Date() })
+              .where(eq(LocalIngestionRun.id, runId));
+            await syncLocal();
+            assert.equal(
+              (await follow())?.localDecisionState,
+              null,
+              "a follow during ingestion waits for a complete baseline",
+            );
+            await db
+              .update(LocalIngestionRun)
+              .set({ status: "completed", completedAt: new Date() })
+              .where(eq(LocalIngestionRun.id, runId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            assert.ok((await follow())?.localDecisionState?.length);
             await db
               .update(LocalDecision)
               .set({ sourceDeletedAt: now })

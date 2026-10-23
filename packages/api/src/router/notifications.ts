@@ -14,7 +14,11 @@ import {
 
 import { drainTestAlert, enqueueTestAlert } from "../lib/notifications/deliver";
 import { isExpoPushToken } from "../lib/notifications/expo-push";
-import { readLocalDecisionState } from "../lib/notifications/local-decisions";
+import {
+  localDecisionVisible,
+  localIngestionSettled,
+  readLocalDecisionState,
+} from "../lib/notifications/local-decisions";
 import { localizeAlertHistory } from "../lib/notifications/localization";
 import { clampMinutes } from "../lib/notifications/quiet-hours";
 import { publicProcedure } from "../trpc";
@@ -319,14 +323,12 @@ async function syncFollows(
     .from(Bill)
     .where(inArray(Bill.id, added));
   const decisions = await tx
-    .select({ id: LocalDecision.id })
+    .select({
+      id: LocalDecision.id,
+      settled: localIngestionSettled(new Date()),
+    })
     .from(LocalDecision)
-    .where(
-      and(
-        inArray(LocalDecision.id, added),
-        isNull(LocalDecision.sourceDeletedAt),
-      ),
-    );
+    .where(and(inArray(LocalDecision.id, added), localDecisionVisible()));
   for (const decision of decisions) {
     await tx
       .insert(DeviceFollow)
@@ -334,7 +336,9 @@ async function syncFollows(
         deviceId,
         contentId: decision.id,
         contentType: "local_decision",
-        localDecisionState: await readLocalDecisionState(tx, decision.id),
+        localDecisionState: decision.settled
+          ? await readLocalDecisionState(tx, decision.id)
+          : null,
       })
       .onConflictDoNothing();
   }

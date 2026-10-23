@@ -1,7 +1,14 @@
-import type { db } from "@acme/db/client";
 import type { LocalDecisionFollowOccurrence } from "@acme/db/schema";
-import { and, eq, isNull } from "@acme/db";
-import { LocalMeeting, LocalMeetingItem } from "@acme/db/schema";
+import { and, eq, exists, isNull, sql } from "@acme/db";
+import { db } from "@acme/db/client";
+import {
+  LocalBody,
+  LocalDecision,
+  LocalIngestionRun,
+  LocalJurisdiction,
+  LocalMeeting,
+  LocalMeetingItem,
+} from "@acme/db/schema";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type OccurrenceSource = Pick<
@@ -9,6 +16,45 @@ type OccurrenceSource = Pick<
   "id" | "actionName" | "passedFlagName" | "tally"
 > &
   Pick<typeof LocalMeeting.$inferSelect, "startsAt" | "cancelled">;
+
+export function localDecisionVisible() {
+  return and(
+    isNull(LocalDecision.sourceDeletedAt),
+    exists(
+      db
+        .select({ id: LocalMeetingItem.id })
+        .from(LocalMeetingItem)
+        .innerJoin(
+          LocalMeeting,
+          eq(LocalMeeting.id, LocalMeetingItem.meetingId),
+        )
+        .innerJoin(LocalBody, eq(LocalBody.id, LocalMeeting.bodyId))
+        .innerJoin(
+          LocalJurisdiction,
+          eq(LocalJurisdiction.key, LocalMeeting.jurisdictionKey),
+        )
+        .where(
+          and(
+            eq(LocalMeetingItem.decisionId, LocalDecision.id),
+            eq(LocalJurisdiction.active, true),
+            eq(LocalBody.included, true),
+            isNull(LocalMeeting.sourceDeletedAt),
+            isNull(LocalMeetingItem.sourceDeletedAt),
+          ),
+        ),
+    ),
+  );
+}
+
+export function localIngestionSettled(now: Date) {
+  // The supervisor kills runs after 24 hours. Allow an hour for shutdown;
+  // an abandoned running marker must not silence a city indefinitely.
+  const cutoff = new Date(now.getTime() - 25 * 60 * 60 * 1000);
+  return sql<boolean>`not exists (select 1 from ${LocalIngestionRun}
+    where ${LocalIngestionRun.jurisdictionKey} = ${LocalDecision.jurisdictionKey}
+    and ${LocalIngestionRun.status} = 'running'
+    and ${LocalIngestionRun.startedAt} > ${cutoff.toISOString()}::timestamptz)`;
+}
 
 function nonempty(value: string | null) {
   const trimmed = value?.trim();
@@ -49,9 +95,11 @@ export async function readLocalDecisionState(
     })
     .from(LocalMeetingItem)
     .innerJoin(LocalMeeting, eq(LocalMeeting.id, LocalMeetingItem.meetingId))
+    .innerJoin(LocalBody, eq(LocalBody.id, LocalMeeting.bodyId))
     .where(
       and(
         eq(LocalMeetingItem.decisionId, decisionId),
+        eq(LocalBody.included, true),
         isNull(LocalMeetingItem.sourceDeletedAt),
         isNull(LocalMeeting.sourceDeletedAt),
       ),
@@ -86,9 +134,9 @@ export function localDecisionChange(
       new Date(row.startsAt) >= now ||
       (before && new Date(before.startsAt) >= now);
     if (!upcoming) continue;
-    if (before && !before.cancelled && row.cancelled) change = "cancelled";
+    if (before && !before.cancelled && row.cancelled && change !== "schedule")
+      change = "cancelled";
     else if (
-      change !== "cancelled" &&
       !row.cancelled &&
       (before?.startsAt !== row.startsAt || before.cancelled)
     )

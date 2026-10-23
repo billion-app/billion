@@ -165,3 +165,26 @@ void test("late ingested outcomes alert only for meetings since this follow bega
   assert.equal(localDecisionChange([], recent, now, followedAt), "outcome");
   assert.equal(localDecisionChange([], recent, now, now), null);
 });
+
+void test("a replacement meeting outranks cancellation regardless of occurrence order", () => {
+  const cancelled = { ...source, cancelled: true };
+  const replacement = {
+    ...source,
+    id: "replacement",
+    startsAt: new Date("2026-10-26"),
+  };
+  for (const rows of [
+    [cancelled, replacement],
+    [replacement, cancelled],
+  ]) {
+    const current = projectLocalDecisionState(rows);
+    assert.equal(
+      localDecisionChange(state, current, now, followedAt),
+      "schedule",
+    );
+    assert.equal(
+      localDecisionChange(state, current.reverse(), now, followedAt),
+      "schedule",
+    );
+  }
+});
