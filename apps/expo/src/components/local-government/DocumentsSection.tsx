@@ -42,13 +42,13 @@ export function DocumentsSection({
               <ExternalLink key={doc.id} href={doc.url} asChild>
                 <TouchableOpacity
                   accessibilityRole="link"
-                  style={[
+                  style={StyleSheet.flatten([
                     s.docRow,
                     index > 0 && {
                       borderTopWidth: StyleSheet.hairlineWidth,
                       borderTopColor: theme.border,
                     },
-                  ]}
+                  ])}
                 >
                   <Icon name="doc" size={15} color={theme.textSecondary} />
                   <View style={s.docText}>
