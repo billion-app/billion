@@ -63,7 +63,7 @@ export default async function CityPage({ params, searchParams }: Props) {
           <select
             name="timeline"
             defaultValue={filters.timeline}
-            className="bg-surface text-ink-night rounded-lg border p-2"
+            className="bg-slate text-ink-night rounded-lg border p-2"
           >
             <option value="upcoming">Upcoming</option>
             <option value="recent">Recent</option>
@@ -75,7 +75,7 @@ export default async function CityPage({ params, searchParams }: Props) {
           <select
             name="topic"
             defaultValue={filters.topic}
-            className="bg-surface text-ink-night rounded-lg border p-2"
+            className="bg-slate text-ink-night rounded-lg border p-2"
           >
             <option value="">All topics</option>
             {topics.map(([key, label]) => (
@@ -94,7 +94,7 @@ export default async function CityPage({ params, searchParams }: Props) {
           <Link
             href={`/local/${city.key}/${decision.id}`}
             key={decision.id}
-            className="border-chrome bg-surface hover:border-spark rounded-2xl border p-5 no-underline"
+            className="border-chrome bg-slate hover:border-spark rounded-2xl border p-5 no-underline"
           >
             <p className="text-quiet text-sm">
               {decision.body} · {meetingDate(decision.meetingStartsAt)}

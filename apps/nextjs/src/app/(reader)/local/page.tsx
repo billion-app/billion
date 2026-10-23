@@ -31,7 +31,7 @@ export default async function LocalPage() {
           <Link
             key={city.key}
             href={`/local/${city.key}`}
-            className="border-chrome bg-surface hover:border-spark rounded-2xl border p-6 no-underline"
+            className="border-chrome bg-slate hover:border-spark rounded-2xl border p-6 no-underline"
           >
             <h2 className="font-display text-2xl font-bold">{city.name}</h2>
             <p className="text-quiet mt-2">Upcoming and recent decisions →</p>

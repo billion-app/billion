@@ -55,7 +55,7 @@ export default async function DecisionPage({ params }: Props) {
       {decision.brief && (
         <section
           aria-labelledby="billion-reading"
-          className="border-spark bg-surface mt-10 rounded-2xl border p-6"
+          className="border-spark bg-slate mt-10 rounded-2xl border p-6"
         >
           <p className="text-spark text-xs font-bold tracking-widest uppercase">
             Billion’s reading
@@ -139,7 +139,7 @@ export default async function DecisionPage({ params }: Props) {
           {decision.occurrences.map((occurrence) => (
             <li
               key={occurrence.id}
-              className="border-chrome bg-surface rounded-2xl border p-5"
+              className="border-chrome bg-slate rounded-2xl border p-5"
             >
               <h4 className="font-semibold">{occurrence.body}</h4>
               <p className="text-quiet mt-1 text-sm">
