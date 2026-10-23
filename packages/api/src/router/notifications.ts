@@ -7,12 +7,18 @@ import { db } from "@acme/db/client";
 import {
   Bill,
   DeviceFollow,
+  LocalDecision,
   NotificationOutbox,
   PushDevice,
 } from "@acme/db/schema";
 
 import { drainTestAlert, enqueueTestAlert } from "../lib/notifications/deliver";
 import { isExpoPushToken } from "../lib/notifications/expo-push";
+import {
+  localDecisionVisible,
+  localIngestionSettled,
+  readLocalDecisionState,
+} from "../lib/notifications/local-decisions";
 import { localizeAlertHistory } from "../lib/notifications/localization";
 import { clampMinutes } from "../lib/notifications/quiet-hours";
 import { publicProcedure } from "../trpc";
@@ -27,6 +33,7 @@ const PrefsInput = z.object({
   breaking: z.boolean(),
   following: z.boolean(),
   executiveOrders: z.boolean().optional(),
+  newBills: z.boolean().optional(),
   brief: z.boolean(),
   recap: z.boolean(),
   quietHours: z.boolean(),
@@ -64,81 +71,103 @@ export const notificationsRouter = {
         followIds: z.array(z.string().uuid()).max(200),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
-      const prefs = {
-        breaking: input.prefs.breaking,
-        following: input.prefs.following,
-        brief: input.prefs.brief,
-        recap: input.prefs.recap,
-        quietHours: input.prefs.quietHours,
-        quietStartMin: clampMinutes(input.prefs.quietStartMin),
-        quietEndMin: clampMinutes(input.prefs.quietEndMin),
-      };
-      const userId = ctx.session?.user.id ?? null;
-      const executiveOrdersSubscribedAt =
-        input.prefs.executiveOrders === undefined
-          ? undefined
-          : input.prefs.executiveOrders
-            ? sql`coalesce(${PushDevice.executiveOrdersSubscribedAt}, now())`
-            : null;
-      const [device] = await db
-        .insert(PushDevice)
-        .values({
-          expoPushToken: input.token,
-          platform: input.platform,
-          timezone: input.timezone,
-          userId,
-          ...prefs,
-          executiveOrdersSubscribedAt: input.prefs.executiveOrders
-            ? new Date()
-            : null,
-        })
-        .onConflictDoUpdate({
-          target: PushDevice.expoPushToken,
-          set: {
+    .mutation(async ({ ctx, input }) =>
+      db.transaction(async (tx) => {
+        const prefs = {
+          breaking: input.prefs.breaking,
+          following: input.prefs.following,
+          brief: input.prefs.brief,
+          recap: input.prefs.recap,
+          quietHours: input.prefs.quietHours,
+          quietStartMin: clampMinutes(input.prefs.quietStartMin),
+          quietEndMin: clampMinutes(input.prefs.quietEndMin),
+        };
+        const userId = ctx.session?.user.id ?? null;
+        const executiveOrdersSubscribedAt =
+          input.prefs.executiveOrders === undefined
+            ? undefined
+            : input.prefs.executiveOrders
+              ? sql`coalesce(${PushDevice.executiveOrdersSubscribedAt}, now())`
+              : null;
+        const newBillsSubscribedAt =
+          input.prefs.newBills === undefined
+            ? undefined
+            : input.prefs.newBills
+              ? sql`coalesce(${PushDevice.newBillsSubscribedAt}, now())`
+              : null;
+        const [device] = await tx
+          .insert(PushDevice)
+          .values({
+            expoPushToken: input.token,
             platform: input.platform,
             timezone: input.timezone,
             userId,
             ...prefs,
-            executiveOrdersSubscribedAt,
-            lastSeenAt: new Date(),
-            disabledAt: null,
-          },
-        })
-        .returning({ id: PushDevice.id });
-      const deviceId = device?.id;
-      if (!deviceId) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Could not register this phone.",
-        });
-      }
-      if (input.prefs.executiveOrders === false) {
-        await db
-          .delete(NotificationOutbox)
-          .where(
-            and(
-              eq(NotificationOutbox.deviceId, deviceId),
-              eq(NotificationOutbox.kind, "executive"),
-              isNull(NotificationOutbox.sentAt),
-            ),
-          );
-      }
+            newBillsSubscribedAt: input.prefs.newBills ? new Date() : null,
+            executiveOrdersSubscribedAt: input.prefs.executiveOrders
+              ? new Date()
+              : null,
+          })
+          .onConflictDoUpdate({
+            target: PushDevice.expoPushToken,
+            set: {
+              platform: input.platform,
+              timezone: input.timezone,
+              userId,
+              ...prefs,
+              executiveOrdersSubscribedAt,
+              newBillsSubscribedAt,
+              lastSeenAt: new Date(),
+              disabledAt: null,
+            },
+          })
+          .returning({ id: PushDevice.id });
+        const deviceId = device?.id;
+        if (!deviceId) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Could not register this phone.",
+          });
+        }
+        if (input.prefs.executiveOrders === false) {
+          await tx
+            .delete(NotificationOutbox)
+            .where(
+              and(
+                eq(NotificationOutbox.deviceId, deviceId),
+                eq(NotificationOutbox.kind, "executive"),
+                isNull(NotificationOutbox.sentAt),
+              ),
+            );
+        }
 
-      await syncFollows(deviceId, input.followIds);
-      if (!prefs.following) {
-        await db
-          .delete(NotificationOutbox)
-          .where(
-            and(
-              eq(NotificationOutbox.deviceId, deviceId),
-              eq(NotificationOutbox.kind, "follow"),
-              isNull(NotificationOutbox.sentAt),
-            ),
-          );
-      }
-      return { ok: true as const, deviceId };
-    }),
+        if (input.prefs.newBills === false) {
+          await tx
+            .delete(NotificationOutbox)
+            .where(
+              and(
+                eq(NotificationOutbox.deviceId, deviceId),
+                eq(NotificationOutbox.kind, "new_bill"),
+                isNull(NotificationOutbox.sentAt),
+              ),
+            );
+        }
+
+        await syncFollows(tx, deviceId, input.followIds);
+        if (!prefs.following) {
+          await tx
+            .delete(NotificationOutbox)
+            .where(
+              and(
+                eq(NotificationOutbox.deviceId, deviceId),
+                eq(NotificationOutbox.kind, "follow"),
+                isNull(NotificationOutbox.sentAt),
+              ),
+            );
+        }
+        return { ok: true as const, deviceId };
+      }),
+    ),
 
   unregister: publicProcedure
     .input(z.object({ token: TokenInput }))
@@ -249,15 +278,20 @@ export const notificationsRouter = {
     }),
 } satisfies TRPCRouterRecord;
 
-async function syncFollows(deviceId: string, followIds: string[]) {
+async function syncFollows(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  deviceId: string,
+  followIds: string[],
+) {
   const unique = [...new Set(followIds)];
-  const existing = await db
+  const existing = await tx
     .select({
       id: DeviceFollow.id,
       contentId: DeviceFollow.contentId,
     })
     .from(DeviceFollow)
-    .where(eq(DeviceFollow.deviceId, deviceId));
+    .where(eq(DeviceFollow.deviceId, deviceId))
+    .for("update");
   const existingIds = new Set(existing.map((row) => row.contentId));
   const wanted = new Set(unique);
 
@@ -265,7 +299,7 @@ async function syncFollows(deviceId: string, followIds: string[]) {
     .filter((row) => !wanted.has(row.contentId))
     .map((row) => row.id);
   if (removed.length > 0) {
-    await db.delete(NotificationOutbox).where(
+    await tx.delete(NotificationOutbox).where(
       and(
         eq(NotificationOutbox.deviceId, deviceId),
         eq(NotificationOutbox.kind, "follow"),
@@ -278,19 +312,39 @@ async function syncFollows(deviceId: string, followIds: string[]) {
         ),
       ),
     );
-    await db.delete(DeviceFollow).where(inArray(DeviceFollow.id, removed));
+    await tx.delete(DeviceFollow).where(inArray(DeviceFollow.id, removed));
   }
 
   const added = unique.filter((id) => !existingIds.has(id));
   if (added.length === 0) return;
 
-  const bills = await db
+  const bills = await tx
     .select({ id: Bill.id, lastActionAt: Bill.lastActionAt })
     .from(Bill)
     .where(inArray(Bill.id, added));
+  const decisions = await tx
+    .select({
+      id: LocalDecision.id,
+      settled: localIngestionSettled(new Date()),
+    })
+    .from(LocalDecision)
+    .where(and(inArray(LocalDecision.id, added), localDecisionVisible()));
+  for (const decision of decisions) {
+    await tx
+      .insert(DeviceFollow)
+      .values({
+        deviceId,
+        contentId: decision.id,
+        contentType: "local_decision",
+        localDecisionState: decision.settled
+          ? await readLocalDecisionState(tx, decision.id)
+          : null,
+      })
+      .onConflictDoNothing();
+  }
   if (bills.length === 0) return;
 
-  await db
+  await tx
     .insert(DeviceFollow)
     .values(
       bills.map((bill) => ({

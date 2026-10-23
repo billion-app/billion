@@ -87,7 +87,12 @@ export async function generateMetadata({
       title: `${readerText(language, pending ? "Translation is being prepared." : "Not found")} — Billion`,
     };
 
-  const type = presentType(content.type);
+  const type = presentType(
+    content.type,
+    content.type === "government_content"
+      ? content.governmentContentType
+      : undefined,
+  );
   const title = content.billNumber
     ? `${content.billNumber}: ${content.title}`
     : content.title;
@@ -148,7 +153,12 @@ export default async function SharedContentPage({
     );
   if (!content) notFound();
 
-  const type = presentType(content.type);
+  const type = presentType(
+    content.type,
+    content.type === "government_content"
+      ? content.governmentContentType
+      : undefined,
+  );
   const brief = briefOf(content);
   const art = headerImage(content);
   const isAndroid = isAndroidUserAgent((await headers()).get("user-agent"));
@@ -218,6 +228,7 @@ export default async function SharedContentPage({
 
         <ArticleDates
           language={language}
+          sourceDate={content.sourceDate}
           createdAt={content.createdAt}
           updatedAt={content.updatedAt}
         />

@@ -96,10 +96,62 @@ export const commonStrings = {
   },
 
   "contentType.bill": { en: "Bill", es: "Proyecto de ley", zh: "法案" },
-  "contentType.exec": { en: "Order", es: "Orden", zh: "行政令" },
+  "contentType.exec": { en: "Executive", es: "Ejecutivo", zh: "行政文件" },
   "contentType.court": { en: "Case", es: "Caso", zh: "案件" },
   "contentType.news": { en: "News", es: "Noticias", zh: "新闻" },
   "contentType.local": { en: "Local", es: "Local", zh: "地方" },
+
+  "governmentContent.ORDER": {
+    en: "Order",
+    es: "Orden ejecutiva",
+    zh: "行政令",
+  },
+  "governmentContent.NOTICE": { en: "Notice", es: "Aviso", zh: "通知" },
+  "governmentContent.MEMORANDUM": {
+    en: "Memorandum",
+    es: "Memorando",
+    zh: "备忘录",
+  },
+  "governmentContent.PROCLAMATION": {
+    en: "Proclamation",
+    es: "Proclamación",
+    zh: "公告",
+  },
+  "governmentContent.PRESIDENTIAL DOCUMENT": {
+    en: "Presidential document",
+    es: "Documento presidencial",
+    zh: "总统文件",
+  },
+  "governmentContent.NEWS ARTICLE": {
+    en: "News article",
+    es: "Artículo de noticias",
+    zh: "新闻报道",
+  },
+  "governmentContent.FACT SHEET": {
+    en: "Fact sheet",
+    es: "Hoja informativa",
+    zh: "情况说明",
+  },
+  "governmentContent.PRESS RELEASE": {
+    en: "Press release",
+    es: "Comunicado de prensa",
+    zh: "新闻稿",
+  },
+  "governmentContent.BRIEFING STATEMENT": {
+    en: "Briefing statement",
+    es: "Declaración informativa",
+    zh: "简报声明",
+  },
+  "governmentContent.PRESIDENTIAL ACTION": {
+    en: "Presidential action",
+    es: "Acción presidencial",
+    zh: "总统行动",
+  },
+  "governmentContent.EXECUTIVE": {
+    en: "Executive",
+    es: "Ejecutivo",
+    zh: "行政文件",
+  },
 
   "follow.saveTitle": {
     en: "Save {title} for later",
@@ -341,9 +393,14 @@ export const commonStrings = {
     zh: "输入你的地址，查看你的选票上有哪些内容。",
   },
   "address.confirming": {
-    en: "Confirming address…",
-    es: "Confirmando la dirección…",
-    zh: "正在确认地址…",
+    en: "Finding the street address…",
+    es: "Buscando la dirección postal…",
+    zh: "正在查找街道地址…",
+  },
+  "address.checkDraft": {
+    en: "Filled in from your location. Check it, then tap {action}.",
+    es: "Completada con tu ubicación. Revísala y luego toca {action}.",
+    zh: "已根据你的位置填写。请核对后点按“{action}”。",
   },
   "address.searching": { en: "Searching…", es: "Buscando…", zh: "正在搜索…" },
   "address.placeholder": { en: "Address", es: "Dirección", zh: "地址" },
@@ -488,5 +545,127 @@ export const commonStrings = {
     en: "AI summary provided for convenience. Always review original sources for complete accuracy.",
     es: "Resumen generado con IA para tu comodidad. Consulta siempre las fuentes originales para mayor exactitud.",
     zh: "AI 摘要仅供参考。如需完整准确的信息，请务必查阅原始来源。",
+  },
+  "address.useLocation": {
+    en: "Use my location",
+    es: "Usar mi ubicación",
+    zh: "使用我的位置",
+  },
+  "address.finding": {
+    en: "Finding your location…",
+    es: "Buscando tu ubicación…",
+    zh: "正在查找你的位置…",
+  },
+  "address.denied": {
+    en: "Location is off for Billion — type your registered address instead.",
+    es: "La ubicación está desactivada para Billion. Escribe la dirección donde estás registrado para votar.",
+    zh: "Billion 的定位权限已关闭，请输入你的选民登记地址。",
+  },
+  "address.unavailable": {
+    en: "Location services are off — type your registered address instead.",
+    es: "Los servicios de ubicación están desactivados. Escribe tu dirección de registro electoral.",
+    zh: "定位服务已关闭，请输入你的选民登记地址。",
+  },
+  "address.failed": {
+    en: "Couldn't get your location. Try again or type your registered address.",
+    es: "No pudimos obtener tu ubicación. Inténtalo de nuevo o escribe tu dirección de registro electoral.",
+    zh: "无法获取你的位置。请重试或输入你的选民登记地址。",
+  },
+  "address.noStreetAddress": {
+    en: "Couldn't find a street address here. Type your registered address instead.",
+    es: "No encontramos una dirección postal aquí. Escribe tu dirección de registro electoral.",
+    zh: "无法找到此位置的街道地址，请输入你的选民登记地址。",
+  },
+  "address.news.denied": {
+    en: "Location is off for Billion — type an address instead.",
+    es: "La ubicación está desactivada para Billion. Escribe una dirección.",
+    zh: "Billion 的定位权限已关闭，请手动输入地址。",
+  },
+  "address.news.unavailable": {
+    en: "Location services are off — type an address instead.",
+    es: "Los servicios de ubicación están desactivados. Escribe una dirección.",
+    zh: "定位服务已关闭，请手动输入地址。",
+  },
+  "address.news.failed": {
+    en: "Couldn't get your location. Try again or type an address.",
+    es: "No pudimos obtener tu ubicación. Inténtalo de nuevo o escribe una dirección.",
+    zh: "无法获取你的位置。请重试或手动输入地址。",
+  },
+  "address.news.noStreetAddress": {
+    en: "Couldn't find a street address here. Type one instead.",
+    es: "No encontramos una dirección postal aquí. Escribe una.",
+    zh: "无法找到此位置的街道地址，请手动输入。",
+  },
+  "location.title": { en: "Location", es: "Ubicación", zh: "位置" },
+  "location.change": {
+    en: "Change address",
+    es: "Cambiar dirección",
+    zh: "更改地址",
+  },
+  "location.set": {
+    en: "Add your address",
+    es: "Agrega tu dirección",
+    zh: "添加你的地址",
+  },
+  "location.registered": {
+    en: "For local news and your ballot",
+    es: "Para noticias locales y tu boleta",
+    zh: "用于本地新闻和你的选票",
+  },
+  "location.intro": {
+    en: "One saved address sets your local news and your ballot and representative lookups. For ballots, use the address where you’re registered to vote.",
+    es: "Una dirección guardada define tus noticias locales y las consultas de tu boleta y tus representantes. Para la boleta, usa la dirección donde estás registrado para votar.",
+    zh: "一个已保存的地址决定你的本地新闻，以及选票和议员查询。查询选票时，请使用你的选民登记地址。",
+  },
+  "location.kicker": {
+    en: "YOUR SAVED ADDRESS",
+    es: "TU DIRECCIÓN GUARDADA",
+    zh: "你保存的地址",
+  },
+  "location.hint": {
+    en: "Type an address, or use your location and check the result before saving.",
+    es: "Escribe una dirección o usa tu ubicación y revisa el resultado antes de guardar.",
+    zh: "输入地址，或使用定位并在保存前核对结果。",
+  },
+  "location.saved": {
+    en: "Saved address",
+    es: "Dirección guardada",
+    zh: "已保存的地址",
+  },
+  "location.remove": {
+    en: "Remove saved address",
+    es: "Eliminar dirección guardada",
+    zh: "删除已保存的地址",
+  },
+  "location.removeTitle": {
+    en: "Remove saved address?",
+    es: "¿Eliminar la dirección guardada?",
+    zh: "删除已保存的地址？",
+  },
+  "location.removeBody": {
+    en: "Ballot, voting, and representative lookups will ask for your address again until you set a new one.",
+    es: "Las consultas de boletas, votación y representantes pedirán tu dirección de nuevo hasta que guardes otra.",
+    zh: "在设置新地址之前，选票、投票和议员查询将再次要求输入地址。",
+  },
+  "location.removeAction": { en: "Remove", es: "Eliminar", zh: "删除" },
+  "location.stored": {
+    en: "Saved on this device. Billion never keeps your device’s coordinates. Change or remove the address at any time.",
+    es: "Se guarda en este dispositivo. Billion nunca guarda las coordenadas de tu dispositivo. Cambia o elimina la dirección en cualquier momento.",
+    zh: "保存在此设备上。Billion 绝不会保存设备坐标。你可以随时更改或删除该地址。",
+  },
+  "location.privacyLink": {
+    en: "How Billion uses your address",
+    es: "Cómo usa Billion tu dirección",
+    zh: "Billion 如何使用你的地址",
+  },
+  "location.saveFailed": {
+    en: "Couldn't save your address. Please try again.",
+    es: "No pudimos guardar tu dirección. Inténtalo de nuevo.",
+    zh: "无法保存你的地址，请重试。",
+  },
+  "location.removeFailed": {
+    en: "Couldn't remove your address. Please try again.",
+    es: "No pudimos eliminar tu dirección. Inténtalo de nuevo.",
+    zh: "无法删除你的地址，请重试。",
   },
 } satisfies Catalog;

@@ -18,6 +18,8 @@ import { ballotStrings } from "./app/ballot";
 import { commonStrings } from "./app/common";
 import { electionStrings } from "./app/elections";
 import { feedStrings } from "./app/feed";
+import { localDetailStrings } from "./app/local-detail";
+import { localGovernmentStrings } from "./app/local-government";
 import { onboardingStrings } from "./app/onboarding";
 import { pageStrings } from "./app/pages";
 import { settingsStrings } from "./app/settings";
@@ -25,6 +27,8 @@ import { votingStrings } from "./app/voting";
 import { formatNumber } from "./format";
 
 export const CATALOG = {
+  ...localGovernmentStrings,
+  ...localDetailStrings,
   ...auditStrings,
   ...pageStrings,
   ...commonStrings,

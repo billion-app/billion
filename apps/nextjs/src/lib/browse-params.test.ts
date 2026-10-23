@@ -24,6 +24,24 @@ void test("an unknown type falls back to all", () => {
   assert.equal(parseBrowseParams({ type: "memes" }).type, "all");
 });
 
+void test("old Briefings links keep their results under Executive", () => {
+  for (const params of [
+    { scope: "federal", type: "general", q: " trade " },
+    new URLSearchParams("scope=federal&type=general&q=+trade+"),
+  ]) {
+    const view = parseBrowseParams(params);
+    assert.deepEqual(view, {
+      scope: "federal",
+      type: "government_content",
+      q: "trade",
+    });
+    assert.equal(
+      browseHref({ ...view, scope: "federal" }),
+      "/browse?scope=federal&type=government_content&q=trade",
+    );
+  }
+});
+
 void test("repeated params use the first value", () => {
   assert.equal(parseBrowseParams({ scope: ["tx", "ca"] }).scope, "tx");
 });

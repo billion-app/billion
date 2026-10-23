@@ -498,7 +498,7 @@ async function writeContent(
           updatedAt: new Date(),
         },
       })
-      .returning();
+      .returning({ id: Bill.id, thumbnailUrl: Bill.thumbnailUrl });
     result = row;
   } else if (input.type === "government_content") {
     const d = input.data;
@@ -522,7 +522,10 @@ async function writeContent(
           updatedAt: new Date(),
         },
       })
-      .returning();
+      .returning({
+        id: GovernmentContent.id,
+        thumbnailUrl: GovernmentContent.thumbnailUrl,
+      });
     result = row;
   } else {
     const d = input.data;
@@ -555,7 +558,7 @@ async function writeContent(
             updatedAt: new Date(),
           },
         })
-        .returning();
+        .returning({ id: CourtCase.id, thumbnailUrl: CourtCase.thumbnailUrl });
       if (row && courtSourceChanged) {
         // The API serves lenses by ID, so source refresh and invalidation must
         // commit together even when the generation budget is exhausted.

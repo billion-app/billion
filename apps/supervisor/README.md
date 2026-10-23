@@ -70,7 +70,7 @@ supervisor job uses it.
 | `scotus-daily`                    | daily 01:45 local | Reads 20 recent official Court decisions, including order opinions; five generation slots |
 | `ecourt-records-daily`            | daily 02:15 local | Refreshes up to five indexed Massachusetts criminal dockets; two generation slots         |
 | `content-images-daily`            | daily 04:15 local | Generates illustrated Storage-backed header art for recent retained content               |
-| `notify-followers-hourly`         | every 60 minutes  | Sends lock-screen alerts for bills a reader asked us to watch                             |
+| `notify-followers-hourly`         | every 60 minutes  | Sends saved-bill updates and opted-in new-bill and executive-order alerts                 |
 | `court-image-smoke`               | manual            | Generates and reviews at most one real court-case image for production verification       |
 | `backfill-content-images`         | manual            | Drains missing or style-stale header art across all retained content                      |
 | `scc-cvig-weekly`                 | Sundays 03:15     | Santa Clara County voter guide                                                            |
@@ -199,6 +199,17 @@ seconds and generates translations through the private Codex Responses proxy
 configured by `SCRAPER_FALLBACK_BASE_URL` and `SCRAPER_FALLBACK_MODEL`. It selects
 only that provider; paid scraper fallbacks are not used for translations. The
 worker runs separately because ingestion jobs can occupy the supervisor for hours.
+
+The worker also prepares Chinese readers in pages of ten when the runnable queue
+has fewer than twenty requests. Each archive sweep fetches row IDs and revisions
+for source content, briefs, lenses, and cached translations. Readers already
+validated by that worker skip full-text reads until a revision changes or a day
+passes. The revision includes PostgreSQL `xmin`, so direct SQL edits invalidate
+the check even when timestamps stay unchanged. Deleted or corrupt translations
+are rechecked, and pending or failed preparation is never cached. Restarting the
+worker performs a full check. After finishing the archive, it waits five minutes
+before the next sweep. Interactive queue polling still runs every five seconds.
+The explicit `--prepare-only` command always validates full readers.
 
 Vercel queues a cache miss and returns the existing English fallback. The reader
 retries until the completed translation is available. Repeated reads deduplicate

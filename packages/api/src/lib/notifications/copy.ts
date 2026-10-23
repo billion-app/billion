@@ -1,9 +1,11 @@
+import type { LocalDecisionChange } from "./local-decisions";
 import { projectBillStatus } from "../bill-status";
 
 export const SIGNAL_CATEGORY = "billionSignal";
 
 export type NotificationKind =
   | "executive"
+  | "new_bill"
   | "follow"
   | "breaking"
   | "brief"
@@ -77,4 +79,34 @@ export function testAlertCopy(language: "en" | "es" | "zh" = "en") {
       body: "Las notificaciones están activadas.",
     };
   return TEST_ALERT_COPY;
+}
+
+export function newBillAlertCopy(bill: {
+  id: string;
+  title: string;
+  billNumber: string;
+}) {
+  return {
+    kind: "new_bill" as const,
+    title: "New bill in Congress",
+    body: `${bill.billNumber}: ${clipTitle(bill.title)}`,
+    href: `/article-detail?id=${bill.id}`,
+  };
+}
+
+export function localDecisionAlertCopy(
+  decision: { id: string; title: string },
+  change: LocalDecisionChange,
+): FollowAlertCopy {
+  const bodies = {
+    outcome: "An official outcome was published or updated. Open for details.",
+    cancelled: "A scheduled meeting was cancelled. Open for details.",
+    schedule: "The meeting schedule changed. Open for details.",
+  } satisfies Record<LocalDecisionChange, string>;
+  return {
+    kind: "follow",
+    title: clipTitle(decision.title),
+    body: bodies[change],
+    href: `/local-decision-detail?id=${decision.id}`,
+  };
 }

@@ -10,6 +10,10 @@
     "./budget-context-presentation": {
       "types": "./dist/budget-context-presentation.d.ts",
       "default": "./src/budget-context-presentation.ts"
+    },
+    "./local-decision": {
+      "types": "./dist/local-decision.d.ts",
+      "default": "./src/local-decision.ts"
     }
   },
   "license": "MIT",

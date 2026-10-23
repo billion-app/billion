@@ -11,9 +11,18 @@ import {
 } from "~/utils/saved-store";
 
 /** The content types the saved list can render. */
-const SAVEABLE_TYPES = new Set(["bill", "government_content", "court_case"]);
+const SAVEABLE_TYPES = new Set([
+  "bill",
+  "government_content",
+  "court_case",
+  "local_decision",
+]);
 
-export type SaveableType = "bill" | "government_content" | "court_case";
+export type SaveableType =
+  | "bill"
+  | "government_content"
+  | "court_case"
+  | "local_decision";
 
 export function isSaveable(type: string): type is SaveableType {
   return SAVEABLE_TYPES.has(type);
@@ -106,5 +115,20 @@ export function useSavedContent() {
     [ids, persist],
   );
 
-  return { savedIds: ids, isSaved, toggleSave };
+  const removeSaved = useCallback(
+    (contentId: string) => {
+      const current =
+        queryClient.getQueryData<string[]>(savedIdsQueryKey) ?? ids;
+      queryClient.setQueryData(
+        savedIdsQueryKey,
+        withoutSavedId(current, contentId),
+      );
+      pendingSavedWrites += 1;
+      persist({ contentId, saved: false });
+      posthog.capture("content_unsaved", { content_id: contentId });
+    },
+    [ids, persist],
+  );
+
+  return { savedIds: ids, isSaved, toggleSave, removeSaved };
 }

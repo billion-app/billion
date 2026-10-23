@@ -4,7 +4,7 @@ Start with the [architecture tour](docs/architecture.md) if you are still figuri
 
 ## Prerequisites
 
-- Node `>=22.20.0` and pnpm `10.15.1`, as pinned in `package.json`.
+- Node `22.23.4` and pnpm `10.15.1`, as pinned in `.nvmrc` and `package.json`.
 - PostgreSQL. Onboarding can use Postgres.app, Homebrew Postgres, or the repository's Docker Compose service.
 - For iOS development, macOS with Xcode, command-line tools, and an iOS Simulator. For Android, Android Studio with an SDK, emulator, and compatible JDK. See [Android setup and Google Play release](docs/android-release.md) for installation and release steps.
 
@@ -122,6 +122,8 @@ For documentation-only changes, check links, command names, and formatting on th
 pnpm exec prettier --check README.md CONTRIBUTING.md docs/architecture.md
 ```
 
+Keep screenshots, review logs, and temporary PR writeups outside version control. Use the ignored `docs/pr-assets/` directory or a directory outside the checkout, and share review evidence through PR attachments. Do not add PR-specific evidence folders or comment drafts to the merge diff; put reusable regression checks in the relevant test suite.
+
 Describe what changed and how you verified it in the PR. When behavior changes, update its guide and retain links to the relevant code. Prefer explaining the data flow over copying entire interfaces or dependency version lists into prose.
 
 ### Notification delivery integration test
@@ -134,7 +136,7 @@ POSTGRES_URL=postgresql://localhost/billion_notifications_test pnpm db:migrate
 NOTIFICATIONS_TEST_DATABASE_URL=postgresql://localhost/billion_notifications_test pnpm --filter @acme/api exec tsx --test src/lib/notifications/deliver.integration.test.ts
 ```
 
-The test covers action deduplication in a non-UTC database session, cancelling queued alerts after opt-out or unsave, concurrent enqueue/send workers, test-send isolation, transport failures, Expo rejection, delayed receipt processing, and server history. It skips unless `NOTIFICATIONS_TEST_DATABASE_URL` is explicitly set. Run it directly as above so Turbo cannot reuse cached results from an earlier database state.
+The test covers action deduplication in a non-UTC database session, cancelling queued alerts after opt-out or unsave, concurrent enqueue/send workers, test-send isolation, transport failures, Expo rejection, delayed receipt processing, and server history. Local-decision cases cover follow baselines, schedule changes, cancellations, structured outcomes, and older backfills that must stay silent. It skips unless `NOTIFICATIONS_TEST_DATABASE_URL` is explicitly set. Run it directly as above so Turbo cannot reuse cached results from an earlier database state.
 
 ## Production work
 
@@ -156,3 +158,33 @@ TRANSLATIONS_TEST_DATABASE_URL=postgresql://localhost/billion_translations_test 
 This test uses real Postgres with a stub translator to verify concurrent claims,
 cache hits, backoff, source revisions, and recovery after an expired lease. It
 skips unless `TRANSLATIONS_TEST_DATABASE_URL` is explicitly set.
+
+### Content projection and archive preparation integration tests
+
+Use an empty, migrated local database whose name ends in `_test`. Run the content
+suites sequentially because they exercise public lists against the same fixture
+database. These checks verify card fields, search matches, Featured ranking,
+reader source hashes, and archive translation invalidation without paid generation.
+
+```bash
+CONTENT_PROJECTION_TEST_DATABASE_URL=postgresql://localhost/billion_content_test pnpm --filter @acme/api exec tsx --test --test-concurrency=1 test/content-projection-db.test.ts test/featured-bills-db.test.ts
+READER_TRANSLATIONS_TEST_DATABASE_URL=postgresql://localhost/billion_content_test pnpm --filter @acme/api exec tsx --test test/pretranslate-readers-db.test.ts
+```
+
+### Local decision integration test
+
+Use a separate, migrated local database whose name ends in `_test`. The test
+refuses remote hosts and removes its fixture records after execution:
+
+```bash
+createdb billion_local_decisions_test
+POSTGRES_URL=postgresql://localhost/billion_local_decisions_test pnpm db:migrate
+LOCAL_DECISIONS_TEST_DATABASE_URL=postgresql://localhost/billion_local_decisions_test pnpm --filter @acme/api exec tsx --test test/local-decisions-db.test.ts
+```
+
+This test verifies canonical decision pagination across multiple meetings,
+saved-ID hydration, city availability, and citation validation against real
+Postgres. It also checks that stale briefs disappear without read-time writes
+or generation. It skips unless `LOCAL_DECISIONS_TEST_DATABASE_URL` is set.
+Run it directly so cached Turbo results cannot hide a changed database state.
+The notification integration test above covers local follow delivery separately.

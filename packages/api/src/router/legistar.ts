@@ -3,7 +3,19 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
 import type { SQL } from "@acme/db";
-import { and, asc, count, desc, eq, gte, isNull, lte, or, sql } from "@acme/db";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lte,
+  or,
+  sql,
+} from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   LocalBody,
@@ -16,18 +28,15 @@ import {
   LocalMeeting,
   LocalMeetingItem,
 } from "@acme/db/schema";
+import {
+  computeLocalDecisionSourceContext,
+  validateLocalDecisionBrief,
+} from "@acme/validators/local-decision";
 
 import { JURISDICTIONS, legistar } from "../integrations/legistar";
 import { publicProcedure } from "../trpc";
 
 const jurisdictionEnum = z.enum(["sanjose", "santaclara", "sunnyvale"]);
-
-const participation = {
-  instructionsUrl:
-    "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes",
-  methods: ["in_person", "email", "ecomment"] as const,
-  note: "Submission methods and deadlines can change. Verify the official meeting agenda before participating.",
-};
 
 function apiError(error: unknown, fallback: string): TRPCError {
   return new TRPCError({
@@ -52,19 +61,23 @@ const listInput = z.object({
   cursor: z.number().int().min(0).max(10_000).optional(),
 });
 
-async function listDecisions(input: z.infer<typeof listInput>) {
+async function listDecisions(input: z.infer<typeof listInput>, ids?: string[]) {
   const options = input;
   const effectiveOffset = options.cursor ?? options.offset;
   const now = new Date();
   const conditions: SQL[] = [
-    eq(LocalMeeting.jurisdictionKey, options.jurisdiction),
+    ...(ids
+      ? [inArray(LocalDecision.id, ids)]
+      : [eq(LocalMeeting.jurisdictionKey, options.jurisdiction)]),
+    eq(LocalJurisdiction.active, true),
+    eq(LocalBody.included, true),
     isNull(LocalMeeting.sourceDeletedAt),
     isNull(LocalMeetingItem.sourceDeletedAt),
     isNull(LocalDecision.sourceDeletedAt),
   ];
   if (options.timeline === "upcoming")
     conditions.push(gte(LocalMeeting.startsAt, options.from ?? now));
-  if (options.timeline === "recent")
+  if (options.timeline === "recent" && !ids)
     conditions.push(lte(LocalMeeting.startsAt, options.to ?? now));
   if (options.from) conditions.push(gte(LocalMeeting.startsAt, options.from));
   if (options.to) conditions.push(lte(LocalMeeting.startsAt, options.to));
@@ -80,26 +93,13 @@ async function listDecisions(input: z.infer<typeof listInput>) {
     );
   }
 
-  const relevance = options.district
-    ? sql<number>`case
-        when ${options.district} = any(coalesce(${LocalDecision.districtNumbers}, '{}')) then 0
-        when ${LocalDecision.scopeKind} = 'citywide' then 1
-        else 2
-      end`
-    : null;
-  // A bare constant like `order by 0` is an ordinal reference in Postgres and
-  // errors out; the relevance term only exists when a district is provided.
-  const order = [
-    ...(relevance !== null ? [asc(relevance)] : []),
-    ...(options.timeline === "recent"
-      ? [desc(LocalMeeting.startsAt)]
-      : [asc(LocalMeeting.startsAt)]),
-  ];
-
-  return db
-    .select({
-      id: LocalDecision.id,
-      jurisdiction: LocalJurisdiction.name,
+  const representative = db
+    .selectDistinctOn([LocalDecision.id], {
+      id: sql<string>`${LocalDecision.id}`.as("decision_id"),
+      jurisdiction: sql<string>`${LocalJurisdiction.name}`.as(
+        "jurisdiction_name",
+      ),
+      jurisdictionKey: LocalJurisdiction.key,
       fileNumber: LocalDecision.fileNumber,
       title: LocalDecision.title,
       type: LocalDecision.typeName,
@@ -108,19 +108,19 @@ async function listDecisions(input: z.infer<typeof listInput>) {
       scope: LocalDecision.scopeKind,
       districtNumbers: LocalDecision.districtNumbers,
       geographicText: LocalDecision.geographicText,
-      sourceUrl: LocalDecision.sourceUrl,
-      meetingItemId: LocalMeetingItem.id,
+      sourceUrl: LocalMeeting.sourceUrl,
+      meetingItemId: sql<string>`${LocalMeetingItem.id}`.as("meeting_item_id"),
       sourceEventItemId: LocalMeetingItem.sourceEventItemId,
       agendaNumber: LocalMeetingItem.agendaNumber,
       proposedAction: LocalMeetingItem.actionText,
       outcome: LocalMeetingItem.actionName,
       passed: LocalMeetingItem.passedFlagName,
       tally: LocalMeetingItem.tally,
-      meetingId: LocalMeeting.id,
+      meetingId: sql<string>`${LocalMeeting.id}`.as("meeting_id"),
       sourceEventId: LocalMeeting.sourceEventId,
       meetingStartsAt: LocalMeeting.startsAt,
       meetingCancelled: LocalMeeting.cancelled,
-      body: LocalBody.name,
+      body: sql<string>`${LocalBody.name}`.as("body_name"),
       bodyRelevanceTier: LocalBody.relevanceTier,
     })
     .from(LocalMeetingItem)
@@ -132,8 +132,31 @@ async function listDecisions(input: z.infer<typeof listInput>) {
       eq(LocalMeeting.jurisdictionKey, LocalJurisdiction.key),
     )
     .where(and(...conditions))
-    .orderBy(...order)
-    .limit(options.limit)
+    .orderBy(
+      asc(LocalDecision.id),
+      options.timeline === "recent"
+        ? desc(LocalMeeting.startsAt)
+        : asc(LocalMeeting.startsAt),
+      asc(LocalMeetingItem.id),
+    )
+    .as("representative");
+  return db
+    .select()
+    .from(representative)
+    .orderBy(
+      ...(options.district
+        ? [
+            asc(
+              sql`case when ${options.district} = any(coalesce(${representative.districtNumbers}, '{}')) then 0 else 1 end`,
+            ),
+          ]
+        : []),
+      options.timeline === "recent"
+        ? desc(representative.meetingStartsAt)
+        : asc(representative.meetingStartsAt),
+      asc(representative.id),
+    )
+    .limit(ids ? 200 : options.limit)
     .offset(effectiveOffset);
 }
 
@@ -146,6 +169,45 @@ export const legistarRouter = {
       throw apiError(error, "Failed to load local decisions");
     }
   }),
+
+  byIds: publicProcedure
+    .input(z.object({ ids: z.array(z.string().uuid()).max(200) }))
+    .query(({ input }) =>
+      input.ids.length
+        ? listDecisions(listInput.parse({ timeline: "recent" }), input.ids)
+        : [],
+    ),
+
+  listJurisdictions: publicProcedure.query(() =>
+    db
+      .selectDistinct({
+        key: LocalJurisdiction.key,
+        name: LocalJurisdiction.name,
+        state: LocalJurisdiction.state,
+      })
+      .from(LocalJurisdiction)
+      .innerJoin(
+        LocalDecision,
+        eq(LocalDecision.jurisdictionKey, LocalJurisdiction.key),
+      )
+      .innerJoin(
+        LocalMeetingItem,
+        eq(LocalMeetingItem.decisionId, LocalDecision.id),
+      )
+      .innerJoin(LocalMeeting, eq(LocalMeetingItem.meetingId, LocalMeeting.id))
+      .innerJoin(LocalBody, eq(LocalMeeting.bodyId, LocalBody.id))
+      .where(
+        and(
+          eq(LocalJurisdiction.active, true),
+          eq(LocalBody.included, true),
+          isNull(LocalMeeting.sourceDeletedAt),
+          isNull(LocalMeetingItem.sourceDeletedAt),
+          inArray(LocalJurisdiction.key, ["sanjose", "santaclara"]),
+          isNull(LocalDecision.sourceDeletedAt),
+        ),
+      )
+      .orderBy(asc(LocalJurisdiction.name)),
+  ),
 
   getDecision: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
@@ -172,6 +234,8 @@ export const legistarRouter = {
           requester: LocalDecision.requester,
           notes: LocalDecision.notes,
           sourceUrl: LocalDecision.sourceUrl,
+          brief: LocalDecision.brief,
+          publicPortalUrl: LocalJurisdiction.publicPortalUrl,
           sourceUpdatedAt: LocalDecision.sourceUpdatedAt,
         })
         .from(LocalDecision)
@@ -243,6 +307,10 @@ export const legistarRouter = {
             isPublicComment: LocalDecisionDocument.isPublicComment,
             extractionStatus: LocalDecisionDocument.extractionStatus,
             pageCount: LocalDecisionDocument.pageCount,
+            contentHash: LocalDecisionDocument.contentHash,
+            extractedPages: LocalDecisionDocument.extractedPages,
+            processingPolicy: LocalDecisionDocument.processingPolicy,
+            sourceDeletedAt: LocalDecisionDocument.sourceDeletedAt,
             sourceUpdatedAt: LocalDecisionDocument.sourceUpdatedAt,
           })
           .from(LocalDecisionDocument)
@@ -296,8 +364,30 @@ export const legistarRouter = {
 
       return {
         ...decision,
+        brief: validateLocalDecisionBrief(
+          decision.brief,
+          documents,
+          computeLocalDecisionSourceContext({
+            title: decision.title,
+            status: decision.status,
+            sourceUpdatedAt: decision.sourceUpdatedAt,
+            occurrences,
+          }),
+        ),
+        sourceUrl:
+          occurrences.at(-1)?.meetingSourceUrl ?? decision.publicPortalUrl,
+        sourceLabel: "Official meeting record",
         occurrences,
-        documents: documents.filter((document) => !document.isPublicComment),
+        documents: documents
+          .filter((document) => !document.isPublicComment)
+          .map(
+            ({
+              extractedPages: _pages,
+              processingPolicy: _policy,
+              sourceDeletedAt: _deleted,
+              ...document
+            }) => document,
+          ),
         history,
         votes,
         publicComments: {
@@ -308,7 +398,12 @@ export const legistarRouter = {
             label: "Public comments in the official record",
           })),
         },
-        participation,
+        participation: {
+          instructionsUrl:
+            occurrences.at(-1)?.meetingSourceUrl ?? decision.publicPortalUrl,
+          methods: [],
+          note: "Check the official meeting agenda for participation methods and deadlines.",
+        },
       };
     }),
 

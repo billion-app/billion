@@ -19,7 +19,7 @@ import {
 import { parseBillBriefRecord, parseCourtBriefRecord } from "@acme/validators";
 
 import type { ContentJurisdiction } from "./content-jurisdiction";
-import { toBillTimelineActions } from "./bill-actions";
+import { billIntroductionDate, toBillTimelineActions } from "./bill-actions";
 import { parseBillSponsor, sponsorRole } from "./bill-sponsor";
 import { projectBillStatus } from "./bill-status";
 import {
@@ -29,6 +29,7 @@ import {
   officialSourceLabel,
   parseStateBillNumber,
 } from "./content-jurisdiction";
+import { courtSourceDate, governmentSourceDate } from "./content-source-date";
 import { getFederalOfficialByName } from "./elected-officials";
 
 export function billDescription(
@@ -46,6 +47,7 @@ interface ContentImageRef {
 
 export async function attachContentImages<T extends ContentImageRef>(
   items: readonly T[],
+  variant: "card" | "reader" = "card",
 ): Promise<(T & { imageUri?: string })[]> {
   if (items.length === 0) return [];
 
@@ -92,6 +94,7 @@ export async function attachContentImages<T extends ContentImageRef>(
       item.type === "government_content" && executiveOrderIds.has(item.id)
         ? EXECUTIVE_ORDER_FALLBACK_IMAGE_URL
         : undefined,
+      variant,
     ),
   }));
 }
@@ -187,10 +190,29 @@ export async function loadContentDetail(input: {
     ? <T extends ContentImageRef>(
         items: readonly T[],
       ): Promise<(T & { imageUri?: string })[]> => Promise.resolve([...items])
-    : attachContentImages;
+    : <T extends ContentImageRef>(items: readonly T[]) =>
+        attachContentImages(items, "reader");
   // Try to find in bills
   const bill = await db
-    .select()
+    .select({
+      id: Bill.id,
+      title: Bill.title,
+      billNumber: Bill.billNumber,
+      sourceWebsite: Bill.sourceWebsite,
+      sponsor: Bill.sponsor,
+      chamber: Bill.chamber,
+      introducedDate: Bill.introducedDate,
+      actions: Bill.actions,
+      status: Bill.status,
+      createdAt: Bill.createdAt,
+      updatedAt: Bill.updatedAt,
+      description: Bill.description,
+      summary: Bill.summary,
+      aiGeneratedArticle: Bill.aiGeneratedArticle,
+      fullText: Bill.fullText,
+      thumbnailUrl: Bill.thumbnailUrl,
+      url: Bill.url,
+    })
     .from(Bill)
     .where(eq(Bill.id, input.id))
     .limit(1);
@@ -224,10 +246,23 @@ export async function loadContentDetail(input: {
           imageUrl: official?.image,
         }
       : undefined;
+    const introducedDate = billIntroductionDate({
+      jurisdiction,
+      introducedDate: b.introducedDate,
+      actions: b.actions,
+    });
     const [result] = await decorate([
       {
         id: b.id,
         title: b.title,
+        introducedDate,
+        sourceDate: introducedDate
+          ? {
+              kind: "introduced" as const,
+              date: introducedDate,
+              timeZone: "UTC",
+            }
+          : null,
         createdAt: b.createdAt,
         updatedAt: b.updatedAt ?? b.createdAt,
         description: billDescription(b.description, b.summary),
@@ -259,7 +294,21 @@ export async function loadContentDetail(input: {
 
   // Try to find in government content
   const content = await db
-    .select()
+    .select({
+      id: GovernmentContent.id,
+      title: GovernmentContent.title,
+      type: GovernmentContent.type,
+      publishedDate: GovernmentContent.publishedDate,
+      source: GovernmentContent.source,
+      createdAt: GovernmentContent.createdAt,
+      updatedAt: GovernmentContent.updatedAt,
+      description: GovernmentContent.description,
+      aiGeneratedArticle: GovernmentContent.aiGeneratedArticle,
+      fullText: GovernmentContent.fullText,
+      thumbnailUrl: GovernmentContent.thumbnailUrl,
+      url: GovernmentContent.url,
+      federalRegisterUrl: GovernmentContent.federalRegisterUrl,
+    })
     .from(GovernmentContent)
     .where(eq(GovernmentContent.id, input.id))
     .limit(1);
@@ -269,10 +318,12 @@ export async function loadContentDetail(input: {
       {
         id: c.id,
         title: c.title,
+        sourceDate: governmentSourceDate(c),
         createdAt: c.createdAt,
         updatedAt: c.updatedAt ?? c.createdAt,
         description: c.description ?? "",
         type: "government_content" as const,
+        governmentContentType: c.type,
         isAIGenerated: !!c.aiGeneratedArticle,
         thumbnailUrl: c.thumbnailUrl ?? undefined,
         billNumber: undefined,
@@ -292,7 +343,19 @@ export async function loadContentDetail(input: {
 
   // Try to find in court cases
   const courtCase = await db
-    .select()
+    .select({
+      id: CourtCase.id,
+      title: CourtCase.title,
+      filedDate: CourtCase.filedDate,
+      createdAt: CourtCase.createdAt,
+      updatedAt: CourtCase.updatedAt,
+      description: CourtCase.description,
+      aiGeneratedArticle: CourtCase.aiGeneratedArticle,
+      fullText: CourtCase.fullText,
+      thumbnailUrl: CourtCase.thumbnailUrl,
+      url: CourtCase.url,
+      contentHash: CourtCase.contentHash,
+    })
     .from(CourtCase)
     .where(eq(CourtCase.id, input.id))
     .limit(1);
@@ -300,7 +363,10 @@ export async function loadContentDetail(input: {
     const c = courtCase[0];
     const [briefRows, lensData] = await Promise.all([
       db
-        .select()
+        .select({
+          contentHash: ContentBrief.contentHash,
+          brief: ContentBrief.brief,
+        })
         .from(ContentBrief)
         .where(
           and(
@@ -320,6 +386,7 @@ export async function loadContentDetail(input: {
       {
         id: c.id,
         title: c.title,
+        sourceDate: courtSourceDate(c),
         createdAt: c.createdAt,
         updatedAt: c.updatedAt ?? c.createdAt,
         description: c.description ?? "",

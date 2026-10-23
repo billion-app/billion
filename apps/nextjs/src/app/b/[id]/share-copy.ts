@@ -1,3 +1,5 @@
+import { contentType, getGovernmentContentLabel } from "@acme/ui/digest-tokens";
+
 /**
  * Everything the share surfaces need to decide *what* to say about a record.
  *
@@ -10,6 +12,7 @@
 export interface ShareableContent {
   id: string;
   type: string;
+  governmentContentType?: string;
   title: string;
   description: string;
   billNumber?: string;
@@ -70,16 +73,24 @@ const GENERAL: TypePresentation = {
 const TYPES: Record<string, TypePresentation | undefined> = {
   bill: { label: "BILL", kind: "Legislation", color: "#4A7CFF" },
   government_content: {
-    label: "ORDER",
+    ...contentType.exec,
     kind: "Executive action",
-    color: "#6366F1",
   },
   court_case: { label: "CASE", kind: "Court case", color: "#0891B2" },
   general: GENERAL,
 };
 
-export function presentType(type: string): TypePresentation {
-  return TYPES[type] ?? GENERAL;
+export function presentType(
+  type: string,
+  governmentContentType?: string,
+): TypePresentation {
+  const presentation = TYPES[type] ?? GENERAL;
+  return type === "government_content"
+    ? {
+        ...presentation,
+        label: getGovernmentContentLabel(governmentContentType),
+      }
+    : presentation;
 }
 
 /** The header image the app would show, if there is one. */

@@ -18,9 +18,9 @@ export const JURISDICTIONS = {
   },
   santaclara: {
     client: "santaclara",
-    name: "Santa Clara County",
+    name: "City of Santa Clara",
     baseUrl: "https://webapi.legistar.com/v1/santaclara",
-    publicPortalUrl: "https://sccgov.legistar.com",
+    publicPortalUrl: "https://santaclara.legistar.com",
     state: "CA",
     timezone: "America/Los_Angeles",
   },

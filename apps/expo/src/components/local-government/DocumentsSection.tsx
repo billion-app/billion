@@ -135,7 +135,7 @@ export function ParticipationCard({
       </Text>
       {participation.note ? (
         <Text style={[s.participationNote, { color: theme.textSecondary }]}>
-          {participation.note}
+          {tx("localDetail.participationGuidance")}
         </Text>
       ) : null}
       {participation.instructionsUrl ? (

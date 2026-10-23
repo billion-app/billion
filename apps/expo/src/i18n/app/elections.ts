@@ -158,9 +158,9 @@ export const electionStrings = {
     zh: "初选、提名和你的选票。",
   },
   "elections.entry.localNote": {
-    en: "Official agendas and outcomes from the {body}. Other cities aren't covered yet.",
-    es: "Agendas y resultados oficiales — {body}. Todavía no cubrimos otras ciudades.",
-    zh: "{body}的官方议程和结果。暂未涵盖其他城市。",
+    en: "View upcoming and recent city decisions.",
+    es: "Consulta las decisiones municipales próximas y recientes.",
+    zh: "查看即将审议和近期的市政决策。",
   },
   "elections.entry.notes": {
     en: "Your saved notes",

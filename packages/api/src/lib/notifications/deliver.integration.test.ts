@@ -1,14 +1,21 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
+import { setTimeout } from "node:timers/promises";
 import type { Pool } from "pg";
 
-import { eq, inArray } from "@acme/db";
+import { eq, inArray, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
   DeviceFollow,
   GovernmentContent,
+  LocalBody,
+  LocalDecision,
+  LocalIngestionRun,
+  LocalJurisdiction,
+  LocalMeeting,
+  LocalMeetingItem,
   NotificationOutbox,
   PushDevice,
 } from "@acme/db/schema";
@@ -22,6 +29,8 @@ import {
   drainTestAlert,
   enqueueExecutiveOrders,
   enqueueFollowMoves,
+  enqueueLocalDecisionMoves,
+  enqueueNewBills,
   enqueueTestAlert,
   runFollowNotifications,
 } from "./deliver";
@@ -30,7 +39,7 @@ import {
 const databaseUrl = process.env.NOTIFICATIONS_TEST_DATABASE_URL;
 void test(
   "notification delivery and API regressions",
-  { skip: !databaseUrl, timeout: 30_000 },
+  { skip: !databaseUrl, timeout: 60_000 },
   async (t) => {
     assert.ok(databaseUrl);
     const target = new URL(databaseUrl);
@@ -47,6 +56,7 @@ void test(
     let reject = false;
     let rejectError = "DeviceNotRegistered";
     let beforeSend: (() => Promise<void>) | undefined;
+    let batchTickets: ExpoPushTicket[] | undefined;
     let receiptHttpError = false;
     let receiptRequests = 0;
     const receipts: Record<string, ExpoPushTicket> = {};
@@ -75,15 +85,17 @@ void test(
         () =>
           new Response(
             JSON.stringify({
-              data: batch.map(() =>
-                reject
-                  ? {
-                      status: "error",
-                      message: "Device not registered",
-                      details: { error: rejectError },
-                    }
-                  : { status: "ok", id: randomUUID() },
-              ),
+              data:
+                batchTickets ??
+                batch.map(() =>
+                  reject
+                    ? {
+                        status: "error",
+                        message: "Device not registered",
+                        details: { error: rejectError },
+                      }
+                    : { status: "ok", id: randomUUID() },
+                ),
             }),
           ),
       );
@@ -136,6 +148,543 @@ void test(
           notBefore,
         });
       };
+      await t.test(
+        "local follows baseline archive, deduplicate real changes, and honor cancellation",
+        async () => {
+          const jurisdiction = `test-${randomUUID()}`;
+          const localToken = `ExpoPushToken[${randomUUID()}]`;
+          const decisionId = randomUUID();
+          const bodyId = randomUUID();
+          const meetingId = randomUUID();
+          const itemId = randomUUID();
+          const now = new Date("2026-10-22T23:00:00Z");
+          const syncLocal = (
+            following = true,
+            ids = [decisionId],
+            quietHours = true,
+          ) =>
+            caller.sync({
+              token: localToken,
+              platform: "ios",
+              timezone: "UTC",
+              prefs: { ...prefs, following, quietHours },
+              followIds: ids,
+            });
+          let localDevice: string | undefined;
+          try {
+            await db.insert(LocalJurisdiction).values({
+              key: jurisdiction,
+              name: "Test City",
+              state: "CA",
+              governmentLevel: "city",
+              timezone: "UTC",
+              sourceType: "test",
+              sourceClient: "test",
+              sourceBaseUrl: "https://example.com",
+            });
+            await db.insert(LocalBody).values({
+              id: bodyId,
+              jurisdictionKey: jurisdiction,
+              sourceBodyId: 1,
+              name: "Council",
+              included: true,
+            });
+            await db.insert(LocalDecision).values({
+              id: decisionId,
+              jurisdictionKey: jurisdiction,
+              sourceMatterId: 1,
+              title: "Local follow fixture",
+              sourceUpdatedAt: now,
+            });
+            await db.insert(LocalMeeting).values({
+              id: meetingId,
+              bodyId,
+              jurisdictionKey: jurisdiction,
+              sourceEventId: 1,
+              startsAt: new Date("2026-10-23T12:00:00Z"),
+              localDate: "2026-10-23",
+              sourceUpdatedAt: now,
+            });
+            await db.insert(LocalMeetingItem).values({
+              id: itemId,
+              meetingId,
+              decisionId,
+              sourceEventItemId: 1,
+              sourceUpdatedAt: now,
+              actionName: "Introduced",
+            });
+            const registered = await syncLocal();
+            localDevice = registered.deviceId;
+            const outbox = () =>
+              db
+                .select()
+                .from(NotificationOutbox)
+                .where(eq(NotificationOutbox.deviceId, registered.deviceId));
+            const follow = async () =>
+              (
+                await db
+                  .select()
+                  .from(DeviceFollow)
+                  .where(eq(DeviceFollow.deviceId, registered.deviceId))
+              )[0];
+            const baseline = (await follow())?.localDecisionState;
+            assert.equal((await follow())?.contentType, "local_decision");
+            assert.ok(baseline?.length);
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await db
+              .update(LocalDecision)
+              .set({ title: "Retitled", sourceUpdatedAt: new Date() })
+              .where(eq(LocalDecision.id, decisionId));
+            await db
+              .update(LocalMeetingItem)
+              .set({
+                title: "Retitled item",
+                actionText: "Editorial text",
+                sourceUpdatedAt: new Date(),
+              })
+              .where(eq(LocalMeetingItem.id, itemId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await syncLocal();
+            assert.deepEqual((await follow())?.localDecisionState, baseline);
+            const runId = randomUUID();
+            await db.insert(LocalIngestionRun).values({
+              id: runId,
+              jurisdictionKey: jurisdiction,
+              status: "running",
+              startedAt: now,
+              windowStart: now,
+              windowEnd: now,
+            });
+            await db
+              .update(LocalMeeting)
+              .set({ startsAt: new Date("2026-10-24T11:00:00Z") })
+              .where(eq(LocalMeeting.id, meetingId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            assert.deepEqual((await follow())?.localDecisionState, baseline);
+            await db
+              .update(LocalIngestionRun)
+              .set({ status: "completed", completedAt: now })
+              .where(eq(LocalIngestionRun.id, runId));
+            await db
+              .update(LocalMeeting)
+              .set({ startsAt: new Date("2026-10-24T12:00:00Z") })
+              .where(eq(LocalMeeting.id, meetingId));
+            const runs = await Promise.all([
+              enqueueLocalDecisionMoves(now),
+              enqueueLocalDecisionMoves(now),
+            ]);
+            assert.equal(
+              runs.reduce((sum, run) => sum + run.enqueued, 0),
+              1,
+            );
+            await syncLocal();
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            const queued = (await outbox())[0];
+            assert.equal(queued?.kind, "follow");
+            assert.equal(
+              queued.href,
+              `/local-decision-detail?id=${decisionId}`,
+            );
+            assert.equal(
+              queued.notBefore.toISOString(),
+              "2026-10-23T07:00:00.000Z",
+            );
+            assert.equal((await drainOutbox(now)).sent, 0);
+            const drains = await Promise.all([
+              drainOutbox(new Date("2026-10-23T07:00:00Z")),
+              drainOutbox(new Date("2026-10-23T07:00:00Z")),
+            ]);
+            assert.equal(
+              drains.reduce((sum, run) => sum + run.sent, 0),
+              1,
+            );
+            assert.equal(
+              messages.at(-1)?.data.href,
+              `/local-decision-detail?id=${decisionId}`,
+            );
+            assert.equal(
+              (await caller.history({ token: localToken })).length,
+              1,
+            );
+            await db
+              .update(LocalMeeting)
+              .set({ startsAt: new Date("2026-10-25T12:00:00Z") })
+              .where(eq(LocalMeeting.id, meetingId));
+            await Promise.all([
+              enqueueLocalDecisionMoves(now),
+              syncLocal(true, []),
+            ]);
+            assert.equal(
+              (await outbox()).filter((row) => !row.sentAt).length,
+              0,
+            );
+            await syncLocal();
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await db
+              .update(LocalMeetingItem)
+              .set({ actionName: "Approved", tally: "7-0" })
+              .where(eq(LocalMeetingItem.id, itemId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 1);
+            await syncLocal(false);
+            await syncLocal(true);
+            assert.equal((await outbox()).length, 1);
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await db
+              .update(LocalMeeting)
+              .set({ cancelled: true })
+              .where(eq(LocalMeeting.id, meetingId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 1);
+            await syncLocal(true, []);
+            await syncLocal();
+            assert.equal((await outbox()).length, 1);
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await db
+              .update(DeviceFollow)
+              .set({ createdAt: new Date("2026-10-21T23:00:00Z") })
+              .where(eq(DeviceFollow.deviceId, registered.deviceId));
+            for (const [sourceEventId, startsAt] of [
+              [2, "2026-10-22T12:00:00Z"],
+              [3, "2026-10-20T12:00:00Z"],
+            ] as const) {
+              const lateMeeting = randomUUID();
+              await db.insert(LocalMeeting).values({
+                id: lateMeeting,
+                bodyId,
+                jurisdictionKey: jurisdiction,
+                sourceEventId,
+                startsAt: new Date(startsAt),
+                localDate: startsAt.slice(0, 10),
+                sourceUpdatedAt: now,
+              });
+              await db.insert(LocalMeetingItem).values({
+                meetingId: lateMeeting,
+                decisionId,
+                sourceEventItemId: sourceEventId,
+                actionName: "Approved",
+                sourceUpdatedAt: now,
+              });
+              assert.equal(
+                (await enqueueLocalDecisionMoves(now)).enqueued,
+                sourceEventId === 2 ? 1 : 0,
+              );
+            }
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await syncLocal(false);
+            await syncLocal();
+            await db
+              .update(DeviceFollow)
+              .set({ localDecisionState: null })
+              .where(eq(DeviceFollow.deviceId, registered.deviceId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            assert.ok((await follow())?.localDecisionState?.length);
+            await db
+              .update(LocalMeetingItem)
+              .set({ sourceDeletedAt: now, tally: "8-0" })
+              .where(eq(LocalMeetingItem.id, itemId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await db
+              .update(LocalMeetingItem)
+              .set({ sourceDeletedAt: null, tally: "8-0" })
+              .where(eq(LocalMeetingItem.id, itemId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 1);
+            for (const visibility of [
+              "jurisdiction",
+              "body",
+              "meetings",
+              "items",
+            ] as const) {
+              const hide = async (hidden: boolean) => {
+                if (visibility === "jurisdiction")
+                  await db
+                    .update(LocalJurisdiction)
+                    .set({ active: !hidden })
+                    .where(eq(LocalJurisdiction.key, jurisdiction));
+                if (visibility === "body")
+                  await db
+                    .update(LocalBody)
+                    .set({ included: !hidden })
+                    .where(eq(LocalBody.id, bodyId));
+                if (visibility === "meetings")
+                  await db
+                    .update(LocalMeeting)
+                    .set({ sourceDeletedAt: hidden ? now : null })
+                    .where(eq(LocalMeeting.jurisdictionKey, jurisdiction));
+                if (visibility === "items")
+                  await db
+                    .update(LocalMeetingItem)
+                    .set({ sourceDeletedAt: hidden ? now : null })
+                    .where(eq(LocalMeetingItem.decisionId, decisionId));
+              };
+              await hide(true);
+              assert.equal(
+                (await enqueueLocalDecisionMoves(now)).enqueued,
+                0,
+                visibility,
+              );
+              assert.equal(
+                (await drainOutbox(new Date("2026-10-23T07:00:00Z"))).sent,
+                0,
+                visibility,
+              );
+              await syncLocal(true, []);
+              await syncLocal();
+              assert.equal(await follow(), undefined, visibility);
+              await hide(false);
+              await syncLocal();
+              await db
+                .update(LocalMeetingItem)
+                .set({ tally: visibility })
+                .where(eq(LocalMeetingItem.id, itemId));
+              assert.equal(
+                (await enqueueLocalDecisionMoves(now)).enqueued,
+                1,
+                visibility,
+              );
+            }
+            await db
+              .update(LocalIngestionRun)
+              .set({ status: "running", startedAt: now, completedAt: null })
+              .where(eq(LocalIngestionRun.id, runId));
+            assert.equal(
+              (await drainOutbox(new Date("2026-10-23T07:00:00Z"))).sent,
+              0,
+            );
+            await db
+              .update(LocalMeetingItem)
+              .set({ tally: "final" })
+              .where(eq(LocalMeetingItem.id, itemId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await db
+              .update(LocalIngestionRun)
+              .set({ startedAt: new Date(now.getTime() - 26 * 60 * 60 * 1000) })
+              .where(eq(LocalIngestionRun.id, runId));
+            assert.equal(
+              (await enqueueLocalDecisionMoves(now)).enqueued,
+              1,
+              "abandoned run expires after supervisor maximum runtime",
+            );
+            await syncLocal(true, []);
+            await db
+              .update(LocalIngestionRun)
+              .set({ status: "running", startedAt: new Date() })
+              .where(eq(LocalIngestionRun.id, runId));
+            await syncLocal();
+            assert.equal(
+              (await follow())?.localDecisionState,
+              null,
+              "a follow during ingestion waits for a complete baseline",
+            );
+            await db
+              .update(LocalIngestionRun)
+              .set({ status: "completed", completedAt: new Date() })
+              .where(eq(LocalIngestionRun.id, runId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            assert.ok((await follow())?.localDecisionState?.length);
+            await db
+              .update(LocalDecision)
+              .set({ sourceDeletedAt: now })
+              .where(eq(LocalDecision.id, decisionId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            assert.equal(
+              (await drainOutbox(new Date("2026-10-23T07:00:00Z"))).sent,
+              0,
+            );
+            await syncLocal(true, []);
+            await syncLocal();
+            assert.equal(await follow(), undefined);
+          } finally {
+            if (localDevice)
+              await db.delete(PushDevice).where(eq(PushDevice.id, localDevice));
+            await db
+              .delete(LocalJurisdiction)
+              .where(eq(LocalJurisdiction.key, jurisdiction));
+          }
+        },
+      );
+      await t.test(
+        "new Congress bills reach opted-in phones once, including delayed ingestion and workers",
+        async () => {
+          const newToken = `ExpoPushToken[${randomUUID()}]`;
+          const billIds: string[] = [];
+          const billSync = (newBills?: boolean, quietHours = false) =>
+            caller.sync({
+              token: newToken,
+              platform: "ios",
+              timezone: "UTC",
+              prefs: { ...prefs, following: false, newBills, quietHours },
+              followIds: [],
+            });
+          const { deviceId: newDevice } = await billSync();
+          deviceIds.push(newDevice);
+          const device = async () => {
+            const [row] = await db
+              .select()
+              .from(PushDevice)
+              .where(eq(PushDevice.id, newDevice));
+            assert.ok(row);
+            return row;
+          };
+          const outbox = () =>
+            db
+              .select()
+              .from(NotificationOutbox)
+              .where(eq(NotificationOutbox.deviceId, newDevice));
+          try {
+            assert.equal((await device()).newBillsSubscribedAt, null);
+            await billSync(true);
+            const originalStart = (await device()).newBillsSubscribedAt;
+            assert.ok(originalStart);
+            await billSync(true);
+            await billSync();
+            assert.equal(
+              (await device()).newBillsSubscribedAt?.getTime(),
+              originalStart.getTime(),
+            );
+
+            const day = new Date();
+            day.setUTCHours(0, 0, 0, 0);
+            const ingestionDay = new Date(day.getTime() - 10 * 86400_000);
+            const ingestedAt = new Date(
+              ingestionDay.getTime() + (3 * 3600 + 17 * 60 + 44) * 1000,
+            );
+            const introducedAt = new Date(
+              ingestionDay.getTime() - 3 * 86400_000,
+            );
+            const subscription = new Date(ingestionDay.getTime() - 86400_000);
+            await db
+              .update(PushDevice)
+              .set({ newBillsSubscribedAt: subscription })
+              .where(eq(PushDevice.id, newDevice));
+            const insertBill = async (
+              overrides: Partial<typeof Bill.$inferInsert> = {},
+            ) => {
+              const id = randomUUID();
+              billIds.push(id);
+              await db.insert(Bill).values({
+                id,
+                billNumber: `TEST ${id}`,
+                title: "Recently introduced bill",
+                url: `https://example.com/${id}`,
+                sourceWebsite: "congress.gov",
+                createdAt: ingestedAt,
+                introducedDate: introducedAt,
+                ...overrides,
+              });
+              return id;
+            };
+            const missed = await insertBill({
+              billNumber: "S. 5686",
+              title: "No Public Executions in America Act",
+            });
+            await insertBill({
+              createdAt: new Date(subscription.getTime() - 1),
+            });
+            await insertBill({
+              introducedDate: new Date(
+                ingestionDay.getTime() - 7 * 86400_000 - 1,
+              ),
+            });
+            await insertBill({ sourceWebsite: "openstates.org" });
+            await insertBill({ introducedDate: null });
+            await insertBill({
+              introducedDate: new Date(ingestedAt.getTime() + 1),
+            });
+            const futureId = await insertBill({
+              createdAt: new Date(day.getTime() + 2 * 86400_000),
+            });
+            await db
+              .update(PushDevice)
+              .set({ disabledAt: new Date() })
+              .where(eq(PushDevice.id, newDevice));
+            assert.equal((await enqueueNewBills()).enqueued, 0);
+            await billSync(true);
+            const result = await runFollowNotifications();
+            assert.equal(result.enqueued, 1);
+            assert.equal(result.sent, 1);
+            const history = await caller.history({ token: newToken });
+            assert.equal(history.length, 1);
+            assert.equal(history[0]?.kind, "new_bill");
+            assert.equal(history[0].title, "New bill in Congress");
+            assert.equal(
+              history[0].body,
+              "S. 5686: No Public Executions in America Act",
+            );
+            assert.equal(history[0].href, `/article-detail?id=${missed}`);
+            assert.equal(messages.at(-1)?.data.kind, "new_bill");
+            assert.equal(
+              messages.at(-1)?.data.href,
+              `/article-detail?id=${missed}`,
+            );
+            assert.equal((await runFollowNotifications()).sent, 0);
+            await db
+              .update(Bill)
+              .set({ title: "Updated source title", lastActionAt: new Date() })
+              .where(eq(Bill.id, missed));
+            assert.equal((await enqueueNewBills()).enqueued, 0);
+
+            const boundary = await insertBill({
+              introducedDate: new Date(ingestionDay.getTime() - 7 * 86400_000),
+            });
+            await billSync(true, true);
+            const quiet = new Date(day.getTime() + 23 * 3600_000);
+            const runs = await Promise.all([
+              enqueueNewBills(quiet),
+              enqueueNewBills(quiet),
+            ]);
+            assert.equal(
+              runs.reduce((sum, run) => sum + run.enqueued, 0),
+              1,
+            );
+            assert.equal((await enqueueNewBills(quiet)).enqueued, 0);
+            const pending = (await outbox()).find(
+              (row) => row.contentId === boundary,
+            );
+            assert.ok(pending);
+            assert.equal(
+              pending.notBefore.toISOString(),
+              new Date(day.getTime() + 31 * 3600_000).toISOString(),
+            );
+            assert.equal((await drainOutbox(quiet)).sent, 0);
+            await billSync(false);
+            assert.equal((await device()).newBillsSubscribedAt, null);
+            assert.equal((await outbox()).length, 1);
+            assert.equal((await caller.history({ token: newToken })).length, 1);
+            await billSync(true);
+            assert.equal((await enqueueNewBills(quiet)).enqueued, 0);
+            assert.equal(
+              (await drainOutbox(new Date(day.getTime() + 31 * 3600_000))).sent,
+              0,
+            );
+
+            await db.insert(NotificationOutbox).values({
+              deviceId: newDevice,
+              contentId: boundary,
+              kind: "new_bill",
+              title: "Stale subscription",
+              body: "Stale subscription",
+              href: `/article-detail?id=${boundary}`,
+              createdAt: subscription,
+              notBefore: new Date(0),
+            });
+            assert.equal((await drainOutbox()).sent, 0);
+            await billSync(false);
+            await db.insert(NotificationOutbox).values({
+              deviceId: newDevice,
+              contentId: futureId,
+              kind: "new_bill",
+              title: "Opted out",
+              body: "Opted out",
+              href: `/article-detail?id=${futureId}`,
+              notBefore: new Date(0),
+            });
+            assert.equal((await drainOutbox()).sent, 0);
+          } finally {
+            await db.delete(PushDevice).where(eq(PushDevice.id, newDevice));
+            if (billIds.length)
+              await db.delete(Bill).where(inArray(Bill.id, billIds));
+          }
+        },
+      );
       await t.test(
         "executive orders honor subscription, quiet hours, deduplication, opt-out and history",
         async () => {
@@ -444,6 +993,77 @@ void test(
         },
       );
       await t.test(
+        "opt-out during a mixed Expo response preserves accepted tickets without deadlock",
+        async () => {
+          const raceToken = `ExpoPushToken[${randomUUID()}]`;
+          const syncRace = (following: boolean) =>
+            caller.sync({
+              token: raceToken,
+              platform: "ios",
+              timezone: "UTC",
+              prefs: { ...prefs, following },
+              followIds: [billId],
+            });
+          const { deviceId: raceDevice } = await syncRace(true);
+          deviceIds.push(raceDevice);
+          await queue(new Date(0), raceDevice);
+          await queue(new Date(0), raceDevice);
+          const acceptedTicket = randomUUID();
+          batchTickets = [
+            { status: "ok", id: acceptedTicket },
+            {
+              status: "error",
+              message: "Device not registered",
+              details: { error: "DeviceNotRegistered" },
+            },
+          ];
+          let optOut: Promise<PromiseSettledResult<unknown>[]> | undefined;
+          beforeSend = async () => {
+            optOut = Promise.allSettled([syncRace(false)]);
+            // Observe sync holding the device and waiting for this send's outbox lock.
+            const deadline = Date.now() + 5_000;
+            while (Date.now() < deadline) {
+              const waiting = await db.execute(sql`
+                select 1 from pg_stat_activity
+                where datname = current_database() and wait_event_type = 'Lock'
+                  and query like 'delete from "notification_outbox"%'
+              `);
+              if (waiting.rows.length) return;
+              await setTimeout(10);
+            }
+            throw new Error("Opt-out did not reach the locked outbox");
+          };
+          const before = messages.length;
+          try {
+            const delivery = await drainOutbox();
+            assert.equal((await optOut)?.[0]?.status, "fulfilled");
+            assert.deepEqual(delivery, { sent: 1, failed: 1, unregistered: 1 });
+            const rows = await db
+              .select()
+              .from(NotificationOutbox)
+              .where(eq(NotificationOutbox.deviceId, raceDevice));
+            assert.equal(rows.length, 1);
+            assert.equal(rows[0]?.ticket, acceptedTicket);
+            assert.ok(rows[0].sentAt);
+            const [device] = await db
+              .select()
+              .from(PushDevice)
+              .where(eq(PushDevice.id, raceDevice));
+            assert.equal(device?.following, false);
+            assert.ok(device.disabledAt);
+            beforeSend = undefined;
+            batchTickets = undefined;
+            assert.equal((await drainOutbox()).sent, 0);
+            assert.equal(messages.length - before, 2);
+          } finally {
+            beforeSend = undefined;
+            batchTickets = undefined;
+            await optOut;
+            await db.delete(PushDevice).where(eq(PushDevice.id, raceDevice));
+          }
+        },
+      );
+      await t.test(
         "a transport failure releases the row for a later retry",
         async () => {
           const id = await enqueueTestAlert(deviceId);
@@ -589,7 +1209,9 @@ void test(
           );
           const history = await caller.history({ token });
           assert.equal(
-            history.filter((row) => row.title === "Receipt fixture").length,
+            history.filter((row) =>
+              rows.some((receipt) => receipt.id === row.id),
+            ).length,
             1,
           );
           const before = receiptRequests;

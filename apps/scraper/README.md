@@ -30,7 +30,8 @@ Source limits and generation budgets are different. `--max-items` limits source 
 | ----------------------- | ----------------------------------------------------------- | ---------------------------------------------- |
 | `whitehouse`            | White House presidential actions                            | `government_content`                           |
 | `federalregister`       | Federal Register presidential documents                     | `government_content`                           |
-| `legistar`              | San José meetings, matters, documents, and votes            | Normalized `local_*` tables                    |
+| `legistar`              | City of San José meetings, matters, documents, and votes    | Normalized `local_*` tables                    |
+| `legistar-santaclara`   | City of Santa Clara meetings, matters, documents, and votes | Normalized `local_*` tables                    |
 | `congress`              | Congress.gov bills, text, summaries, and actions            | `bill`                                         |
 | `open-states`           | State legislation through Open States                       | `bill`                                         |
 | `scc-cvig`              | Santa Clara County voter-guide PDFs                         | Candidate statements in `civic_api_cache`      |
@@ -79,6 +80,75 @@ explanation of the previous decision. Other historical records are not bulk rewr
 [scrapers/disabled](src/scrapers/disabled/README.md) remain inactive.
 
 Each source declares its environment contract in an adjacent `*.config.ts`. Use those contracts and [the environment guide](../../docs/launch.md#scraper-and-scheduled-data-jobs) for required provider keys and current defaults.
+
+### Refresh local decisions
+
+San José and the City of Santa Clara have separate scraper names and body
+policies. `legistar-santaclara` does not ingest Santa Clara County. Read the
+[local-government model](../../docs/local-government-legistar.md) before adding
+another jurisdiction or changing document policy.
+
+After checking the selected database, run a bounded source refresh:
+
+```bash
+pnpm env:doctor --target scraper --scraper legistar-santaclara --file .env
+LEGISTAR_MAX_ITEMS=5 pnpm --filter @acme/scraper run start legistar-santaclara --concurrency 1
+```
+
+Use `legistar` for San José. These commands write source records and extract
+eligible official PDFs. They do not generate decision briefs. Public-comment
+attachments remain links and counts, with no text extraction or model use.
+`LEGISTAR_SKIP_DOCUMENT_TEXT=1` skips document extraction when inspecting
+source ingestion alone. A capped run does not delete unvisited meetings.
+
+Apply the committed database migration before deploying the new scraper image.
+From merged main, use the [supervisor deployment procedure](../supervisor/README.md)
+and `pnpm deploy:scraper <merged-sha>`. The supervisor defines
+`legistar-daily` and `legistar-santaclara-daily` as separate jobs. Verify each
+job's ingestion health and active records after deployment. The app's city list
+requires an active supported jurisdiction with a live decision occurrence at an
+included body, so configuration alone does not expose an empty city.
+
+### Prepare local decision briefs
+
+Check the database target and provider configuration before generation. Start
+with an inventory page that makes no model calls and writes nothing:
+
+```bash
+pnpm --filter @acme/scraper local-decision-briefs --jurisdiction santaclara --limit 1
+```
+
+The command accepts `sanjose` or `santaclara` and requires a limit from 1 to 20.
+It scans decisions in UUID order and skips briefs that already validate against
+current sources. When a full page is scanned, it prints an `--after` cursor.
+Resume with that UUID to reach later records:
+
+```bash
+pnpm --filter @acme/scraper local-decision-briefs --jurisdiction santaclara --limit 1 --after <uuid>
+```
+
+Add `--write` to authorize generation and persistence for that bounded page:
+
+```bash
+pnpm --filter @acme/scraper local-decision-briefs --jurisdiction santaclara --limit 1 --write
+```
+
+The limit bounds selected decisions, not dollars. Each eligible decision uses
+at most two model calls, one to generate and one to check quoted evidence,
+with no retries or provider fallback. The total is at most twice `--limit`. Decisions
+without eligible native page text cannot produce a brief. The output reports
+examined, attempted, and published counts. Inspect logged failures as well as
+the totals. A dry-run candidate is not proof that generation will succeed.
+
+Generation validates document hashes, current decision context, original page
+numbers, and exact supporting quotes. A separate model call receives only each
+claim and its quotes. Every claim must pass that evidence check before the
+brief is stored. Missing or duplicate verdicts reject the entire brief. The API repeats
+validation on reads and hides stale or invalid briefs without calling a model.
+After a bounded write, inspect each published claim against its official PDF
+page before expanding the rollout. Confirm that the quote supports the claim
+and that proposals are not described as adopted outcomes. Exact quote matching
+alone does not establish either fact.
 
 ### Court brief rollout and verification
 
@@ -164,22 +234,53 @@ Production entries read process variables and do not load local dotenv files. CI
 
 Use the focused command for the missing asset. Check its help and preview mode first; write defaults differ by command.
 
-| Command                      | Purpose                                                           |
-| ---------------------------- | ----------------------------------------------------------------- |
-| `reprocess-content`          | Inspect or repair incomplete content; read-only until `--apply`   |
-| `backfill-bill-descriptions` | Fill missing bill descriptions; writes require `--apply`          |
-| `repair-bill-descriptions`   | Repair misleading bill summaries through a reviewed manifest      |
-| `retroactive-briefs`         | Generate missing or stale structured briefs; supports `--dry-run` |
-| `retroactive-lenses`         | Generate missing or stale perspectives; supports `--dry-run`      |
-| `content-images`             | Generate header artwork                                           |
-| `bill-interest`              | Score editorial interest; supports `--dry-run`                    |
-| `notify-followers`           | Enqueue and send lock-screen alerts for followed bills            |
-| `prune-bills`                | Inspect retention candidates; read-only until `--apply`           |
+| Command                      | Purpose                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| `reprocess-content`          | Inspect or repair incomplete content; read-only until `--apply`          |
+| `backfill-bill-descriptions` | Fill missing bill descriptions; writes require `--apply`                 |
+| `repair-bill-descriptions`   | Repair misleading bill summaries through a reviewed manifest             |
+| `retroactive-briefs`         | Generate missing or stale structured briefs; supports `--dry-run`        |
+| `retroactive-lenses`         | Generate missing or stale perspectives; supports `--dry-run`             |
+| `content-images`             | Generate header artwork                                                  |
+| `resize-content-images`      | Resize existing stored artwork; read-only until `--apply`                |
+| `bill-interest`              | Score editorial interest; supports `--dry-run`                           |
+| `notify-followers`           | Send saved-bill updates and opted-in new-bill and executive-order alerts |
+| `prune-bills`                | Inspect retention candidates; read-only until `--apply`                  |
 
 `content-images` accepts `--type bill`, `--type government_content`, or
 `--type court_case` for a bounded single-domain run. Production's manual
 `court-image-smoke` supervisor job uses `--type court_case --other-limit 1`
 with suitability review enabled; it is a real generation check, not a fixture.
+
+New generated artwork stores two immutable JPEGs. Lists use the 384-pixel card
+variant; readers use the image up to 1280 pixels wide. Both preserve aspect
+ratio and avoid enlarging small originals. Metadata is published after both
+objects pass checksum verification. Older paths keep working at their original
+size until explicitly resized.
+
+To resize existing artwork without model calls, preview a bounded batch first.
+`--target` must match the database selected by the loaded environment. Apply also
+checks that Storage belongs to that database project. The preview reads only
+metadata and downloads no images.
+
+```bash
+pnpm --filter @acme/scraper resize-content-images --target production --limit 25
+pnpm --filter @acme/scraper resize-content-images --target production --limit 25 --apply
+```
+
+Apply downloads each original once, verifies its checksum, uploads and verifies
+both variants, then updates the existing metadata only if it has not changed
+since selection. It preserves the generation revision, prompt and old objects.
+A failed upload leaves the metadata unchanged. Run another bounded batch to
+continue; already resized rows are excluded. `--limit` accepts 1 through 1000.
+The command spends Storage bandwidth but does not generate new artwork.
+
+The resize integration test uses real Postgres and a local Storage fixture.
+Use an empty, migrated local database whose name ends in `_test`:
+
+```bash
+IMAGES_TEST_DATABASE_URL=postgresql://localhost/billion_images_test pnpm --filter @acme/scraper exec tsx --test src/resize-content-images.integration.test.ts
+```
 
 For example:
 

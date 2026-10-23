@@ -236,22 +236,34 @@ import { SOS_RESULTS_HOME } from "@acme/api/clients/ca-sos-results";
 
 ---
 
-## Address autocomplete
+## Address entry (client-side)
 
-**Source:** Google Places API (New)  
-**Entry point:** `packages/api/src/lib/places.ts`  
-**Auth:** `GOOGLE_PLACES_API_KEY` (falls back through `GOOGLE_API_KEY` → `GOOGLE_CIVIC_API_KEY`)
+**Source:** Native device location via `expo-location`, plus typed entry
 
-```ts
-import type { AddressSuggestion } from "@acme/api";
-import { getAddressSuggestions, getPlaceDetails } from "@acme/api";
+**Entry points:** `apps/expo/src/hooks/useDeviceAddress.ts` (permission, fix, and reverse geocoding),
+`apps/expo/src/components/AddressAutocomplete.tsx` (shared field)
 
-const suggestions = await getAddressSuggestions("123 Main St");
-const details = await getPlaceDetails(suggestions[0].placeId);
-// details.formattedAddress, details.location (lat/lng)
-```
+**Auth:** none — OS permission prompt instead of an API key
 
-Uses session-token billing — each autocomplete→select flow is one billed session, not one request per keystroke.
+The Google Places autocomplete and place-details endpoints were removed. The
+client asks for a one-shot foreground location fix and hands the coordinate to
+the operating system's geocoder (iOS `CLGeocoder`, Android `Geocoder`) to get a
+street address, so the coordinate reaches the platform's geocoding service but
+not Billion's servers. Typed entry stays an equal path, because GPS locates the
+person, not necessarily their registration. When the geocoder returns nothing
+usable, the field asks for manual entry. Democracy Works requires a street
+address; raw coordinates are never submitted as one. A successful fix fills
+the field for review and explicit submission, since it may not be the voter’s
+registered address. Typing or cancelling invalidates any pending location result.
+
+`useDeviceAddress` owns the reverse-geocode and manual-entry fallback so every
+surface behaves the same. `AddressAutocomplete` carries the "Use my location"
+button next to the manual field and is used by the Feed greeting, the Elections
+tab, How to Vote, and the representatives/ballot sections. The national ballot
+form in `apps/expo/src/components/ballot/BallotLookupView.tsx` adds the same
+shortcut to its existing field. Settings → Location
+(`apps/expo/src/app/settings/location.tsx`) shows the saved address with
+Change location and Remove actions, backed by `useUserAddress`.
 
 ---
 

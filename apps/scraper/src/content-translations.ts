@@ -8,6 +8,7 @@ import {
 } from "@acme/api/lib/content-translation";
 import { processNextTranslation } from "@acme/api/lib/content-translation-store";
 import {
+  createReaderTranslationPreparer,
   prepareReaderTranslationPage,
   readerPreparationHasCapacity,
 } from "@acme/api/lib/pretranslate-readers";
@@ -53,6 +54,7 @@ if (args.prepareOnly) {
   );
   process.exit(0);
 }
+const preparePage = createReaderTranslationPreparer();
 let preparationAfter: string | undefined;
 let nextPreparationAt = 0;
 // Reuse the scraper's Responses adapter, but never fall through to paid providers.
@@ -86,12 +88,12 @@ try {
       Date.now() >= nextPreparationAt &&
       (await readerPreparationHasCapacity())
     ) {
-      const page = await prepareReaderTranslationPage({
+      const page = await preparePage({
         limit: 10,
         after: preparationAfter,
       });
       preparationAfter = page.complete ? undefined : page.after;
-      nextPreparationAt = Date.now() + (page.complete ? 60_000 : 0);
+      nextPreparationAt = Date.now() + (page.complete ? 5 * 60_000 : 0);
       console.log(`[content-translations] prepared ${JSON.stringify(page)}`);
     }
     const result = await processNextTranslation({

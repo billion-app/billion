@@ -17,6 +17,7 @@ import { GoldFoilText } from "~/components/GoldBillionMark";
 import { Text } from "~/components/Themed";
 import { Icon, Kicker } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { useLocalJurisdictions } from "~/hooks/useLocalJurisdictions";
 import {
   DigestHair,
   DigestPalette,
@@ -86,6 +87,7 @@ export function JurisdictionPicker({
 }) {
   const insets = useSafeAreaInsets();
   const { t } = useAppTranslation();
+  const activeLocals = useLocalJurisdictions();
   const homeJurisdiction = jurisdictionFromAddress(address);
   const homeLocal = detectJurisdictionKey(address);
   const [editingAddress, setEditingAddress] = useState(false);
@@ -180,7 +182,9 @@ export function JurisdictionPicker({
               {t("jurisdictionPicker.states")}
             </Kicker>
             {SUPPORTED_STATE_JURISDICTIONS.map((jurisdiction) => {
-              const locals = localJurisdictionsInState(jurisdiction);
+              const locals = localJurisdictionsInState(jurisdiction).filter(
+                (key) => activeLocals.includes(key),
+              );
               return (
                 <View key={jurisdiction}>
                   <JurisdictionOption
