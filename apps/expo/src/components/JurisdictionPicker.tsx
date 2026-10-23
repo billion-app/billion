@@ -10,7 +10,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { ContentJurisdiction } from "~/utils/jurisdiction";
+import type { LocalJurisdictionKey } from "~/utils/local-government";
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
+import { DecisionSeal } from "~/components/digest/CraftMarks";
 import { GoldFoilText } from "~/components/GoldBillionMark";
 import { Text } from "~/components/Themed";
 import { Icon, Kicker } from "~/components/ui";
@@ -30,6 +32,12 @@ import {
   jurisdictionText,
   SUPPORTED_STATE_JURISDICTIONS,
 } from "~/utils/jurisdiction";
+import {
+  detectJurisdictionKey,
+  LOCAL_JURISDICTIONS,
+  localJurisdictionsInState,
+  localJurisdictionText,
+} from "~/utils/local-government";
 
 export function JurisdictionScopeRow({
   jurisdiction,
@@ -65,6 +73,7 @@ export function JurisdictionPicker({
   onClose,
   onSaveAddress,
   onClearAddress,
+  onOpenLocal,
 }: {
   visible: boolean;
   selected: ContentJurisdiction;
@@ -73,10 +82,12 @@ export function JurisdictionPicker({
   onClose: () => void;
   onSaveAddress: (address: string) => void;
   onClearAddress?: () => void;
+  onOpenLocal: (jurisdiction: LocalJurisdictionKey) => void;
 }) {
   const insets = useSafeAreaInsets();
   const { t } = useAppTranslation();
   const homeJurisdiction = jurisdictionFromAddress(address);
+  const homeLocal = detectJurisdictionKey(address);
   const [editingAddress, setEditingAddress] = useState(false);
 
   const close = () => {
@@ -169,15 +180,35 @@ export function JurisdictionPicker({
             <Kicker style={s.groupLabel}>
               {t("jurisdictionPicker.states")}
             </Kicker>
-            {SUPPORTED_STATE_JURISDICTIONS.map((jurisdiction) => (
-              <JurisdictionOption
-                key={jurisdiction}
-                jurisdiction={jurisdiction}
-                selected={selected === jurisdiction}
-                isHome={homeJurisdiction === jurisdiction}
-                onPress={() => select(jurisdiction)}
-              />
-            ))}
+            {SUPPORTED_STATE_JURISDICTIONS.map((jurisdiction) => {
+              const locals = localJurisdictionsInState(jurisdiction);
+              return (
+                <View key={jurisdiction}>
+                  <JurisdictionOption
+                    jurisdiction={jurisdiction}
+                    selected={selected === jurisdiction}
+                    isHome={homeJurisdiction === jurisdiction}
+                    nested={locals.length > 0}
+                    onPress={() => select(jurisdiction)}
+                  />
+                  {locals.length > 0 ? (
+                    <View style={s.localGroup}>
+                      {locals.map((local) => (
+                        <LocalJurisdictionOption
+                          key={local}
+                          jurisdiction={local}
+                          isHome={homeLocal === local}
+                          onPress={() => {
+                            setEditingAddress(false);
+                            onOpenLocal(local);
+                          }}
+                        />
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
 
             <View style={s.coverageNote}>
               <Icon name="info" size={16} color={DigestPalette.quiet} />
@@ -196,11 +227,13 @@ function JurisdictionOption({
   jurisdiction,
   selected,
   isHome,
+  nested,
   onPress,
 }: {
   jurisdiction: ContentJurisdiction;
   selected: boolean;
   isHome?: boolean;
+  nested?: boolean;
   onPress: () => void;
 }) {
   const { language, t } = useAppTranslation();
@@ -210,7 +243,7 @@ function JurisdictionOption({
     : item.name;
   return (
     <TouchableOpacity
-      style={[s.option, selected && s.optionSelected]}
+      style={[s.option, nested && s.optionNested, selected && s.optionSelected]}
       onPress={onPress}
       activeOpacity={0.82}
       accessibilityRole="radio"
@@ -229,6 +262,55 @@ function JurisdictionOption({
       {selected ? (
         <Icon name="check" size={22} color={DigestPalette.inkOnNight} />
       ) : null}
+    </TouchableOpacity>
+  );
+}
+
+function LocalJurisdictionOption({
+  jurisdiction,
+  isHome,
+  onPress,
+}: {
+  jurisdiction: LocalJurisdictionKey;
+  isHome: boolean;
+  onPress: () => void;
+}) {
+  const { language, t } = useAppTranslation();
+  const item = localJurisdictionText(jurisdiction, language);
+  const state = jurisdictionText(
+    LOCAL_JURISDICTIONS[jurisdiction].state,
+    language,
+  ).name;
+  const title = isHome
+    ? `${item.name} · ${t("jurisdictionPicker.yourCity")}`
+    : item.name;
+  return (
+    <TouchableOpacity
+      style={s.localOption}
+      onPress={onPress}
+      activeOpacity={0.82}
+      accessibilityRole="button"
+      accessibilityLabel={t("jurisdictionPicker.localA11y", {
+        body: item.body,
+        state,
+        description: item.description,
+      })}
+      accessibilityHint={t("jurisdictionPicker.localHint")}
+      testID={`jurisdiction-local-${jurisdiction}`}
+    >
+      <View
+        style={s.localMark}
+        accessible={false}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        <DecisionSeal size={26} />
+      </View>
+      <View style={s.optionCopy}>
+        <Text style={s.localTitle}>{title}</Text>
+        <Text style={s.localDescription}>{item.description}</Text>
+      </View>
+      <Icon name="chevR" size={16} color={DigestPalette.quiet} />
     </TouchableOpacity>
   );
 }
@@ -334,9 +416,49 @@ const s = StyleSheet.create({
     borderRadius: DigestRadii.card,
     marginBottom: 22,
   },
+  optionNested: { marginBottom: 0 },
   optionSelected: {
     borderColor: DigestPalette.paper,
     backgroundColor: "rgba(247,244,238,0.08)",
+  },
+  localGroup: {
+    marginLeft: 35,
+    paddingLeft: 14,
+    paddingTop: 10,
+    borderLeftWidth: 1,
+    borderLeftColor: DigestHair.cardBorder,
+    marginBottom: 22,
+    gap: 8,
+  },
+  localOption: {
+    minHeight: 60,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.card,
+  },
+  localMark: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  localTitle: {
+    fontFamily: fontBody.semibold,
+    fontSize: 15,
+    lineHeight: 20,
+    color: DigestPalette.inkOnNight,
+  },
+  localDescription: {
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    lineHeight: 18,
+    color: DigestPalette.quiet,
+    marginTop: 2,
   },
   codeTile: {
     width: 42,

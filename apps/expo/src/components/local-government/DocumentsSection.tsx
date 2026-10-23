@@ -3,7 +3,7 @@
  * guidance. Public-comment letters are link-only by policy: we show the
  * official link and a count — never names, attachment contents, or summaries.
  */
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import type { DecisionDetail } from "~/utils/local-government";
 import { ExternalLink } from "~/components/ExternalLink";
@@ -39,15 +39,16 @@ export function DocumentsSection({
             ]}
           >
             {documents.map((doc, index) => (
-              <ExternalLink key={doc.id} href={doc.url}>
-                <View
-                  style={[
+              <ExternalLink key={doc.id} href={doc.url} asChild>
+                <TouchableOpacity
+                  accessibilityRole="link"
+                  style={StyleSheet.flatten([
                     s.docRow,
                     index > 0 && {
                       borderTopWidth: StyleSheet.hairlineWidth,
                       borderTopColor: theme.border,
                     },
-                  ]}
+                  ])}
                 >
                   <Icon name="doc" size={15} color={theme.textSecondary} />
                   <View style={s.docText}>
@@ -70,7 +71,7 @@ export function DocumentsSection({
                     ) : null}
                   </View>
                   <Icon name="external" size={14} color={theme.textSecondary} />
-                </View>
+                </TouchableOpacity>
               </ExternalLink>
             ))}
           </View>
@@ -138,13 +139,16 @@ export function ParticipationCard({
         </Text>
       ) : null}
       {participation.instructionsUrl ? (
-        <ExternalLink href={participation.instructionsUrl}>
-          <View style={s.participationButton}>
+        <ExternalLink href={participation.instructionsUrl} asChild>
+          <TouchableOpacity
+            style={s.participationButton}
+            accessibilityRole="link"
+          >
             <Text style={s.participationButtonText}>
               {tx("Check the current agenda for how to comment")}
             </Text>
             <Icon name="external" size={13} color={colors.black} />
-          </View>
+          </TouchableOpacity>
         </ExternalLink>
       ) : null}
     </View>
