@@ -1,13 +1,18 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { formatPlacemark } from "./address";
 import {
   classifyDecision,
   detectJurisdictionKey,
   documentCategoryLabel,
   formatMeetingDate,
   groupVotesByOccurrence,
+  isLocalJurisdictionKey,
   lifecycleLabel,
+  LOCAL_JURISDICTION_KEYS,
+  localJurisdictionsInState,
+  localJurisdictionText,
   scopeInfo,
   sortTimeline,
   timelineSummary,
@@ -213,31 +218,160 @@ describe("vote availability language", () => {
   });
 });
 
-describe("jurisdiction detection", () => {
+describe("supported local jurisdictions", () => {
+  it("offers only San José, and only under California", () => {
+    assert.deepEqual(LOCAL_JURISDICTION_KEYS, ["sanjose"]);
+    assert.deepEqual(localJurisdictionsInState("ca"), ["sanjose"]);
+    assert.deepEqual(localJurisdictionsInState("tx"), []);
+  });
+
+  it("rejects unsupported Legistar clients as route input", () => {
+    assert.equal(isLocalJurisdictionKey("sanjose"), true);
+    for (const value of ["santaclara", "sunnyvale", "", undefined, null]) {
+      assert.equal(isLocalJurisdictionKey(value), false, String(value));
+    }
+  });
+
+  it("names the city government, never the county", () => {
+    assert.deepEqual(localJurisdictionText("sanjose"), {
+      name: "San José",
+      body: "City of San José",
+      description: "City Council and commission decisions",
+    });
+    assert.equal(localJurisdictionText("sanjose", "zh").body, "圣何塞市");
+    assert.doesNotMatch(
+      Object.values(localJurisdictionText("sanjose")).join(" "),
+      /county/i,
+    );
+  });
+});
+
+const CITY_HALL = { streetNumber: "200", street: "E Santa Clara St" };
+
+describe("jurisdiction detection from device locations", () => {
+  const sanJose: [string, Parameters<typeof formatPlacemark>[0]][] = [
+    [
+      "Apple CLGeocoder observed on 2026-10-22",
+      { ...CITY_HALL, city: "San Jose", region: "CA", postalCode: "95113" },
+    ],
+    ["iOS without a postal code", { ...CITY_HALL, city: "San Jose" }],
+    [
+      "synthetic Spanish placemark",
+      { ...CITY_HALL, city: "San José", region: "CA", postalCode: "95113" },
+    ],
+    [
+      "synthetic Simplified Chinese placemark",
+      {
+        ...CITY_HALL,
+        city: "圣何塞",
+        region: "加利福尼亚州",
+        postalCode: "95113",
+      },
+    ],
+    [
+      "Android-style composed line",
+      { formattedAddress: "200 E Santa Clara St, San Jose, CA 95113, USA" },
+    ],
+    [
+      "composed line with a unit and ZIP+4",
+      {
+        formattedAddress:
+          "200 E Santa Clara St #1, San Jose, CA 95113-1905, United States",
+      },
+    ],
+    [
+      "synthetic Spanish composed line",
+      {
+        formattedAddress: "200 E Santa Clara St, San José, CA 95113, EE. UU.",
+      },
+    ],
+    [
+      "Android discrete fields with the full state name",
+      {
+        ...CITY_HALL,
+        city: "San Jose",
+        region: "California",
+        postalCode: "95113",
+      },
+    ],
+  ];
+  for (const [platform, placemark] of sanJose) {
+    it(`detects San José: ${platform}`, () => {
+      const address = formatPlacemark(placemark);
+      assert.ok(address, platform);
+      assert.equal(detectJurisdictionKey(address), "sanjose", address);
+    });
+  }
+
+  it("treats a decomposed accent like the composed one", () => {
+    const decomposed = "San José";
+    const address = formatPlacemark({ ...CITY_HALL, city: decomposed });
+    assert.equal(detectJurisdictionKey(address), "sanjose");
+  });
+
+  const notSanJose: [string, Parameters<typeof formatPlacemark>[0]][] = [
+    [
+      "a county-only iOS placemark (no locality)",
+      { ...CITY_HALL, subregion: "Santa Clara County", region: "CA" },
+    ],
+    [
+      "the City of Santa Clara",
+      {
+        streetNumber: "1500",
+        street: "Warburton Ave",
+        city: "Santa Clara",
+        region: "CA",
+        postalCode: "95050",
+      },
+    ],
+    [
+      "Sunnyvale",
+      { formattedAddress: "456 W Olive Ave, Sunnyvale, CA 94086, USA" },
+    ],
+    [
+      "San José, Costa Rica",
+      { formattedAddress: "Avenida Central, San José, Costa Rica" },
+    ],
+  ];
+  for (const [label, placemark] of notSanJose) {
+    it(`leaves ${label} unsupported`, () => {
+      assert.equal(detectJurisdictionKey(formatPlacemark(placemark)), null);
+    });
+  }
+});
+
+describe("jurisdiction detection from typed addresses", () => {
   it("does not assume san jose when no address is saved", () => {
     assert.equal(detectJurisdictionKey(null), null);
     assert.equal(detectJurisdictionKey(undefined), null);
+    assert.equal(detectJurisdictionKey("   "), null);
   });
 
-  it("detects san jose addresses", () => {
-    assert.equal(
-      detectJurisdictionKey("200 E Santa Clara St, San Jose, CA 95113, USA"),
-      "sanjose",
-    );
-    assert.equal(detectJurisdictionKey("San José, CA"), "sanjose");
+  it("accepts common typed forms", () => {
+    for (const address of [
+      "San José, CA",
+      "san jose",
+      "123 Main St, San Jose CA 95112",
+      "123 Main St, San Jose, CA, 95112",
+      "123 Main St, SAN JOSE, CALIFORNIA",
+      "City of San José, CA, USA",
+    ]) {
+      assert.equal(detectJurisdictionKey(address), "sanjose", address);
+    }
   });
 
-  it("separates county and neighboring cities", () => {
-    assert.equal(detectJurisdictionKey("Santa Clara County"), "santaclara");
-    assert.equal(detectJurisdictionKey("Sunnyvale, CA"), "sunnyvale");
-  });
-
-  it("rejects unknown cities and san jose street names elsewhere", () => {
-    assert.equal(detectJurisdictionKey("Oakland, CA"), null);
-    assert.equal(
-      detectJurisdictionKey("123 San Jose Blvd, Jacksonville, FL"),
-      null,
-    );
+  it("rejects san jose street names, other states, and county wording", () => {
+    for (const address of [
+      "Oakland, CA",
+      "123 San Jose Blvd, Jacksonville, FL 32257",
+      "San Jose, NM",
+      "Santa Clara County",
+      "70 W Hedding St, Santa Clara County, CA 95110",
+      "Unincorporated Santa Clara County, CA",
+      "CA 95113",
+    ]) {
+      assert.equal(detectJurisdictionKey(address), null, address);
+    }
   });
 });
 

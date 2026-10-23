@@ -97,6 +97,16 @@ authenticated policies; access is through the server API.
 Old wire-format endpoints remain temporarily for dormant prototype callers.
 They are deprecated, read-only source calls and are not the new UI contract.
 
+### Mobile entry points
+
+The app offers only the jurisdictions in `LOCAL_JURISDICTIONS`
+(`apps/expo/src/utils/local-government.ts`). Today that is the City of San
+José. The transport and router still accept other Legistar clients, but the
+app does not show a city until the scraper has a reviewed policy for it.
+Readers reach the list from the Elections entry or from the San José row under
+California in the Browse jurisdiction sheet. Neither path needs a saved
+address. See [Frontend apps](frontend.md) for the navigation details.
+
 ## San José first-release policy
 
 Live discovery in August 2026 confirmed unauthenticated reads and a large,

@@ -326,6 +326,18 @@ export const commonStrings = {
     es: "Legislatura estatal · 89.ª Legislatura",
     zh: "州议会 · 第 89 届议会",
   },
+  // A city government, not Santa Clara County.
+  "place.sanjose.name": { en: "San José", es: "San José", zh: "圣何塞" },
+  "place.sanjose.body": {
+    en: "City of San José",
+    es: "Ciudad de San José",
+    zh: "圣何塞市",
+  },
+  "place.sanjose.description": {
+    en: "City Council and commission decisions",
+    es: "Decisiones del Concejo Municipal y de las comisiones",
+    zh: "市议会和各委员会的决定",
+  },
 
   "jurisdictionPicker.scopeA11y": {
     en: "Jurisdiction: {body}. Change jurisdiction",
@@ -353,6 +365,21 @@ export const commonStrings = {
     en: "your state",
     es: "tu estado",
     zh: "你所在的州",
+  },
+  "jurisdictionPicker.yourCity": {
+    en: "your city",
+    es: "tu ciudad",
+    zh: "你所在的城市",
+  },
+  "jurisdictionPicker.localA11y": {
+    en: "{body}, {state}. {description}",
+    es: "{body}, {state}. {description}",
+    zh: "{state}{body}。{description}",
+  },
+  "jurisdictionPicker.localHint": {
+    en: "Opens this city's upcoming and recent decisions",
+    es: "Abre las decisiones próximas y recientes de esta ciudad",
+    zh: "打开这座城市即将审议和最近作出的决定",
   },
   "jurisdictionPicker.coverage": {
     en: "State bill coverage currently includes California, North Carolina and Texas.",
