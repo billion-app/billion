@@ -16,6 +16,7 @@ import {
   Bill,
   DeviceFollow,
   GovernmentContent,
+  LocalDecision,
   NotificationOutbox,
   PushDevice,
 } from "@acme/db/schema";
@@ -23,6 +24,7 @@ import {
 import {
   executiveOrderAlertCopy,
   followAlertCopy,
+  localDecisionAlertCopy,
   newBillAlertCopy,
   TEST_ALERT_COPY,
   testAlertCopy,
@@ -33,6 +35,7 @@ import {
   isUnregisteredTicket,
   sendExpoPush,
 } from "./expo-push";
+import { localDecisionChange, readLocalDecisionState } from "./local-decisions";
 import { nextDeliveryAt } from "./quiet-hours";
 
 export interface FollowNotificationRun {
@@ -112,6 +115,60 @@ export async function enqueueFollowMoves(
         .set({ lastNotifiedActionAt: row.lastActionAt })
         .where(eq(DeviceFollow.id, row.followId));
       enqueued += 1;
+    }
+    return { enqueued };
+  });
+}
+
+export async function enqueueLocalDecisionMoves(now = new Date()) {
+  return db.transaction(async (tx) => {
+    const follows = await tx
+      .select({
+        followId: DeviceFollow.id,
+        deviceId: DeviceFollow.deviceId,
+        state: DeviceFollow.localDecisionState,
+        followedAt: DeviceFollow.createdAt,
+        id: LocalDecision.id,
+        title: LocalDecision.title,
+        quietHours: PushDevice.quietHours,
+        quietStartMin: PushDevice.quietStartMin,
+        quietEndMin: PushDevice.quietEndMin,
+        timezone: PushDevice.timezone,
+      })
+      .from(DeviceFollow)
+      .innerJoin(PushDevice, eq(PushDevice.id, DeviceFollow.deviceId))
+      .innerJoin(LocalDecision, eq(LocalDecision.id, DeviceFollow.contentId))
+      .where(
+        and(
+          eq(DeviceFollow.contentType, "local_decision"),
+          isNull(LocalDecision.sourceDeletedAt),
+          isNull(PushDevice.disabledAt),
+          eq(PushDevice.following, true),
+        ),
+      )
+      .for("update", { of: DeviceFollow, skipLocked: true });
+    let enqueued = 0;
+    for (const follow of follows) {
+      const state = await readLocalDecisionState(tx, follow.id);
+      const change = localDecisionChange(
+        follow.state,
+        state,
+        now,
+        follow.followedAt,
+      );
+      if (change) {
+        await tx.insert(NotificationOutbox).values({
+          deviceId: follow.deviceId,
+          contentId: follow.id,
+          ...localDecisionAlertCopy(follow, change),
+          notBefore: nextDeliveryAt(now, follow),
+        });
+        enqueued++;
+      }
+      await tx
+        .update(DeviceFollow)
+        .set({ localDecisionState: state })
+        .where(eq(DeviceFollow.id, follow.followId));
     }
     return { enqueued };
   });
@@ -330,6 +387,20 @@ export async function drainOutbox(
                     and(
                       eq(DeviceFollow.deviceId, NotificationOutbox.deviceId),
                       eq(DeviceFollow.contentId, NotificationOutbox.contentId),
+                      or(
+                        ne(DeviceFollow.contentType, "local_decision"),
+                        exists(
+                          tx
+                            .select({ id: LocalDecision.id })
+                            .from(LocalDecision)
+                            .where(
+                              and(
+                                eq(LocalDecision.id, DeviceFollow.contentId),
+                                isNull(LocalDecision.sourceDeletedAt),
+                              ),
+                            ),
+                        ),
+                      ),
                     ),
                   ),
               ),
@@ -413,6 +484,7 @@ export async function runFollowNotifications(
 ): Promise<FollowNotificationRun & { receipts: ReceiptCheckRun }> {
   const receipts = await checkPushReceipts(now);
   const { enqueued } = await enqueueFollowMoves(now);
+  const local = await enqueueLocalDecisionMoves(now);
   const executive = await enqueueExecutiveOrders(now);
   const bills = await enqueueNewBills(now);
   const drained = { sent: 0, failed: 0, unregistered: 0 };
@@ -425,7 +497,7 @@ export async function runFollowNotifications(
     if (result.sent + result.failed < 100) break;
   }
   return {
-    enqueued: enqueued + executive.enqueued + bills.enqueued,
+    enqueued: enqueued + local.enqueued + executive.enqueued + bills.enqueued,
     ...drained,
     receipts,
   };

@@ -9,6 +9,11 @@ import {
   Bill,
   DeviceFollow,
   GovernmentContent,
+  LocalBody,
+  LocalDecision,
+  LocalJurisdiction,
+  LocalMeeting,
+  LocalMeetingItem,
   NotificationOutbox,
   PushDevice,
 } from "@acme/db/schema";
@@ -22,6 +27,7 @@ import {
   drainTestAlert,
   enqueueExecutiveOrders,
   enqueueFollowMoves,
+  enqueueLocalDecisionMoves,
   enqueueNewBills,
   enqueueTestAlert,
   runFollowNotifications,
@@ -137,6 +143,246 @@ void test(
           notBefore,
         });
       };
+      await t.test(
+        "local follows baseline archive, deduplicate real changes, and honor cancellation",
+        async () => {
+          const jurisdiction = `test-${randomUUID()}`;
+          const localToken = `ExpoPushToken[${randomUUID()}]`;
+          const decisionId = randomUUID();
+          const bodyId = randomUUID();
+          const meetingId = randomUUID();
+          const itemId = randomUUID();
+          const now = new Date("2026-10-22T23:00:00Z");
+          const syncLocal = (
+            following = true,
+            ids = [decisionId],
+            quietHours = true,
+          ) =>
+            caller.sync({
+              token: localToken,
+              platform: "ios",
+              timezone: "UTC",
+              prefs: { ...prefs, following, quietHours },
+              followIds: ids,
+            });
+          let localDevice: string | undefined;
+          try {
+            await db.insert(LocalJurisdiction).values({
+              key: jurisdiction,
+              name: "Test City",
+              state: "CA",
+              governmentLevel: "city",
+              timezone: "UTC",
+              sourceType: "test",
+              sourceClient: "test",
+              sourceBaseUrl: "https://example.com",
+            });
+            await db.insert(LocalBody).values({
+              id: bodyId,
+              jurisdictionKey: jurisdiction,
+              sourceBodyId: 1,
+              name: "Council",
+            });
+            await db.insert(LocalDecision).values({
+              id: decisionId,
+              jurisdictionKey: jurisdiction,
+              sourceMatterId: 1,
+              title: "Local follow fixture",
+              sourceUpdatedAt: now,
+            });
+            await db.insert(LocalMeeting).values({
+              id: meetingId,
+              bodyId,
+              jurisdictionKey: jurisdiction,
+              sourceEventId: 1,
+              startsAt: new Date("2026-10-23T12:00:00Z"),
+              localDate: "2026-10-23",
+              sourceUpdatedAt: now,
+            });
+            await db.insert(LocalMeetingItem).values({
+              id: itemId,
+              meetingId,
+              decisionId,
+              sourceEventItemId: 1,
+              sourceUpdatedAt: now,
+              actionName: "Introduced",
+            });
+            const registered = await syncLocal();
+            localDevice = registered.deviceId;
+            const outbox = () =>
+              db
+                .select()
+                .from(NotificationOutbox)
+                .where(eq(NotificationOutbox.deviceId, registered.deviceId));
+            const follow = async () =>
+              (
+                await db
+                  .select()
+                  .from(DeviceFollow)
+                  .where(eq(DeviceFollow.deviceId, registered.deviceId))
+              )[0];
+            const baseline = (await follow())?.localDecisionState;
+            assert.equal((await follow())?.contentType, "local_decision");
+            assert.ok(baseline?.length);
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await db
+              .update(LocalDecision)
+              .set({ title: "Retitled", sourceUpdatedAt: new Date() })
+              .where(eq(LocalDecision.id, decisionId));
+            await db
+              .update(LocalMeetingItem)
+              .set({
+                title: "Retitled item",
+                actionText: "Editorial text",
+                sourceUpdatedAt: new Date(),
+              })
+              .where(eq(LocalMeetingItem.id, itemId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await syncLocal();
+            assert.deepEqual((await follow())?.localDecisionState, baseline);
+            await db
+              .update(LocalMeeting)
+              .set({ startsAt: new Date("2026-10-24T12:00:00Z") })
+              .where(eq(LocalMeeting.id, meetingId));
+            const runs = await Promise.all([
+              enqueueLocalDecisionMoves(now),
+              enqueueLocalDecisionMoves(now),
+            ]);
+            assert.equal(
+              runs.reduce((sum, run) => sum + run.enqueued, 0),
+              1,
+            );
+            await syncLocal();
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            const queued = (await outbox())[0];
+            assert.equal(queued?.kind, "follow");
+            assert.equal(
+              queued.href,
+              `/local-decision-detail?id=${decisionId}`,
+            );
+            assert.equal(
+              queued.notBefore.toISOString(),
+              "2026-10-23T07:00:00.000Z",
+            );
+            assert.equal((await drainOutbox(now)).sent, 0);
+            const drains = await Promise.all([
+              drainOutbox(new Date("2026-10-23T07:00:00Z")),
+              drainOutbox(new Date("2026-10-23T07:00:00Z")),
+            ]);
+            assert.equal(
+              drains.reduce((sum, run) => sum + run.sent, 0),
+              1,
+            );
+            assert.equal(
+              messages.at(-1)?.data.href,
+              `/local-decision-detail?id=${decisionId}`,
+            );
+            assert.equal(
+              (await caller.history({ token: localToken })).length,
+              1,
+            );
+            await db
+              .update(LocalMeeting)
+              .set({ startsAt: new Date("2026-10-25T12:00:00Z") })
+              .where(eq(LocalMeeting.id, meetingId));
+            await Promise.all([
+              enqueueLocalDecisionMoves(now),
+              syncLocal(true, []),
+            ]);
+            assert.equal(
+              (await outbox()).filter((row) => !row.sentAt).length,
+              0,
+            );
+            await syncLocal();
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await db
+              .update(LocalMeetingItem)
+              .set({ actionName: "Approved", tally: "7-0" })
+              .where(eq(LocalMeetingItem.id, itemId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 1);
+            await syncLocal(false);
+            await syncLocal(true);
+            assert.equal((await outbox()).length, 1);
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await db
+              .update(LocalMeeting)
+              .set({ cancelled: true })
+              .where(eq(LocalMeeting.id, meetingId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 1);
+            await syncLocal(true, []);
+            await syncLocal();
+            assert.equal((await outbox()).length, 1);
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await db
+              .update(DeviceFollow)
+              .set({ createdAt: new Date("2026-10-21T23:00:00Z") })
+              .where(eq(DeviceFollow.deviceId, registered.deviceId));
+            for (const [sourceEventId, startsAt] of [
+              [2, "2026-10-22T12:00:00Z"],
+              [3, "2026-10-20T12:00:00Z"],
+            ] as const) {
+              const lateMeeting = randomUUID();
+              await db.insert(LocalMeeting).values({
+                id: lateMeeting,
+                bodyId,
+                jurisdictionKey: jurisdiction,
+                sourceEventId,
+                startsAt: new Date(startsAt),
+                localDate: startsAt.slice(0, 10),
+                sourceUpdatedAt: now,
+              });
+              await db.insert(LocalMeetingItem).values({
+                meetingId: lateMeeting,
+                decisionId,
+                sourceEventItemId: sourceEventId,
+                actionName: "Approved",
+                sourceUpdatedAt: now,
+              });
+              assert.equal(
+                (await enqueueLocalDecisionMoves(now)).enqueued,
+                sourceEventId === 2 ? 1 : 0,
+              );
+            }
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await syncLocal(false);
+            await syncLocal();
+            await db
+              .update(DeviceFollow)
+              .set({ localDecisionState: null })
+              .where(eq(DeviceFollow.deviceId, registered.deviceId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            assert.ok((await follow())?.localDecisionState?.length);
+            await db
+              .update(LocalMeetingItem)
+              .set({ sourceDeletedAt: now, tally: "8-0" })
+              .where(eq(LocalMeetingItem.id, itemId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            await db
+              .update(LocalMeetingItem)
+              .set({ sourceDeletedAt: null, tally: "8-0" })
+              .where(eq(LocalMeetingItem.id, itemId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 1);
+            await db
+              .update(LocalDecision)
+              .set({ sourceDeletedAt: now })
+              .where(eq(LocalDecision.id, decisionId));
+            assert.equal((await enqueueLocalDecisionMoves(now)).enqueued, 0);
+            assert.equal(
+              (await drainOutbox(new Date("2026-10-23T07:00:00Z"))).sent,
+              0,
+            );
+            await syncLocal(true, []);
+            await syncLocal();
+            assert.equal(await follow(), undefined);
+          } finally {
+            if (localDevice)
+              await db.delete(PushDevice).where(eq(PushDevice.id, localDevice));
+            await db
+              .delete(LocalJurisdiction)
+              .where(eq(LocalJurisdiction.key, jurisdiction));
+          }
+        },
+      );
       await t.test(
         "new Congress bills reach opted-in phones once, including delayed ingestion and workers",
         async () => {

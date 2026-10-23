@@ -699,6 +699,17 @@ export const PushDevice = pgTable(
   }),
 );
 
+export interface LocalDecisionFollowOccurrence {
+  id: string;
+  startsAt: string;
+  cancelled: boolean;
+  outcome: {
+    action: string | null;
+    passed: string | null;
+    tally: string | null;
+  } | null;
+}
+
 /** Content this device asked us to watch. Saving on the phone is the follow. */
 export const DeviceFollow = pgTable(
   "device_follow",
@@ -710,6 +721,9 @@ export const DeviceFollow = pgTable(
       .references(() => PushDevice.id, { onDelete: "cascade" }),
     contentId: t.uuid("content_id").notNull(),
     contentType: t.varchar("content_type", { length: 20 }).notNull(),
+    localDecisionState: t
+      .jsonb("local_decision_state")
+      .$type<LocalDecisionFollowOccurrence[]>(),
     lastNotifiedActionAt: t.timestamp("last_notified_action_at", {
       withTimezone: true,
     }),
