@@ -36,6 +36,36 @@ export const trillionCorpusSchema = z.object({
 export type TrillionCorpus = z.infer<typeof trillionCorpusSchema>;
 type Measure = OfficialGuidePayload["measures"][number];
 
+/** Named same-ballot measures, including references such as "Proposition 41 or 42". */
+export function mentionedTrillionMeasures(
+  corpus: {
+    number: TrillionCorpus["number"];
+    sources: readonly Pick<
+      TrillionCorpus["sources"][number],
+      "number" | "role" | "snapshot"
+    >[];
+  },
+  ballot: readonly string[],
+): string[] {
+  const text = corpus.sources
+    .filter(
+      (source) =>
+        source.number === corpus.number && source.role !== "precedent",
+    )
+    .map((source) => source.snapshot)
+    .join("\n");
+  const found = new Set<string>();
+  const references =
+    /\b(?:Propositions?|Props?\.?)\s+(\d{1,3}[A-Za-z]?\b(?:\s*(?:,\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)\d{1,3}[A-Za-z]?\b)*)/g;
+  for (const reference of text.matchAll(references))
+    for (const match of (reference[1] ?? "").matchAll(/\d{1,3}[A-Za-z]?/gi)) {
+      const number = match[0].toUpperCase();
+      if (number !== corpus.number && ballot.includes(number))
+        found.add(number);
+    }
+  return [...found].slice(0, 4);
+}
+
 /** The published arguments and rebuttals, checked against the measure's identity. */
 export async function captureArgumentSource(
   guide: OfficialGuidePayload,
