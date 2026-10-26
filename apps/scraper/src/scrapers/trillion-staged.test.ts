@@ -214,3 +214,100 @@ void test("deep staged seeds propagate reasoning instructions through planning a
     TRILLION_STAGED_DEEP_VERSION,
   );
 });
+
+void test("deep generated replies survive evidence links owned by another expansion group", async () => {
+  const plan = pilotPlan();
+  const claim = plan.cards.find((card) => card.kind === "argument");
+  const provision = plan.cards.find((card) => card.kind === "provision");
+  assert.ok(claim && provision);
+  assert.notEqual(claim.home, provision.home);
+  const responses = [
+    {
+      id: "deep-objection",
+      title: "A funding rule does not establish patient outcomes",
+      target: claim.id,
+      type: "challenges",
+    },
+    {
+      id: "deep-reply",
+      title: "The allocation rule still constrains how funds may be used",
+      target: "deep-objection",
+      type: "qualifies",
+    },
+  ] as const;
+  for (const response of responses)
+    plan.cards.push({
+      id: response.id,
+      kind: "generated",
+      label: response.title,
+      intent: `${response.type} ${response.target}, grounded by ${provision.id}`,
+      home: claim.home,
+      weighsOn: [],
+    });
+  const { call } = fakeModel("none");
+  const result = await generateStagedTrillionGraph(corpus, {
+    model: "test-model",
+    argumentDepth: "deep",
+    maxModelCalls: 24,
+    maxPromptChars: 400000,
+    call: async (prompt, schema) => {
+      if (schema === trillionPlanSchema) return plan;
+      const value = await call(prompt, schema);
+      if (schema !== trillionExpansionSchema) return value;
+      const expansion = trillionExpansionSchema.parse(value);
+      const start = prompt.indexOf("\n", prompt.indexOf("YOUR CARDS (")) + 1;
+      const end = prompt.indexOf("\n\nPrompt version", start);
+      const cards = trillionPlanSchema.shape.cards.element
+        .array()
+        .parse(JSON.parse(prompt.slice(start, end)));
+      const own = new Set(cards.map((card) => card.id));
+      for (const response of responses) {
+        if (own.has(response.id)) {
+          expansion.nodes.push({
+            id: response.id,
+            kind: "generated",
+            label: response.title,
+            title: response.title,
+            quotes: [],
+          });
+          expansion.edges.push({
+            id: `${response.id}-response`,
+            from: response.id,
+            to: response.target,
+            type: response.type,
+          });
+        }
+        if (own.has(provision.id)) {
+          assert.match(
+            prompt,
+            /TO the planned arguments and generated premises, objections or replies/,
+          );
+          expansion.edges.push({
+            id: `${response.id}-evidence`,
+            from: provision.id,
+            to: response.id,
+            type: "supports",
+            why: "The provision states an allocation requirement, not a measured outcome.",
+          });
+        }
+      }
+      return expansion;
+    },
+  });
+  for (const response of responses) {
+    assert.ok(
+      result.graph.nodes.some((node) => node.id === response.id),
+      JSON.stringify(result.dropped),
+    );
+    assert.ok(
+      result.graph.edges.some(
+        (edge) => edge.from === provision.id && edge.to === response.id,
+      ),
+    );
+    assert.ok(
+      !result.graph.edges.some(
+        (edge) => edge.from === response.id && edge.type === "weighs",
+      ),
+    );
+  }
+});
