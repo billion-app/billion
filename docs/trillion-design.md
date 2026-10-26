@@ -189,6 +189,8 @@ Desktop shows the canvas and the focused claim page side by side. Selecting a no
 
 A debate can always go one level deeper, so the graph has a floor. No card may sit more than five steps from the main case, counting links either way; a graph that does fails the publication gate. Generated seeds stop at four steps, leaving a level for readers, and the generator prunes deeper cards instead of failing. Today's graphs reach at most four. Generation is also capped in cost: `--max-model-calls` is required, the staged pipeline checks its plan against that budget before expanding anything, and `--max-input-tokens` stops a staged run before any call once its token budget is spent.
 
+The opt-in deep seeding profile uses those existing steps for argument → objection → reply exchanges. Main arguments weigh on the dispute; nested objections and replies target the particular claims they address. Source-backed campaign responses retain their attribution, while reconstructed reasoning is marked generated and grounded in quoted evidence. A missing answer stays a question. The overview remains four to six disputes. `trillion eval` reports these structural paths separately from navigation distance, because a shared evidence link can shorten the route to a claim without removing its place in an exchange. These are editorial review signals, not a quality score. See the [bounded generation commands](../apps/scraper/README.md#trillion-argument-graphs).
+
 ## Provenance
 
 Every claim shows where it came from:

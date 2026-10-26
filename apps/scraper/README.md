@@ -471,6 +471,15 @@ pnpm --filter @acme/scraper trillion store /tmp/prop40-graph.json
 
 `collect` fetches the measure's legal text, Legislative Analyst analysis and ballot arguments, the legal text of `--related` measures, and any curated historical precedent for that measure in [`trillion-precedents.ts`](src/scrapers/trillion-precedents.ts). Precedent entries are official PDFs (State Auditor, Legislative Analyst, past voter guides), with optional page ranges, or allowlisted LAO publication reports. PDFs are fingerprinted by bytes; LAO reports use their article text, including image descriptions, so navigation changes do not invalidate the record. The registry includes housing performance evidence for Prop 1 and rebate/reserve history for Prop 2; it is curated, not an exhaustive historical search. It makes no model calls and no database writes. `generate` makes two paid model calls (graph and summary) and drops any quote that fails verification; an unchanged corpus reuses the existing output without a call. `generate --base-url <url> --model <id>` uses any OpenAI-compatible endpoint instead of the configured providers, and saves the model's raw answer to `<output>.raw.json`. `check` runs the publication gate offline. `eval` includes a repeatable clarity audit: comparisons and disputes without explanatory context, campaign arguments without an explained evidence link from the measure or Analyst, coverage labels to inspect, and a missing summary. These are editorial review leads, not proof of error or a publication gate. It also prints quality signals used to tune the prompt: disputes with fewer than three arguments or only one side, ballot arguments left outside any dispute, evidence not wired into the debate, and titles that describe the source instead of stating the claim. `store` writes to the selected database's `civic_api_cache`, so check the target first; a stored graph appears only after the next guide job has refreshed its source hashes.
 
+For a bounded experiment with linked objections and replies, use a separate output file:
+
+```bash
+pnpm --filter @acme/scraper trillion generate /tmp/prop45-corpus.json /tmp/prop45-deep.json --argument-depth deep --max-model-calls 2
+pnpm --filter @acme/scraper trillion eval /tmp/prop45-deep.json
+```
+
+The opt-in deep profile asks for focused argument → objection → reply chains within the existing four-step seed limit. Supporting replies stay attached to the claim they address instead of all appearing as top-level arguments. Each factual response needs source evidence; missing replies remain explicit questions. It also works with `--pipeline staged` and that pipeline's existing budgets. Standard generation and its cache identity stay unchanged; each deep pipeline has its own prompt version. The eval report lists structural exchange paths per dispute and navigation depth separately. These paths support editorial comparison; their presence does not establish that a reply answers an objection or that either claim is true.
+
 **In production,** the supervisor's `trillion-propositions-daily` job (4:00, before the guide job) keeps a graph for every proposition in the current guide:
 
 ```bash

@@ -188,3 +188,29 @@ void test("campaign expansions receive legal mechanisms and other cards' planned
   assert.ok(provision);
   assert.ok(prompt.includes(JSON.stringify(provision)));
 });
+
+void test("deep staged seeds propagate reasoning instructions through planning and expansion", async () => {
+  const { TRILLION_DEEP_INSTRUCTIONS } =
+    await import("./trillion-reasoning.js");
+  const { TRILLION_STAGED_DEEP_VERSION } = await import("./trillion-staged.js");
+  const { call } = fakeModel("none");
+  let expansions = 0;
+  const result = await generateStagedTrillionGraph(corpus, {
+    model: "test-model",
+    argumentDepth: "deep",
+    maxModelCalls: 24,
+    maxPromptChars: 400000,
+    call: async (prompt, schema) => {
+      if (schema === trillionPlanSchema || schema === trillionExpansionSchema) {
+        assert.ok(prompt.includes(TRILLION_DEEP_INSTRUCTIONS));
+        if (schema === trillionExpansionSchema) expansions++;
+      }
+      return call(prompt, schema);
+    },
+  });
+  assert.ok(expansions > 0);
+  assert.equal(
+    result.graph.generation.promptVersion,
+    TRILLION_STAGED_DEEP_VERSION,
+  );
+});

@@ -27,6 +27,7 @@ import {
   trillionSummarySchema,
 } from "./scrapers/trillion-generation.js";
 import { trillionPrecedents } from "./scrapers/trillion-precedents.js";
+import { trillionArgumentDepthSchema } from "./scrapers/trillion-reasoning.js";
 import { generateStagedTrillionGraph } from "./scrapers/trillion-staged.js";
 import { getStructuredLlmCandidates } from "./utils/ai/provider.js";
 import { trackLLMUsage } from "./utils/costs.js";
@@ -91,6 +92,11 @@ await yargs(hideBin(process.argv))
           describe:
             "Staged only: stop before any call once this many input tokens are spent",
         })
+        .option("argument-depth", {
+          choices: trillionArgumentDepthSchema.options,
+          default: "standard",
+          describe: "deep: seed explicit argument, objection and reply chains",
+        })
         .option("pipeline", {
           choices: ["single", "staged"] as const,
           default: "single" as const,
@@ -106,6 +112,9 @@ await yargs(hideBin(process.argv))
       }
       if ((args.baseUrl === undefined) !== (args.model === undefined))
         throw new Error("--base-url and --model go together");
+      const argumentDepth = trillionArgumentDepthSchema.parse(
+        args.argumentDepth,
+      );
       const candidate = args.baseUrl
         ? {
             model: createOpenAI({
@@ -123,6 +132,7 @@ await yargs(hideBin(process.argv))
           await readJson(args.corpus),
           {
             model: candidate.modelVersion,
+            argumentDepth,
             maxModelCalls: args.maxModelCalls,
             maxPromptChars: args.maxPromptChars,
             previous,
@@ -166,6 +176,7 @@ await yargs(hideBin(process.argv))
       }
       const result = await generateTrillionGraph(await readJson(args.corpus), {
         model: candidate.modelVersion,
+        argumentDepth,
         maxModelCalls: args.maxModelCalls,
         maxPromptChars: args.maxPromptChars,
         previous,
