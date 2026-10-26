@@ -22,6 +22,8 @@ import {
   orientStructuralEdges,
   pruneUnverified,
   repairRecordKinds,
+  TRILLION_CLARITY_INSTRUCTIONS,
+  TRILLION_COVERAGE_INSTRUCTIONS,
   TRILLION_SUMMARY_PROMPT_VERSION,
   trillionSummarySchema,
 } from "./trillion-generation.js";
@@ -34,7 +36,7 @@ import {
  * failures stay local, and the lean, which readers rely on most, gets a
  * dedicated second look.
  */
-export const TRILLION_STAGED_VERSION = "trillion-staged-v2";
+export const TRILLION_STAGED_VERSION = "trillion-staged-v4";
 
 const id = z
   .string()
@@ -163,14 +165,19 @@ The graph already has a root ("How should I vote on Prop ${corpus.number}?") and
 
 ${TRILLION_CONTEXT_INSTRUCTIONS}
 
+${TRILLION_COVERAGE_INSTRUCTIONS}
+
+${TRILLION_CLARITY_INSTRUCTIONS}
+
 Plan:
-- "cruxes": four to six disputed questions people genuinely disagree about, each a short neutral question about ONE thing (at most 12 words; never join two questions with "and", "or" or "rather than"), with "dispute": "facts", "values", "reading" (how to read the text) or "legal" (courts, timing, other measures). When the measure conflicts with or depends on another measure on the ballot, give that interaction its own "legal" question.${precedent ? ' Add a historical question (facts) naming the actual comparable policy or program and outcome, for the precedent sources.' : ""}
+- "cruxes": four to six disputed questions people genuinely disagree about, each a short neutral question about ONE thing (at most 12 words; never join two questions with "and", "or" or "rather than"), with "dispute": "facts", "values", "reading" (how to read the text) or "legal" (courts, timing, other measures). When the measure conflicts with or depends on another measure on the ballot, give that interaction its own "legal" question.${precedent ? " Add a historical question (facts) naming the actual comparable policy or program and outcome, for the precedent sources." : ""}
 - "cards": every card the graph needs, each with an id (lowercase, digits, hyphens), kind, a label of a few words, "intent" (one sentence saying what the card will claim), and for quoted kinds the "sourceId" and "locator" of the passage to quote.
   - "home" is where the card lives: a branch key or a crux id. "What does it actually do?" ("what") is built from the measure's OWN legal text: five to ten "provision" cards, core change first, then who it covers, then money, then exceptions and procedure; the Legislative Analyst ("analysis") explains alongside, never in place of the text.
   - Split each published argument and rebuttal into its distinct claims, one "argument" card each (usually 8 to 14), home in the dispute it bears on most.
   - "weighsOn": the crux ids the card bears on. Every crux needs at least three cards weighing on it, from both sides when the sources support both; never invent a side the sources lack.
   - Add a "record" card for each OTHER ballot measure the sources connect to this one, and use kind "record" for nothing else (signer lists are "argument", this measure's text is "provision")${precedent ? ', and "precedent" cards (quoting only precedent sources) for the earlier measures' : ""}.
   - Add a "shared" card for a value framework only where an argument's lean turns on it.
+  - Plan specific unanswered question cards for missing eligibility definitions or unsupported causal steps now; expansions cannot introduce unplanned cards. Give each disputed question a plain body explaining the concrete change.
   - About 35 to 55 cards in all.
 
 Measure: Proposition ${corpus.number}, ${measure.title}
@@ -219,27 +226,34 @@ export function buildTrillionExpansionPrompt(
   const wanted = new Set(
     group.cards.flatMap((c) => (c.sourceId ? [c.sourceId] : [])),
   );
-  // The "what" branch always sees the measure's own text.
-  if (group.key === "what")
-    for (const s of corpus.sources)
-      if (s.role === "legal-text" && s.number === corpus.number)
-        wanted.add(s.id);
+  // Every group needs the law and Analyst to distinguish mechanics from forecasts.
+  for (const source of corpus.sources)
+    if (
+      source.number === corpus.number &&
+      ["legal-text", "official-analysis"].includes(source.role)
+    )
+      wanted.add(source.id);
   const sources = corpus.sources.filter((s) => wanted.has(s.id));
   const branchIds = Object.fromEntries(
     BRANCH_KEYS.map((k) => [k, BRANCHES[k].id]),
   );
   return `You are writing part of a public argument graph ("the Trillion") for California Proposition ${corpus.number}, following a plan. Write ONLY the cards listed under YOUR CARDS, as full nodes, and the edges FROM those cards. Anything that fails the rules below is discarded.
 
-Ids you may link to: root "root"; branches ${JSON.stringify(branchIds)}; disputes ${JSON.stringify(plan.cruxes.map((c) => ({ id: c.id, title: c.title })))}; and any planned card ${JSON.stringify(plan.cards.map((c) => ({ id: c.id, kind: c.kind, label: c.label })))}.
+Ids you may link to: root "root"; branches ${JSON.stringify(branchIds)}; disputes ${JSON.stringify(plan.cruxes.map((c) => ({ id: c.id, title: c.title })))}; and any planned card ${JSON.stringify(plan.cards)}.
 
 For each of your cards:
 - A node with the planned id, kind and label, a "title" (the full statement, at most 300 characters), optional "body" (plain context, at most 800), and quotes where its kind requires them.
+- Evidence-card authors must write the outgoing "supports", "challenges" or "qualifies" edges FROM their provisions or analyses TO the planned arguments they explain, using the other cards' intents and source references. Argument-card authors explain those mechanisms in their bodies but must not emit edges from foreign cards. If you discover an evidence gap without a planned question card, state the missing causal step in the existing argument body; do not invent an unplanned card.
 - If its home is a branch, a "detail" edge to that branch, in the plan's order. For every crux id in "weighsOn", a "weighs" edge to it with a stance. Add "supports", "challenges", "qualifies", "asks", "answers", "appliesTo" or "conflicts" edges where the sources justify them.
 - "terms": jargon in your titles a general reader might have to look up, each with "plain": one everyday sentence (no amounts). At most four.
 
 Rules:
 ${SHARED_RULES(corpus.number)}
 ${TRILLION_CONTEXT_INSTRUCTIONS}
+
+${TRILLION_COVERAGE_INSTRUCTIONS}
+
+${TRILLION_CLARITY_INSTRUCTIONS}
 Only write your planned cards in this expansion; branch and crux skeletons already exist.
 
 YOUR CARDS (${group.label}):
