@@ -20,6 +20,10 @@ import {
   trillionCorpusSchema,
 } from "./scrapers/trillion-capture.js";
 import {
+  expandTrillionGraph,
+  trillionAdditionsSchema,
+} from "./scrapers/trillion-expansion.js";
+import {
   assessTrillionGraph,
   generateTrillionGraph,
   summarizeTrillionGraph,
@@ -27,7 +31,6 @@ import {
   trillionSummarySchema,
 } from "./scrapers/trillion-generation.js";
 import { trillionPrecedents } from "./scrapers/trillion-precedents.js";
-import { trillionArgumentDepthSchema } from "./scrapers/trillion-reasoning.js";
 import { generateStagedTrillionGraph } from "./scrapers/trillion-staged.js";
 import { getStructuredLlmCandidates } from "./utils/ai/provider.js";
 import { trackLLMUsage } from "./utils/costs.js";
@@ -69,6 +72,49 @@ await yargs(hideBin(process.argv))
     },
   )
   .command(
+    "expand <graph> <output>",
+    "Add deeper reasoning to an existing graph without replacing any content; one bounded model call, no DB",
+    (y) =>
+      y
+        .positional("graph", { type: "string", demandOption: true })
+        .positional("output", { type: "string", demandOption: true })
+        .option("max-model-calls", { type: "number", demandOption: true })
+        .option("max-prompt-chars", { type: "number", default: 400000 }),
+    async (args) => {
+      const candidate = getStructuredLlmCandidates()[0];
+      if (!candidate) throw new Error("No scraper text provider is configured");
+      const result = await expandTrillionGraph(await readJson(args.graph), {
+        model: candidate.modelVersion,
+        maxModelCalls: args.maxModelCalls,
+        maxPromptChars: args.maxPromptChars,
+        assess: async (prompt) => {
+          const response = await generateText({
+            model: candidate.model,
+            output: Output.object({ schema: trillionAdditionsSchema }),
+            prompt,
+            maxOutputTokens: 12000,
+            maxRetries: 0,
+            abortSignal: AbortSignal.timeout(300000),
+          });
+          trackLLMUsage(
+            response.usage.inputTokens,
+            response.usage.outputTokens,
+          );
+          await save(`${args.output}.raw.json`, response.output);
+          return response.output;
+        },
+      });
+      await save(args.output, result.graph);
+      await save(`${args.output}.expansion.json`, {
+        ...result.receipt,
+        generatedAt: new Date().toISOString(),
+      });
+      console.log(
+        `Added ${result.receipt.addedNodes.length} cards and ${result.receipt.addedEdges.length} links; all original content and seed provenance preserved. Editorial review is still required.`,
+      );
+    },
+  )
+  .command(
     "generate <corpus> <output>",
     "Draft a graph and its summary: two paid model calls, or about a dozen with --pipeline staged; quotes that fail verification are dropped. No DB",
     (y) =>
@@ -92,11 +138,6 @@ await yargs(hideBin(process.argv))
           describe:
             "Staged only: stop before any call once this many input tokens are spent",
         })
-        .option("argument-depth", {
-          choices: trillionArgumentDepthSchema.options,
-          default: "standard",
-          describe: "deep: seed explicit argument, objection and reply chains",
-        })
         .option("pipeline", {
           choices: ["single", "staged"] as const,
           default: "single" as const,
@@ -112,9 +153,6 @@ await yargs(hideBin(process.argv))
       }
       if ((args.baseUrl === undefined) !== (args.model === undefined))
         throw new Error("--base-url and --model go together");
-      const argumentDepth = trillionArgumentDepthSchema.parse(
-        args.argumentDepth,
-      );
       const candidate = args.baseUrl
         ? {
             model: createOpenAI({
@@ -132,7 +170,6 @@ await yargs(hideBin(process.argv))
           await readJson(args.corpus),
           {
             model: candidate.modelVersion,
-            argumentDepth,
             maxModelCalls: args.maxModelCalls,
             maxPromptChars: args.maxPromptChars,
             previous,
@@ -176,7 +213,6 @@ await yargs(hideBin(process.argv))
       }
       const result = await generateTrillionGraph(await readJson(args.corpus), {
         model: candidate.modelVersion,
-        argumentDepth,
         maxModelCalls: args.maxModelCalls,
         maxPromptChars: args.maxPromptChars,
         previous,
