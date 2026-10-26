@@ -24,7 +24,10 @@ import type { TrillionCorpus } from "./scrapers/trillion-capture.js";
 import { GUIDE_BASE, guideLinks } from "./scrapers/ca-official-guide-parser.js";
 import { fetchGuidePage } from "./scrapers/ca-official-guide-source.js";
 import { sourceHash } from "./scrapers/measure-relationship-capture.js";
-import { collectTrillionCorpus } from "./scrapers/trillion-capture.js";
+import {
+  collectTrillionCorpus,
+  mentionedTrillionMeasures,
+} from "./scrapers/trillion-capture.js";
 import {
   generateTrillionGraph,
   TRILLION_PROMPT_VERSION,
@@ -106,23 +109,6 @@ async function guidePropositions(electionDate: string): Promise<string[]> {
   if (!numbers.length)
     throw new Error(`No propositions found in the ${electionDate} guide`);
   return [...new Set(numbers)];
-}
-
-/** Other propositions this measure's own text or analysis names. */
-function mentionedMeasures(
-  corpus: TrillionCorpus,
-  all: readonly string[],
-): string[] {
-  const text = corpus.sources
-    .filter((s) => s.number === corpus.number && s.role !== "precedent")
-    .map((s) => s.snapshot)
-    .join("\n");
-  const found = new Set<string>();
-  for (const match of text.matchAll(/Proposition\s+(\d{1,3}[A-Z]?)\b/g)) {
-    const n = match[1]?.toUpperCase();
-    if (n && n !== corpus.number && all.includes(n)) found.add(n);
-  }
-  return [...found].slice(0, 4);
 }
 
 const rowKey = (endpoint: string, number: string) =>
@@ -239,7 +225,7 @@ for (const number of wanted) {
       [],
       precedents,
     );
-    const related = mentionedMeasures(corpus, numbers);
+    const related = mentionedTrillionMeasures(corpus, numbers);
     if (related.length)
       corpus = await collectTrillionCorpus(
         argv.election,
