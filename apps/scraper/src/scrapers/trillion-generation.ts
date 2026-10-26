@@ -22,13 +22,29 @@ import {
 import type { TrillionCorpus } from "./trillion-capture.js";
 import { sourceHash } from "./measure-relationship-capture.js";
 import { trillionCorpusSchema } from "./trillion-capture.js";
+import { auditTrillionClarity } from "./trillion-clarity.js";
 import {
   TRILLION_CONTEXT_INSTRUCTIONS,
   withContextGaps,
 } from "./trillion-context.js";
 
-export const TRILLION_PROMPT_VERSION = "trillion-v12";
-export const TRILLION_SUMMARY_PROMPT_VERSION = "trillion-summary-v6";
+export const TRILLION_PROMPT_VERSION = "trillion-v14";
+export const TRILLION_SUMMARY_PROMPT_VERSION = "trillion-summary-v8";
+export const TRILLION_COVERAGE_INSTRUCTIONS = `Coverage must be concrete:
+- Do not leave policy categories such as "high incomes", "low income", "small businesses" or "eligible residents" undefined. Under "What does it actually do?", include a source-backed card explaining the actual eligibility rule or cutoff, not just repeating the category. Put the cutoff in its title when possible and the remaining qualifications in its body.
+- For income or tax thresholds, state the amount, filing status, whether it is annual taxable income, gross income or wealth, and the applicable year or base year when the source supplies them. Explain whether a rate applies to all income or only the portion within a bracket. Keep inflation-adjusted thresholds distinct from statutory base amounts; never present an old base amount as today's cutoff or calculate an updated amount yourself.
+- Quote the passage supporting each threshold and qualification. If captured sources do not define a category or omit a needed qualification, say what is missing and add a kind "question" asking for that specific missing information. Never fill the gap from memory.
+- Numerical definitions belong in quoted cards, not amount-free glossary terms. A glossary term may explain the concept, but cannot substitute for the coverage card.`;
+
+export const TRILLION_CLARITY_INSTRUCTIONS = `Explain the mechanism before asking readers to judge it:
+- A dispute question must be understandable on its own. Never smuggle a contested premise into it: "Would narrower review leave environmental harms unaddressed?" assumes both what review changes and what "narrower" means. Instead name a sourced change, such as "Could limiting project alternatives leave environmental harms unaddressed?" Use the crux body to explain the change in two plain sentences and connect the quoted provision cards to that crux with "weighs" links. Do not put amounts in an unquoted question or body.
+- Replace unexplained comparisons ("narrower", "weaker", "stronger", "streamlined", "stricter", "more accountability", "meaningful voice") with what changes: who can do what, what must be checked, what can no longer be required, and compared with which current rule. "Narrower court review" means fewer kinds of challenges or remedies, not a more thorough examination. Explain that distinction when the sources support it; never treat speed, scope and thoroughness as synonyms.
+- For each argument about the measure's operation, connect the specific quoted provision or analysis that supports, challenges or qualifies it. The edge's "why" must explain the causal step, not merely say the claims are related. In the argument body, distinguish what the measure requires from what the campaign predicts would follow. If the sources do not establish the causal step, say so and add a specific unanswered question rather than inventing an explanation.
+- Campaign forecasts remain attributed arguments, not established outcomes. Use conditional wording in titles for predicted benefits and harms ("could", "would depend on") rather than restating a campaign's certainty as a fact. Keep the original campaign quote verbatim.
+- Define decision-critical legal or accounting terms in everyday words: what counts as "program services", "personal property", a "special tax", or an eligible project, including important exclusions. A list of broad categories does not explain their qualifying rules. If a rule is delegated to later regulations or incorporated law not supplied here, explicitly say who sets it and what remains unspecified.
+- Keep material conditions with the claim they limit. Say which percentage is of which total; distinguish borrowing authority from spending and who repays the debt; state what starts a deadline and whether it uses calendar or business days. Do not replace a condition with "early", "qualifying", "certain" or "with exceptions" without explaining it in the card body.
+- Before returning the graph, read every dispute question and argument as a voter new to the topic: "What exactly changes? Which passage shows that? Why might that cause the claimed outcome?" Repair any answer that requires the reader to guess. Verbatim quote checking alone does not establish that your interpretation follows from the quote.`;
+
 const termsField = z.array(trillionTermSchema).max(8).default([]);
 export const trillionSummarySchema = z.object({
   terms: termsField,
@@ -72,6 +88,10 @@ export function buildTrillionPrompt(corpus: TrillionCorpus): string {
 Purpose: help a voter explore the reasoning, find where people actually disagree, and form their own view. Billion begins the reader's thinking; it never concludes. Never recommend a vote, tally sides, or say who is winning.
 
 ${TRILLION_CONTEXT_INSTRUCTIONS}
+
+${TRILLION_COVERAGE_INSTRUCTIONS}
+
+${TRILLION_CLARITY_INSTRUCTIONS}
 
 Graph shape (node ids: lowercase letters, digits and hyphens):
 - Exactly one root, id "root", kind "root", title and label "How should I vote on Prop ${corpus.number}?".
@@ -141,12 +161,14 @@ export function buildTrillionSummaryPrompt(corpus: TrillionCorpus): string {
 ${title ? `\nVoters know it by its official ballot title: "${title}". Call the main thing it changes by the title's everyday name (for example "the rainy day fund"), not a different technical name, and if the text uses another name for it, say once that they are the same thing. Use one name for each thing throughout.\n` : ""}
 
 Write "text": a headline of at most 15 words in everyday language saying the core change, in the style of "Raises the minimum wage to $18 an hour." No dates, legal qualifiers or cross-references ("enacted on or after…", "with exceptions", "under state laws or constitutional provisions"); those go in "more". Most readers stop here.
-Write "more": one or two short sentences (at most 40 words) with the next things a voter would want: what the rule is today when the text states it ("now 10%"), who is covered or excluded, and where any money goes. Leave out fine print such as phase-ins and administrative steps; the rest of the graph covers those.
+Write "more": one or two short sentences (at most 40 words) with the next things a voter would want: what the rule is today when the text states it ("now 10%"), who is covered or excluded, and where any money goes. Prioritize the actual eligibility rule or cutoff over funding destinations when needed to explain who is affected. Leave out fine print such as administrative steps; the rest of the graph covers those.
+Do not leave categories such as "high incomes", "low income" or "small businesses" undefined. Prefer the source-backed cutoff in "text" when it fits; otherwise define it in "more". For a tax, include the filing status, income basis (taxable income, gross income or wealth), applicable year or base year, and whether it applies to all income or only the portion above a cutoff, to the extent the legal text supplies these details. Distinguish statutory base amounts from inflation-adjusted thresholds; never calculate today's cutoff or present an old base amount as current. If the legal text does not supply the definition or a needed qualification, say what it does not specify in "more" rather than guessing or borrowing from the Analyst's background. Coverage thresholds are essential mechanics, not fine print; spend the word budget on them before funding destinations.
+Explain decision-critical terms such as "program services" or "personal property" in everyday words, using "terms" for amount-free meanings and "more" for numerical rules. Say what a percentage is of, distinguish borrowing from spending, and name concrete changes instead of unexplained "narrower", "streamlined" or "stricter" rules. Keep material conditions with the claim they limit.
 In both, state mechanics the way the text does: amounts, dates, who is covered. Do not use characterizations that supporters or opponents would dispute, such as "one-time", "only", "just", "protects", "closes a loophole", "targets" or "unfair"; write "for tax year 2026", not "one-time". No benefits, harms, predictions or verdicts. Bold at most one short key phrase in each with **double asterisks**, never a whole sentence.
 
 Write "terms": the jargon a general reader might have to look up in "text" or "more", such as "spending limit" or "special tax", each with "plain": one everyday sentence saying what it means in practice (no amounts; you may bold one short phrase of the meaning). Only terms that actually appear, at most five; use the term exactly as written. If nothing needs defining, return an empty list.
 
-Write "quotes" (two to five): for every point in the text, a verbatim quote from the legal text (sourceId "${law.id}", locator naming the section), copied exactly. Use "…" between verbatim segments only where you leave words out, never for a line break; segments must appear in order.
+Write "quotes" (two to five): for every factual point in "text" and "more", including coverage thresholds and qualifications, a verbatim quote from the legal text (sourceId "${law.id}", locator naming the section), copied exactly. Use "…" between verbatim segments only where you leave words out, never for a line break; segments must appear in order.
 
 ${
   background && analysis
@@ -654,6 +676,7 @@ export function assessTrillionGraph(graph: TrillionGraph) {
       !n.title.trim().endsWith("?"),
   );
   return {
+    clarity: auditTrillionClarity(graph),
     nodes: graph.nodes.length,
     links: graph.edges.length,
     kinds,

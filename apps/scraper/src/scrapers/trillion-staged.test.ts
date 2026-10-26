@@ -9,6 +9,7 @@ import { trillionSummarySchema } from "./trillion-generation.js";
 import {
   generateStagedTrillionGraph,
   planGroups,
+  TRILLION_STAGED_VERSION,
   trillionExpansionSchema,
   trillionLeanCheckSchema,
   trillionPlanSchema,
@@ -146,7 +147,7 @@ void test("staged generation plans, expands, checks leans, and passes the gate",
     (e) => e.type === "weighs" && e.from === flip.from && e.to === flip.to,
   );
   assert.equal(fixed?.stance, "for");
-  assert.equal(result.graph.generation.promptVersion, "trillion-staged-v2");
+  assert.equal(result.graph.generation.promptVersion, TRILLION_STAGED_VERSION);
 });
 
 void test("the staged budget is checked against the plan before expanding", async () => {

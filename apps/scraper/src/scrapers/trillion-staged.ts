@@ -22,6 +22,8 @@ import {
   orientStructuralEdges,
   pruneUnverified,
   repairRecordKinds,
+  TRILLION_CLARITY_INSTRUCTIONS,
+  TRILLION_COVERAGE_INSTRUCTIONS,
   TRILLION_SUMMARY_PROMPT_VERSION,
   trillionSummarySchema,
 } from "./trillion-generation.js";
@@ -34,7 +36,7 @@ import {
  * failures stay local, and the lean, which readers rely on most, gets a
  * dedicated second look.
  */
-export const TRILLION_STAGED_VERSION = "trillion-staged-v2";
+export const TRILLION_STAGED_VERSION = "trillion-staged-v4";
 
 const id = z
   .string()
@@ -163,8 +165,12 @@ The graph already has a root ("How should I vote on Prop ${corpus.number}?") and
 
 ${TRILLION_CONTEXT_INSTRUCTIONS}
 
+${TRILLION_COVERAGE_INSTRUCTIONS}
+
+${TRILLION_CLARITY_INSTRUCTIONS}
+
 Plan:
-- "cruxes": four to six disputed questions people genuinely disagree about, each a short neutral question about ONE thing (at most 12 words; never join two questions with "and", "or" or "rather than"), with "dispute": "facts", "values", "reading" (how to read the text) or "legal" (courts, timing, other measures). When the measure conflicts with or depends on another measure on the ballot, give that interaction its own "legal" question.${precedent ? ' Add a historical question (facts) naming the actual comparable policy or program and outcome, for the precedent sources.' : ""}
+- "cruxes": four to six disputed questions people genuinely disagree about, each a short neutral question about ONE thing (at most 12 words; never join two questions with "and", "or" or "rather than"), with "dispute": "facts", "values", "reading" (how to read the text) or "legal" (courts, timing, other measures). When the measure conflicts with or depends on another measure on the ballot, give that interaction its own "legal" question.${precedent ? " Add a historical question (facts) naming the actual comparable policy or program and outcome, for the precedent sources." : ""}
 - "cards": every card the graph needs, each with an id (lowercase, digits, hyphens), kind, a label of a few words, "intent" (one sentence saying what the card will claim), and for quoted kinds the "sourceId" and "locator" of the passage to quote.
   - "home" is where the card lives: a branch key or a crux id. "What does it actually do?" ("what") is built from the measure's OWN legal text: five to ten "provision" cards, core change first, then who it covers, then money, then exceptions and procedure; the Legislative Analyst ("analysis") explains alongside, never in place of the text.
   - Split each published argument and rebuttal into its distinct claims, one "argument" card each (usually 8 to 14), home in the dispute it bears on most.
@@ -240,6 +246,10 @@ For each of your cards:
 Rules:
 ${SHARED_RULES(corpus.number)}
 ${TRILLION_CONTEXT_INSTRUCTIONS}
+
+${TRILLION_COVERAGE_INSTRUCTIONS}
+
+${TRILLION_CLARITY_INSTRUCTIONS}
 Only write your planned cards in this expansion; branch and crux skeletons already exist.
 
 YOUR CARDS (${group.label}):
