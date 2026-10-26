@@ -229,6 +229,12 @@ void test("the summary is drafted from the legal text; background from the Analy
   const parsed = trillionCorpusSchema.parse(corpus);
   const prompt = buildTrillionSummaryPrompt(parsed);
   assert.match(prompt, /sourceId "law-40"/);
+  assert.match(
+    prompt,
+    /Keep standalone descriptions of current law, existing expiry dates and current limits out/,
+  );
+  assert.match(prompt, /How it works today/);
+  assert.doesNotMatch(prompt, /what the rule is today when the text states it/);
   assert.match(prompt, /not "one-time"|"one-time"/);
   // Neither campaign's arguments reach the summary call.
   assert.doesNotMatch(prompt, /arguments-40|SEIU/);

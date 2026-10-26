@@ -27,9 +27,10 @@ import {
   TRILLION_CONTEXT_INSTRUCTIONS,
   withContextGaps,
 } from "./trillion-context.js";
+import { assessTrillionReasoning } from "./trillion-reasoning.js";
 
 export const TRILLION_PROMPT_VERSION = "trillion-v14";
-export const TRILLION_SUMMARY_PROMPT_VERSION = "trillion-summary-v8";
+export const TRILLION_SUMMARY_PROMPT_VERSION = "trillion-summary-v9";
 export const TRILLION_COVERAGE_INSTRUCTIONS = `Coverage must be concrete:
 - Do not leave policy categories such as "high incomes", "low income", "small businesses" or "eligible residents" undefined. Under "What does it actually do?", include a source-backed card explaining the actual eligibility rule or cutoff, not just repeating the category. Put the cutoff in its title when possible and the remaining qualifications in its body.
 - For income or tax thresholds, state the amount, filing status, whether it is annual taxable income, gross income or wealth, and the applicable year or base year when the source supplies them. Explain whether a rate applies to all income or only the portion within a bracket. Keep inflation-adjusted thresholds distinct from statutory base amounts; never present an old base amount as today's cutoff or calculate an updated amount yourself.
@@ -161,7 +162,7 @@ export function buildTrillionSummaryPrompt(corpus: TrillionCorpus): string {
 ${title ? `\nVoters know it by its official ballot title: "${title}". Call the main thing it changes by the title's everyday name (for example "the rainy day fund"), not a different technical name, and if the text uses another name for it, say once that they are the same thing. Use one name for each thing throughout.\n` : ""}
 
 Write "text": a headline of at most 15 words in everyday language saying the core change, in the style of "Raises the minimum wage to $18 an hour." No dates, legal qualifiers or cross-references ("enacted on or after…", "with exceptions", "under state laws or constitutional provisions"); those go in "more". Most readers stop here.
-Write "more": one or two short sentences (at most 40 words) with the next things a voter would want: what the rule is today when the text states it ("now 10%"), who is covered or excluded, and where any money goes. Prioritize the actual eligibility rule or cutoff over funding destinations when needed to explain who is affected. Leave out fine print such as administrative steps; the rest of the graph covers those.
+Write "more": one or two short sentences (at most 40 words) with the next things a voter would want: who is covered or excluded, and where any money goes. Keep standalone descriptions of current law, existing expiry dates and current limits out of both "text" and "more"; they belong in "background" (How it works today), supported by the Analyst's BACKGROUND quotations. Retain existing rules only when necessary to define the proposal's coverage, exceptions or safeguards. If the Analyst's BACKGROUND does not establish a current rule, leave it in the sourced graph rather than mixing it into What it does. Prioritize the actual eligibility rule or cutoff over funding destinations when needed to explain who is affected. Leave out fine print such as administrative steps; the rest of the graph covers those.
 Do not leave categories such as "high incomes", "low income" or "small businesses" undefined. Prefer the source-backed cutoff in "text" when it fits; otherwise define it in "more". For a tax, include the filing status, income basis (taxable income, gross income or wealth), applicable year or base year, and whether it applies to all income or only the portion above a cutoff, to the extent the legal text supplies these details. Distinguish statutory base amounts from inflation-adjusted thresholds; never calculate today's cutoff or present an old base amount as current. If the legal text does not supply the definition or a needed qualification, say what it does not specify in "more" rather than guessing or borrowing from the Analyst's background. Coverage thresholds are essential mechanics, not fine print; spend the word budget on them before funding destinations.
 Explain decision-critical terms such as "program services" or "personal property" in everyday words, using "terms" for amount-free meanings and "more" for numerical rules. Say what a percentage is of, distinguish borrowing from spending, and name concrete changes instead of unexplained "narrower", "streamlined" or "stricter" rules. Keep material conditions with the claim they limit.
 In both, state mechanics the way the text does: amounts, dates, who is covered. Do not use characterizations that supporters or opponents would dispute, such as "one-time", "only", "just", "protects", "closes a loophole", "targets" or "unfair"; write "for tax year 2026", not "one-time". No benefits, harms, predictions or verdicts. Bold at most one short key phrase in each with **double asterisks**, never a whole sentence.
@@ -677,6 +678,7 @@ export function assessTrillionGraph(graph: TrillionGraph) {
   );
   return {
     clarity: auditTrillionClarity(graph),
+    reasoning: assessTrillionReasoning(graph),
     nodes: graph.nodes.length,
     links: graph.edges.length,
     kinds,

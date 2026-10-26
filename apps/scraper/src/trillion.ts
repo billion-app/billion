@@ -20,6 +20,10 @@ import {
   trillionCorpusSchema,
 } from "./scrapers/trillion-capture.js";
 import {
+  expandTrillionGraph,
+  trillionAdditionsSchema,
+} from "./scrapers/trillion-expansion.js";
+import {
   assessTrillionGraph,
   generateTrillionGraph,
   summarizeTrillionGraph,
@@ -64,6 +68,49 @@ await yargs(hideBin(process.argv))
       });
       console.log(
         `Captured ${corpus.sources.length} sources for Proposition ${corpus.number}, including ${precedents.length} curated precedent documents.`,
+      );
+    },
+  )
+  .command(
+    "expand <graph> <output>",
+    "Add deeper reasoning to an existing graph without replacing any content; one bounded model call, no DB",
+    (y) =>
+      y
+        .positional("graph", { type: "string", demandOption: true })
+        .positional("output", { type: "string", demandOption: true })
+        .option("max-model-calls", { type: "number", demandOption: true })
+        .option("max-prompt-chars", { type: "number", default: 400000 }),
+    async (args) => {
+      const candidate = getStructuredLlmCandidates()[0];
+      if (!candidate) throw new Error("No scraper text provider is configured");
+      const result = await expandTrillionGraph(await readJson(args.graph), {
+        model: candidate.modelVersion,
+        maxModelCalls: args.maxModelCalls,
+        maxPromptChars: args.maxPromptChars,
+        assess: async (prompt) => {
+          const response = await generateText({
+            model: candidate.model,
+            output: Output.object({ schema: trillionAdditionsSchema }),
+            prompt,
+            maxOutputTokens: 12000,
+            maxRetries: 0,
+            abortSignal: AbortSignal.timeout(300000),
+          });
+          trackLLMUsage(
+            response.usage.inputTokens,
+            response.usage.outputTokens,
+          );
+          await save(`${args.output}.raw.json`, response.output);
+          return response.output;
+        },
+      });
+      await save(args.output, result.graph);
+      await save(`${args.output}.expansion.json`, {
+        ...result.receipt,
+        generatedAt: new Date().toISOString(),
+      });
+      console.log(
+        `Added ${result.receipt.addedNodes.length} cards and ${result.receipt.addedEdges.length} links; all original content and seed provenance preserved. Editorial review is still required.`,
       );
     },
   )

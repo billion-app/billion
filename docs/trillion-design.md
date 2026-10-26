@@ -189,6 +189,8 @@ Desktop shows the canvas and the focused claim page side by side. Selecting a no
 
 A debate can always go one level deeper, so the graph has a floor. No card may sit more than five steps from the main case, counting links either way; a graph that does fails the publication gate. Generated seeds stop at four steps, leaving a level for readers, and the generator prunes deeper cards instead of failing. Today's graphs reach at most four. Generation is also capped in cost: `--max-model-calls` is required, the staged pipeline checks its plan against that budget before expanding anything, and `--max-input-tokens` stops a staged run before any call once its token budget is spent.
 
+Existing graphs can also be expanded additively with `trillion expand` ([commands](../apps/scraper/README.md#trillion-argument-graphs)). Expansion preserves all original cards, links, sources, summaries and glossary entries. It reconstructs source-supported objections and qualified replies underneath existing claims, or asks specific questions when the evidence does not support an answer. New cards must fit within the seed depth; expansion fails rather than pruning old detail. The original seed provenance remains intact, while a separate receipt records the expansion's model, fingerprint and added IDs. Structural exchange counts help locate shallow disputes but cannot assess whether a reply addresses its objection; editorial review must do that.
+
 ## Provenance
 
 Every claim shows where it came from:
