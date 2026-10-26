@@ -225,18 +225,20 @@ export function buildTrillionExpansionPrompt(
   const wanted = new Set(
     group.cards.flatMap((c) => (c.sourceId ? [c.sourceId] : [])),
   );
-  // The "what" branch always sees the measure's own text.
-  if (group.key === "what")
-    for (const s of corpus.sources)
-      if (s.role === "legal-text" && s.number === corpus.number)
-        wanted.add(s.id);
+  // Every group needs the law and Analyst to distinguish mechanics from forecasts.
+  for (const source of corpus.sources)
+    if (
+      source.number === corpus.number &&
+      ["legal-text", "official-analysis"].includes(source.role)
+    )
+      wanted.add(source.id);
   const sources = corpus.sources.filter((s) => wanted.has(s.id));
   const branchIds = Object.fromEntries(
     BRANCH_KEYS.map((k) => [k, BRANCHES[k].id]),
   );
   return `You are writing part of a public argument graph ("the Trillion") for California Proposition ${corpus.number}, following a plan. Write ONLY the cards listed under YOUR CARDS, as full nodes, and the edges FROM those cards. Anything that fails the rules below is discarded.
 
-Ids you may link to: root "root"; branches ${JSON.stringify(branchIds)}; disputes ${JSON.stringify(plan.cruxes.map((c) => ({ id: c.id, title: c.title })))}; and any planned card ${JSON.stringify(plan.cards.map((c) => ({ id: c.id, kind: c.kind, label: c.label })))}.
+Ids you may link to: root "root"; branches ${JSON.stringify(branchIds)}; disputes ${JSON.stringify(plan.cruxes.map((c) => ({ id: c.id, title: c.title })))}; and any planned card ${JSON.stringify(plan.cards)}.
 
 For each of your cards:
 - A node with the planned id, kind and label, a "title" (the full statement, at most 300 characters), optional "body" (plain context, at most 800), and quotes where its kind requires them.
