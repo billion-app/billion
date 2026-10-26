@@ -177,6 +177,7 @@ Plan:
   - "weighsOn": the crux ids the card bears on. Every crux needs at least three cards weighing on it, from both sides when the sources support both; never invent a side the sources lack.
   - Add a "record" card for each OTHER ballot measure the sources connect to this one, and use kind "record" for nothing else (signer lists are "argument", this measure's text is "provision")${precedent ? ', and "precedent" cards (quoting only precedent sources) for the earlier measures' : ""}.
   - Add a "shared" card for a value framework only where an argument's lean turns on it.
+  - Plan specific unanswered question cards for missing eligibility definitions or unsupported causal steps now; expansions cannot introduce unplanned cards. Give each disputed question a plain body explaining the concrete change.
   - About 35 to 55 cards in all.
 
 Measure: Proposition ${corpus.number}, ${measure.title}
@@ -242,6 +243,7 @@ Ids you may link to: root "root"; branches ${JSON.stringify(branchIds)}; dispute
 
 For each of your cards:
 - A node with the planned id, kind and label, a "title" (the full statement, at most 300 characters), optional "body" (plain context, at most 800), and quotes where its kind requires them.
+- Evidence-card authors must write the outgoing "supports", "challenges" or "qualifies" edges FROM their provisions or analyses TO the planned arguments they explain, using the other cards' intents and source references. Argument-card authors explain those mechanisms in their bodies but must not emit edges from foreign cards. If you discover an evidence gap without a planned question card, state the missing causal step in the existing argument body; do not invent an unplanned card.
 - If its home is a branch, a "detail" edge to that branch, in the plan's order. For every crux id in "weighsOn", a "weighs" edge to it with a stance. Add "supports", "challenges", "qualifies", "asks", "answers", "appliesTo" or "conflicts" edges where the sources justify them.
 - "terms": jargon in your titles a general reader might have to look up, each with "plain": one everyday sentence (no amounts). At most four.
 
