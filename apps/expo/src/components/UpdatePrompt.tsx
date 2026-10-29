@@ -19,6 +19,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Updates from "expo-updates";
 
+import { AppStoreUpdateBanner } from "~/components/AppStoreUpdateBanner";
 import { UpdateReadyMark } from "~/components/UpdateReadyMark";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
@@ -187,164 +188,173 @@ export function UpdatePrompt({ forceShow = false }: UpdatePromptProps) {
     opacity: interpolate(centerProgress.value, [0, 0.35], [1, 0]),
   }));
 
-  if (!visible) return null;
-
   const surface = isDark ? planes.surface : theme.card;
   const asking = phase === "ask";
 
   return (
-    <View
-      pointerEvents="box-none"
-      style={styles.root}
-      accessibilityElementsHidden={false}
-      importantForAccessibility="yes"
-    >
-      <Animated.View
-        pointerEvents={asking ? "auto" : "none"}
-        style={[styles.backdrop, backdropStyle]}
-      >
-        <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
-      </Animated.View>
+    <>
+      <AppStoreUpdateBanner otaVisible={visible} />
+      {visible && (
+        <View
+          pointerEvents="box-none"
+          style={styles.root}
+          accessibilityElementsHidden={false}
+          importantForAccessibility="yes"
+        >
+          <Animated.View
+            pointerEvents={asking ? "auto" : "none"}
+            style={[styles.backdrop, backdropStyle]}
+          >
+            <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
+          </Animated.View>
 
-      <Animated.View
-        style={[
-          styles.popup,
-          {
-            backgroundColor: surface,
-            borderColor: hair[2],
-          },
-          getShadow(asking ? "lg" : "md", isDark),
-          cardStyle,
-        ]}
-        accessibilityRole="alert"
-        accessibilityLiveRegion="polite"
-      >
-        {asking ? (
-          <View style={styles.askBody}>
-            <UpdateReadyMark size={44} color={colors.bill} />
-            <Text style={styles.kicker}>{t("update.kicker")}</Text>
-            <Text style={[styles.askTitle, { color: theme.foreground }]}>
-              {isPreparingUpdate ? t("update.getting") : t("update.askTitle")}
-            </Text>
-            <Text style={[styles.askSubtitle, { color: theme.textSecondary }]}>
-              {isPreparingUpdate
-                ? t("update.restartingBody")
-                : t("update.askBody")}
-            </Text>
-            <View style={styles.askActions}>
-              <Pressable
-                onPress={() => void restartWithUpdate()}
-                disabled={isPreparingUpdate}
-                accessibilityState={{
-                  disabled: isPreparingUpdate,
-                  busy: isPreparingUpdate,
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={t("update.restartA11y")}
-                style={({ pressed }) => [
-                  styles.askPrimary,
-                  pressed && { opacity: 0.85 },
-                ]}
-              >
-                <Text style={styles.askPrimaryText}>
+          <Animated.View
+            style={[
+              styles.popup,
+              {
+                backgroundColor: surface,
+                borderColor: hair[2],
+              },
+              getShadow(asking ? "lg" : "md", isDark),
+              cardStyle,
+            ]}
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+          >
+            {asking ? (
+              <View style={styles.askBody}>
+                <UpdateReadyMark size={44} color={colors.bill} />
+                <Text style={styles.kicker}>{t("update.kicker")}</Text>
+                <Text style={[styles.askTitle, { color: theme.foreground }]}>
                   {isPreparingUpdate
-                    ? t("update.updating")
-                    : t("update.restartNow")}
+                    ? t("update.getting")
+                    : t("update.askTitle")}
                 </Text>
-              </Pressable>
-              <Pressable
-                onPress={dismiss}
-                disabled={isPreparingUpdate}
-                accessibilityRole="button"
-                accessibilityLabel={t("update.dismissA11y")}
-                style={({ pressed }) => [
-                  styles.askSecondary,
-                  pressed && { opacity: 0.55 },
-                ]}
-              >
                 <Text
-                  style={[
-                    styles.askSecondaryText,
-                    { color: theme.textSecondary },
-                  ]}
+                  style={[styles.askSubtitle, { color: theme.textSecondary }]}
                 >
-                  {t("update.notNow")}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.row}>
-            <View style={styles.markWrap}>
-              <UpdateReadyMark size={32} color={colors.bill} />
-            </View>
-            <View style={styles.copy}>
-              <Text style={styles.kicker} numberOfLines={1}>
-                {t("update.kicker")}
-              </Text>
-              <Text
-                style={[styles.title, { color: theme.foreground }]}
-                numberOfLines={1}
-              >
-                {isPreparingUpdate ? t("update.getting") : t("update.ready")}
-              </Text>
-              <Text
-                style={[styles.subtitle, { color: theme.textSecondary }]}
-                numberOfLines={1}
-              >
-                {isPreparingUpdate
-                  ? t("update.restartingWhenReady")
-                  : t("update.restartToInstall")}
-              </Text>
-            </View>
-            <View style={styles.actions}>
-              <Pressable
-                onPress={() => void restartWithUpdate()}
-                disabled={isPreparingUpdate}
-                accessibilityState={{
-                  disabled: isPreparingUpdate,
-                  busy: isPreparingUpdate,
-                }}
-                hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-                accessibilityRole="button"
-                accessibilityLabel={t("update.restartA11y")}
-                style={({ pressed }) => [
-                  styles.restartHit,
-                  pressed && styles.restartPressed,
-                ]}
-              >
-                <Text style={styles.restartText}>
                   {isPreparingUpdate
-                    ? t("update.updating")
-                    : t("update.restart")}
+                    ? t("update.restartingBody")
+                    : t("update.askBody")}
                 </Text>
-              </Pressable>
-              <Pressable
-                onPress={dismiss}
-                disabled={isPreparingUpdate}
-                hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
-                accessibilityRole="button"
-                accessibilityLabel={t("update.dismissA11y")}
-                style={({ pressed }) => [
-                  styles.laterHit,
-                  pressed && { opacity: 0.55 },
-                ]}
-              >
-                <Text
-                  style={[styles.laterText, { color: theme.textSecondary }]}
-                >
-                  {t("update.later")}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
+                <View style={styles.askActions}>
+                  <Pressable
+                    onPress={() => void restartWithUpdate()}
+                    disabled={isPreparingUpdate}
+                    accessibilityState={{
+                      disabled: isPreparingUpdate,
+                      busy: isPreparingUpdate,
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("update.restartA11y")}
+                    style={({ pressed }) => [
+                      styles.askPrimary,
+                      pressed && { opacity: 0.85 },
+                    ]}
+                  >
+                    <Text style={styles.askPrimaryText}>
+                      {isPreparingUpdate
+                        ? t("update.updating")
+                        : t("update.restartNow")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={dismiss}
+                    disabled={isPreparingUpdate}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("update.dismissA11y")}
+                    style={({ pressed }) => [
+                      styles.askSecondary,
+                      pressed && { opacity: 0.55 },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.askSecondaryText,
+                        { color: theme.textSecondary },
+                      ]}
+                    >
+                      {t("update.notNow")}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.row}>
+                <View style={styles.markWrap}>
+                  <UpdateReadyMark size={32} color={colors.bill} />
+                </View>
+                <View style={styles.copy}>
+                  <Text style={styles.kicker} numberOfLines={1}>
+                    {t("update.kicker")}
+                  </Text>
+                  <Text
+                    style={[styles.title, { color: theme.foreground }]}
+                    numberOfLines={1}
+                  >
+                    {isPreparingUpdate
+                      ? t("update.getting")
+                      : t("update.ready")}
+                  </Text>
+                  <Text
+                    style={[styles.subtitle, { color: theme.textSecondary }]}
+                    numberOfLines={1}
+                  >
+                    {isPreparingUpdate
+                      ? t("update.restartingWhenReady")
+                      : t("update.restartToInstall")}
+                  </Text>
+                </View>
+                <View style={styles.actions}>
+                  <Pressable
+                    onPress={() => void restartWithUpdate()}
+                    disabled={isPreparingUpdate}
+                    accessibilityState={{
+                      disabled: isPreparingUpdate,
+                      busy: isPreparingUpdate,
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("update.restartA11y")}
+                    style={({ pressed }) => [
+                      styles.restartHit,
+                      pressed && styles.restartPressed,
+                    ]}
+                  >
+                    <Text style={styles.restartText}>
+                      {isPreparingUpdate
+                        ? t("update.updating")
+                        : t("update.restart")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={dismiss}
+                    disabled={isPreparingUpdate}
+                    hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("update.dismissA11y")}
+                    style={({ pressed }) => [
+                      styles.laterHit,
+                      pressed && { opacity: 0.55 },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.laterText, { color: theme.textSecondary }]}
+                    >
+                      {t("update.later")}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
 
-        <View style={[styles.timerTrack, { backgroundColor: hair[2] }]}>
-          <Animated.View style={[styles.timerFill, timerStyle]} />
+            <View style={[styles.timerTrack, { backgroundColor: hair[2] }]}>
+              <Animated.View style={[styles.timerFill, timerStyle]} />
+            </View>
+          </Animated.View>
         </View>
-      </Animated.View>
-    </View>
+      )}
+    </>
   );
 }
 
