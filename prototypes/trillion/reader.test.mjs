@@ -123,6 +123,159 @@ await test("Trillion cards, touch ring and device persistence", async () => {
     await page.locator("#map-expand").click();
     const fullAll = page.locator(".map-full-head [data-map-show-all]");
     assert.equal(await fullAll.isChecked(), true);
+    const geometry = await page.locator("#cy").evaluate((el) => {
+      const cy = el._cyreg.cy;
+      const viewport = el.getBoundingClientRect();
+      const cards = [...document.querySelectorAll(".mcard")];
+      return cy.nodes().map((node, index) => {
+        const card = cards[index].getBoundingClientRect();
+        const point = node.renderedPosition();
+        return {
+          id: node.id(),
+          error: Math.hypot(
+            card.x + card.width / 2 - viewport.x - point.x,
+            card.y + card.height / 2 - viewport.y - point.y,
+          ),
+        };
+      });
+    });
+    assert.ok(
+      geometry.every((node) => node.error < 1),
+      `cards and their connection geometry must align: ${JSON.stringify(geometry.filter((node) => node.error >= 1))}`,
+    );
+    assert.equal(await page.locator("#map-hint").isVisible(), true);
+    assert.equal(
+      await page.locator(".mcard.lit .mtitle").first().isVisible(),
+      false,
+      "overview must not render microscopic text",
+    );
+    await page.locator("#zoom-in").click();
+    await page.waitForFunction(
+      () => !document.querySelector("#map").classList.contains("overview"),
+    );
+    assert.equal(
+      await page.locator(".mcard.lit .mtitle").first().isVisible(),
+      true,
+    );
+    const neighborhood = await page.locator("#cy").evaluate((el) => {
+      const cy = el._cyreg.cy;
+      const focus = cy.nodes(".focused");
+      const visible = (node) => {
+        const point = node.renderedPosition(),
+          z = cy.zoom();
+        return (
+          point.x + (node.data("fw") * z) / 2 > 0 &&
+          point.x - (node.data("fw") * z) / 2 < cy.width() &&
+          point.y + (node.data("fh") * z) / 2 > 0 &&
+          point.y - (node.data("fh") * z) / 2 < cy.height()
+        );
+      };
+      return {
+        focusVisible: visible(focus),
+        neighbors: focus.neighborhood().nodes().filter(visible).length,
+      };
+    });
+    assert.ok(
+      neighborhood.focusVisible && neighborhood.neighbors > 0,
+      "readable zoom must show the current argument and connected neighbors",
+    );
+    const renderedFont = await page
+      .locator(".mcard.lit .mtitle")
+      .first()
+      .evaluate(
+        (title) =>
+          parseFloat(getComputedStyle(title).fontSize) *
+          document.querySelector("#cy")._cyreg.cy.zoom(),
+      );
+    assert.ok(
+      renderedFont >= 12,
+      "labels must be readable immediately after leaving overview",
+    );
+    const overlapCount = await page.locator("#cy").evaluate((el) => {
+      const nodes = el._cyreg.cy.nodes();
+      let overlaps = 0;
+      for (let i = 0; i < nodes.length; i++)
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i],
+            b = nodes[j];
+          if (
+            Math.abs(a.position("x") - b.position("x")) <
+              (a.width() + b.width()) / 2 &&
+            Math.abs(a.position("y") - b.position("y")) <
+              (a.height() + b.height()) / 2
+          )
+            overlaps++;
+        }
+      return overlaps;
+    });
+    assert.equal(
+      overlapCount,
+      0,
+      "repulsion must keep readable argument cards apart",
+    );
+    await page.locator("#zoom-fit").click();
+    await page.waitForFunction(
+      () => !document.querySelector("#cy")._cyreg.cy.animated(),
+    );
+    const drag = await page.locator("#cy").evaluate((el) => {
+      const cy = el._cyreg.cy;
+      const rect = el.getBoundingClientRect();
+      const nodes = cy.nodes().filter((node) => {
+        const p = node.renderedPosition();
+        return (
+          p.x + rect.x > 25 &&
+          p.x + rect.x < innerWidth - 25 &&
+          p.y + rect.y > rect.y + 25 &&
+          p.y + rect.y < rect.bottom - 120
+        );
+      });
+      const node = nodes[0],
+        neighbor = nodes[1];
+      const point = node.renderedPosition(),
+        target = neighbor.renderedPosition();
+      return {
+        id: node.id(),
+        neighborId: neighbor.id(),
+        before: { ...node.position() },
+        neighborBefore: { ...neighbor.position() },
+        x: point.x + rect.x,
+        y: point.y + rect.y,
+        targetX: target.x + rect.x,
+        targetY: target.y + rect.y,
+      };
+    });
+    await page.mouse.move(drag.x, drag.y);
+    await page.mouse.down();
+    await page.mouse.move(drag.targetX, drag.targetY, { steps: 12 });
+    await page.waitForFunction(({ id, neighborId, before, neighborBefore }) => {
+      const cy = document.querySelector("#cy")._cyreg.cy;
+      const node = cy.getElementById(id).position();
+      const neighbor = cy.getElementById(neighborId).position();
+      return (
+        Math.hypot(node.x - before.x, node.y - before.y) > 20 &&
+        Math.hypot(
+          neighbor.x - neighborBefore.x,
+          neighbor.y - neighborBefore.y,
+        ) > 1
+      );
+    }, drag);
+    await page.mouse.up();
+    await page.waitForFunction(() => {
+      const nodes = document.querySelector("#cy")._cyreg.cy.nodes();
+      for (let i = 0; i < nodes.length; i++)
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i],
+            b = nodes[j];
+          if (
+            Math.abs(a.position("x") - b.position("x")) <
+              (a.data("fw") + b.data("fw")) / 2 &&
+            Math.abs(a.position("y") - b.position("y")) <
+              (a.data("fh") + b.data("fh")) / 2
+          )
+            return false;
+        }
+      return true;
+    });
     await fullAll.uncheck();
     assert.ok((await page.locator(".mcard.lit").count()) < allCount);
     await page.locator("#map-close").click();

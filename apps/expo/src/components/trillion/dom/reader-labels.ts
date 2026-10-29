@@ -200,6 +200,10 @@ export const labels: Record<string, { zh: string; es: string }> = {
   "asks about": { zh: "询问", es: "pregunta sobre" },
   answers: { zh: "回答", es: "responde" },
   conflicts: { zh: "冲突", es: "entra en conflicto" },
+  "Zoom in to read arguments · Tap a node for details": {
+    zh: "放大查看论点 · 轻点节点查看详情",
+    es: "Amplía para leer · Toca un nodo para ver los detalles",
+  },
   "Show all arguments": {
     zh: "显示所有论点",
     es: "Mostrar todos los argumentos",

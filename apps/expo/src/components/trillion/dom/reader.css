@@ -1137,10 +1137,7 @@ textarea {
   inset: 0;
   pointer-events: none;
   overflow: hidden;
-}
-.map.full #cards {
-  top: calc(56px + env(safe-area-inset-top, 0px));
-  bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+  z-index: 1;
 }
 .mcard {
   position: absolute;
@@ -1158,7 +1155,6 @@ textarea {
     opacity 0.35s,
     border-color 0.35s,
     box-shadow 0.35s;
-  will-change: transform;
 }
 .mcard.lit {
   opacity: 1;
@@ -1798,4 +1794,51 @@ textarea {
   stroke: var(--text);
   stroke-width: 2;
   opacity: 1;
+}
+
+/* Whole-map labels appear only at readable zoom; tap an overview node for its full card. */
+.map.all-arguments .mcard {
+  width: 176px;
+  padding: 8px;
+}
+.map.all-arguments .mcard .mrel,
+.map.all-arguments .mcard .mmeta {
+  display: none;
+}
+.map.all-arguments .mcard .mtitle {
+  font: 600 16px/1.3 var(--body);
+  display: block;
+  -webkit-line-clamp: unset;
+}
+.map.overview .mcard {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  border-width: 2px;
+  background: var(--link);
+}
+.map.overview .mcard .mtitle {
+  display: none;
+}
+.map.overview .mcard.root {
+  background: var(--spark);
+}
+.map.overview .mcard.crux {
+  background: var(--rel-mixed);
+}
+.map-hint {
+  position: absolute;
+  z-index: 2;
+  left: 10px;
+  right: 10px;
+  bottom: 52px;
+  margin: 0;
+  color: var(--text);
+  text-align: center;
+  font: 500 12px/1.4 var(--body);
+  pointer-events: none;
+}
+.map.full .map-hint {
+  bottom: calc(106px + env(safe-area-inset-bottom, 0px));
 }
