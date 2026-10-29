@@ -3,7 +3,6 @@ function versionParts(version: string | null): number[] | null {
   return version.split(".").map(Number);
 }
 
-/** Compare native version components, never OTA config versions or build IDs. */
 export function compareVersions(left: string | null, right: string | null) {
   const a = versionParts(left);
   const b = versionParts(right);
