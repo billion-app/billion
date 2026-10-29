@@ -216,3 +216,23 @@ void test("one unavailable feed preserves independent matches and duplicate meas
   assert.deepEqual(result.candidates, {});
   assert.deepEqual(Object.keys(result.measures), ["2"]);
 });
+
+void test("internal full roster fetches governor when no statement was submitted", async () => {
+  const withoutGovernor = { ...guide, candidates: [] };
+  const legacy = await loadCaliforniaGuideResults(withoutGovernor, {
+    now,
+    fetcher: fetcher(),
+  });
+  assert.deepEqual(legacy.status === "reported" ? legacy.candidates : {}, {});
+  const full = await loadCaliforniaGuideResults(withoutGovernor, {
+    now,
+    fetcher: fetcher(),
+    fullRoster: true,
+  });
+  assert.equal(full.status, "reported");
+  assert.deepEqual(Object.keys(full.candidates).sort(), [
+    "governor:Alice Example",
+    "governor:Other Person",
+  ]);
+  assert.equal(full.candidates["governor:Other Person"]?.share, 70);
+});

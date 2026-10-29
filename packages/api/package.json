@@ -98,6 +98,10 @@
     "./lib/pretranslate-readers": {
       "types": "./dist/lib/pretranslate-readers.d.ts",
       "default": "./src/lib/pretranslate-readers.ts"
+    },
+    "./lib/california-polling": {
+      "types": "./dist/lib/california-polling.d.ts",
+      "default": "./src/lib/california-polling.ts"
     }
   },
   "license": "MIT",

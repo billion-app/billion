@@ -2,10 +2,125 @@
 import type { Catalog } from "./types";
 
 export const electionStrings = {
+  "Checking polls…": {
+    en: "Checking polls…",
+    es: "Consultando encuestas…",
+    zh: "正在查询民调…",
+  },
+  "Polling unavailable": {
+    en: "Polling unavailable",
+    es: "Encuestas no disponibles",
+    zh: "无法获取民调",
+  },
   "{rank} of {total}": {
     en: "{rank} of {total}",
     es: "{rank} de {total}",
     zh: "第 {rank} 名，共 {total} 名",
+  },
+  Candidates: { en: "Candidates", es: "Candidatos", zh: "候选人" },
+  Governor: { en: "Governor", es: "Gobernador", zh: "州长" },
+  "Governor poll": {
+    en: "Governor poll",
+    es: "Encuesta de gobernador",
+    zh: "州长民调",
+  },
+  "Official statements {count}": {
+    en: "Official statements {count}",
+    es: "Declaraciones oficiales {count}",
+    zh: "官方声明 {count}",
+  },
+  "No poll available in our sources": {
+    en: "No poll available in our sources",
+    es: "No hay encuestas disponibles en nuestras fuentes",
+    zh: "我们的来源暂无相关民调",
+  },
+  "Reported results": {
+    en: "Reported results",
+    es: "Resultados reportados",
+    zh: "已报告结果",
+  },
+  Poll: { en: "Poll", es: "Encuesta", zh: "民调" },
+  Close: { en: "Close", es: "Cerrar", zh: "关闭" },
+  "Poll details": {
+    en: "Poll details",
+    es: "Detalles de la encuesta",
+    zh: "民调详情",
+  },
+  "in this poll": {
+    en: "in this poll",
+    es: "en esta encuesta",
+    zh: "在本次民调中",
+  },
+  Undecided: { en: "Undecided", es: "Indecisos", zh: "未决定" },
+  Neither: { en: "Neither", es: "Ninguno", zh: "均不支持" },
+  "Equal in this poll": {
+    en: "Equal in this poll",
+    es: "Iguales en esta encuesta",
+    zh: "本次民调支持率相同",
+  },
+  "{name} ahead by {points} points in this poll": {
+    en: "{name} ahead by {points} points in this poll",
+    es: "{name} lleva {points} puntos de ventaja en esta encuesta",
+    zh: "{name} 在本次民调中领先 {points} 个百分点",
+  },
+  "Not reported": { en: "Not reported", es: "No reportado", zh: "未报告" },
+  Publisher: { en: "Publisher", es: "Editor", zh: "发布机构" },
+  Pollster: { en: "Pollster", es: "Encuestadora", zh: "民调机构" },
+  Sponsor: { en: "Sponsor", es: "Patrocinador", zh: "赞助方" },
+  "Field dates": {
+    en: "Field dates",
+    es: "Fechas de entrevistas",
+    zh: "调查日期",
+  },
+  Published: { en: "Published", es: "Publicación", zh: "发布日期" },
+  Population: { en: "Population", es: "Población", zh: "调查对象" },
+  "California statewide likely voters": {
+    en: "California statewide likely voters",
+    es: "Probables votantes de todo California",
+    zh: "加州全州可能投票者",
+  },
+  "Question sample": {
+    en: "Question sample",
+    es: "Muestra de esta pregunta",
+    zh: "本题样本数",
+  },
+  "Survey likely voters": {
+    en: "Survey likely voters",
+    es: "Probables votantes de la encuesta",
+    zh: "调查中的可能投票者样本数",
+  },
+  "Survey margin of error": {
+    en: "Survey margin of error",
+    es: "Margen de error de la encuesta",
+    zh: "调查误差范围",
+  },
+  "percentage points": {
+    en: "percentage points",
+    es: "puntos porcentuales",
+    zh: "个百分点",
+  },
+  "Margin of error scope": {
+    en: "Margin of error scope",
+    es: "Alcance del margen de error",
+    zh: "误差范围适用对象",
+  },
+  Method: { en: "Method", es: "Método", zh: "调查方法" },
+  Question: { en: "Question", es: "Pregunta", zh: "题号" },
+  "A poll measures opinions. It is not counted votes.": {
+    en: "A poll measures opinions. It is not counted votes.",
+    es: "Una encuesta mide opiniones. No son votos contados.",
+    zh: "民调反映意见，并非已统计的选票。",
+  },
+  "Published percentages may total 99% or 101% because of rounding. Bars use the published values.":
+    {
+      en: "Published percentages may total 99% or 101% because of rounding. Bars use the published values.",
+      es: "Los porcentajes publicados pueden sumar 99% o 101% por redondeo. Las barras usan los valores publicados.",
+      zh: "由于四舍五入，公布的百分比合计可能为 99% 或 101%。条形图使用公布数值。",
+    },
+  "Read the poll source": {
+    en: "Read the poll source",
+    es: "Leer la fuente de la encuesta",
+    zh: "阅读民调来源",
   },
   "Results pending": {
     en: "Results pending",

@@ -106,7 +106,7 @@ function vote(votes: number, counts: number[]): ReportedVote {
 
 export async function loadCaliforniaGuideResults(
   guide: OfficialGuidePayload | null,
-  options: { fetcher?: typeof fetch; now?: number } = {},
+  options: { fetcher?: typeof fetch; now?: number; fullRoster?: boolean } = {},
 ): Promise<CaliforniaGuideResults> {
   const now = options.now ?? Date.now();
   const fetcher = options.fetcher ?? fetch;
@@ -136,7 +136,10 @@ export async function loadCaliforniaGuideResults(
     const measures: Record<string, GuideMeasureResult> = {};
     await Promise.all(
       [
-        ...new Set(guide.candidates.map((candidate) => candidate.officeSlug)),
+        ...new Set([
+          ...guide.candidates.map((candidate) => candidate.officeSlug),
+          ...(options.fullRoster ? ["governor" as const] : []),
+        ]),
       ].map(async (slug) => {
         const [file, title] = OFFICE[slug];
         const contests = (await read(file)).filter(
@@ -164,9 +167,11 @@ export async function loadCaliforniaGuideResults(
         const votes = counts as number[];
         const totalVotes = votes.reduce((sum, count) => sum + count, 0);
         if (!Number.isSafeInteger(totalVotes)) return;
-        for (const candidate of guide.candidates.filter(
-          (candidate) => candidate.officeSlug === slug,
-        )) {
+        for (const candidate of options.fullRoster
+          ? roster.map((entry) => ({ name: entry.Name }))
+          : guide.candidates.filter(
+              (candidate) => candidate.officeSlug === slug,
+            )) {
           const index = names.indexOf(normalize(candidate.name));
           const count = votes[index];
           if (count === undefined) continue;
