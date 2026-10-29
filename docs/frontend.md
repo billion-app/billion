@@ -184,6 +184,12 @@ switch and in the full-screen map header. Checking it reveals every available
 card and connection and fits the whole graph; readers can zoom in to read it.
 Unchecking returns to the current topic. This choice survives navigation and
 language changes within the same graph revision, and starts off for a new debate.
+Whole-map mode uses link attraction, repulsion and measured card separation so
+connected arguments form neighborhoods without overlapping. At overview scale,
+solid nodes replace text that would be too small to read; zooming in restores
+complete short labels, and tapping a node opens the argument and its sources.
+The simulation settles at rest and reheats while dragging. Cards and connections
+share one viewport so their positions and tap targets stay aligned.
 The implementation lives in the [shared map engine](../apps/expo/src/components/trillion/dom/reader-engine.js).
 
 The [native debate host](../apps/expo/src/components/trillion/TrillionScreen.tsx) keeps its header and skeleton visible while the DOM reader mounts. Storage completion is not a visual-ready signal: the reader waits for its stylesheet, fonts, and a painted frame before revealing content. A two-second typography deadline selects system fonts for that document if font loading stalls, preventing both indefinite loading and a late font swap. The DOM root has an explicit full column width, and the native navigation container shares the navy canvas so iOS rounded transitions cannot expose white corners. [Runtime evidence](evidence/measure-loading/README.md) records the verified states and limits.
