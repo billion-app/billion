@@ -330,6 +330,30 @@ a {
 .map-tools .expand {
   font-size: 13px;
 }
+.map-show-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  width: fit-content;
+  color: var(--quiet);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.map-show-all input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--link);
+}
+.map-show-all:has(input:checked) {
+  color: var(--text);
+}
+.map-show-all:has(input:focus-visible) {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
 .map-full-head {
   display: none;
 }
