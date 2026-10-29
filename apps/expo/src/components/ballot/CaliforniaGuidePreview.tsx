@@ -41,11 +41,24 @@ import {
   propositionDetailRoute,
   splitOfficialTitle,
 } from "~/utils/proposition-explainers";
+import { GuidePollResult } from "./GuidePollResult";
 import { GuideVoteResult, useGuideVoteLabel } from "./GuideVoteResult";
 
 type Guide = NonNullable<RouterOutputs["civic"]["getCaliforniaGuide"]>;
 type Candidate = Guide["candidates"][number];
 type Measure = Guide["measures"][number];
+type Standing =
+  RouterOutputs["civic"]["getCaliforniaGuideStandings"]["measures"][string];
+function officialMeasure(standing: Standing | undefined) {
+  return standing?.kind === "official" ? standing.result : undefined;
+}
+function officialCandidate(
+  standing:
+    | RouterOutputs["civic"]["getCaliforniaGuideStandings"]["candidates"][string]
+    | undefined,
+) {
+  return standing?.kind === "official" ? standing.result : undefined;
+}
 type GuideTab = "candidates" | "measures";
 
 const MEASURE_VIEWABILITY = { itemVisiblePercentThreshold: 1 };
@@ -99,7 +112,15 @@ function CandidateRow({
       accessibilityRole="button"
       accessibilityLabel={[
         candidate.name,
-        resultLabel,
+        result
+          ? resultLabel
+          : tx(
+              status === "loading"
+                ? "Checking polls…"
+                : status === "unavailable"
+                  ? "Polling unavailable"
+                  : "No poll available in our sources",
+            ),
         translateAppLabel(
           language,
           candidate.officeName ?? tx("statewide office"),
@@ -142,7 +163,19 @@ function CandidateRow({
             .filter(Boolean)
             .join(" · ")}
         </Text>
-        <GuideVoteResult result={result} status={status} />
+        {result ? (
+          <GuideVoteResult result={result} status={status} />
+        ) : (
+          <Text style={s.note}>
+            {tx(
+              status === "loading"
+                ? "Checking polls…"
+                : status === "unavailable"
+                  ? "Polling unavailable"
+                  : "No poll available in our sources",
+            )}
+          </Text>
+        )}
       </View>
       <Icon name="chevR" size={18} color={P.primary} />
     </TouchableOpacity>
@@ -151,10 +184,12 @@ function CandidateRow({
 
 function MeasureRow({
   measure: originalMeasure,
+  standing,
   result,
   status,
 }: {
   measure: Measure;
+  standing?: Standing;
   result?: GuideVote;
   status: "loading" | "pending" | "unavailable" | "reported";
 }) {
@@ -173,47 +208,73 @@ function MeasureRow({
   const router = useRouter();
   const official = splitOfficialTitle(measure.title);
   return (
-    <TouchableOpacity
-      accessibilityRole="button"
-      accessibilityLabel={[
-        tx("Proposition {value1}", { value1: measure.number }),
-        resultLabel,
-        measure.displayTitle
-          ? plainTrillionText(measure.displayTitle)
-          : measure.title,
-      ]
-        .filter(Boolean)
-        .join(". ")}
-      accessibilityHint={tx("Opens the proposition detail")}
-      activeOpacity={0.8}
-      onPress={() => router.push(propositionDetailRoute(measure.number))}
-      style={s.row}
-    >
-      <View style={s.tile} accessible={false}>
-        <Text style={s.tileText}>{measure.number}</Text>
-      </View>
-      <View style={s.rowCopy}>
-        {measure.displayTitle ? (
-          <Text style={[s.rowTitle, s.headline17]}>
-            {trillionEmphasis(measure.displayTitle).map((part, index) => (
-              <Text key={index} style={part.bold ? s.bold : undefined}>
-                {part.text}
+    <View style={s.standingRow}>
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={[
+          tx("Proposition {value1}", { value1: measure.number }),
+          standing?.kind === "poll"
+            ? `${tx("Poll")}. ${standing.poll.observation.choices.map((choice) => `${choice.kind === "yes" ? tx("Yes") : choice.kind === "no" ? tx("No") : choice.kind === "undecided" ? tx("Undecided") : choice.label} ${choice.share}%`).join(", ")}`
+            : result
+              ? resultLabel
+              : tx(
+                  status === "loading"
+                    ? "Checking polls…"
+                    : status === "unavailable"
+                      ? "Polling unavailable"
+                      : "No poll available in our sources",
+                ),
+          measure.displayTitle
+            ? plainTrillionText(measure.displayTitle)
+            : measure.title,
+        ]
+          .filter(Boolean)
+          .join(". ")}
+        accessibilityHint={tx("Opens the proposition detail")}
+        activeOpacity={0.8}
+        onPress={() => router.push(propositionDetailRoute(measure.number))}
+        style={s.row}
+      >
+        <View style={s.tile} accessible={false}>
+          <Text style={s.tileText}>{measure.number}</Text>
+        </View>
+        <View style={s.rowCopy}>
+          {measure.displayTitle ? (
+            <Text style={[s.rowTitle, s.headline17]}>
+              {trillionEmphasis(measure.displayTitle).map((part, index) => (
+                <Text key={index} style={part.bold ? s.bold : undefined}>
+                  {part.text}
+                </Text>
+              ))}
+            </Text>
+          ) : (
+            <Text style={s.officialTitle}>{official.subject}</Text>
+          )}
+          {translation.state === "pending" && (
+            <Text style={s.note}>{t("article.translationPending")}</Text>
+          )}
+          {translation.state === "unavailable" && (
+            <Text style={s.note}>{t("article.translationUnavailable")}</Text>
+          )}
+          {standing?.kind !== "poll" &&
+            (result ? (
+              <GuideVoteResult result={result} status={status} />
+            ) : (
+              <Text style={s.note}>
+                {tx(
+                  status === "loading"
+                    ? "Checking polls…"
+                    : status === "unavailable"
+                      ? "Polling unavailable"
+                      : "No poll available in our sources",
+                )}
               </Text>
             ))}
-          </Text>
-        ) : (
-          <Text style={s.officialTitle}>{official.subject}</Text>
-        )}
-        {translation.state === "pending" && (
-          <Text style={s.note}>{t("article.translationPending")}</Text>
-        )}
-        {translation.state === "unavailable" && (
-          <Text style={s.note}>{t("article.translationUnavailable")}</Text>
-        )}
-        <GuideVoteResult result={result} status={status} />
-      </View>
-      <Icon name="chevR" size={18} color={P.primary} />
-    </TouchableOpacity>
+        </View>
+        <Icon name="chevR" size={18} color={P.primary} />
+      </TouchableOpacity>
+      {standing?.kind === "poll" && <GuidePollResult poll={standing.poll} />}
+    </View>
   );
 }
 
@@ -248,7 +309,7 @@ export function CaliforniaGuidePreview({
   );
   const guide = query.isError ? undefined : query.data;
   const resultsQuery = useQuery(
-    trpc.civic.getCaliforniaGuideResults.queryOptions(undefined, {
+    trpc.civic.getCaliforniaGuideStandings.queryOptions(undefined, {
       enabled: focused && !!guide,
       staleTime: 60_000,
       refetchInterval: focused ? 60_000 : false,
@@ -259,8 +320,11 @@ export function CaliforniaGuidePreview({
     resultsQuery.data?.electionDate === guide?.electionDate
       ? resultsQuery.data
       : undefined;
-  const resultsStatus =
-    results?.status ?? (resultsQuery.isPending ? "loading" : "unavailable");
+  const resultsStatus = resultsQuery.isPending
+    ? "loading"
+    : resultsQuery.isError
+      ? "unavailable"
+      : "reported";
   const [visibleNumbers, setVisibleNumbers] = useState<string[]>([]);
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken<Measure>[] }) => {
@@ -294,11 +358,8 @@ export function CaliforniaGuidePreview({
         renderItem={({ item }) => (
           <MeasureRow
             measure={item}
-            result={
-              results?.status === "reported"
-                ? results.measures[item.number]
-                : undefined
-            }
+            standing={results?.measures[item.number]}
+            result={officialMeasure(results?.measures[item.number])}
             status={resultsStatus}
           />
         )}
@@ -412,9 +473,7 @@ export function CaliforniaGuidePreview({
                   options={[
                     {
                       id: "candidates",
-                      label: tx("Statements {count}", {
-                        count: guide.candidates.length,
-                      }),
+                      label: tx("Candidates"),
                       icon: "vote",
                     },
                     {
@@ -428,6 +487,33 @@ export function CaliforniaGuidePreview({
                 />
                 {tab === "candidates" ? (
                   <View style={s.list}>
+                    {results?.governor.kind === "poll" && (
+                      <View style={s.standingRow}>
+                        <GuidePollResult
+                          title={tx("Governor poll")}
+                          poll={results.governor.poll}
+                        />
+                      </View>
+                    )}
+                    {results?.governor.kind === "official" && (
+                      <View style={s.standingRow}>
+                        <Text style={s.rowTitle}>{tx("Governor")}</Text>
+                        {results.governor.candidates.map((candidate) => (
+                          <View key={candidate.name} style={{ padding: 14 }}>
+                            <Text style={s.rowTitle}>{candidate.name}</Text>
+                            <GuideVoteResult
+                              result={candidate.result}
+                              status="reported"
+                            />
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    <Text style={s.rowTitle}>
+                      {tx("Official statements {count}", {
+                        count: guide.candidates.length,
+                      })}
+                    </Text>
                     <Text style={s.note}>
                       {tx("Statement submitters only, not your full ballot.")}
                     </Text>
@@ -435,13 +521,11 @@ export function CaliforniaGuidePreview({
                       <CandidateRow
                         key={`${candidate.officeSlug}:${candidate.name}`}
                         candidate={candidate}
-                        result={
-                          results?.status === "reported"
-                            ? results.candidates[
-                                `${candidate.officeSlug}:${candidate.name}`
-                              ]
-                            : undefined
-                        }
+                        result={officialCandidate(
+                          results?.candidates[
+                            `${candidate.officeSlug}:${candidate.name}`
+                          ],
+                        )}
                         status={resultsStatus}
                       />
                     ))}
@@ -583,6 +667,13 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: DigestHair.cardBorder,
     backgroundColor: P.card,
+  },
+  standingRow: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
+    backgroundColor: P.card,
+    overflow: "hidden",
   },
   rowCopy: { flex: 1, minWidth: 0, gap: 4 },
   tile: {

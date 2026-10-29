@@ -114,3 +114,28 @@ not a later procedural update or ingestion time. A latest enactment status can
 use `lastActionAt` when the action history has no enactment date; enacted records
 without either date are excluded. Stored records, saved bills, and direct detail
 links remain available.
+
+### California guide polling and reported results
+
+`civic.getCaliforniaGuideStandings` returns the current guide's measures and
+candidate statements plus a separate governor contest. Each contest uses a
+validated statewide likely-voter poll, verified reported results, or an explicit
+absence. A positive official vote total replaces polling for the entire contest.
+A zero official total leaves polling available. The internal result loader keeps
+the governor's complete official roster even when no candidate submitted a guide
+statement. The older `getCaliforniaGuideResults` procedure retains its contract.
+
+Polling reports are ingested into `civic_api_cache` under
+`ca-election-polling-v1`, keyed by election date and type, publisher and report ID.
+Refreshing a report replaces that report atomically. It does not erase older
+reports covering other contests. The API chooses the latest field end date, then
+publication date and stable report ID, for each exactly matched contest. It
+rejects future dates, other election cycles, non-statewide populations and
+mismatched measure titles or governor names. Initial polling coverage is PPIC's
+statewide governor and proposition questions. Candidate statement rows have no
+downballot polling source.
+
+Published shares keep undecided and other responses and their original rounding.
+Question sample sizes remain distinct from the full likely-voter sample and its
+margin of error. Full extracted source text stays private in the cache. Public
+responses include source links, method metadata and the selected question.

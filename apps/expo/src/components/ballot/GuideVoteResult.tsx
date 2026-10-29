@@ -54,7 +54,7 @@ export function GuideVoteResult({
   status: Snapshot["status"] | "loading";
 }) {
   const label = useGuideVoteLabel(result, status);
-  const { language } = useAppTranslation();
+  const { language, t } = useAppTranslation();
   return (
     <View style={s.container} accessible={false}>
       {result && result.totalVotes > 0 && (
@@ -84,6 +84,9 @@ export function GuideVoteResult({
           />
         </View>
       )}
+      {result && result.totalVotes > 0 && (
+        <Text style={s.timestamp}>{t("Reported results")}</Text>
+      )}
       <Text style={s.label}>{label}</Text>
       {result && (
         <Text style={s.timestamp}>
@@ -110,7 +113,7 @@ export function GuideVoteDetails({
   const { t } = useAppTranslation();
   const focused = useIsFocused();
   const query = useQuery(
-    trpc.civic.getCaliforniaGuideResults.queryOptions(undefined, {
+    trpc.civic.getCaliforniaGuideStandings.queryOptions(undefined, {
       staleTime: 60_000,
       enabled: focused,
       refetchInterval: focused ? 60_000 : false,
@@ -120,18 +123,23 @@ export function GuideVoteDetails({
     !query.isError && query.data?.electionDate === electionDate
       ? query.data
       : undefined;
-  const result =
-    snapshot?.status === "reported"
-      ? snapshot.candidates[candidateKey]
-      : undefined;
+  const standing = snapshot?.candidates[candidateKey];
+  const result = standing?.kind === "official" ? standing.result : undefined;
   return (
     <View style={{ gap: 8 }}>
-      <GuideVoteResult
-        result={result}
-        status={
-          snapshot?.status ?? (query.isPending ? "loading" : "unavailable")
-        }
-      />
+      {result ? (
+        <GuideVoteResult result={result} status="reported" />
+      ) : (
+        <Text style={s.label}>
+          {t(
+            query.isPending
+              ? "Checking polls…"
+              : query.isError || !snapshot || !standing
+                ? "Polling unavailable"
+                : "No poll available in our sources",
+          )}
+        </Text>
+      )}
       <SourceLink
         label={t("Official election results")}
         url={result?.sourceUrl ?? "https://electionresults.sos.ca.gov/"}
