@@ -200,6 +200,10 @@ export const labels: Record<string, { zh: string; es: string }> = {
   "asks about": { zh: "询问", es: "pregunta sobre" },
   answers: { zh: "回答", es: "responde" },
   conflicts: { zh: "冲突", es: "entra en conflicto" },
+  "Show all arguments": {
+    zh: "显示所有论点",
+    es: "Mostrar todos los argumentos",
+  },
   "Argument map": { zh: "论点关系图", es: "Mapa de argumentos" },
   "Show details about Billion AI authorship": {
     zh: "查看 Billion AI 撰写说明",

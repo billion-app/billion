@@ -166,6 +166,23 @@ await test("native back-state renders preserve the reader path and open sheets",
       await page.locator("#layer .body").textContent(),
       /Revisiones/,
     );
+    await page.locator("[data-close]").click();
+    await page.locator('[data-view="map"]').click();
+    await page.locator("#page > .map-show-all [data-map-show-all]").check();
+    const allCount = await page.locator(".mcard").count();
+    assert.equal(await page.locator(".mcard.lit").count(), allCount);
+    await page.locator("#language-zh").click();
+    assert.equal(
+      await page
+        .locator("#page > .map-show-all [data-map-show-all]")
+        .isChecked(),
+      true,
+    );
+    assert.equal(await page.locator(".mcard.lit").count(), allCount);
+    assert.match(
+      await page.locator("#page > .map-show-all").textContent(),
+      /显示所有论点/,
+    );
   } finally {
     await browser.close();
     await new Promise((r) => server.close(r));
