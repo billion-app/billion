@@ -102,7 +102,7 @@ export function GuidePollResult({
           style={s.compactAction}
         >
           <View style={s.choiceLabel}>
-            <Text style={s.label}>{t("Poll")}</Text>
+            <Text style={[s.label, s.compactMeta]}>{t("Poll")}</Text>
             <Text style={s.link}>
               {t(expanded ? "Collapse poll" : "Expand poll")}{" "}
               {expanded ? "⌃" : "⌄"}
@@ -133,7 +133,7 @@ export function GuidePollResult({
             end={{ x: 1, y: 0 }}
             style={s.ratioTrack}
           />
-          <Text style={s.note}>
+          <Text style={[s.note, s.compactMeta]}>
             {[
               t("Yes/No only"),
               ...otherChoices.map(
@@ -257,6 +257,7 @@ export function GuidePollResult({
 const s = StyleSheet.create({
   container: { gap: 8, padding: 14 },
   compactAction: { gap: 6, minHeight: 44 },
+  compactMeta: { color: P.inkOnNight },
   ratioTrack: { height: 8, borderRadius: 4, overflow: "hidden" },
   title: {
     fontFamily: fontBody.bold,
