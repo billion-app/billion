@@ -41,6 +41,21 @@ export const electionStrings = {
   },
   Poll: { en: "Poll", es: "Encuesta", zh: "民调" },
   Close: { en: "Close", es: "Cerrar", zh: "关闭" },
+  "Expand poll": {
+    en: "Expand poll",
+    es: "Ver encuesta",
+    zh: "展开民调",
+  },
+  "Collapse poll": {
+    en: "Collapse poll",
+    es: "Ocultar encuesta",
+    zh: "收起民调",
+  },
+  "Yes/No only": {
+    en: "Yes/No only",
+    es: "Solo Sí/No",
+    zh: "仅含赞成／反对",
+  },
   "Poll details": {
     en: "Poll details",
     es: "Detalles de la encuesta",

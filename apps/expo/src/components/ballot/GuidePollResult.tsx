@@ -7,22 +7,26 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 import type { RouterOutputs } from "~/utils/api";
 import { Text } from "~/components/Themed";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
-import { fontBody, DigestPalette as P } from "~/styles";
+import { colors, fontBody, DigestPalette as P } from "~/styles";
 
 type Snapshot = RouterOutputs["civic"]["getCaliforniaGuideStandings"];
 export type GuidePoll = Extract<Snapshot["governor"], { kind: "poll" }>["poll"];
 export function GuidePollResult({
   poll,
   title,
+  compact = false,
 }: {
   poll: GuidePoll;
   title?: string;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const { t, language } = useAppTranslation();
   const { report, observation } = poll;
   const percentage = (share: number) =>
@@ -47,6 +51,13 @@ export function GuidePollResult({
   const otherChoices = observation.choices.filter(
     (choice) => !mainChoices.includes(choice),
   );
+  const yes = mainChoices.find((choice) => choice.kind === "yes");
+  const no = mainChoices.find((choice) => choice.kind === "no");
+  const ratio =
+    yes && no && yes.share + no.share > 0
+      ? no.share / (yes.share + no.share)
+      : null;
+  const collapsed = compact && ratio !== null && !expanded;
   const sorted = [...mainChoices].sort((a, b) => b.share - a.share);
   const first = sorted[0];
   const second = sorted[1];
@@ -80,55 +91,113 @@ export function GuidePollResult({
   return (
     <View style={s.container}>
       {title && <Text style={s.title}>{title}</Text>}
-      <Text style={s.label}>{t("Poll")}</Text>
-      {mainChoices.map((choice) => (
-        <View
-          key={choice.label}
-          accessible
-          accessibilityLabel={`${choiceLabel(choice)}, ${percentage(choice.share)}, ${t("in this poll")}`}
-          style={s.choice}
+      {compact && ratio !== null && yes && no && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityState={{ expanded }}
+          aria-expanded={expanded}
+          accessibilityLabel={`${t("Poll")}. ${t("No")} ${percentage(no.share)}. ${t("Yes")} ${percentage(yes.share)}. ${otherChoices.map((choice) => `${choiceLabel(choice)} ${percentage(choice.share)}`).join(". ")}. ${t(expanded ? "Collapse poll" : "Expand poll")}`}
+          onPress={() => setExpanded((value) => !value)}
+          activeOpacity={0.8}
+          style={s.compactAction}
         >
           <View style={s.choiceLabel}>
-            <Text style={s.text}>{choiceLabel(choice)}</Text>
-            <Text style={s.text}>{percentage(choice.share)}</Text>
+            <Text style={s.label}>{t("Poll")}</Text>
+            <Text style={s.link}>
+              {t(expanded ? "Collapse poll" : "Expand poll")}{" "}
+              {expanded ? "⌃" : "⌄"}
+            </Text>
           </View>
-          <View style={s.track}>
-            <View style={[s.fill, { width: `${choice.share}%` }]} />
+          <View style={s.choiceLabel}>
+            <Text style={s.text}>
+              {t("No")} {percentage(no.share)}
+            </Text>
+            <Text style={s.text}>
+              {t("Yes")} {percentage(yes.share)}
+            </Text>
           </View>
-        </View>
-      ))}
-      {otherChoices.length > 0 && (
-        <Text style={s.note}>
-          {otherChoices
-            .map(
-              (choice) => `${choiceLabel(choice)} ${percentage(choice.share)}`,
-            )
-            .join(" · ")}
-        </Text>
+          <LinearGradient
+            colors={[
+              colors.red[500],
+              colors.red[500],
+              colors.green[500],
+              colors.green[500],
+            ]}
+            locations={[
+              0,
+              Math.max(0, ratio - 0.02),
+              Math.min(1, ratio + 0.02),
+              1,
+            ]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={s.ratioTrack}
+          />
+          <Text style={s.note}>
+            {[
+              t("Yes/No only"),
+              ...otherChoices.map(
+                (choice) =>
+                  `${choiceLabel(choice)} ${percentage(choice.share)}`,
+              ),
+            ].join(" · ")}
+          </Text>
+        </TouchableOpacity>
       )}
-      {gap !== null && first && (
-        <Text style={s.note}>
-          {gap === 0
-            ? t("Equal in this poll")
-            : t("{name} ahead by {points} points in this poll", {
-                name: choiceLabel(first),
-                points: new Intl.NumberFormat(language, {
-                  maximumFractionDigits: 1,
-                }).format(gap),
-              })}
-        </Text>
+      {!collapsed && (
+        <>
+          <Text style={s.label}>{t("Poll")}</Text>
+          {mainChoices.map((choice) => (
+            <View
+              key={choice.label}
+              accessible
+              accessibilityLabel={`${choiceLabel(choice)}, ${percentage(choice.share)}, ${t("in this poll")}`}
+              style={s.choice}
+            >
+              <View style={s.choiceLabel}>
+                <Text style={s.text}>{choiceLabel(choice)}</Text>
+                <Text style={s.text}>{percentage(choice.share)}</Text>
+              </View>
+              <View style={s.track}>
+                <View style={[s.fill, { width: `${choice.share}%` }]} />
+              </View>
+            </View>
+          ))}
+          {otherChoices.length > 0 && (
+            <Text style={s.note}>
+              {otherChoices
+                .map(
+                  (choice) =>
+                    `${choiceLabel(choice)} ${percentage(choice.share)}`,
+                )
+                .join(" · ")}
+            </Text>
+          )}
+          {gap !== null && first && (
+            <Text style={s.note}>
+              {gap === 0
+                ? t("Equal in this poll")
+                : t("{name} ahead by {points} points in this poll", {
+                    name: choiceLabel(first),
+                    points: new Intl.NumberFormat(language, {
+                      maximumFractionDigits: 1,
+                    }).format(gap),
+                  })}
+            </Text>
+          )}
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t("Poll details")}
+            onPress={() => setOpen(true)}
+            style={s.action}
+          >
+            <Text style={s.link}>
+              {report.publisher} · {date(report.fieldStart)}–
+              {date(report.fieldEnd)} · {t("Poll details")}
+            </Text>
+          </TouchableOpacity>
+        </>
       )}
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel={t("Poll details")}
-        onPress={() => setOpen(true)}
-        style={s.action}
-      >
-        <Text style={s.link}>
-          {report.publisher} · {date(report.fieldStart)}–{date(report.fieldEnd)}{" "}
-          · {t("Poll details")}
-        </Text>
-      </TouchableOpacity>
       <Modal
         visible={open}
         transparent
@@ -187,6 +256,8 @@ export function GuidePollResult({
 }
 const s = StyleSheet.create({
   container: { gap: 8, padding: 14 },
+  compactAction: { gap: 6, minHeight: 44 },
+  ratioTrack: { height: 8, borderRadius: 4, overflow: "hidden" },
   title: {
     fontFamily: fontBody.bold,
     fontSize: 21,

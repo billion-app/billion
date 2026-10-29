@@ -273,7 +273,9 @@ function MeasureRow({
         </View>
         <Icon name="chevR" size={18} color={P.primary} />
       </TouchableOpacity>
-      {standing?.kind === "poll" && <GuidePollResult poll={standing.poll} />}
+      {standing?.kind === "poll" && (
+        <GuidePollResult poll={standing.poll} compact />
+      )}
     </View>
   );
 }
