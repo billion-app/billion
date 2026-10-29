@@ -2185,16 +2185,16 @@ export function mountTrillionReader(root, graph, options = {}) {
     manual = false;
   }
 
-  function fitView() {
-    if (!cy) return;
+  function fitView(force = false) {
+    if (!cy || (manual && !force)) return;
     follow = 0;
-    cy.animate(targetView(), {
+    cy.stop(true).animate(targetView(), {
       duration: REDUCED ? 0 : 450,
       easing: "ease-in-out-cubic",
     });
   }
   function zoomBy(f) {
-    cy.stop();
+    cy.stop(true);
     if (showAllArguments && f > 1 && cy.zoom() < 0.8) {
       const focus = cy.getElementById(focusId()).position();
       cy.animate(
@@ -2234,7 +2234,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     else placeMap();
     if (cy) {
       cy.resize();
-      fitView();
+      fitView(true);
     }
     (on ? $("#map-close") : $("#map-expand")).focus();
     reportBack();
