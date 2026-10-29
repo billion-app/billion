@@ -1,3 +1,9 @@
+import {
+  freshSosReport,
+  sosVoteCount,
+  verifySosElection,
+} from "./ca-sos-provenance";
+
 /**
  * California Secretary of State — Election-Night Results feed
  * https://media.sos.ca.gov/ (official, free, no API key)
@@ -176,16 +182,18 @@ function normalizeContest(
       name: c.Name,
       party: c.Party || undefined,
       votes: parseCount(c.Votes),
-      percent: parsePercent(c.Percent),
+      percent: 0,
       incumbent: c.incumbent ?? false,
       advancing: false,
     }))
     .sort((a, b) => b.votes - a.votes);
 
-  // CA runs a top-two primary: the two highest vote-getters advance to the
-  // general regardless of party. Flag them so the UI can mark who moved on.
-  for (const c of candidates.slice(0, 2)) c.advancing = true;
-
+  const totalVotes = candidates.reduce(
+    (sum, candidate) => sum + candidate.votes,
+    0,
+  );
+  for (const candidate of candidates)
+    candidate.percent = totalVotes ? (candidate.votes / totalVotes) * 100 : 0;
   return {
     ...extra,
     title: raw.raceTitle,
@@ -203,13 +211,38 @@ function normalizeContest(
 async function fetchFeed(file: string): Promise<RawContest[]> {
   const res = await fetch(`${BASE_URL}/${file}`, {
     headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) {
     throw new Error(
       `CA SOS results feed error for ${file} (${res.status}): ${res.statusText}`,
     );
   }
-  return (await res.json()) as RawContest[];
+  const raw: unknown = await res.json();
+  if (!Array.isArray(raw)) return [];
+  return (raw as RawContest[]).filter(
+    (contest) =>
+      typeof contest.raceTitle === "string" &&
+      Array.isArray(contest.candidates) &&
+      contest.candidates.length > 0 &&
+      new Set(
+        contest.candidates.map((candidate) =>
+          candidate.Name.trim().toLowerCase(),
+        ),
+      ).size === contest.candidates.length &&
+      Number.isSafeInteger(
+        contest.candidates.reduce(
+          (sum, candidate) => sum + (sosVoteCount(candidate.Votes) ?? NaN),
+          0,
+        ),
+      ) &&
+      contest.candidates.every(
+        (candidate) =>
+          typeof candidate.Name === "string" &&
+          typeof candidate.Party === "string" &&
+          sosVoteCount(candidate.Votes) !== null,
+      ),
+  );
 }
 
 /** Pull the district number out of a feed title, e.g. "… District 28 …" → "28". */
@@ -226,11 +259,30 @@ function titleDistrict(title: string): string | null {
 export async function getStatewideResults(
   offices: StatewideOffice[] = ["governor", "secretary-of-state"],
 ): Promise<ElectionContestResult[]> {
+  if (!(await verifySosElection())) return [];
   const settled = await Promise.allSettled(
     offices.map(async (office) => {
       const feed = await fetchFeed(STATEWIDE_FEEDS[office]);
-      const statewide =
-        feed.find((c) => /statewide/i.test(c.raceTitle)) ?? feed[0];
+      const titles: Record<StatewideOffice, string> = {
+        governor: "Governor",
+        "lieutenant-governor": "Lieutenant Governor",
+        "secretary-of-state": "Secretary of State",
+        controller: "Controller",
+        treasurer: "Treasurer",
+        "attorney-general": "Attorney General",
+        "insurance-commissioner": "Insurance Commissioner",
+        "superintendent-of-public-instruction":
+          "Superintendent of Public Instruction",
+      };
+      const matches = feed.filter(
+        (c) => c.raceTitle === `${titles[office]} - Statewide Results`,
+      );
+      if (
+        matches.length !== 1 ||
+        !freshSosReport(matches[0]?.ReportingTime, Date.now())
+      )
+        return null;
+      const statewide = matches[0];
       if (!statewide) return null;
       return normalizeContest(statewide, {
         office,
@@ -259,7 +311,7 @@ export async function getStatewideResults(
 export async function getDistrictResults(
   refs: DistrictRef[],
 ): Promise<ElectionContestResult[]> {
-  if (refs.length === 0) return [];
+  if (refs.length === 0 || !(await verifySosElection())) return [];
 
   // One fetch per distinct chamber, even if several districts share it.
   const chambers = [...new Set(refs.map((r) => r.chamber))];
@@ -279,12 +331,18 @@ export async function getDistrictResults(
     const feed = feeds.get(ref.chamber);
     if (!feed) continue;
     const { match } = DISTRICT_FEEDS[ref.chamber];
-    const contest = feed.find(
+    const matches = feed.filter(
       (c) =>
         match.test(c.raceTitle) &&
         /districtwide/i.test(c.raceTitle) &&
         titleDistrict(c.raceTitle) === ref.number,
     );
+    if (
+      matches.length !== 1 ||
+      !freshSosReport(matches[0]?.ReportingTime, Date.now())
+    )
+      continue;
+    const contest = matches[0];
     if (!contest) continue;
     out.push(
       normalizeContest(contest, {
