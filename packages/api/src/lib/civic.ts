@@ -27,6 +27,7 @@ import {
   ballotSelectionDate,
   createDemocracyWorksClient,
 } from "../clients/democracy-works";
+import { loadCaliforniaGuideResults } from "./california-guide-results";
 import { getCachedCandidate, setCachedCandidate } from "./candidate-cache";
 import { crossValidateCandidate } from "./candidate-crossvalidate";
 import { generateRoleDescription } from "./civic-ai";
@@ -139,6 +140,28 @@ export async function getCaliforniaGuide() {
     >,
   );
   return currentCaliforniaGuide(value);
+}
+
+export async function getCaliforniaGuideResults() {
+  const guide = await getCaliforniaGuide();
+  const params = {
+    version: "2026-11-03-general-v2",
+    electionDate: guide?.electionDate,
+    type: "general",
+  };
+  const cached = await getCached<
+    Awaited<ReturnType<typeof loadCaliforniaGuideResults>>
+  >("__global__", "californiaGuideResults", params);
+  if (cached) return cached;
+  const results = await loadCaliforniaGuideResults(guide);
+  await setCache(
+    "__global__",
+    "californiaGuideResults",
+    params,
+    results,
+    5 * 60_000,
+  );
+  return results;
 }
 
 async function setCache(
@@ -807,7 +830,10 @@ export async function getElectionResults(
 ): Promise<ElectionContestResult[]> {
   // Cache key is global (results aren't address-scoped); the office list
   // distinguishes entries so different selections don't collide.
-  const params = { offices: offices ?? "default" };
+  const params = {
+    version: "2026-11-03-general-v2",
+    offices: offices ?? "default",
+  };
   const cached = await getCached<ElectionContestResult[]>(
     "__global__",
     "electionResults",
@@ -847,7 +873,7 @@ export async function getDistrictElectionResults(
   const sorted = [...refs].sort((a, b) =>
     `${a.chamber}-${a.number}`.localeCompare(`${b.chamber}-${b.number}`),
   );
-  const params = { refs: sorted };
+  const params = { version: "2026-11-03-general-v2", refs: sorted };
   const cached = await getCached<ElectionContestResult[]>(
     "__global__",
     "districtResults",

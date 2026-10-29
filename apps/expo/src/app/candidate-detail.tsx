@@ -21,6 +21,7 @@ import {
   CandidateDisclosure,
 } from "~/components/ballot-evidence/CandidateDisclosure";
 import { webUrl } from "~/components/ballot-evidence/model";
+import { GuideVoteDetails } from "~/components/ballot/GuideVoteResult";
 import {
   CandidateMoneyChapter,
   CandidateResearchCard,
@@ -327,6 +328,12 @@ export default function CandidateDetailScreen() {
               {identityMeta ? (
                 <Text style={s.heroMeta}>{identityMeta}</Text>
               ) : null}
+              {guide && office && (
+                <GuideVoteDetails
+                  electionDate={ELECTION_DATE}
+                  candidateKey={`${office}:${guide.name}`}
+                />
+              )}
               <View style={s.statusRow}>
                 <Icon name="info" size={14} color={P.quiet} />
                 <Text style={[s.muted, s.rowText]}>
