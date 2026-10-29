@@ -467,3 +467,32 @@ this mode. The default `hosted` mode preserves existing behavior and uses a
 configured Tavily key as an outage fallback. The OAuth setting continues to
 control text generation independently. See
 [free-tier host setup](../deploy/big-mac/README.md#free-tier-search-with-tavily).
+
+## California statewide polling
+
+The `ca-election-polling` adapter reads PPIC's published likely-voter PDF
+crosstabs into one `civic_api_cache` record per report. It preserves the original
+PDF text privately, a SHA-256 hash, field dates, publication date when reported,
+methodology, question-specific samples, and every published response share.
+Rounded shares remain unchanged, including totals of 99 or 101. Poll samples are
+never vote counts. The API matches a whole statewide observation to the current
+election and exact contest wording before showing it.
+
+Discovery inspects the PPIC survey index for October through December 2026
+California government surveys and follows supported likely-voter PDF links.
+PPIC sometimes blocks the HTML index or publication pages while serving PDFs.
+When the index is blocked, the adapter logs that it is refreshing only its
+explicit researched catalog. The initial catalog contains the October 2026
+report, with its October 27 publication date verified against the publisher's
+press release. This fallback refreshes revisions of that report but cannot
+promise discovery of new reports while HTML access is blocked. New discovered
+publications without a supported PDF or parseable observations fail visibly.
+
+The parser selects the statewide likely-voter column by PDF coordinates and
+excludes repeated demographic tables. The October report must retain all 15
+expected observations before a revision can replace its stored record. Repeated
+runs upsert the same report atomically. Separate reports keep separate cache
+identities, so a newer governor-only poll does not erase an older proposition
+poll. The daily supervisor job fetches at most four reports with concurrency one
+and a generation budget of zero. Registration and scheduling require deployment
+before they affect production.

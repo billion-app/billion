@@ -42,6 +42,20 @@ Source limits and generation budgets are different. `--max-items` limits source 
 | `scotus`                | Supreme Court opinion and order-opinion indexes/PDFs        | `court_case`                                   |
 | `ecourt-records`        | Publicly indexed Massachusetts criminal docket snapshots    | `court_case`                                   |
 
+`ca-election-polling` refreshes the PPIC likely-voter report catalog and supported
+index discoveries. It stores raw statewide polling shares separately from official
+reported votes. Check the database target before running this bounded refresh:
+
+```bash
+SCRAPER_MAX_NEW_ITEMS_PER_RUN=0 pnpm --filter @acme/scraper run start ca-election-polling --max-items 1 --concurrency 1
+```
+
+The command writes one report and uses no generation. The initial supported
+report covers the November 3, 2026 governor race and all fourteen statewide
+propositions. It does not supply individual downballot candidate polls. See
+[California statewide polling](../../docs/scraper.md#california-statewide-polling)
+for discovery coverage and revision behavior.
+
 `all` starts registered scrapers concurrently and validates the whole set's environment first. It is broader than a production scheduled refresh. The supervisor names jobs separately so it can control timing, retention, and budgets.
 
 `ecourt-records` discovers criminal cases from the independent [eCourt Records archive](https://ecourtrecords.org/), then refreshes the indexed case pages. The current index includes Orleans District Court case `2626CR000731` (Commonwealth v. Peters). It preserves charges as allegations, docket text, scheduled events, the source URL, and the date of the latest docket entry. The supervisor checks up to five indexed criminal cases daily with two generation slots. New cases are selected before stored ones; stored cases rotate by their last source refresh. Failed cases enter the shared retry queue with backoff, allowing healthy cases to keep advancing while failures remain visible. Run a bounded manual refresh with `pnpm --filter @acme/scraper run start ecourt-records --max-items 1 --concurrency 1` after checking the selected database. The archive says its snapshots may omit later activity, so a successful job only confirms what the archive currently publishes; check the court for an authoritative status. The official MassCourts case portal disallows crawling in its robots policy and is not scraped.

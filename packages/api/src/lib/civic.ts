@@ -28,6 +28,13 @@ import {
   createDemocracyWorksClient,
 } from "../clients/democracy-works";
 import { loadCaliforniaGuideResults } from "./california-guide-results";
+import { selectCaliforniaGuideStandings } from "./california-guide-standings";
+import {
+  CA_POLLING_ADDRESS_HASH,
+  CA_POLLING_ENDPOINT,
+  californiaPollingReportSchema,
+  pollingCacheParams,
+} from "./california-polling";
 import { getCachedCandidate, setCachedCandidate } from "./candidate-cache";
 import { crossValidateCandidate } from "./candidate-crossvalidate";
 import { generateRoleDescription } from "./civic-ai";
@@ -140,6 +147,44 @@ export async function getCaliforniaGuide() {
     >,
   );
   return currentCaliforniaGuide(value);
+}
+
+export async function getCaliforniaGuideStandings() {
+  const guide = await getCaliforniaGuide();
+  const rows = await db
+    .select({ data: CivicApiCache.responseData, params: CivicApiCache.params })
+    .from(CivicApiCache)
+    .where(
+      and(
+        eq(CivicApiCache.addressHash, CA_POLLING_ADDRESS_HASH),
+        eq(CivicApiCache.endpoint, CA_POLLING_ENDPOINT),
+        gt(CivicApiCache.expiresAt, new Date()),
+      ),
+    );
+  const reports = rows.flatMap((row) => {
+    const parsed = californiaPollingReportSchema.safeParse(row.data);
+    return parsed.success && pollingCacheParams(parsed.data) === row.params
+      ? [parsed.data]
+      : [];
+  });
+  const params = {
+    version: "2026-11-03-general-full-roster-v1",
+    electionDate: guide?.electionDate,
+  };
+  let official = await getCached<
+    Awaited<ReturnType<typeof loadCaliforniaGuideResults>>
+  >("__global__", "californiaGuideResults", params);
+  if (!official) {
+    official = await loadCaliforniaGuideResults(guide, { fullRoster: true });
+    await setCache(
+      "__global__",
+      "californiaGuideResults",
+      params,
+      official,
+      60_000,
+    );
+  }
+  return selectCaliforniaGuideStandings(guide, official, reports);
 }
 
 export async function getCaliforniaGuideResults() {
