@@ -44,7 +44,6 @@ export function AppStoreUpdateBanner({ otaVisible }: { otaVisible: boolean }) {
     if (!enabled) return;
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
-        // fetchQuery reuses fresh data and deduplicates concurrent checks.
         void queryClient.fetchQuery(releaseQuery).catch(() => undefined);
       }
     });

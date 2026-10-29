@@ -229,3 +229,9 @@ while the OTA notice or preparation is active. Both notices sit above the tab
 bar so Back and the language selector remain reachable. It uses the installed native
 version and a validated public Apple listing through `appRelease.latestIos`.
 Development builds do not offer real App Store updates.
+
+The 0.9.0 build-44 compatibility release also includes the App Store card. It
+uses the same public release lookup and keeps the card mounted while the older
+OTA prompt is visible, so dismissing a store release survives OTA prompt changes.
+The compatible source is `b00fe8e715728a3f25de87c1fab4bd1841686558`; its native
+configuration and dependencies remain those of build 44.
