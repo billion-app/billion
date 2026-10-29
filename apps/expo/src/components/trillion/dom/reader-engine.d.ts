@@ -6,6 +6,7 @@ export interface ReaderNavigation {
   tab: string;
   view: "list" | "map";
   shown?: string[];
+  showAllArguments?: boolean;
   details?: number[];
   scroll?: number;
   sheetScroll?: number;

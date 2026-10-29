@@ -197,6 +197,10 @@ export function mountTrillionReader(root, graph, options = {}) {
         >
           <div class="map-full-head">
             <h2>${tr("Map")}</h2>
+            <label class="map-show-all">
+              <input type="checkbox" data-map-show-all>
+              <span>${tr("Show all arguments")}</span>
+            </label>
             <button class="close" type="button" id="map-close">${tr("Close")}</button>
           </div>
           <div id="cy"></div>
@@ -713,6 +717,7 @@ export function mountTrillionReader(root, graph, options = {}) {
   let path = [{ t: "node", id: ROOT }];
   let tab = defaultTab(ROOT);
   const shown = new Set(); // tabs expanded past the preview, keyed focus:tab
+  let showAllArguments = false;
   let direction = "in";
   let view = options.view === "map" ? "map" : "list"; // the reader's choice persists while navigating
   const previous = options.navigation;
@@ -729,9 +734,10 @@ export function mountTrillionReader(root, graph, options = {}) {
     path = previous.path.map((step) => ({ ...step }));
     tab = previous.tab;
     view = previous.view === "map" ? "map" : "list";
+    showAllArguments = previous.showAllArguments === true;
   }
   const viewsHtml = () =>
-    `<div class="views" role="group" aria-label="${esc(tr("Show as"))}"><button type="button" data-view="list" aria-pressed="${view === "list"}">${tr("List")}</button><button type="button" data-view="map" aria-pressed="${view === "map"}">${tr("Map")}</button></div>`;
+    `<div class="views" role="group" aria-label="${esc(tr("Show as"))}"><button type="button" data-view="list" aria-pressed="${view === "list"}">${tr("List")}</button><button type="button" data-view="map" aria-pressed="${view === "map"}">${tr("Map")}</button></div>${view === "map" ? `<label class="map-show-all"><input type="checkbox" data-map-show-all${showAllArguments ? " checked" : ""}><span>${tr("Show all arguments")}</span></label>` : ""}`;
   const cur = () => path[path.length - 1];
   const focusId = () => (cur().t === "edge" ? E[cur().id].to : cur().id);
   const activeCat = () =>
@@ -1412,6 +1418,18 @@ export function mountTrillionReader(root, graph, options = {}) {
   function litSet() {
     const c = cur();
     const focus = focusId();
+    if (showAllArguments)
+      return {
+        focus,
+        prev: null,
+        nodes: new Set(ALL_IDS),
+        edges: new Set(
+          F.edges
+            .filter((e) => visible(e.from) && visible(e.to))
+            .map((e) => e.id),
+        ),
+        hints: new Map(),
+      };
     const nodes = new Set([focus, ROOT]);
     const edges = new Set();
     if (c.t === "edge") {
@@ -1901,7 +1919,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     const READABLE = 0.6;
     let cx = bb.x1 + bb.w / 2,
       cyy = bb.y1 + bb.h / 2;
-    if (z < READABLE) {
+    if (z < READABLE && !showAllArguments) {
       z = READABLE;
       const f = cy.getElementById(focusId()).position();
       cx = f.x;
@@ -1924,10 +1942,14 @@ export function mountTrillionReader(root, graph, options = {}) {
 
   function syncMap(navigated) {
     if (!cy) return;
+    cy.minZoom(showAllArguments ? 0.03 : 0.15);
     const { focus, prev, nodes, edges, hints } = litSet();
     const extra =
       cur().t === "node" ? (activeCat()?.items.length ?? 0) - MAP_MAX : 0;
-    $("#map-more").hidden = extra <= 0;
+    root.querySelectorAll("[data-map-show-all]").forEach((input) => {
+      input.checked = showAllArguments;
+    });
+    $("#map-more").hidden = showAllArguments || extra <= 0;
     $("#map-more").textContent = tr("+{count} more in List", { count: extra });
     for (const [id, { edge }] of hints) {
       nodes.add(id);
@@ -2037,7 +2059,13 @@ export function mountTrillionReader(root, graph, options = {}) {
           ? 90
           : -90 + gap + (span * (i + (above.length ? 0.5 : 0))) / ring.length;
       angleOf.set(id, deg);
-      spot.set(id, at(deg, radius));
+      // Spread the whole debate through a disk instead of one enormous ring.
+      spot.set(
+        id,
+        showAllArguments
+          ? at(i * 137.508, 220 + Math.sqrt(i) * 110)
+          : at(deg, radius),
+      );
     });
     for (const [id, { parent }] of hints)
       spot.set(id, at(angleOf.get(parent) ?? 90, radius + 175));
@@ -2155,6 +2183,13 @@ export function mountTrillionReader(root, graph, options = {}) {
     (on ? $("#map-close") : $("#map-expand")).focus();
     reportBack();
   }
+  listen(root).addEventListener("change", (ev) => {
+    if (!ev.target.matches("[data-map-show-all]")) return;
+    showAllArguments = ev.target.checked;
+    manual = false;
+    syncMap(false);
+    fitView();
+  });
   $("#map-expand").addEventListener("click", () => setFull(true));
   $("#map-close").addEventListener("click", () => setFull(false));
 
@@ -2775,6 +2810,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     tab,
     view,
     shown: [...shown],
+    showAllArguments,
     details: [...page.querySelectorAll("details")].flatMap((detail, index) =>
       detail.open ? [index] : [],
     ),

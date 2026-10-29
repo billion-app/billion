@@ -104,6 +104,29 @@ await test("Trillion cards, touch ring and device persistence", async () => {
     );
     await page.locator('[data-measure="41"]').click();
     await page.locator('[data-view="map"]').first().click();
+    const inlineAll = page.locator("#page > .map-show-all [data-map-show-all]");
+    const focusedCount = await page.locator(".mcard.lit").count();
+    assert.equal(await inlineAll.isChecked(), false);
+    await inlineAll.focus();
+    await page.keyboard.press("Space");
+    const allCount = await page.locator(".mcard").count();
+    assert.ok(
+      allCount > focusedCount,
+      "the fixture has arguments beyond the focused map",
+    );
+    assert.equal(await page.locator(".mcard.lit").count(), allCount);
+    assert.equal(await page.locator(".mcard.hint").count(), 0);
+    assert.equal(await page.locator("#map-more").isVisible(), false);
+    await page.locator('[data-tab="disagree"]').first().click();
+    assert.equal(await inlineAll.isChecked(), true);
+    assert.equal(await page.locator(".mcard.lit").count(), allCount);
+    await page.locator("#map-expand").click();
+    const fullAll = page.locator(".map-full-head [data-map-show-all]");
+    assert.equal(await fullAll.isChecked(), true);
+    await fullAll.uncheck();
+    assert.ok((await page.locator(".mcard.lit").count()) < allCount);
+    await page.locator("#map-close").click();
+    assert.equal(await inlineAll.isChecked(), false);
     await page.locator("#map-ring").click();
     const slice = page.locator(".ring-sheet svg [data-peek]").first();
     await slice.focus();
