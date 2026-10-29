@@ -204,6 +204,7 @@ export function mountTrillionReader(root, graph, options = {}) {
             <button class="close" type="button" id="map-close">${tr("Close")}</button>
           </div>
           <div id="cy"></div>
+          <p class="map-hint" id="map-hint" hidden>${tr("Zoom in to read arguments · Tap a node for details")}</p>
           <button type="button" class="map-more" id="map-more" hidden></button>
 
           <button type="button" class="map-main" id="map-main" hidden>
@@ -1502,7 +1503,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     const layer = document.createElement("div");
     layer.id = "cards";
     layer.setAttribute("aria-hidden", "true");
-    $("#cy").after(layer);
+    $("#cy").appendChild(layer);
     for (const id of ALL_IDS) {
       const el = document.createElement("div");
       el.className = `mcard ${N[id].kind}`;
@@ -1512,19 +1513,28 @@ export function mountTrillionReader(root, graph, options = {}) {
   }
   function placeCards() {
     const z = cy.zoom();
-    cy.nodes().forEach((n) => {
-      const el = cardEls.get(n.id());
-      if (!el) return;
-      const p = n.renderedPosition();
-      const d = n.data();
-      el.style.transform = `translate(${p.x - (d.fw * z) / 2}px, ${p.y - (d.fh * z) / 2}px) scale(${z})`;
+    // Below a readable text size, show solid nodes instead of microscopic glyphs.
+    const overview = showAllArguments && z < 0.8;
+    $("#map").classList.toggle("overview", overview);
+    $("#map-hint").hidden = !overview;
+    cy.batch(() => {
+      cy.nodes().forEach((n) => {
+        const el = cardEls.get(n.id());
+        if (!el) return;
+        const p = n.renderedPosition();
+        const d = n.data();
+        const w = overview ? 30 : d.fw;
+        const h = overview ? 30 : d.fh;
+        if (n.hasClass("lit") && (d.w !== w || d.h !== h)) n.data({ w, h });
+        el.style.transform = `translate(${p.x - (w * z) / 2}px, ${p.y - (h * z) / 2}px) scale(${z})`;
+      });
     });
   }
   // Rectangles, not circles: cards pack closely without overlapping.
   function rectCollide() {
     if (!sim) return;
     const lit = sim.nodes().filter((n) => n.lit);
-    const pad = 14;
+    const pad = showAllArguments ? 24 : 14;
     for (let i = 0; i < lit.length; i++)
       for (let j = i + 1; j < lit.length; j++) {
         const a = lit[i],
@@ -1534,6 +1544,7 @@ export function mountTrillionReader(root, graph, options = {}) {
         const ox = (a.w + b.w) / 2 + pad - Math.abs(dx);
         const oy = (a.h + b.h) / 2 + pad - Math.abs(dy);
         if (ox <= 0 || oy <= 0) continue;
+        if (a.fx != null && b.fx != null) continue;
         const wa = a.fx != null ? 0 : b.fx != null ? 1 : 0.5;
         const wb = 1 - wa;
         if (ox < oy) {
@@ -1606,7 +1617,7 @@ export function mountTrillionReader(root, graph, options = {}) {
             "underlay-padding": 6,
             "underlay-shape": "round-rectangle",
             "transition-property":
-              "width, height, background-color, border-color, border-width, opacity, text-opacity, underlay-opacity",
+              "background-color, border-color, border-width, opacity, text-opacity, underlay-opacity",
             ...ease,
           },
         },
@@ -1769,11 +1780,12 @@ export function mountTrillionReader(root, graph, options = {}) {
     // Dragging pins a card to the pointer and lets the rest of the web follow, like Obsidian.
     cy.on("grab", "node", (ev) => {
       follow = 0;
+      manual = true;
       const s = simById.get(ev.target.id());
       if (s && sim) {
         s.fx = s.x;
         s.fy = s.y;
-        sim.alphaTarget(0.3).restart();
+        sim.alpha(Math.max(sim.alpha(), 0.3)).alphaTarget(0.3).restart();
       }
     });
     cy.on("drag", "node", (ev) => {
@@ -1787,11 +1799,11 @@ export function mountTrillionReader(root, graph, options = {}) {
     cy.on("free", "node", (ev) => {
       const s = simById.get(ev.target.id());
       if (!s || !sim) return;
-      if (ev.target.id() !== focusId()) {
+      if (showAllArguments || ev.target.id() !== focusId()) {
         s.fx = null;
         s.fy = null;
       }
-      sim.alphaTarget(REDUCED ? 0 : IDLE);
+      sim.alphaTarget(REDUCED || showAllArguments ? 0 : IDLE);
     });
     // Any manual pan or zoom hands the camera back to the reader.
     $("#cy").addEventListener(
@@ -1881,7 +1893,7 @@ export function mountTrillionReader(root, graph, options = {}) {
   }
 
   function wander() {
-    if (REDUCED || !sim) return;
+    if (REDUCED || showAllArguments || !sim) return;
     const t = performance.now() / 1000;
     for (const n of sim.nodes()) {
       if (n.fx != null || !n.lit) continue;
@@ -1891,6 +1903,9 @@ export function mountTrillionReader(root, graph, options = {}) {
   }
 
   function ticked() {
+    if (showAllArguments) {
+      for (let i = 0; i < 12; i++) rectCollide();
+    }
     cy.batch(() => {
       for (const n of sim.nodes()) {
         const el = cy.getElementById(n.id);
@@ -1942,6 +1957,8 @@ export function mountTrillionReader(root, graph, options = {}) {
 
   function syncMap(navigated) {
     if (!cy) return;
+    $("#map").classList.toggle("all-arguments", showAllArguments);
+    $("#map").classList.remove("overview");
     cy.minZoom(showAllArguments ? 0.03 : 0.15);
     const { focus, prev, nodes, edges, hints } = litSet();
     const extra =
@@ -2024,13 +2041,43 @@ export function mountTrillionReader(root, graph, options = {}) {
       if (lit && !s.lit) fresh.add(s.id);
       s.lit = lit;
       const d = cy.getElementById(s.id).data();
-      s.r = lit ? Math.min(d.w, d.h * 2) / 2 : 0;
-      s.w = lit ? d.w : 0;
-      s.h = lit ? d.h : 0;
+      s.r = lit ? Math.min(d.fw, d.fh * 2) / 2 : 0;
+      s.w = lit ? d.fw : 0;
+      s.h = lit ? d.fh : 0;
       s.fx = s.id === focus ? s.x : null;
       s.fy = s.id === focus ? s.y : null;
     }
-    sim.force("charge").strength((d) => (d.lit ? -240 : 0));
+    if (showAllArguments) {
+      // Connections form neighborhoods; charge and measured card collisions keep them apart.
+      for (const node of sim.nodes()) {
+        node.fx = node.id === ROOT ? 0 : null;
+        node.fy = node.id === ROOT ? 0 : null;
+      }
+      sim.force("charge").strength(-650).distanceMax(1400);
+      sim.force("x", d3.forceX(0).strength(0.008));
+      sim.force("y", d3.forceY(0).strength(0.008));
+      sim.force("tether", null);
+      sim
+        .force("link")
+        .distance(
+          (link) =>
+            Math.hypot(link.source.w, link.source.h) / 2 +
+            Math.hypot(link.target.w, link.target.h) / 2 +
+            60,
+        )
+        .strength(0.16);
+      sim.stop().alpha(1).alphaTarget(0);
+      for (let i = 0; i < 400; i++) sim.tick();
+      ticked();
+      cy.viewport(targetView());
+      firstView = false;
+      if (!REDUCED) sim.alpha(0.1).restart();
+      return;
+    }
+    sim
+      .force("charge")
+      .strength((d) => (d.lit ? -240 : 0))
+      .distanceMax(520);
     // Radial: the focus in the middle, where you came from above it, and the open tab's cards in
     // a ring around it in tab order, each grayed grandchild further out on the same spoke.
     const fpos = simById.get(focus) || { x: 0, y: 0 };
@@ -2059,13 +2106,7 @@ export function mountTrillionReader(root, graph, options = {}) {
           ? 90
           : -90 + gap + (span * (i + (above.length ? 0.5 : 0))) / ring.length;
       angleOf.set(id, deg);
-      // Spread the whole debate through a disk instead of one enormous ring.
-      spot.set(
-        id,
-        showAllArguments
-          ? at(i * 137.508, 220 + Math.sqrt(i) * 110)
-          : at(deg, radius),
-      );
+      spot.set(id, at(deg, radius));
     });
     for (const [id, { parent }] of hints)
       spot.set(id, at(angleOf.get(parent) ?? 90, radius + 175));
@@ -2156,7 +2197,8 @@ export function mountTrillionReader(root, graph, options = {}) {
     cy.animate(
       {
         zoom: {
-          level: cy.zoom() * f,
+          level:
+            showAllArguments && f > 1 && cy.zoom() < 0.8 ? 0.8 : cy.zoom() * f,
           renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 },
         },
       },
