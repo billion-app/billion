@@ -2194,11 +2194,25 @@ export function mountTrillionReader(root, graph, options = {}) {
     });
   }
   function zoomBy(f) {
+    cy.stop();
+    if (showAllArguments && f > 1 && cy.zoom() < 0.8) {
+      const focus = cy.getElementById(focusId()).position();
+      cy.animate(
+        {
+          zoom: 0.8,
+          pan: {
+            x: cy.width() / 2 - focus.x * 0.8,
+            y: cy.height() / 2 - focus.y * 0.8,
+          },
+        },
+        { duration: REDUCED ? 0 : 200 },
+      );
+      return;
+    }
     cy.animate(
       {
         zoom: {
-          level:
-            showAllArguments && f > 1 && cy.zoom() < 0.8 ? 0.8 : cy.zoom() * f,
+          level: cy.zoom() * f,
           renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 },
         },
       },

@@ -157,6 +157,28 @@ await test("Trillion cards, touch ring and device persistence", async () => {
       await page.locator(".mcard.lit .mtitle").first().isVisible(),
       true,
     );
+    const neighborhood = await page.locator("#cy").evaluate((el) => {
+      const cy = el._cyreg.cy;
+      const focus = cy.nodes(".focused");
+      const visible = (node) => {
+        const point = node.renderedPosition(),
+          z = cy.zoom();
+        return (
+          point.x + (node.data("fw") * z) / 2 > 0 &&
+          point.x - (node.data("fw") * z) / 2 < cy.width() &&
+          point.y + (node.data("fh") * z) / 2 > 0 &&
+          point.y - (node.data("fh") * z) / 2 < cy.height()
+        );
+      };
+      return {
+        focusVisible: visible(focus),
+        neighbors: focus.neighborhood().nodes().filter(visible).length,
+      };
+    });
+    assert.ok(
+      neighborhood.focusVisible && neighborhood.neighbors > 0,
+      "readable zoom must show the current argument and connected neighbors",
+    );
     const renderedFont = await page
       .locator(".mcard.lit .mtitle")
       .first()
