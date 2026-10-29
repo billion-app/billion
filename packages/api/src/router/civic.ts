@@ -14,6 +14,7 @@ import { getCandidateBackground } from "../lib/candidate-background";
 import {
   getCachedTrillionGraph,
   getCaliforniaGuide,
+  getCaliforniaGuideResults,
   getDistrictElectionResults,
   getElectionResults,
   getElections,
@@ -104,6 +105,10 @@ export const civicRouter = {
         });
       }
     }),
+
+  getCaliforniaGuideResults: publicProcedure.query(() =>
+    getCaliforniaGuideResults(),
+  ),
 
   getCaliforniaGuide: publicProcedure.query(async () => {
     const guide = await getCaliforniaGuide();
