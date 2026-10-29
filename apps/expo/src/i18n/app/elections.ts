@@ -2,6 +2,54 @@
 import type { Catalog } from "./types";
 
 export const electionStrings = {
+  "{rank} of {total}": {
+    en: "{rank} of {total}",
+    es: "{rank} de {total}",
+    zh: "第 {rank} 名，共 {total} 名",
+  },
+  "Results pending": {
+    en: "Results pending",
+    es: "Resultados pendientes",
+    zh: "结果待公布",
+  },
+  "Checking results…": {
+    en: "Checking results…",
+    es: "Consultando resultados…",
+    zh: "正在查询结果…",
+  },
+  "Results unavailable": {
+    en: "Results unavailable",
+    es: "Resultados no disponibles",
+    zh: "结果暂不可用",
+  },
+  "No votes counted yet": {
+    en: "No votes counted yet",
+    es: "Aún no se han contado votos",
+    zh: "尚未计票",
+  },
+  "Yes is ahead": {
+    en: "Yes is ahead",
+    es: "El sí va adelante",
+    zh: "赞成票领先",
+  },
+  "No is ahead": {
+    en: "No is ahead",
+    es: "El no va adelante",
+    zh: "反对票领先",
+  },
+  Tied: { en: "Tied", es: "Empate", zh: "平票" },
+  Leading: { en: "Leading", es: "En cabeza", zh: "领先" },
+  "{count} votes": {
+    en: "{count} votes",
+    es: "{count} votos",
+    zh: "{count} 票",
+  },
+  "Official election results": {
+    en: "Official election results",
+    es: "Resultados electorales oficiales",
+    zh: "官方选举结果",
+  },
+
   // Election types and explainers
   "elections.type.primary": { en: "Primary", es: "Primaria", zh: "初选" },
   "elections.type.general": { en: "General", es: "General", zh: "普选" },

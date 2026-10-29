@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { plainTrillionText, trillionEmphasis } from "@acme/validators";
 
+import type { GuideVote } from "./GuideVoteResult";
 import type { IconName } from "~/components/ui";
 import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
@@ -40,6 +41,7 @@ import {
   propositionDetailRoute,
   splitOfficialTitle,
 } from "~/utils/proposition-explainers";
+import { GuideVoteResult, useGuideVoteLabel } from "./GuideVoteResult";
 
 type Guide = NonNullable<RouterOutputs["civic"]["getCaliforniaGuide"]>;
 type Candidate = Guide["candidates"][number];
@@ -79,7 +81,16 @@ function SourceRow({
   );
 }
 
-function CandidateRow({ candidate }: { candidate: Candidate }) {
+function CandidateRow({
+  candidate,
+  result,
+  status,
+}: {
+  candidate: Candidate;
+  result?: GuideVote;
+  status: "loading" | "pending" | "unavailable" | "reported";
+}) {
+  const resultLabel = useGuideVoteLabel(result, status, true);
   const { t: tx, language } = useAppTranslation();
   const router = useRouter();
   const [photoFailed, setPhotoFailed] = useState(false);
@@ -88,6 +99,7 @@ function CandidateRow({ candidate }: { candidate: Candidate }) {
       accessibilityRole="button"
       accessibilityLabel={[
         candidate.name,
+        resultLabel,
         translateAppLabel(
           language,
           candidate.officeName ?? tx("statewide office"),
@@ -130,13 +142,23 @@ function CandidateRow({ candidate }: { candidate: Candidate }) {
             .filter(Boolean)
             .join(" · ")}
         </Text>
+        <GuideVoteResult result={result} status={status} />
       </View>
       <Icon name="chevR" size={18} color={P.primary} />
     </TouchableOpacity>
   );
 }
 
-function MeasureRow({ measure: originalMeasure }: { measure: Measure }) {
+function MeasureRow({
+  measure: originalMeasure,
+  result,
+  status,
+}: {
+  measure: Measure;
+  result?: GuideVote;
+  status: "loading" | "pending" | "unavailable" | "reported";
+}) {
+  const resultLabel = useGuideVoteLabel(result, status, true);
   const { t: tx } = useAppTranslation();
 
   const { t } = useLanguage();
@@ -155,6 +177,7 @@ function MeasureRow({ measure: originalMeasure }: { measure: Measure }) {
       accessibilityRole="button"
       accessibilityLabel={[
         tx("Proposition {value1}", { value1: measure.number }),
+        resultLabel,
         measure.displayTitle
           ? plainTrillionText(measure.displayTitle)
           : measure.title,
@@ -187,6 +210,7 @@ function MeasureRow({ measure: originalMeasure }: { measure: Measure }) {
         {translation.state === "unavailable" && (
           <Text style={s.note}>{t("article.translationUnavailable")}</Text>
         )}
+        <GuideVoteResult result={result} status={status} />
       </View>
       <Icon name="chevR" size={18} color={P.primary} />
     </TouchableOpacity>
@@ -223,6 +247,20 @@ export function CaliforniaGuidePreview({
     trpc.civic.getCaliforniaGuide.queryOptions(undefined, { enabled: focused }),
   );
   const guide = query.isError ? undefined : query.data;
+  const resultsQuery = useQuery(
+    trpc.civic.getCaliforniaGuideResults.queryOptions(undefined, {
+      enabled: focused && !!guide,
+      staleTime: 60_000,
+      refetchInterval: focused ? 60_000 : false,
+    }),
+  );
+  const results =
+    !resultsQuery.isError &&
+    resultsQuery.data?.electionDate === guide?.electionDate
+      ? resultsQuery.data
+      : undefined;
+  const resultsStatus =
+    results?.status ?? (resultsQuery.isPending ? "loading" : "unavailable");
   const [visibleNumbers, setVisibleNumbers] = useState<string[]>([]);
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken<Measure>[] }) => {
@@ -253,7 +291,17 @@ export function CaliforniaGuidePreview({
         key={tab}
         data={tab === "measures" ? guide?.measures : []}
         keyExtractor={(measure) => measure.number}
-        renderItem={({ item }) => <MeasureRow measure={item} />}
+        renderItem={({ item }) => (
+          <MeasureRow
+            measure={item}
+            result={
+              results?.status === "reported"
+                ? results.measures[item.number]
+                : undefined
+            }
+            status={resultsStatus}
+          />
+        )}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         viewabilityConfig={MEASURE_VIEWABILITY}
         onViewableItemsChanged={onViewableItemsChanged}
@@ -387,6 +435,14 @@ export function CaliforniaGuidePreview({
                       <CandidateRow
                         key={`${candidate.officeSlug}:${candidate.name}`}
                         candidate={candidate}
+                        result={
+                          results?.status === "reported"
+                            ? results.candidates[
+                                `${candidate.officeSlug}:${candidate.name}`
+                              ]
+                            : undefined
+                        }
+                        status={resultsStatus}
                       />
                     ))}
                   </View>
@@ -430,6 +486,11 @@ export function CaliforniaGuidePreview({
                   </TouchableOpacity>
                 )}
                 <Card flush style={s.sources}>
+                  <SourceRow
+                    icon="vote"
+                    label={tx("Official election results")}
+                    url="https://electionresults.sos.ca.gov/"
+                  />
                   <SourceRow
                     icon="book"
                     label={tx("Official voter guide")}
