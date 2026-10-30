@@ -25,6 +25,7 @@ import type {
   ResearchTransaction,
   ResearchWorkLease,
 } from "./candidate-research-store";
+import { verifyStoredCampaignContactProof } from "./california-campaign-contact";
 import { briefDigest, briefIdentityKey } from "./candidate-brief-publication";
 import { readCandidateRace } from "./candidate-race-release";
 import {
@@ -123,6 +124,11 @@ export async function recordResearchAiReview(
     );
     if (!artifact) throw new Error("Missing immutable author artifact");
     const dossier = candidateEvidenceDossierSchema.parse(artifact.dossier);
+    await verifyStoredCampaignContactProof(
+      tx,
+      row.document.rosterSnapshotId,
+      dossier,
+    );
     if (
       dossier.dossierDigest !== artifact.dossierDigest ||
       dossier.sourceSetDigest !== artifact.sourceSetDigest ||
@@ -136,6 +142,10 @@ export async function recordResearchAiReview(
               archived.contentHash === source.contentHash &&
               archived.text === source.text &&
               archived.format === source.format &&
+              (source.id !==
+                dossier.campaignContactProof?.destinationSourceId ||
+                JSON.stringify(archived.retrievalUrls ?? null) ===
+                  JSON.stringify(source.retrievalUrls ?? null)) &&
               (source.format !== "image" ||
                 (archived.byteHash === source.byteHash &&
                   archived.binaryBase64 === source.binaryBase64)),

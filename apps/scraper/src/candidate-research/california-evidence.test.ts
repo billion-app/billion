@@ -668,3 +668,279 @@ test("previous dossier finance renewal preserves archive IDs and semantic digest
     first.sources.map((source) => source.id).sort(),
   );
 });
+
+async function localCampaignFixture() {
+  const { snapshot } = await fixture();
+  const qualified = await readFile(
+    new URL("./fixtures/scc-qualified-2026.txt", import.meta.url),
+    "utf8",
+  );
+  const historical = {
+    ...source(
+      "historical-qualified",
+      "https://files.santaclaracounty.gov/exjcpb1296/2026-09/qualified-list-of-local-candidates-9-28-26.pdf",
+      qualified,
+    ),
+    format: "pdf" as const,
+    fetchedAt: "2026-10-20T00:00:00.000Z",
+  };
+  const contestId = "ca-scc-clarity:2026-11-03:127570:32";
+  const candidateId = contestId + ":choice:56";
+  const jurisdiction = "ocd-division/country:us/state:ca/place:san_jose";
+  const roster = source(
+    "current-clarity",
+    "https://results.enr.clarityelections.com/CA/Santa_Clara/127570/382435/json/en/summary.json",
+    "Current authoritative roster: Anne J. Kepner, West Valley-Mission CCD, 2026-11-03.",
+  );
+  const member = {
+    candidateId,
+    sourceCandidateId: "56",
+    identity: {
+      candidateId,
+      contestId,
+      jurisdiction,
+      electionDate: "2026-11-03",
+    },
+    name: "Anne J. Kepner",
+    party: null,
+    partyCode: "",
+    ballotStatus: "on_ballot" as const,
+    sourceProof: {
+      url: roster.url,
+      contentHash: roster.contentHash,
+      excerpt: "Anne J. Kepner",
+      locator: "Current Clarity choice56",
+    },
+  };
+  const race = {
+    raceKey: "local-wvm-3253",
+    contestId,
+    jurisdiction,
+    jurisdictionLabel: "San José",
+    electionDate: "2026-11-03",
+    sourceContestId: "3253",
+    officeFamily: "local" as const,
+    office: "West Valley-Mission CCD",
+    district: null,
+    kind: "election" as const,
+    rosterDigest: "a".repeat(64),
+    members: [member],
+  };
+  snapshot.races = [race];
+  snapshot.additionalSources = [roster];
+  snapshot.historicalSources = [historical];
+  snapshot.localPrimary = {
+    kind: "scc_clarity",
+    definitionURL: roster.url,
+    settingsURL:
+      "https://results.enr.clarityelections.com/CA/Santa_Clara/127570/382435/json/en/electionsettings.json",
+    currentVersionURL:
+      "https://results.enr.clarityelections.com/CA/Santa_Clara/127570/current_ver.txt",
+    identityCrosswalk: {
+      schemaVersion: 1,
+      electionDate: "2026-11-03",
+      definitionHash: roster.contentHash,
+      members: [
+        {
+          sourceContestId: "3253",
+          sourceOrdinal: "1",
+          clarityContestKey: "32",
+          clarityChoiceIndex: 0,
+          name: member.name,
+          status: "on_ballot",
+        },
+      ],
+      review: {
+        actorId: "fixture-reviewed",
+        reviewedAt: now,
+        digest: "a".repeat(64),
+      },
+    },
+  };
+  snapshot.localCrosswalk = {
+    schemaVersion: 1,
+    electionDate: "2026-11-03",
+    rosterSourceHash: historical.contentHash,
+    method: "Fixture reviewed source binding.",
+    entries: [
+      {
+        sourceContestId: "3253",
+        status: "include",
+        reason: "Fixture verified territory",
+        proofs: [],
+      },
+    ],
+    review: {
+      actorId: "fixture-reviewed",
+      reviewedAt: now,
+      digest: "a".repeat(64),
+    },
+  };
+  const urls: string[] = [];
+  let redirect = false,
+    institutional = false;
+  const deps = {
+    now: () => now,
+    sharedSources: new Map<string, Promise<ResearchSource>>(),
+    budget: { request() {}, bytes() {} },
+    search: async () => ({ sources: [] }),
+    fetch: async (
+      id: string,
+      url: string,
+      publisher: string,
+      format: ResearchSource["format"],
+    ) => {
+      urls.push(url);
+      if (url.includes("annekepner.org"))
+        return fetchBoundedCaliforniaSource(
+          id,
+          url,
+          publisher,
+          format,
+          { request() {}, bytes() {} },
+          undefined,
+          {
+            addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+            transport: async (current) => {
+              if (redirect && !current.endsWith("/current"))
+                return new Response(null, {
+                  status: 302,
+                  headers: { location: "/current" },
+                });
+              return new Response(
+                `<html><body>Anne J. Kepner ${institutional ? "serves on a board. Institutional board members and administrative policies are listed here. The board will vote on the annual fundraising campaign; donate to the student foundation. Principal Garcia: My vision is to improve reading, and I will support every student. ".repeat(8) : "for Trustee. I will support affordable college access and expand student programs through a transparent budget proposal. ".repeat(8)}</body></html>`,
+              );
+            },
+          },
+        ).then((archive) => ({ ...archive, fetchedAt: now }));
+      return source(
+        id,
+        url,
+        url.includes("legislative-and-policy")
+          ? "This standing committee reviews policy and recommends proposals to the Board."
+          : "The Board may adopt such policies as law permits and delegates administration to the Chancellor.",
+      );
+    },
+  };
+  return {
+    snapshot,
+    race,
+    member,
+    historical,
+    deps,
+    urls,
+    setRedirect() {
+      redirect = true;
+    },
+    setInstitutional() {
+      institutional = true;
+    },
+  };
+}
+test("local official Website proof accepts a fresh Anne Kepner campaign without renewing the historical PDF", async () => {
+  const f = await localCampaignFixture();
+  const dossier = await collectCaliforniaEvidence(f, f.deps);
+  assert.equal(dossier.classification, "supported");
+  assert.equal(
+    dossier.campaignContactProof?.identity.candidateId,
+    f.member.candidateId,
+  );
+  assert.equal(
+    dossier.campaignContactProof?.officialSource.fetchedAt,
+    "2026-10-20T00:00:00.000Z",
+  );
+  assert.ok(
+    dossier.evidence.some(
+      (e) => e.origin === "candidate" && e.role === "candidate_statement",
+    ),
+  );
+  assert.equal(
+    dossier.sources.some((s) => s.url === f.historical.url),
+    false,
+  );
+  assert.equal(
+    f.urls.some((url) => url.includes("contact-list.pdf")),
+    false,
+  );
+});
+test("local historical Website proof records only observed public redirects", async () => {
+  const f = await localCampaignFixture();
+  f.setRedirect();
+  const dossier = await collectCaliforniaEvidence(f, f.deps);
+  assert.equal(dossier.classification, "supported");
+  assert.deepEqual(dossier.campaignContactProof?.retrievalUrls, [
+    "https://annekepner.org/",
+    "https://annekepner.org/current",
+  ]);
+});
+test("filed institutional website is an identity lead, not candidate authorship", async () => {
+  const f = await localCampaignFixture();
+  f.setInstitutional();
+  const dossier = await collectCaliforniaEvidence(f, f.deps);
+  assert.equal(dossier.classification, "evidence_gap");
+  assert.equal(dossier.campaignContactProof, undefined);
+});
+for (const invalid of [
+  "wrong-row",
+  "wrong-hash",
+  "unsafe-url",
+  "absent-website",
+] as const)
+  test(`local ${invalid} filing cannot qualify a campaign source`, async () => {
+    const f = await localCampaignFixture();
+    if (invalid === "wrong-row") f.member.sourceCandidateId = "57";
+    else if (invalid === "wrong-hash")
+      f.historical.contentHash = "b".repeat(64);
+    else {
+      const start = f.historical.text.indexOf("Anne J. Kepner");
+      const at = f.historical.text.indexOf("Website:annekepner.org", start);
+      f.historical.text =
+        f.historical.text.slice(0, at) +
+        (invalid === "unsafe-url"
+          ? "Website:http://127.0.0.1:10531"
+          : "Website:") +
+        f.historical.text.slice(at + "Website:annekepner.org".length);
+      f.historical.contentHash = createHash("sha256")
+        .update(f.historical.text)
+        .digest("hex");
+      f.snapshot.localCrosswalk!.rosterSourceHash = f.historical.contentHash;
+    }
+    const dossier = await collectCaliforniaEvidence(f, f.deps);
+    assert.equal(dossier.classification, "evidence_gap");
+    assert.equal(dossier.campaignContactProof, undefined);
+    assert.equal(
+      f.urls.some(
+        (url) => url.includes("annekepner.org") || url.includes("127.0.0.1"),
+      ),
+      false,
+    );
+  });
+
+test("unchanged local campaign redirect proof renews from the actual fresh filed-URL chain", async () => {
+  const f = await localCampaignFixture();
+  f.setRedirect();
+  const first = await collectCaliforniaEvidence(f, f.deps);
+  f.deps.sharedSources.clear();
+  const second = await collectCaliforniaEvidence(
+    { ...f, previousDossier: first },
+    f.deps,
+  );
+  assert.equal(second.dossierDigest, first.dossierDigest);
+  assert.deepEqual(
+    second.campaignContactProof?.retrievalUrls,
+    first.campaignContactProof?.retrievalUrls,
+  );
+});
+test("unavailable filed campaign page remains a retrieval gap without a fabricated proof", async () => {
+  const f = await localCampaignFixture();
+  const fetch = f.deps.fetch;
+  f.deps.fetch = async (id, url, publisher, format) => {
+    if (url.includes("annekepner.org"))
+      throw Error("Source request failed (404)");
+    return fetch(id, url, publisher, format);
+  };
+  const dossier = await collectCaliforniaEvidence(f, f.deps);
+  assert.equal(dossier.classification, "evidence_gap");
+  assert.equal(dossier.campaignContactProof, undefined);
+  assert.ok(dossier.gaps.some((gap) => gap.code === "source_unavailable"));
+});

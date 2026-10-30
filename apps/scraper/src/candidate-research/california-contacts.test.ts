@@ -349,3 +349,31 @@ test("unknown archives, duplicate identities and ambiguous Website fields fail c
     /outside a candidate record/,
   );
 });
+
+test("contact archive membership requires the reviewed source hash binding", () => {
+  const snapshot = fixture();
+  const input = selected(snapshot, "Anne J. Kepner");
+  snapshot.localCrosswalk!.rosterSourceHash = "b".repeat(64);
+  assert.equal(
+    resolveCaliforniaOfficialCampaignWebsite(input).status,
+    "identity_unresolved",
+  );
+  snapshot.localCrosswalk!.rosterSourceHash = hash(qualified);
+  assert.equal(
+    resolveCaliforniaOfficialCampaignWebsite(input).status,
+    "listed",
+  );
+  const writeIn = selected(snapshot, "Hina Patel");
+  snapshot.localCrosswalk!.entries.find(
+    (entry) => entry.sourceContestId === "3681",
+  )!.proofs = [];
+  assert.equal(
+    resolveCaliforniaOfficialCampaignWebsite(writeIn).status,
+    "identity_unresolved",
+  );
+  delete snapshot.localCrosswalk;
+  assert.equal(
+    resolveCaliforniaOfficialCampaignWebsite(input).status,
+    "identity_unresolved",
+  );
+});

@@ -18,6 +18,7 @@ import {
 } from "../research/pages.js";
 import { requestPublicSource } from "../research/transport.js";
 import { decodeClarityXmlZip } from "./california-clarity.js";
+import { resolveCaliforniaOfficialCampaignWebsite } from "./california-contacts.js";
 import {
   buildCaliforniaDossier,
   californiaResearchVersion,
@@ -233,6 +234,21 @@ function excerpt(text: string, name: string): string | undefined {
     .slice(Math.max(0, position - 120), Math.min(text.length, position + 2800))
     .trim();
 }
+function candidateAuthorshipCue(source: ResearchSource, name: string): boolean {
+  const text = substantiveSourceText(source);
+  const body = compact(text);
+  const candidate = compact(name);
+  return [
+    `paid for by ${candidate}`,
+    `vote ${candidate}`,
+    `vote for ${candidate}`,
+    `elect ${candidate}`,
+    `${candidate} for trustee`,
+    `${candidate} for school board`,
+    `${candidate} for city council`,
+    `${candidate} campaign`,
+  ].some((cue) => candidateNamePosition(body, cue) >= 0);
+}
 export function qualifiedCandidatePage(
   source: ResearchSource,
   race: CaliforniaRaceTarget,
@@ -400,7 +416,21 @@ export async function collectCaliforniaEvidence(
       deps.sharedSources.set(url, pending);
     }
     const source = await pending;
-    if (!sources.some((s) => s.url === source.url)) sources.push(source);
+    const priorIndex = sources.findIndex(
+      (existing) => existing.id === source.id,
+    );
+    if (priorIndex < 0) sources.push(source);
+    else {
+      const existing = sources[priorIndex]!;
+      if (
+        existing.url !== source.url ||
+        existing.contentHash !== source.contentHash
+      )
+        throw new CaliforniaCitedSourceFailure(
+          "A source identity changed during the bounded retrieval",
+        );
+      sources[priorIndex] = source;
+    }
     return source;
   };
   const priorCitedSources = (input.previousDossier?.sources ?? []).filter(
@@ -491,7 +521,11 @@ export async function collectCaliforniaEvidence(
           required: false,
         });
     } catch (error) {
-      if (error instanceof CaliforniaBudgetReached) throw error;
+      if (
+        error instanceof CaliforniaBudgetReached ||
+        error instanceof CaliforniaCitedSourceFailure
+      )
+        throw error;
       gaps.push({
         dimension: "mechanisms",
         code: "source_unavailable",
@@ -509,24 +543,65 @@ export async function collectCaliforniaEvidence(
       checkedSourceIds: [],
       required: true,
     });
-  let contact: ResearchSource | undefined;
-  try {
-    contact = await get(
-      "https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/contact-list.pdf",
-      "California Secretary of State",
-      "pdf",
-    );
-  } catch (error) {
-    if (error instanceof CaliforniaBudgetReached) throw error;
-    gaps.push({
-      dimension: "priorities",
-      code: "source_unavailable",
-      message:
-        "Official campaign contacts could not be retrieved in this attempt.",
-      checkedSourceIds: [],
-      required: false,
-    });
+  let campaignContactProof: CandidateEvidenceDossier["campaignContactProof"];
+  let localWebsite:
+    | ReturnType<typeof resolveCaliforniaOfficialCampaignWebsite>
+    | undefined;
+  if (race.officeFamily === "local") {
+    try {
+      localWebsite = resolveCaliforniaOfficialCampaignWebsite({
+        snapshot,
+        race,
+        member,
+      });
+      if (localWebsite.status !== "listed")
+        gaps.push({
+          dimension: "priorities",
+          code:
+            localWebsite.status === "identity_unresolved"
+              ? "identity_unresolved"
+              : "not_found_in_checked_sources",
+          message:
+            localWebsite.status === "missing"
+              ? "The archived official candidate filing did not list a campaign website."
+              : "We could not verify a campaign website from the archived official filing.",
+          checkedSourceIds: [],
+          required: false,
+        });
+    } catch {
+      gaps.push({
+        dimension: "priorities",
+        code: "identity_unresolved",
+        message:
+          "We could not verify a campaign website from the archived official filing.",
+        checkedSourceIds: [],
+        required: false,
+      });
+    }
   }
+  let contact: ResearchSource | undefined;
+  if (race.officeFamily !== "local")
+    try {
+      contact = await get(
+        "https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/contact-list.pdf",
+        "California Secretary of State",
+        "pdf",
+      );
+    } catch (error) {
+      if (
+        error instanceof CaliforniaBudgetReached ||
+        error instanceof CaliforniaCitedSourceFailure
+      )
+        throw error;
+      gaps.push({
+        dimension: "priorities",
+        code: "source_unavailable",
+        message:
+          "Official campaign contacts could not be retrieved in this attempt.",
+        checkedSourceIds: [],
+        required: false,
+      });
+    }
   let contactExcerpt: string | undefined;
   if (contact) {
     const start = contact.text.indexOf(member.name);
@@ -549,11 +624,16 @@ export async function collectCaliforniaEvidence(
       contactExcerpt = contact.text.slice(start, end);
     }
   }
-  const linked = (
-    contactExcerpt?.match(/(?:https?:\/\/|www\.)[^\s<>]+/g) ?? []
-  ).map((url) =>
-    (url.startsWith("www.") ? `https://${url}` : url).replace(/[.,;)]+$/, ""),
-  );
+  const linked =
+    localWebsite?.status === "listed" && localWebsite.url
+      ? [localWebsite.url]
+      : (contactExcerpt?.match(/(?:https?:\/\/|www\.)[^\s<>]+/g) ?? []).map(
+          (url) =>
+            (url.startsWith("www.") ? `https://${url}` : url).replace(
+              /[.,;)]+$/,
+              "",
+            ),
+        );
   const query = `${member.name} ${race.office} California ${race.electionDate.slice(0, 4)}`;
   const statementSlug = officeSlug(race.office);
   const officialStatements = statementSlug
@@ -594,7 +674,11 @@ export async function collectCaliforniaEvidence(
       if (discoveries.length >= 4 || linked.length) break;
     }
   } catch (error) {
-    if (error instanceof CaliforniaBudgetReached) throw error;
+    if (
+      error instanceof CaliforniaBudgetReached ||
+      error instanceof CaliforniaCitedSourceFailure
+    )
+      throw error;
     gaps.push({
       dimension: "record",
       code: "source_unavailable",
@@ -634,9 +718,26 @@ export async function collectCaliforniaEvidence(
         !qualifiedCandidatePage(source, race, member.name, linked.includes(url))
       )
         continue;
-      if (linked.includes(url) && contact && contactExcerpt) {
+      if (linked.includes(url)) {
+        if (localWebsite?.status === "listed") {
+          if (
+            !localWebsite.url ||
+            !localWebsite.officialSource ||
+            !source.retrievalUrls ||
+            !candidateAuthorshipCue(source, member.name)
+          )
+            continue;
+          campaignContactProof = {
+            kind: "historical_official_filing",
+            identity: localWebsite.requestedCandidateIdentity,
+            websiteUrl: localWebsite.url,
+            destinationSourceId: source.id,
+            officialSource: localWebsite.officialSource,
+            retrievalUrls: source.retrievalUrls,
+          };
+        }
         const rawAnchor = (
-          contactExcerpt.match(/(?:https?:\/\/|www\.)[^\s<>]+/g) ?? []
+          contactExcerpt?.match(/(?:https?:\/\/|www\.)[^\s<>]+/g) ?? []
         ).find(
           (value) =>
             (value.startsWith("www.") ? `https://${value}` : value).replace(
@@ -644,7 +745,7 @@ export async function collectCaliforniaEvidence(
               "",
             ) === url,
         );
-        if (rawAnchor)
+        if (rawAnchor && contact)
           sourceLinks.push({
             fromSourceId: contact.id,
             toSourceId: source.id,
@@ -727,7 +828,11 @@ export async function collectCaliforniaEvidence(
             : "exact_election_office",
       });
     } catch (error) {
-      if (error instanceof CaliforniaBudgetReached) throw error;
+      if (
+        error instanceof CaliforniaBudgetReached ||
+        error instanceof CaliforniaCitedSourceFailure
+      )
+        throw error;
       unavailable = true;
     }
   }
@@ -840,6 +945,7 @@ export async function collectCaliforniaEvidence(
     finance,
     financeIdentityProof,
     sourceLinks,
+    campaignContactProof,
     gaps,
   });
 }
@@ -867,8 +973,10 @@ export async function fetchBoundedCaliforniaSource(
   const addresses = controls?.addresses ?? publicSourceAddresses;
   const signal = AbortSignal.timeout(30_000);
   let response: Response | undefined;
+  const retrievalUrls: string[] = [];
   for (let redirects = 0; redirects <= 3; redirects++) {
     const resolved = await addresses(currentURL);
+    retrievalUrls.push(currentURL);
     response = await transport(currentURL, resolved, signal, {
       "User-Agent": "Mozilla/5.0 (compatible; BillionResearch/1.0)",
       Accept: "text/html,application/pdf,text/plain,application/json",
@@ -972,6 +1080,7 @@ export async function fetchBoundedCaliforniaSource(
   return {
     id,
     url: currentURL,
+    retrievalUrls,
     publisher,
     format,
     text,

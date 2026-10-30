@@ -9,6 +9,7 @@ import {
   candidateDossierSourceProjection,
   candidateEvidenceDossierSchema,
   candidateFinanceSemanticProjection,
+  validateCampaignContactDestination,
 } from "@acme/validators";
 
 export const californiaResearchVersion = "california-dossier-v1";
@@ -19,6 +20,7 @@ export function validateCaliforniaDossier(
   value: unknown,
 ): CandidateEvidenceDossier {
   const dossier = candidateEvidenceDossierSchema.parse(value);
+  validateCampaignContactDestination(dossier);
   const sources = new Map(dossier.sources.map((source) => [source.id, source]));
   if (sources.size !== dossier.sources.length)
     throw new Error("Duplicate dossier sources");

@@ -332,3 +332,131 @@ test("text response byte metadata does not change canonical dossier content iden
   assert.equal(a.sourceSetDigest, b.sourceSetDigest);
   assert.equal(a.dossierDigest, b.dossierDigest);
 });
+
+void test("historical contact proofs bind only exact identity and freshly retrieved redirect destinations", () => {
+  const base = fixtureDossier(false);
+  const identity = {
+    ...base.identity,
+    candidateId: "ca-scc-clarity:2026-11-03:127570:1:choice:1",
+    contestId: "ca-scc-clarity:2026-11-03:127570:1",
+  };
+  const historicalUrl =
+    "https://files.santaclaracounty.gov/archive/qualified-list-of-local-candidates-fixture.pdf";
+  const campaign = {
+    id: "campaign",
+    url: "https://campaign.example/about",
+    publisher: "Candidate",
+    format: "html" as const,
+    text: "Morgan Lee is running for local office.",
+    contentHash: createHash("sha256")
+      .update("Morgan Lee is running for local office.")
+      .digest("hex"),
+    fetchedAt: base.createdAt,
+    retrievalUrls: [
+      "http://campaign.example/",
+      "https://campaign.example/about",
+    ],
+  };
+  const proof = {
+    kind: "historical_official_filing" as const,
+    identity,
+    websiteUrl: "http://campaign.example/",
+    destinationSourceId: campaign.id,
+    retrievalUrls: campaign.retrievalUrls,
+    officialSource: {
+      url: historicalUrl,
+      contentHash: "b".repeat(64),
+      fetchedAt: "2026-09-22T00:00:00.000Z",
+      locator: "Original archived filing Website field",
+      excerpt: "Website:campaign.example",
+      recordDigest: "c".repeat(64),
+      officialRecordName: "Morgan Lee",
+    },
+  };
+  const {
+    schemaVersion: _schema,
+    classification: _classification,
+    dossierDigest: _digest,
+    sourceSetDigest: _sourceDigest,
+    ...input
+  } = base;
+  const valid = buildCaliforniaDossier({
+    ...input,
+    identity,
+    officeFamily: "local",
+    officeKind: "local",
+    sources: [...base.sources, campaign],
+    campaignContactProof: proof,
+  });
+  assert.equal(
+    valid.campaignContactProof?.officialSource.fetchedAt,
+    "2026-09-22T00:00:00.000Z",
+  );
+  assert.equal(
+    valid.sources.some((source) => source.url === historicalUrl),
+    false,
+  );
+  assert.throws(
+    () =>
+      buildCaliforniaDossier({
+        ...input,
+        identity,
+        officeFamily: "local",
+        officeKind: "local",
+        sources: [...base.sources, campaign],
+        campaignContactProof: {
+          ...proof,
+          identity: { ...identity, candidateId: "someone-else" },
+        },
+      }),
+    /different candidate identity/,
+  );
+  assert.throws(
+    () =>
+      buildCaliforniaDossier({
+        ...input,
+        identity,
+        officeFamily: "local",
+        officeKind: "local",
+        sources: [...base.sources, { ...campaign, retrievalUrls: undefined }],
+        campaignContactProof: proof,
+      }),
+    /actual recorded fresh destination/,
+  );
+  assert.throws(
+    () =>
+      buildCaliforniaDossier({
+        ...input,
+        identity,
+        officeFamily: "local",
+        officeKind: "local",
+        sources: [...base.sources, { ...campaign, url: historicalUrl }],
+        campaignContactProof: proof,
+      }),
+    /cannot be dossier sources/,
+  );
+  assert.throws(
+    () =>
+      buildCaliforniaDossier({
+        ...input,
+        identity,
+        officeFamily: "local",
+        officeKind: "local",
+        sources: [...base.sources, campaign],
+        campaignContactProof: proof,
+        evidence: [
+          ...base.evidence,
+          {
+            id: "historical-quote",
+            sourceId: "historical-contact-proof",
+            excerpt: proof.officialSource.excerpt,
+            locator: "Website",
+            origin: "candidate",
+            role: "candidate_statement",
+            identityQualification: "official_cross_link",
+          },
+        ],
+      }),
+    /archived source exactly/,
+  );
+});

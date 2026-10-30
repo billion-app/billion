@@ -24,6 +24,7 @@ export const researchSourceSchema = z
       .regex(/^[a-f0-9]{64}$/)
       .optional(),
     fetchedAt: z.iso.datetime(),
+    retrievalUrls: z.array(z.url()).min(1).max(4).optional(),
   })
   .superRefine((source, context) => {
     if (source.format === "image") {

@@ -944,6 +944,16 @@ test("author and reviewer contracts require reader language, distinct chapters a
   );
   assert.equal(a.attestation.promptVersion, "california-author-v9");
   assert.equal(r.attestation.promptVersion, "california-review-v2");
+  assert.ok(
+    calls[0]!.system.includes(
+      "not fresh or citable substantive campaign evidence",
+    ),
+  );
+  assert.ok(
+    calls[1]!.system.includes(
+      "require freshly retrieved substantive campaign-source text",
+    ),
+  );
   assert.equal(r.verdict, "reject");
   assert.ok(
     calls[0]!.system.includes("Write for a voter in plain reader language"),

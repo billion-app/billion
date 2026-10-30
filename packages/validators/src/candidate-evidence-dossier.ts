@@ -6,6 +6,41 @@ import { researchSourceSchema } from "./candidate-research-collection";
 
 const text = z.string().trim().min(1).max(4000);
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
+export const campaignContactProofSchema = z.object({
+  kind: z.literal("historical_official_filing"),
+  identity: candidateBriefIdentitySchema,
+  websiteUrl: z.url(),
+  destinationSourceId: text,
+  retrievalUrls: z.array(z.url()).min(1).max(4),
+  officialSource: z.object({
+    url: z.url(),
+    contentHash: digest,
+    fetchedAt: z.iso.datetime(),
+    locator: text,
+    excerpt: text,
+    recordDigest: digest,
+    officialRecordName: text,
+  }),
+});
+export type CampaignContactProof = z.infer<typeof campaignContactProofSchema>;
+export function canonicalCampaignContactUrl(value: string): string {
+  const url = new URL(value);
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    !url.hostname.includes(".") ||
+    /^[\d.]+$/.test(url.hostname) ||
+    url.hostname.startsWith("[") ||
+    /(^|\.)localhost$|\.local$|\.internal$/.test(
+      url.hostname.replace(/\.$/, ""),
+    ) ||
+    /\s/.test(value)
+  )
+    throw new Error("Campaign contact requires a public HTTP website");
+  url.hash = "";
+  return url.toString();
+}
 export const candidateEvidenceDossierSchema = z.object({
   schemaVersion: z.literal(1),
   identity: candidateBriefIdentitySchema,
@@ -24,6 +59,7 @@ export const candidateEvidenceDossierSchema = z.object({
   researchVersion: text,
   createdAt: z.iso.datetime(),
   finance: campaignFinanceSchema.nullable().optional(),
+  campaignContactProof: campaignContactProofSchema.optional(),
   financeIdentityProof: z
     .object({
       candidateId: z.string().regex(/^H[A-Z0-9]{8}$/),
@@ -104,6 +140,57 @@ export const candidateEvidenceDossierSchema = z.object({
 export type CandidateEvidenceDossier = z.infer<
   typeof candidateEvidenceDossierSchema
 >;
+
+export function validateCampaignContactDestination(
+  dossier: CandidateEvidenceDossier,
+): void {
+  const proof = dossier.campaignContactProof;
+  if (!proof) return;
+  if (
+    dossier.officeFamily !== "local" ||
+    Date.parse(proof.officialSource.fetchedAt) > Date.parse(dossier.createdAt)
+  )
+    throw new Error(
+      "Historical contact proof must belong to a local candidate and retain its original past observation time",
+    );
+  if (
+    ["candidateId", "contestId", "jurisdiction", "electionDate"].some(
+      (key) =>
+        proof.identity[key as keyof typeof proof.identity] !==
+        dossier.identity[key as keyof typeof dossier.identity],
+    )
+  )
+    throw new Error(
+      "Campaign contact proof belongs to a different candidate identity",
+    );
+  if (dossier.sources.some((source) => source.url === proof.officialSource.url))
+    throw new Error(
+      "Historical contact filings are discovery metadata and cannot be dossier sources or citation evidence",
+    );
+  const destination = dossier.sources.find(
+    (source) => source.id === proof.destinationSourceId,
+  );
+  if (
+    !destination ||
+    !destination.retrievalUrls ||
+    destination.retrievalUrls.length !== proof.retrievalUrls.length ||
+    proof.retrievalUrls.some(
+      (url, index) =>
+        canonicalCampaignContactUrl(url) !==
+        canonicalCampaignContactUrl(destination.retrievalUrls?.[index] ?? ""),
+    ) ||
+    canonicalCampaignContactUrl(proof.retrievalUrls[0] ?? "") !==
+      canonicalCampaignContactUrl(proof.websiteUrl) ||
+    canonicalCampaignContactUrl(proof.retrievalUrls.at(-1) ?? "") !==
+      canonicalCampaignContactUrl(destination.url)
+  )
+    throw new Error(
+      "Campaign contact proof must bind the actual recorded fresh destination and redirect chain",
+    );
+  const age = Date.parse(dossier.createdAt) - Date.parse(destination.fetchedAt);
+  if (age < 0 || age > 86_400_000)
+    throw new Error("Campaign contact destination must be freshly retrieved");
+}
 
 export const candidateModelAttestationSchema = z.object({
   role: z.enum(["author", "reviewer"]),
