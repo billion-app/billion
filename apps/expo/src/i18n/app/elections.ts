@@ -2,6 +2,12 @@
 import type { Catalog } from "./types";
 
 export const electionStrings = {
+  "Show polls": { en: "Show polls", es: "Mostrar encuestas", zh: "显示民调" },
+  "Polls are hidden until you choose to show them.": {
+    en: "Polls are hidden until you choose to show them.",
+    es: "Las encuestas se ocultan hasta que elijas verlas.",
+    zh: "民调默认隐藏，选择后才会显示。",
+  },
   "Checking polls…": {
     en: "Checking polls…",
     es: "Consultando encuestas…",
