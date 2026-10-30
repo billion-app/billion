@@ -306,6 +306,7 @@ export interface MeasureArgumentRef {
 }
 
 export interface Contest {
+  providerIdentity?: { provider: "democracy_works"; contestId: string };
   /** Server-signed display translation capability; never part of ballot identity. */
   translationReference?: string;
   type: string;
@@ -350,6 +351,7 @@ export interface Contest {
 }
 
 export interface Candidate {
+  providerIdentity?: { provider: "democracy_works"; candidateId: string };
   ballotStatus?: "onBallot" | "withdrewStillOnBallot";
   name: string;
   party?: string;
