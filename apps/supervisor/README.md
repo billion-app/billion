@@ -242,3 +242,23 @@ ssh big-mac 'tail -50 ~/Library/Logs/billion/translations.error.log'
 For a bounded one-off run against an explicitly selected database, use
 `pnpm --filter @acme/scraper content-translations --limit 1`. This writes cached
 translations and consumes Codex capacity; `--watch` serves the queue continuously.
+
+## November 3 California research bounds
+
+`california-candidate-research-reconcile` serves the current state-certified and
+San José local snapshot under its explicit automation policy. It runs serially
+every 30 minutes with finite ceilings of 48 races, 96 candidates, 500 source
+requests, 250 MB of response bodies, 192 model calls and 4 million conservative
+input-token reservations. Only this job explicitly selects Tavily, allows at
+most 96 searches per run, and uses Luna with low reasoning for authorship and
+Astra for review. Existing monthly Tavily and provider limits still apply.
+Other jobs and global provider settings retain their existing configuration.
+
+These bounds remove demonstrated admission bottlenecks in the local sample;
+they do not establish a 24-hour capacity guarantee. The sample consumed more
+than 500,000 input reservations while attempting ten candidates, most of whom
+remained pending. Shared census retrieval alone consumed about 53.7 MB. Measure exhaustive
+coverage and the full refresh cycle after controlled rollout. Rejections and
+missing evidence remain pending; source freshness expires within 24 hours of
+the oldest required current observation. Broader work is tracked in
+[issue 537](https://github.com/billion-app/billion/issues/537).

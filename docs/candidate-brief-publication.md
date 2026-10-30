@@ -68,6 +68,31 @@ server-only tools and records the actual owner and reviewer identities.
 
 ## Release decisions
 
+### Expanded California automation policy
+
+The requested successor policy is
+`ca-california-candidate-research-2026-10-30-v2`. It represents the owner's
+October 30 request to research every real California candidate and to perform
+ongoing AI review and publication. The initial authoritative adapter enumerates
+the state-certified population. It does not establish completion for local
+county and municipal rosters. The 58-county ledger retains those unknowns.
+
+This successor is a policy contract awaiting operational adoption, rather than
+evidence that any additional candidate has been published. A trusted operator
+records the actual approving owner and explicit automated service actor,
+eligible author and reviewer models, and research version. The service actor
+is `california-research-service`. Author and reviewer invocations remain separate,
+with exact revision and source digests and retained review findings. Rejection
+does not become approval after retries. The background worker uses the same
+transactional publication service as the authenticated workbench.
+
+Policy adoption is atomic with prepared releases for every previously live race.
+The [trusted internal service](../packages/api/src/lib/candidate-research-service.ts)
+refuses a transition that would strand an existing public race. Until reviewed
+replacement collections and their actual AI attestations are ready, the pilot
+policy and original refresh ownership remain in force. A code deployment or a
+fixture test cannot supply that content review or authorize a policy transition.
+
 The bounded collectors, authenticated editorial application, refresh invalidation,
 and transactional reader are implemented. The operations guide explains
 collection, account provisioning, reviews, and release. Policy adoption does not

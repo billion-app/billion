@@ -52,6 +52,8 @@ export function rowSource(
 }
 export function buildFinance(input: {
   candidateId: string;
+  district?: string;
+  cycle?: number;
   metadata: ResearchSource;
   totals: ResearchSource;
   committees: ResearchSource;
@@ -60,23 +62,25 @@ export function buildFinance(input: {
   sources: ResearchSource[];
   evidence: Evidence[];
 }): CampaignFinance {
+  const district = String(Number(input.district ?? "17"));
+  const cycle = input.cycle ?? 2026;
   const candidates = fecRows(input.metadata).results;
   const c = candidates[0];
   if (
     candidates.length !== 1 ||
     c?.candidate_id !== input.candidateId ||
     c.state !== "CA" ||
-    c.district !== "17" ||
+    String(Number(c.district)) !== district ||
     c.office !== "H" ||
-    !(c.cycles as unknown[])?.includes(2026)
+    !(c.cycles as unknown[])?.includes(cycle)
   )
-    throw new Error("FEC identity does not match the pilot");
+    throw new Error("FEC identity does not match the selected election office");
   const totalRows = fecRows(input.totals).results;
   const t = totalRows[0];
   if (
     totalRows.length !== 1 ||
     t?.candidate_id !== input.candidateId ||
-    t.cycle !== 2026
+    t.cycle !== cycle
   )
     throw new Error("FEC totals missing or ambiguous");
   const committees = fecRows(input.committees).results.filter(
@@ -100,7 +104,7 @@ export function buildFinance(input: {
       "FEC processed campaign totals",
       totalSource.text,
       "primary_record",
-      "Candidate totals, 2025–2026 cycle; latest processed amendments",
+      `Candidate totals, ${cycle - 1}–${cycle} cycle; latest processed amendments`,
     ),
   );
   const periodStart = field(t, "coverage_start_date").slice(0, 10);

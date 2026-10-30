@@ -9,6 +9,7 @@ export function requestPublicSource(
   url: string,
   addresses: LookupAddress[],
   signal: AbortSignal,
+  headers?: Record<string, string>,
 ): Promise<Response> {
   const pinnedLookup: LookupFunction = (_hostname, options, callback) => {
     if (options.all) callback(null, addresses);
@@ -30,6 +31,7 @@ export function requestPublicSource(
         headers: {
           "User-Agent": "BillionResearch/1.0",
           Accept: "text/html,application/pdf,text/plain",
+          ...headers,
         },
       },
       (incoming) => {

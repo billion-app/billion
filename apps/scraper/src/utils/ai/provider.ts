@@ -114,7 +114,10 @@ function getFallbackProvider() {
   return config ? createOpenAI(config) : null;
 }
 
-function getFallbackModel(): V3Model | null {
+function getFallbackModel(
+  responsesModel?: string,
+  options?: { strictJsonSchema?: boolean; reasoningEffort?: string },
+): V3Model | null {
   const provider = getFallbackProvider();
   if (!provider) {
     if (process.env.SCRAPER_FALLBACK_PRIORITY === "primary")
@@ -125,7 +128,9 @@ function getFallbackModel(): V3Model | null {
   }
   return wrapLanguageModel({
     model: customProvider({ fallbackProvider: provider }).languageModel(
-      process.env.SCRAPER_FALLBACK_MODEL?.trim() || "gpt-6-luna",
+      responsesModel?.trim() ||
+        process.env.SCRAPER_FALLBACK_MODEL?.trim() ||
+        "gpt-6-luna",
     ),
     middleware: {
       specificationVersion: "v3",
@@ -145,8 +150,10 @@ function getFallbackModel(): V3Model | null {
             // Models differ in what they accept (gpt-6.1-sol rejects "none"), so
             // a job pinning another model sets a value that model supports.
             reasoningEffort:
-              process.env.SCRAPER_FALLBACK_REASONING_EFFORT?.trim() || "none",
-            strictJsonSchema: false,
+              options?.reasoningEffort?.trim() ||
+              process.env.SCRAPER_FALLBACK_REASONING_EFFORT?.trim() ||
+              "none",
+            strictJsonSchema: options?.strictJsonSchema ?? false,
           },
         },
       }),
@@ -272,6 +279,9 @@ export interface StructuredLlmCandidate {
  */
 export function getStructuredLlmCandidates(options?: {
   localFirst?: boolean;
+  responsesModel?: string;
+  responsesStrictJsonSchema?: boolean;
+  responsesReasoningEffort?: string;
 }): StructuredLlmCandidate[] {
   const localBaseUrl = getLocalBaseUrl();
   const local: StructuredLlmCandidate | null = localBaseUrl
@@ -302,11 +312,18 @@ export function getStructuredLlmCandidates(options?: {
   const configured = candidates.filter(
     (candidate): candidate is StructuredLlmCandidate => candidate !== null,
   );
-  const fallback = getFallbackModel();
+  const fallback = getFallbackModel(options?.responsesModel, {
+    strictJsonSchema: options?.responsesStrictJsonSchema,
+    reasoningEffort: options?.responsesReasoningEffort,
+  });
+  if (options?.responsesModel?.trim() && !fallback)
+    throw new Error(
+      "SCRAPER_FALLBACK_BASE_URL is required for a Responses model override",
+    );
   if (fallback) {
     const candidate = {
       model: fallback,
-      modelVersion: `fallback:${process.env.SCRAPER_FALLBACK_MODEL?.trim() || "gpt-6-luna"}`,
+      modelVersion: `fallback:${options?.responsesModel?.trim() || process.env.SCRAPER_FALLBACK_MODEL?.trim() || "gpt-6-luna"}`,
     };
     if (process.env.SCRAPER_FALLBACK_PRIORITY === "primary")
       configured.unshift(candidate);

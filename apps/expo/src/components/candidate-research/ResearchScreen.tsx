@@ -13,6 +13,7 @@ import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { DigestPalette as P } from "~/styles";
 import { trpc } from "~/utils/api";
 import { claimLabels, PromiseDetail } from "./Brief";
+import { CandidateCatalog } from "./CandidateCatalog";
 import { CandidateResearchBody } from "./CandidateResearchBody";
 import { EvidenceSheet } from "./EvidenceSheet";
 import { candidateResearchPreview } from "./fixtures";
@@ -41,7 +42,7 @@ const topics = [
   { value: "tradeoffs", label: "Tradeoffs" },
   { value: "unknowns", label: "Unknowns" },
 ] as const;
-export function ResearchScreen({
+function ResearchDetailScreen({
   promisePage = false,
 }: {
   promisePage?: boolean;
@@ -95,15 +96,6 @@ export function ResearchScreen({
     refetchInterval: (query) =>
       query.state.data?.translationState === "pending" ? 3_000 : 30_000,
   });
-  const catalog = useQuery({
-    ...trpc.candidateBriefs.listRaces.queryOptions({ language }),
-    enabled: !params.race && !params.draft && !fictional && !previewUnavailable,
-    staleTime: 0,
-    refetchInterval: (query) =>
-      query.state.data?.some((row) => row.translationState === "pending")
-        ? 3_000
-        : false,
-  });
   const expiresAt = query.data?.manifest.expiresAt;
   useEffect(() => {
     if (!expiresAt) return;
@@ -130,6 +122,10 @@ export function ResearchScreen({
       Math.max(now, query.dataUpdatedAt)
       ? query.data
       : null);
+  const judicial =
+    !!race &&
+    race.manifest.members.length === 1 &&
+    /court|judicial|judge|justice/i.test(race.manifest.office);
   const member = race?.manifest.members.find(
     (m) => m.candidateId === params.person,
   );
@@ -185,13 +181,6 @@ export function ResearchScreen({
         contentContainerStyle={s.content}
         keyboardShouldPersistTaps="handled"
       >
-        {catalog.data && (
-          <CardTranslationNotice
-            items={catalog.data}
-            onRetry={() => void catalog.refetch()}
-            isError={catalog.isError}
-          />
-        )}
         {query.data && !params.draft && !fictional && (
           <CardTranslationNotice
             items={[query.data]}
@@ -231,21 +220,18 @@ export function ResearchScreen({
           />
         ) : !race ? (
           <>
-            {(validId && query.isFetching) ||
-            (!params.race && catalog.isPending && !previewUnavailable) ? (
+            {validId && query.isFetching ? (
               <ActivityIndicator
                 accessibilityLabel={tx("Loading candidate research")}
                 color={P.primary}
               />
             ) : null}
-            {(validId && query.isError) || (!params.race && catalog.isError) ? (
+            {validId && query.isError ? (
               <Panel title={tx("Research couldn’t load")}>
                 <Text style={s.body}>{tx("Please try again.")}</Text>
                 <Action
                   label={tx("Try again")}
-                  onPress={() =>
-                    void (params.race ? query.refetch() : catalog.refetch())
-                  }
+                  onPress={() => void query.refetch()}
                 />
               </Panel>
             ) : validId &&
@@ -262,71 +248,7 @@ export function ResearchScreen({
                   onPress={() => router.replace("/candidate-research")}
                 />
               </Panel>
-            ) : (
-              <>
-                <Text accessibilityRole="header" style={s.title}>
-                  {tx("Explore the candidates")}
-                </Text>
-                <Text style={s.body}>
-                  {tx(
-                    "Reviewed records, campaign promises and reported funding.",
-                  )}
-                </Text>
-                {catalog.data?.length
-                  ? catalog.data.map((item) => (
-                      <ChoiceCard
-                        key={item.id}
-                        eyebrow={`${item.jurisdiction.toUpperCase()} · ${electionLabel(item.electionDate, appLocale)}`}
-                        title={item.office}
-                        meta={tx("candidate.count", {
-                          count: item.candidateCount,
-                        })}
-                        accessibilityLabel={`${tx("Explore this race")}: ${item.office}, ${item.jurisdiction}, ${electionLabel(item.electionDate, appLocale)}, ${tx("candidate.count", { count: item.candidateCount })}`}
-                        onPress={() =>
-                          router.push({
-                            pathname: "/candidate-research",
-                            params: { race: item.id },
-                          })
-                        }
-                      />
-                    ))
-                  : !catalog.isPending && (
-                      <Panel title={tx("No reviewed races available yet")}>
-                        <Text style={s.body}>
-                          {tx(
-                            "You can still read official candidate statements in the statewide guide. Your election office has the official candidate list.",
-                          )}
-                        </Text>
-                        <SourceLink
-                          label={tx("Find your election office")}
-                          url="https://www.usa.gov/state-election-office"
-                        />
-                      </Panel>
-                    )}
-                {__DEV__ && (
-                  <Panel title={tx("Development examples")}>
-                    <Action
-                      label={tx("Open fictional candidate research")}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/candidate-research",
-                          params: { preview: "full" },
-                        })
-                      }
-                    />
-                    <Action
-                      label={tx("Open missing-research example")}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/candidate-research",
-                          params: { preview: "sparse" },
-                        })
-                      }
-                    />
-                  </Panel>
-                )}
-              </>
-            )}
+            ) : null}
           </>
         ) : !member || !brief ? (
           params.person ? (
@@ -354,19 +276,21 @@ export function ResearchScreen({
                   { value1: race.manifest.members.length },
                 )}
               </Text>
-              <Segments
-                options={[
-                  { value: "roster", label: tx("Candidates") },
-                  { value: "compare", label: tx("Compare") },
-                ]}
-                value={params.view === "compare" ? "compare" : "roster"}
-                onChange={(value) =>
-                  router.setParams({
-                    view: value === "compare" ? "compare" : "",
-                  })
-                }
-              />
-              {params.view === "compare" ? (
+              {!judicial && (
+                <Segments
+                  options={[
+                    { value: "roster", label: tx("Candidates") },
+                    { value: "compare", label: tx("Compare") },
+                  ]}
+                  value={params.view === "compare" ? "compare" : "roster"}
+                  onChange={(value) =>
+                    router.setParams({
+                      view: value === "compare" ? "compare" : "",
+                    })
+                  }
+                />
+              )}
+              {params.view === "compare" && !judicial ? (
                 <>
                   <Segments
                     scrollable
@@ -475,14 +399,18 @@ export function ResearchScreen({
                         note={
                           person.ballotStatus === "withdrawn_on_ballot"
                             ? tx("Withdrawn; name remains on ballot")
-                            : undefined
+                            : person.ballotStatus === "qualified_write_in"
+                              ? tx("Qualified write-in")
+                              : undefined
                         }
                         accessibilityLabel={[
                           tx("Explore {value1}", { value1: person.name }),
                           person.description,
                           person.ballotStatus === "withdrawn_on_ballot"
                             ? tx("Withdrawn; name remains on ballot")
-                            : undefined,
+                            : person.ballotStatus === "qualified_write_in"
+                              ? tx("Qualified write-in")
+                              : undefined,
                         ]
                           .filter(Boolean)
                           .join(". ")}
@@ -535,7 +463,9 @@ export function ResearchScreen({
                   {member.description}
                   {member.ballotStatus === "withdrawn_on_ballot"
                     ? tx(" · Withdrawn; name remains on ballot")
-                    : ""}
+                    : member.ballotStatus === "qualified_write_in"
+                      ? ` · ${tx("Qualified write-in")}`
+                      : ""}
                 </Text>
               </View>
             </View>
@@ -552,6 +482,7 @@ export function ResearchScreen({
             ) : (
               <CandidateResearchBody
                 brief={brief}
+                judicial={judicial}
                 reviewedAt={race.reviewedAt}
                 reviewKind={
                   params.draft ? "draft" : fictional ? "example" : "published"
@@ -582,5 +513,18 @@ export function ResearchScreen({
         />
       )}
     </View>
+  );
+}
+
+export function ResearchScreen(props: { promisePage?: boolean }) {
+  const params = useLocalSearchParams<{
+    race?: string;
+    draft?: string;
+    preview?: string;
+  }>();
+  return !params.race && !params.draft && !params.preview ? (
+    <CandidateCatalog />
+  ) : (
+    <ResearchDetailScreen {...props} />
   );
 }

@@ -550,6 +550,22 @@ export function CaliforniaGuidePreview({
                         ))}
                       </View>
                     )}
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={`${tx("Browse the candidate roster")}. ${tx("Statewide, district and judicial contests.")}`}
+                      onPress={() => router.push("/candidate-research")}
+                      style={[s.sourceRow, { minHeight: 56 }]}
+                    >
+                      <View style={{ flex: 1, gap: 4 }}>
+                        <Text style={s.rowTitle}>
+                          {tx("Browse the candidate roster")}
+                        </Text>
+                        <Text style={s.note}>
+                          {tx("Statewide, district and judicial contests.")}
+                        </Text>
+                      </View>
+                      <Icon name="chevR" size={18} color={P.primary} />
+                    </TouchableOpacity>
                     <View style={s.statementsHead}>
                       <Text accessibilityRole="header" style={s.sectionTitle}>
                         {tx("Candidates in the official guide {count}", {

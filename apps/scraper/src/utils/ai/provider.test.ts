@@ -604,3 +604,71 @@ test("structured provenance identifies the successful outage alternative", async
     "deepseek:deepseek-v4-flash",
   );
 });
+
+test("Responses model override is request-local and preserves default model provenance", async (t) => {
+  const provider = await setup(t, {
+    ...fallback,
+    SCRAPER_FALLBACK_PRIORITY: "primary",
+    SCRAPER_FALLBACK_MODEL: "gpt-6-luna",
+  });
+  const models: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (_url: unknown, init?: RequestInit) => {
+      models.push((JSON.parse(String(init?.body)) as { model: string }).model);
+      return response('{"answer":"yes"}');
+    },
+  );
+  const override = provider.getStructuredLlmCandidates({
+    responsesModel: "gpt-6-astra",
+  })[0]!;
+  assert.equal(override.modelVersion, "fallback:gpt-6-astra");
+  await generateText({ model: override.model, prompt: "hello", maxRetries: 0 });
+  const unchanged = provider.getStructuredLlmCandidates()[0]!;
+  assert.equal(unchanged.modelVersion, "fallback:gpt-6-luna");
+  await generateText({
+    model: unchanged.model,
+    prompt: "hello",
+    maxRetries: 0,
+  });
+  assert.deepEqual(models, ["gpt-6-astra", "gpt-6-luna"]);
+  assert.equal(process.env.SCRAPER_FALLBACK_MODEL, "gpt-6-luna");
+});
+
+test("Responses model override requires its configured endpoint", async (t) => {
+  const provider = await setup(t, { DEEPSEEK_API_KEY: "fixture" });
+  assert.throws(
+    () =>
+      provider.getStructuredLlmCandidates({ responsesModel: "gpt-6-astra" }),
+    /BASE_URL is required/,
+  );
+});
+
+test("Responses structured requests preserve the existing non-strict schema setting", async (t) => {
+  const provider = await setup(t, {
+    ...fallback,
+    SCRAPER_FALLBACK_PRIORITY: "primary",
+  });
+  let body: Record<string, unknown> = {};
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (_url: unknown, init?: RequestInit) => {
+      body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return response('{"answer":"yes"}');
+    },
+  );
+  await generateText({
+    model: provider.getStructuredLlmCandidates()[0]!.model,
+    prompt: "fixture",
+    maxRetries: 0,
+    output: Output.object({ schema: z.object({ answer: z.string() }) }),
+  });
+  const text = body.text as {
+    format: { type: string; strict: boolean; schema: { required: string[] } };
+  };
+  assert.equal(text.format.type, "json_schema");
+  assert.equal(text.format.strict, false);
+  assert.ok(text.format.schema.required.includes("answer"));
+});

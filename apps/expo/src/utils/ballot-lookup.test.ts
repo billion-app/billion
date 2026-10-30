@@ -292,3 +292,25 @@ void test("absent long summaries remain absent so fallback happens after transla
   assert.equal(route.params.summary, "Generated summary");
   assert.equal(route.params.summaryLong, "");
 });
+
+void test("candidate navigation preserves provider IDs without treating them as canonical roster IDs", () => {
+  const candidate = {
+    name: "Alex Lee",
+    providerIdentity: {
+      provider: "democracy_works" as const,
+      candidateId: "dw-person-42",
+    },
+  };
+  const route = ballotContestRoute({
+    type: "candidate",
+    office: "State Assembly",
+    providerIdentity: {
+      provider: "democracy_works",
+      contestId: "dw-contest-27",
+    },
+    candidates: [candidate],
+  });
+  assert.equal(route.params.providerContestId, "dw-contest-27");
+  assert.deepEqual(JSON.parse(route.params.candidates), [candidate]);
+  assert.equal("researchIdentity" in route.params, false);
+});

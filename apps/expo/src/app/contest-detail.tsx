@@ -162,6 +162,7 @@ export default function ContestDetailScreen() {
     translationReference?: string;
     translationIdentity?: string;
     translationTitleField?: string;
+    providerContestId?: string;
     office: string;
     roles: string;
     levels: string;
@@ -627,6 +628,7 @@ export default function ContestDetailScreen() {
                         pathname: "/candidate-detail",
                         params: {
                           name: cand.name,
+                          providerContestId: params.providerContestId,
                           office: params.office,
                           state: params.state,
                           electionDate: params.electionDate,

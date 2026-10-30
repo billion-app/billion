@@ -157,6 +157,7 @@ function toContests(election: ProviderElection): Contest[] | undefined {
     .filter((race) => race.cancelled !== true)
     .map((race) => ({
       type: "candidate",
+      providerIdentity: { provider: "democracy_works", contestId: race.id },
       office: race.name,
       level:
         race.level === "federal"
@@ -188,6 +189,10 @@ function toContests(election: ProviderElection): Contest[] | undefined {
         return [
           {
             ...fields,
+            providerIdentity: {
+              provider: "democracy_works",
+              candidateId: person.id,
+            },
             ballotStatus: person.status,
             citations: Object.entries(fields)
               .filter(([, value]) => value !== undefined)

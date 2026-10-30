@@ -63,7 +63,8 @@
     "trillion-propositions": "tsx src/trillion-propositions-entry.ts",
     "search-benchmark": "tsx src/research/benchmark-entry.ts",
     "content-translations": "tsx src/content-translations-entry.ts",
-    "local-decision-briefs": "tsx src/local-decision-briefs-entry.ts"
+    "local-decision-briefs": "tsx src/local-decision-briefs-entry.ts",
+    "california-research": "tsx src/california-research-entry.ts"
   },
   "author": "It's not you it's me",
   "license": "ISC"

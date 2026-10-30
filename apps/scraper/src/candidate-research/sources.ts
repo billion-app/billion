@@ -7,7 +7,7 @@ import type { ResearchSource } from "@acme/validators";
 
 import { fetchWithRetry } from "../utils/fetch.js";
 
-export const hash = (text: string) =>
+export const hash = (text: string | Uint8Array) =>
   createHash("sha256").update(text).digest("hex");
 export const normalize = (text: string) => text.replace(/\s+/g, " ").trim();
 export function htmlText(html: string): string {
@@ -47,6 +47,21 @@ export async function fetchSource(
     chunks.push(value);
   }
   const buffer = Buffer.concat(chunks);
+  if (format === "image") {
+    if (buffer.byteLength > 5_000_000)
+      throw new Error("Research image exceeds 5 MB");
+    return {
+      id,
+      url,
+      publisher,
+      format,
+      text: "",
+      contentHash: hash(""),
+      byteHash: hash(buffer),
+      binaryBase64: buffer.toString("base64"),
+      fetchedAt: new Date().toISOString(),
+    };
+  }
   let text: string;
   if (format === "pdf") {
     const result = await extractText(new Uint8Array(buffer), {
@@ -56,7 +71,13 @@ export async function fetchSource(
   } else if (format === "json") {
     text = JSON.stringify(JSON.parse(buffer.toString("utf8")), null, 2);
   } else if (format === "html") text = htmlText(buffer.toString("utf8"));
-  else text = new TextDecoder("windows-1252").decode(buffer);
+  else
+    text = new TextDecoder(
+      url === "https://media.sos.ca.gov/media/C26GG.txt"
+        ? "windows-1252"
+        : "utf-8",
+      { fatal: true },
+    ).decode(buffer);
   if (text.length < 20 || text.length > 5_000_000)
     throw new Error(`Unusable ${id} source text`);
   return {
@@ -66,6 +87,10 @@ export async function fetchSource(
     format,
     text,
     contentHash: hash(text),
+    byteHash: hash(buffer),
+    ...(format === "pdf" && buffer.byteLength <= 5_000_000
+      ? { binaryBase64: buffer.toString("base64") }
+      : {}),
     fetchedAt: new Date().toISOString(),
   };
 }
