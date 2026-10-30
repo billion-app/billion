@@ -12,6 +12,7 @@ import {
 
 import type { ResearchPoint } from "@acme/validators";
 
+import type { IconName } from "~/components/ui";
 import type { InlineDefinition } from "~/components/ui/DefinedText";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui";
@@ -44,10 +45,12 @@ export function Action({
   label,
   onPress,
   secondary = false,
+  icon,
 }: {
   label: string;
   onPress: () => void;
   secondary?: boolean;
+  icon?: IconName;
 }) {
   return (
     <Pressable
@@ -60,7 +63,47 @@ export function Action({
         pressed && { opacity: 0.7 },
       ]}
     >
-      <Text style={s.link}>{label}</Text>
+      {icon && (
+        <View aria-hidden>
+          <Icon name={icon} size={18} color={P.primary} />
+        </View>
+      )}
+      <Text style={[s.link, !!icon && s.grow]}>{label}</Text>
+      <Icon name="chevR" size={18} color={P.primary} />
+    </Pressable>
+  );
+}
+export function ChoiceCard({
+  leading,
+  eyebrow,
+  title,
+  meta,
+  note,
+  accessibilityLabel,
+  onPress,
+}: {
+  leading?: ReactNode;
+  eyebrow?: string;
+  title: string;
+  meta?: string;
+  note?: string;
+  accessibilityLabel: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={({ pressed }) => [s.choice, pressed && { opacity: 0.7 }]}
+    >
+      {leading}
+      <View style={s.choiceCopy}>
+        {eyebrow ? <Text style={s.eyebrow}>{eyebrow}</Text> : null}
+        <Text style={s.choiceTitle}>{title}</Text>
+        {meta ? <Text style={s.muted}>{meta}</Text> : null}
+        {note ? <Text style={s.choiceNote}>{note}</Text> : null}
+      </View>
       <Icon name="chevR" size={18} color={P.primary} />
     </Pressable>
   );
@@ -267,6 +310,31 @@ export const s = StyleSheet.create({
     flexShrink: 1,
   },
   row: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  choice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    minHeight: 76,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: hair[2],
+    backgroundColor: planes.slate,
+  },
+  choiceCopy: { flex: 1, minWidth: 0, gap: 3 },
+  personHead: { flexDirection: "row", alignItems: "center", gap: 14 },
+  choiceTitle: {
+    color: P.inkOnNight,
+    fontFamily: fontEditorial.bold,
+    fontSize: 19,
+    lineHeight: 24,
+  },
+  choiceNote: {
+    color: P.inkOnNight,
+    fontFamily: fontBody.semibold,
+    fontSize: 12.5,
+    lineHeight: 18,
+  },
   grow: { flex: 1, gap: 7 },
   tile: {
     width: 36,

@@ -3,8 +3,8 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Linking,
+  ScrollView,
   StyleSheet,
   Switch,
   TouchableOpacity,
@@ -20,7 +20,7 @@ import type { IconName } from "~/components/ui";
 import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { Text } from "~/components/Themed";
-import { Card, Icon, NavHeader, Segmented } from "~/components/ui";
+import { Card, Icon, NavHeader, Pill, Segmented } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useIdleBallotPreloading } from "~/hooks/useIdleBallotPreloading";
 import { useLanguage } from "~/hooks/useLanguage";
@@ -43,6 +43,7 @@ import {
   propositionDetailRoute,
   splitOfficialTitle,
 } from "~/utils/proposition-explainers";
+import { CandidatePortrait } from "./CandidatePortrait";
 import { GuidePollResult } from "./GuidePollResult";
 import { GuideVoteResult, useGuideVoteLabel } from "./GuideVoteResult";
 
@@ -96,21 +97,40 @@ function SourceRow({
   );
 }
 
+function officeGroups(candidates: readonly Candidate[]) {
+  const groups = new Map<
+    string,
+    { slug: string; name?: string; candidates: Candidate[] }
+  >();
+  for (const candidate of candidates) {
+    const group = groups.get(candidate.officeSlug);
+    if (group) group.candidates.push(candidate);
+    else
+      groups.set(candidate.officeSlug, {
+        slug: candidate.officeSlug,
+        name: candidate.officeName,
+        candidates: [candidate],
+      });
+  }
+  return [...groups.values()];
+}
+
 function CandidateRow({
   candidate,
   showPolls,
   result,
   status,
+  last,
 }: {
   candidate: Candidate;
   showPolls: boolean;
   result?: GuideVote;
   status: "loading" | "pending" | "unavailable" | "reported";
+  last: boolean;
 }) {
   const resultLabel = useGuideVoteLabel(result, status, true);
   const { t: tx, language } = useAppTranslation();
   const router = useRouter();
-  const [photoFailed, setPhotoFailed] = useState(false);
   return (
     <TouchableOpacity
       accessibilityRole="button"
@@ -136,38 +156,27 @@ function CandidateRow({
       ]
         .filter(Boolean)
         .join(", ")}
+      accessibilityHint={tx("Opens the candidate's research page")}
       activeOpacity={0.8}
       onPress={() =>
         router.push(guideCandidateRoute(candidate.name, candidate.officeSlug))
       }
-      style={s.row}
+      style={[s.candidateRow, !last && s.candidateRule]}
     >
-      {candidate.photoUrl && !photoFailed ? (
-        <Image
-          source={{ uri: candidate.photoUrl }}
-          style={s.portrait}
-          onError={() => setPhotoFailed(true)}
-        />
-      ) : (
-        <View style={s.tile}>
-          <Icon name="user" size={18} color={P.primary} />
-        </View>
-      )}
+      <CandidatePortrait
+        name={candidate.name}
+        photoUrl={candidate.photoUrl}
+        size={44}
+      />
       <View style={s.rowCopy}>
         <Text style={s.rowTitle}>{candidate.name}</Text>
-        <Text style={s.rowNote}>
-          {[
-            translateAppLabel(
-              language,
-              candidate.officeName ?? tx("Statewide office"),
-            ),
-            candidate.party
-              ? translateAppLabel(language, candidate.party)
-              : undefined,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        </Text>
+        {candidate.party ? (
+          <View style={s.partyTag}>
+            <Text style={s.partyText} numberOfLines={1}>
+              {translateAppLabel(language, candidate.party)}
+            </Text>
+          </View>
+        ) : null}
         {result ? (
           <GuideVoteResult result={result} status={status} />
         ) : showPolls ? (
@@ -314,6 +323,7 @@ export function CaliforniaGuidePreview({
   const router = useRouter();
 
   const [tab, setTab] = useState<GuideTab>("candidates");
+  const [officeFilter, setOfficeFilter] = useState("all");
   const { showPolls, setShowPolls } = usePollVisibility();
   const focused = useIsFocused();
   const query = useQuery(
@@ -355,6 +365,7 @@ export function CaliforniaGuidePreview({
     enabled: tab === "measures",
   });
   const hasBoldedTitles = !!guide?.measures.some((m) => m.displayTitle);
+  const offices = guide ? officeGroups(guide.candidates) : [];
   return (
     <View
       style={{ flex: 1, backgroundColor: P.canvas }}
@@ -539,27 +550,82 @@ export function CaliforniaGuidePreview({
                         ))}
                       </View>
                     )}
-                    <Text style={s.rowTitle}>
-                      {tx("Official statements {count}", {
-                        count: guide.candidates.length,
-                      })}
-                    </Text>
-                    <Text style={s.note}>
-                      {tx("Statement submitters only, not your full ballot.")}
-                    </Text>
-                    {guide.candidates.map((candidate) => (
-                      <CandidateRow
-                        key={`${candidate.officeSlug}:${candidate.name}`}
-                        candidate={candidate}
-                        showPolls={showPolls}
-                        result={officialCandidate(
-                          results?.candidates[
-                            `${candidate.officeSlug}:${candidate.name}`
-                          ],
-                        )}
-                        status={resultsStatus}
-                      />
-                    ))}
+                    <View style={s.statementsHead}>
+                      <Text accessibilityRole="header" style={s.sectionTitle}>
+                        {tx("Official statements {count}", {
+                          count: guide.candidates.length,
+                        })}
+                      </Text>
+                      <Text style={s.note}>
+                        {tx("Statement submitters only, not your full ballot.")}
+                      </Text>
+                    </View>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={s.officeChips}
+                      contentContainerStyle={s.officeChipRow}
+                      accessibilityLabel={tx("Filter by office")}
+                    >
+                      {[
+                        { slug: "all", label: tx("All offices") },
+                        ...offices.map((group) => ({
+                          slug: group.slug,
+                          label: translateAppLabel(
+                            language,
+                            group.name ?? tx("Statewide office"),
+                          ),
+                        })),
+                      ].map((chip) => (
+                        <Pill
+                          key={chip.slug}
+                          label={chip.label}
+                          active={officeFilter === chip.slug}
+                          onPress={() => setOfficeFilter(chip.slug)}
+                        />
+                      ))}
+                    </ScrollView>
+                    {offices
+                      .filter(
+                        (group) =>
+                          officeFilter === "all" || group.slug === officeFilter,
+                      )
+                      .map((group) => (
+                        <View key={group.slug} style={s.officeGroup}>
+                          <View style={s.officeHead}>
+                            <Text
+                              accessibilityRole="header"
+                              style={s.officeName}
+                            >
+                              {translateAppLabel(
+                                language,
+                                group.name ?? tx("Statewide office"),
+                              )}
+                            </Text>
+                            <Text style={s.officeCount}>
+                              {tx("candidate.count", {
+                                count: group.candidates.length,
+                              })}
+                            </Text>
+                          </View>
+                          <View style={s.officeCard}>
+                            {group.candidates.map((candidate, index) => (
+                              <CandidateRow
+                                key={`${candidate.officeSlug}:${candidate.name}`}
+                                candidate={candidate}
+                                showPolls={showPolls}
+                                result={officialCandidate(
+                                  results?.candidates[
+                                    `${candidate.officeSlug}:${candidate.name}`
+                                  ],
+                                )}
+                                status={resultsStatus}
+                                last={index === group.candidates.length - 1}
+                              />
+                            ))}
+                          </View>
+                        </View>
+                      ))}
                   </View>
                 ) : (
                   <View style={s.list}>
@@ -756,7 +822,75 @@ const s = StyleSheet.create({
     lineHeight: 18,
     color: P.quiet,
   },
-  portrait: { width: 36, height: 36, borderRadius: 9 },
+  statementsHead: { gap: 4 },
+  sectionTitle: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 20,
+    lineHeight: 26,
+    color: P.inkOnNight,
+  },
+  officeChips: {
+    flexGrow: 0,
+    marginHorizontal: -(DigestSpace.screenPadX + 4),
+  },
+  officeChipRow: {
+    gap: 8,
+    paddingHorizontal: DigestSpace.screenPadX + 4,
+  },
+  officeGroup: { gap: 8, marginTop: 6 },
+  officeHead: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingHorizontal: 2,
+  },
+  officeName: {
+    ...DigestType.sectionEyebrow,
+    flex: 1,
+    fontSize: 11,
+    color: P.spark,
+    textTransform: "uppercase",
+  },
+  officeCount: {
+    fontFamily: fontBody.medium,
+    fontSize: 12,
+    color: P.quiet,
+  },
+  officeCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
+    backgroundColor: P.card,
+    overflow: "hidden",
+  },
+  candidateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 76,
+  },
+  candidateRule: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DigestHair.cardBorder,
+  },
+  partyTag: {
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.sectionRule,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  partyText: {
+    fontFamily: fontBody.medium,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: P.quiet,
+  },
   cardText: {
     fontFamily: fontBody.regular,
     fontSize: 15,

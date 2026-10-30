@@ -1,21 +1,29 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, TextInput, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import type { EvidenceSelection } from "./EvidenceSheet";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { CandidatePortrait } from "~/components/ballot/CandidatePortrait";
 import { CardTranslationNotice } from "~/components/CardTranslationNotice";
-import { NavHeader } from "~/components/ui";
+import { NavHeader, SearchInput } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
-import { DigestPalette as P, planes } from "~/styles";
+import { DigestPalette as P } from "~/styles";
 import { trpc } from "~/utils/api";
 import { Brief, claimLabels, PromiseDetail } from "./Brief";
 import { EvidenceSheet } from "./EvidenceSheet";
 import { Finance } from "./Finance";
 import { candidateResearchPreview } from "./fixtures";
-import { Action, EvidenceAction, Panel, s, Segments } from "./ResearchUI";
+import {
+  Action,
+  ChoiceCard,
+  EvidenceAction,
+  Panel,
+  s,
+  Segments,
+} from "./ResearchUI";
 
 const electionLabel = (date: string, locale = "en-US") =>
   new Date(`${date}T12:00:00Z`).toLocaleDateString(locale, {
@@ -260,26 +268,21 @@ export function ResearchScreen({
                 </Text>
                 {catalog.data?.length
                   ? catalog.data.map((item) => (
-                      <Panel key={item.id} title={item.office}>
-                        <Text style={s.muted}>
-                          {item.jurisdiction} ·{" "}
-                          {electionLabel(item.electionDate, appLocale)}
-                        </Text>
-                        <Text style={s.body}>
-                          {tx("{value1} candidates", {
-                            value1: item.candidateCount,
-                          })}
-                        </Text>
-                        <Action
-                          label={tx("Explore this race")}
-                          onPress={() =>
-                            router.push({
-                              pathname: "/candidate-research",
-                              params: { race: item.id },
-                            })
-                          }
-                        />
-                      </Panel>
+                      <ChoiceCard
+                        key={item.id}
+                        eyebrow={`${item.jurisdiction.toUpperCase()} · ${electionLabel(item.electionDate, appLocale)}`}
+                        title={item.office}
+                        meta={tx("candidate.count", {
+                          count: item.candidateCount,
+                        })}
+                        accessibilityLabel={`${tx("Explore this race")}: ${item.office}, ${item.jurisdiction}, ${electionLabel(item.electionDate, appLocale)}, ${tx("candidate.count", { count: item.candidateCount })}`}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/candidate-research",
+                            params: { race: item.id },
+                          })
+                        }
+                      />
                     ))
                   : !catalog.isPending && (
                       <Panel title={tx("No reviewed races available yet")}>
@@ -345,6 +348,18 @@ export function ResearchScreen({
                   { value1: race.manifest.members.length },
                 )}
               </Text>
+              <Segments
+                options={[
+                  { value: "roster", label: tx("Candidates") },
+                  { value: "compare", label: tx("Compare") },
+                ]}
+                value={params.view === "compare" ? "compare" : "roster"}
+                onChange={(value) =>
+                  router.setParams({
+                    view: value === "compare" ? "compare" : "",
+                  })
+                }
+              />
               {params.view === "compare" ? (
                 <>
                   <Segments
@@ -365,7 +380,16 @@ export function ResearchScreen({
                       (item) => item.topic === topic,
                     );
                     return (
-                      <Panel key={person.candidateId} title={person.name}>
+                      <Panel key={person.candidateId}>
+                        <View style={s.personHead}>
+                          <CandidatePortrait name={person.name} size={40} />
+                          <Text
+                            accessibilityRole="header"
+                            style={[s.heading, s.grow]}
+                          >
+                            {person.name}
+                          </Text>
+                        </View>
                         {person.ballotStatus === "withdrawn_on_ballot" && (
                           <Text style={s.muted}>
                             {tx("Withdrawn; name remains on ballot")}
@@ -421,25 +445,11 @@ export function ResearchScreen({
                 </>
               ) : (
                 <>
-                  <Action
-                    label={tx("Compare the whole race")}
-                    onPress={() => navigate({ view: "compare" })}
-                  />
-                  <TextInput
+                  <SearchInput
                     accessibilityLabel={tx("Search candidates")}
                     placeholder={tx("Search candidates")}
-                    placeholderTextColor="#BDC1CD"
                     value={search}
                     onChangeText={setSearch}
-                    style={[
-                      s.body,
-                      {
-                        minHeight: 48,
-                        borderRadius: 12,
-                        backgroundColor: planes.slate,
-                        padding: 12,
-                      },
-                    ]}
                     autoCorrect={false}
                   />
                   {race.manifest.members
@@ -449,25 +459,29 @@ export function ResearchScreen({
                         .includes(search.trim().toLocaleLowerCase()),
                     )
                     .map((person) => (
-                      <Panel key={person.candidateId}>
-                        <Text accessibilityRole="header" style={s.heading}>
-                          {person.name}
-                        </Text>
-                        <Text style={s.muted}>
-                          {person.description}
-                          {person.ballotStatus === "withdrawn_on_ballot"
-                            ? tx(" · Withdrawn; name remains on ballot")
-                            : ""}
-                        </Text>
-                        <Action
-                          label={tx("Explore {value1}", {
-                            value1: person.name,
-                          })}
-                          onPress={() =>
-                            navigate({ person: person.candidateId })
-                          }
-                        />
-                      </Panel>
+                      <ChoiceCard
+                        key={person.candidateId}
+                        leading={
+                          <CandidatePortrait name={person.name} size={48} />
+                        }
+                        title={person.name}
+                        meta={person.description ?? undefined}
+                        note={
+                          person.ballotStatus === "withdrawn_on_ballot"
+                            ? tx("Withdrawn; name remains on ballot")
+                            : undefined
+                        }
+                        accessibilityLabel={[
+                          tx("Explore {value1}", { value1: person.name }),
+                          person.description,
+                          person.ballotStatus === "withdrawn_on_ballot"
+                            ? tx("Withdrawn; name remains on ballot")
+                            : undefined,
+                        ]
+                          .filter(Boolean)
+                          .join(". ")}
+                        onPress={() => navigate({ person: person.candidateId })}
+                      />
                     ))}
                   {!race.manifest.members.some((person) =>
                     person.name
@@ -496,23 +510,28 @@ export function ResearchScreen({
           )
         ) : (
           <>
-            <View style={s.point}>
-              <Text style={s.eyebrow}>
-                {race.manifest.office.toUpperCase()} ·{" "}
-                {race.manifest.jurisdictionLabel.toUpperCase()}
-              </Text>
-              <Text
-                accessibilityRole="header"
-                style={promisePage || params.donor ? s.heading : s.title}
-              >
-                {member.name}
-              </Text>
-              <Text style={s.muted}>
-                {member.description}
-                {member.ballotStatus === "withdrawn_on_ballot"
-                  ? tx(" · Withdrawn; name remains on ballot")
-                  : ""}
-              </Text>
+            <View style={s.personHead}>
+              {!promisePage && !params.donor && (
+                <CandidatePortrait name={member.name} size={64} />
+              )}
+              <View style={[s.point, s.grow]}>
+                <Text style={s.eyebrow}>
+                  {race.manifest.office.toUpperCase()} ·{" "}
+                  {race.manifest.jurisdictionLabel.toUpperCase()}
+                </Text>
+                <Text
+                  accessibilityRole="header"
+                  style={promisePage || params.donor ? s.heading : s.title}
+                >
+                  {member.name}
+                </Text>
+                <Text style={s.muted}>
+                  {member.description}
+                  {member.ballotStatus === "withdrawn_on_ballot"
+                    ? tx(" · Withdrawn; name remains on ballot")
+                    : ""}
+                </Text>
+              </View>
             </View>
             {promisePage ? (
               <PromiseDetail
@@ -612,6 +631,7 @@ export function ResearchScreen({
                 )}
                 {!params.donor && (
                   <Action
+                    icon="users"
                     label={tx("Compare the whole race")}
                     onPress={() => navigate({ view: "compare" })}
                   />
