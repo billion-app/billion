@@ -4,6 +4,7 @@ import type { CandidateResearchCollectionDocument } from "@acme/validators";
 import { and, desc, eq, inArray, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
+  CaliforniaRaceWork,
   CandidateBriefReviewEvent,
   CandidateBriefRevision,
   CandidateRaceRelease,
@@ -11,10 +12,12 @@ import {
   CandidateResearchPolicy,
 } from "@acme/db/schema";
 import {
+  candidateModelAttestationSchema,
   candidateResearchCollectionSchema,
   candidateResearchTemplateVersion,
 } from "@acme/validators";
 
+import { invalidateCaliforniaResearchState } from "./california-roster-store";
 import { briefDigest, briefIdentityKey } from "./candidate-brief-publication";
 import {
   candidatePublicationPolicy,
@@ -29,6 +32,54 @@ export const lockPilot = (tx: ResearchTransaction, key: string) =>
   tx.execute(
     sql`select pg_advisory_xact_lock(hashtext(${`candidate-research:${key}`}))`,
   );
+export const lockResearchElection = (
+  tx: ResearchTransaction,
+  electionDate: string,
+) => lockPilot(tx, `election:${electionDate}`);
+export async function lockResearchRace(
+  tx: ResearchTransaction,
+  manifest: CandidateResearchCollectionDocument["manifest"],
+) {
+  await lockPilot(
+    tx,
+    `race:${JSON.stringify([manifest.jurisdiction, manifest.electionDate, manifest.contestId])}`,
+  );
+}
+export interface ResearchWorkLease {
+  key: string;
+  owner: string;
+  generation: number;
+}
+export async function assertResearchWorkLease(
+  tx: ResearchTransaction,
+  lease: ResearchWorkLease | undefined,
+  document: CandidateResearchCollectionDocument,
+  sourceFailure = false,
+) {
+  if (!lease) {
+    if (document.candidateArtifacts)
+      throw new Error("Automated research requires a current work lease");
+    return;
+  }
+  const [work] = await tx
+    .select()
+    .from(CaliforniaRaceWork)
+    .where(eq(CaliforniaRaceWork.key, lease.key))
+    .for("update");
+  if (
+    work?.owner !== lease.owner ||
+    work.generation !== lease.generation ||
+    !work.leaseUntil ||
+    work.leaseUntil.getTime() <= Date.now() ||
+    work.raceKey !== document.pilotKey ||
+    (!sourceFailure &&
+      (work.policyVersion !== document.manifest.policyVersion ||
+        work.snapshotId !== document.rosterSnapshotId ||
+        work.rosterDigest !== document.rosterDigest ||
+        work.researchVersion !== document.researchVersion))
+  )
+    throw new Error("Research work lease expired or was superseded");
+}
 export function invalidateRace(
   tx: ResearchTransaction,
   manifest: CandidateResearchCollectionDocument["manifest"],
@@ -58,12 +109,45 @@ export async function activeResearchPolicy(
     )
     .limit(1);
   return policy && !policy.revokedAt
-    ? { approved: true, version: policy.version }
+    ? { approved: true, version: policy.version, automation: policy.automation }
     : candidatePublicationPolicy;
+}
+export function researchSourceDigest(
+  document: CandidateResearchCollectionDocument,
+) {
+  const semantic: unknown[] = [
+    document.researchVersion ?? candidateResearchTemplateVersion,
+    document.sources
+      .map((s) => [s.id, s.url, s.publisher, s.format, s.contentHash])
+      .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+    document.problems,
+  ];
+  if (
+    document.researchVersion ||
+    document.rosterSnapshotId ||
+    document.candidateArtifacts
+  )
+    semantic.push([
+      document.rosterSnapshotId ?? null,
+      document.rosterDigest ?? null,
+      document.candidateArtifacts
+        ?.map(
+          (a) =>
+            [
+              a.candidateId,
+              a.dossierDigest,
+              a.sourceSetDigest,
+              candidateModelAttestationSchema.parse(a.author),
+            ] as const,
+        )
+        .sort((a, b) => a[0].localeCompare(b[0])) ?? [],
+    ]);
+  return createHash("sha256").update(JSON.stringify(semantic)).digest("hex");
 }
 export async function saveResearchCollection(
   value: unknown,
   database: ResearchDatabase = db,
+  options?: { workLease?: ResearchWorkLease; stagedPolicyVersion?: string },
 ) {
   const document = candidateResearchCollectionSchema.parse(value);
   for (const source of document.sources) {
@@ -78,19 +162,12 @@ export async function saveResearchCollection(
     if (age < 0 || age > 86_400_000)
       throw new Error("Collected source is stale or future dated");
   }
-  const sourceDigest = createHash("sha256")
-    .update(
-      JSON.stringify([
-        candidateResearchTemplateVersion,
-        document.sources
-          .map((s) => [s.id, s.url, s.publisher, s.format, s.contentHash])
-          .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
-        document.problems,
-      ]),
-    )
-    .digest("hex");
+  const sourceDigest = researchSourceDigest(document);
   return database.transaction(async (tx) => {
+    await lockResearchElection(tx, document.manifest.electionDate);
     await lockPilot(tx, document.pilotKey);
+    await lockResearchRace(tx, document.manifest);
+    await assertResearchWorkLease(tx, options?.workLease, document);
     const [prior] = await tx
       .select()
       .from(CandidateResearchCollection)
@@ -168,18 +245,90 @@ export async function saveResearchCollection(
       };
     }
     // Any change, including recovery after a failed refresh, needs new approvals.
-    await invalidateRace(
-      tx,
-      document.manifest,
-      "Source collection changed; independent review required",
-    );
-    for (const brief of document.briefs)
-      await tx.insert(CandidateBriefRevision).values({
-        id: brief.revisionId,
-        identityKey: briefIdentityKey(brief.identity),
-        revisionDigest: briefDigest(brief),
-        document: brief,
-      });
+    let preserveExisting = false;
+    if (
+      options?.stagedPolicyVersion &&
+      !document.problems.length &&
+      options.stagedPolicyVersion !== (await activeResearchPolicy(tx)).version
+    ) {
+      const [release] = await tx
+        .select()
+        .from(CandidateRaceRelease)
+        .where(
+          and(
+            sql`${CandidateRaceRelease.document}->>'contestId' = ${document.manifest.contestId}`,
+            sql`${CandidateRaceRelease.document}->>'jurisdiction' = ${document.manifest.jurisdiction}`,
+            sql`${CandidateRaceRelease.document}->>'electionDate' = ${document.manifest.electionDate}`,
+          ),
+        )
+        .orderBy(
+          desc(CandidateRaceRelease.createdAt),
+          desc(CandidateRaceRelease.id),
+        )
+        .limit(1);
+      if (
+        release &&
+        !release.revokedReason &&
+        release.document.members.length === document.manifest.members.length &&
+        release.document.members.every((m) =>
+          document.manifest.members.some(
+            (n) => n.candidateId === m.candidateId,
+          ),
+        ) &&
+        document.sources.some(
+          (s) =>
+            s.url === release.document.rosterSourceUrl &&
+            s.contentHash === release.document.rosterHash,
+        )
+      ) {
+        const revisions = await tx
+          .select()
+          .from(CandidateBriefRevision)
+          .where(
+            inArray(
+              CandidateBriefRevision.id,
+              release.document.members.map((m) => m.revisionId),
+            ),
+          );
+        preserveExisting =
+          revisions.length === release.document.members.length &&
+          revisions.every((r) =>
+            r.document.evidence.every((e) =>
+              document.sources.some(
+                (s) =>
+                  s.url === e.url &&
+                  s.contentHash === e.contentHash &&
+                  s.text.includes(e.excerpt),
+              ),
+            ),
+          );
+      }
+    }
+    if (!preserveExisting)
+      await invalidateRace(
+        tx,
+        document.manifest,
+        "Source collection changed; independent review required",
+      );
+    for (const brief of document.briefs) {
+      await tx
+        .insert(CandidateBriefRevision)
+        .values({
+          id: brief.revisionId,
+          identityKey: briefIdentityKey(brief.identity),
+          revisionDigest: briefDigest(brief),
+          document: brief,
+        })
+        .onConflictDoNothing();
+      const [stored] = await tx
+        .select()
+        .from(CandidateBriefRevision)
+        .where(eq(CandidateBriefRevision.id, brief.revisionId));
+      if (stored?.revisionDigest !== briefDigest(brief))
+        throw new Error(
+          "Immutable revision identity conflicts with existing content",
+        );
+    }
     const id = randomUUID();
     await tx.insert(CandidateResearchCollection).values({
       id,
@@ -201,8 +350,20 @@ export async function failResearchRefresh(
   pilotKey: string,
   reason: string,
   database: ResearchDatabase = db,
+  options?: { workLease?: ResearchWorkLease; stagedPolicyVersion?: string },
 ) {
   await database.transaction(async (tx) => {
+    const [selected] = await tx
+      .select()
+      .from(CandidateResearchCollection)
+      .where(eq(CandidateResearchCollection.pilotKey, pilotKey))
+      .orderBy(
+        desc(CandidateResearchCollection.createdAt),
+        desc(CandidateResearchCollection.id),
+      )
+      .limit(1);
+    if (!selected) return;
+    await lockResearchElection(tx, selected.document.manifest.electionDate);
     await lockPilot(tx, pilotKey);
     const [prior] = await tx
       .select()
@@ -214,10 +375,21 @@ export async function failResearchRefresh(
       )
       .limit(1);
     if (!prior) return;
+    await lockResearchRace(tx, prior.document.manifest);
+    await assertResearchWorkLease(tx, options?.workLease, prior.document, true);
     await invalidateRace(tx, prior.document.manifest, reason);
     await tx
       .update(CandidateResearchCollection)
       .set({ failure: reason })
       .where(eq(CandidateResearchCollection.id, prior.id));
   });
+}
+
+export async function invalidateResearchElection(
+  input: { electionDate: string; snapshotId?: string; reason: string },
+  database: ResearchDatabase = db,
+) {
+  return database.transaction((tx) =>
+    invalidateCaliforniaResearchState(tx, input),
+  );
 }

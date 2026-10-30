@@ -11,9 +11,12 @@ import {
 } from "@acme/db/schema";
 
 import {
+  beginCaliforniaSourceCheck,
   claimCaliforniaRaceWork,
   getCaliforniaResearchArtifact,
+  getCurrentCaliforniaRosterId,
   getLatestCaliforniaRoster,
+  listCaliforniaRaceWork,
   saveCaliforniaRaceCheckpoint,
   saveCaliforniaResearchArtifact,
   saveCaliforniaRoster,
@@ -38,11 +41,12 @@ void test(
     const { db } = await import("@acme/db/client");
     const id = randomUUID().replaceAll("-", "").padEnd(64, "0");
     const key = `test-${randomUUID()}`;
+    const nextId = randomUUID().replaceAll("-", "").padEnd(64, "0");
     const timestamp = "2026-10-30T00:00:00.000Z";
     const snapshot: CaliforniaRosterSnapshot = {
       schemaVersion: 1,
       id,
-      electionDate: "2026-11-03",
+      electionDate: "2098-11-03",
       scope: "ca_sos_certified",
       scopeLabel: "fixture",
       source: {
@@ -65,7 +69,7 @@ void test(
           contestId: key,
           jurisdiction: "ca",
           jurisdictionLabel: "California",
-          electionDate: "2026-11-03",
+          electionDate: "2098-11-03",
           sourceContestId: "02",
           officeFamily: "statewide",
           office: "Governor",
@@ -78,7 +82,7 @@ void test(
                 candidateId: key,
                 contestId: key,
                 jurisdiction: "ca",
-                electionDate: "2026-11-03",
+                electionDate: "2098-11-03",
               },
               candidateId: key,
               name: "Fixture",
@@ -100,7 +104,7 @@ void test(
           .scopeLabel,
         "fixture",
       );
-      assert.equal((await getLatestCaliforniaRoster(db, "2026-11-03"))?.id, id);
+      assert.equal((await getLatestCaliforniaRoster(db, "2098-11-03"))?.id, id);
       const artifact = {
         key,
         kind: "dossier",
@@ -115,7 +119,14 @@ void test(
       assert.deepEqual(await getCaliforniaResearchArtifact(db, key), {
         result: "actual-output",
       });
+      const sourceEpoch = await beginCaliforniaSourceCheck(
+        db,
+        snapshot.electionDate,
+      );
+      assert.ok(sourceEpoch);
+      assert.equal((await listCaliforniaRaceWork(db, id)).length, 0);
       const base = {
+        expectedSourceEpoch: sourceEpoch,
         snapshotId: id,
         raceKey: key,
         rosterDigest: id,
@@ -175,6 +186,120 @@ void test(
         now: new Date(Date.parse(timestamp) + 1200),
       });
       assert.deepEqual(after?.checkpoint, { artifactKey: key });
+      assert.ok(after);
+      const retained = {
+        releaseId: randomUUID(),
+        sourceCheckedAt: timestamp,
+        dossierDigests: { [key]: id },
+        attemptedAt: timestamp,
+        artifactKey: key,
+      };
+      await db
+        .update(CaliforniaRaceWork)
+        .set({ checkpoint: retained })
+        .where(eq(CaliforniaRaceWork.key, after.key));
+      const { invalidateResearchElection } =
+        await import("./candidate-research-store");
+      await invalidateResearchElection({
+        electionDate: snapshot.electionDate,
+        snapshotId: id,
+        reason: "Required shared fixture roster failed",
+      });
+      const [failed] = await db
+        .select()
+        .from(CaliforniaRaceWork)
+        .where(eq(CaliforniaRaceWork.key, after.key));
+      assert.ok(failed);
+      assert.deepEqual(failed.checkpoint, {
+        ...retained,
+        reason: "Required shared fixture roster failed",
+        kind: "required_roster_source_failure",
+      });
+      assert.equal(failed.generation, after.generation + 1);
+      assert.equal(failed.owner, null);
+      assert.equal(failed.leaseUntil, null);
+      await assert.rejects(
+        saveCaliforniaRoster(db, snapshot, {
+          expectedSourceEpoch: sourceEpoch,
+        }),
+        /superseded before roster persistence/,
+      );
+      await assert.rejects(
+        claimCaliforniaRaceWork(db, { ...base, owner: "late-fetch" }),
+        /Shared source check was superseded/,
+      );
+      const fresh = await beginCaliforniaSourceCheck(db, snapshot.electionDate);
+      assert.ok(fresh);
+      assert.ok(fresh.generation > sourceEpoch.generation);
+      assert.ok(
+        await claimCaliforniaRaceWork(db, {
+          ...base,
+          expectedSourceEpoch: fresh,
+          owner: "fresh-fetch",
+        }),
+      );
+      const [original] = await db
+        .select()
+        .from(CaliforniaRoster)
+        .where(eq(CaliforniaRoster.id, id));
+      assert.ok(original);
+      const beforeChange = await beginCaliforniaSourceCheck(
+        db,
+        snapshot.electionDate,
+      );
+      assert.ok(beforeChange);
+      await saveCaliforniaRoster(
+        db,
+        { ...snapshot, id: nextId, scopeLabel: "successor" },
+        { expectedSourceEpoch: beforeChange },
+      );
+      assert.equal(
+        await getCurrentCaliforniaRosterId(db, snapshot.electionDate),
+        nextId,
+      );
+      const beforeRevert = await beginCaliforniaSourceCheck(
+        db,
+        snapshot.electionDate,
+      );
+      assert.ok(beforeRevert);
+      assert.ok(beforeRevert.generation > beforeChange.generation);
+      await saveCaliforniaRoster(db, snapshot, {
+        expectedSourceEpoch: beforeRevert,
+      });
+      assert.equal(
+        await getCurrentCaliforniaRosterId(db, snapshot.electionDate),
+        id,
+      );
+      assert.equal(
+        (await getLatestCaliforniaRoster(db, snapshot.electionDate))?.id,
+        id,
+      );
+      const revertedEpoch = await beginCaliforniaSourceCheck(
+        db,
+        snapshot.electionDate,
+      );
+      assert.ok(revertedEpoch);
+      assert.ok(revertedEpoch.generation > beforeRevert.generation);
+      const [immutable] = await db
+        .select()
+        .from(CaliforniaRoster)
+        .where(eq(CaliforniaRoster.id, id));
+      assert.ok(immutable);
+      assert.equal(
+        immutable.createdAt.toISOString(),
+        original.createdAt.toISOString(),
+      );
+      assert.deepEqual(immutable.document, original.document);
+      assert.equal(
+        (
+          await invalidateResearchElection({
+            electionDate: snapshot.electionDate,
+            snapshotId: id,
+            reason: "Reactivated source check failed",
+          })
+        ).snapshotId,
+        id,
+      );
     } finally {
       await db
         .delete(CaliforniaRaceWork)
@@ -182,6 +307,12 @@ void test(
       await db
         .delete(CaliforniaResearchArtifact)
         .where(eq(CaliforniaResearchArtifact.key, key));
+      await db
+        .delete(CaliforniaRaceWork)
+        .where(
+          eq(CaliforniaRaceWork.key, `source-epoch:${snapshot.electionDate}`),
+        );
+      await db.delete(CaliforniaRoster).where(eq(CaliforniaRoster.id, nextId));
       await db.delete(CaliforniaRoster).where(eq(CaliforniaRoster.id, id));
     }
   },

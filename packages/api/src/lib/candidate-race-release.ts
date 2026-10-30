@@ -63,6 +63,13 @@ export function readCandidateRace(input: {
     return null;
   const current = input.currentRoster;
   if (
+    !current &&
+    (race.rosterSnapshotId !== undefined ||
+      race.rosterDigest !== undefined ||
+      input.policy.automation != null)
+  )
+    return null;
+  if (
     current &&
     (current.contestId !== race.contestId ||
       current.electionDate !== race.electionDate ||

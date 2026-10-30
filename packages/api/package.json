@@ -102,6 +102,14 @@
     "./lib/california-polling": {
       "types": "./dist/lib/california-polling.d.ts",
       "default": "./src/lib/california-polling.ts"
+    },
+    "./lib/california-roster-store": {
+      "types": "./dist/lib/california-roster-store.d.ts",
+      "default": "./src/lib/california-roster-store.ts"
+    },
+    "./lib/candidate-research-service": {
+      "types": "./dist/lib/candidate-research-service.d.ts",
+      "default": "./src/lib/candidate-research-service.ts"
     }
   },
   "license": "MIT",

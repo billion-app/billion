@@ -6,7 +6,6 @@ import { desc, eq, inArray } from "@acme/db";
 import {
   CandidateBriefReviewEvent,
   CandidateBriefRevision,
-  CandidateRaceRelease,
   CandidateResearchCollection,
   CandidateResearchEditor,
   CandidateResearchPolicy,
@@ -16,13 +15,16 @@ import {
   candidateResearchCollectionSchema,
 } from "@acme/validators";
 
-import type { ResearchTransaction } from "../lib/candidate-research-store";
 import {
   briefDigest,
   briefIdentityKey,
   evidenceHashKey,
 } from "../lib/candidate-brief-publication";
-import { readCandidateRace } from "../lib/candidate-race-release";
+import {
+  adoptResearchPolicy,
+  currentResearchCollection as currentCollection,
+  publishResearchCollection,
+} from "../lib/candidate-research-service";
 import {
   activeResearchPolicy,
   invalidateRace,
@@ -44,29 +46,6 @@ export const editorialProcedure = protectedProcedure.use(
     return next({ ctx: { ...ctx, editor: role } });
   },
 );
-async function currentCollection(tx: ResearchTransaction, id: string) {
-  const [selected] = await tx
-    .select()
-    .from(CandidateResearchCollection)
-    .where(eq(CandidateResearchCollection.id, id));
-  if (!selected) throw new TRPCError({ code: "NOT_FOUND" });
-  await lockPilot(tx, selected.pilotKey);
-  const [latest] = await tx
-    .select()
-    .from(CandidateResearchCollection)
-    .where(eq(CandidateResearchCollection.pilotKey, selected.pilotKey))
-    .orderBy(
-      desc(CandidateResearchCollection.createdAt),
-      desc(CandidateResearchCollection.id),
-    )
-    .limit(1);
-  if (latest?.id !== id)
-    throw new TRPCError({
-      code: "CONFLICT",
-      message: "Collection was superseded; reload the latest sources",
-    });
-  return latest;
-}
 const reason = z.string().trim().min(10).max(2000);
 export const candidateResearchEditorialRouter = {
   list: editorialProcedure.query(async ({ ctx }) => {
@@ -257,78 +236,44 @@ export const candidateResearchEditorialRouter = {
       z.object({
         version: z.string().trim().min(1).max(100),
         statement: z.string().trim().min(80).max(4000),
+        collectionIds: z.array(z.uuid()).max(1000).default([]),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       if (!ctx.editor.canPublish) throw new TRPCError({ code: "FORBIDDEN" });
-      await ctx.db
-        .insert(CandidateResearchPolicy)
-        .values({ ...input, approvedBy: ctx.session.user.id });
+      await adoptResearchPolicy(
+        {
+          policy: {
+            version: input.version,
+            statement: input.statement,
+            approvedBy: ctx.session.user.id,
+          },
+          collectionIds: input.collectionIds,
+        },
+        ctx.db,
+      );
       return { version: input.version };
     }),
   revokePolicy: editorialProcedure
     .input(z.object({ version: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.editor.canPublish) throw new TRPCError({ code: "FORBIDDEN" });
-      await ctx.db
-        .update(CandidateResearchPolicy)
-        .set({ revokedAt: new Date() })
-        .where(eq(CandidateResearchPolicy.version, input.version));
+      await ctx.db.transaction(async (tx) => {
+        await lockPilot(tx, "policy");
+        await tx
+          .update(CandidateResearchPolicy)
+          .set({ revokedAt: new Date() })
+          .where(eq(CandidateResearchPolicy.version, input.version));
+      });
       return { revoked: true };
     }),
   publish: editorialProcedure
     .input(z.object({ collectionId: z.uuid() }))
-    .mutation(async ({ ctx, input }) =>
-      ctx.db.transaction(async (tx) => {
-        if (!ctx.editor.canPublish) throw new TRPCError({ code: "FORBIDDEN" });
-        const row = await currentCollection(tx, input.collectionId);
-        if (
-          row.failure ||
-          row.document.problems.length ||
-          Date.now() - row.checkedAt.getTime() > 86_400_000
-        )
-          throw new TRPCError({
-            code: "PRECONDITION_FAILED",
-            message: "Sources are incomplete or stale",
-          });
-        const policy = await activeResearchPolicy(tx);
-        const manifest = {
-          ...row.document.manifest,
-          id: randomUUID(),
-          policyVersion: policy.version,
-          sourceCheckedAt: row.checkedAt.toISOString(),
-          expiresAt: new Date(
-            row.checkedAt.getTime() + 86_400_000,
-          ).toISOString(),
-        };
-        const ids = manifest.members.map((m) => m.revisionId);
-        const revisions = await tx
-          .select()
-          .from(CandidateBriefRevision)
-          .where(inArray(CandidateBriefRevision.id, ids));
-        const events = await tx
-          .select()
-          .from(CandidateBriefReviewEvent)
-          .where(inArray(CandidateBriefReviewEvent.revisionId, ids));
-        if (
-          !readCandidateRace({
-            manifest,
-            revokedReason: null,
-            revisions,
-            events,
-            policy,
-            now: new Date().toISOString(),
-          })
-        )
-          throw new TRPCError({
-            code: "PRECONDITION_FAILED",
-            message:
-              "Policy and independent approval for every exact revision are required",
-          });
-        await tx
-          .insert(CandidateRaceRelease)
-          .values({ id: manifest.id, document: manifest });
-        return { releaseId: manifest.id };
-      }),
-    ),
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.editor.canPublish) throw new TRPCError({ code: "FORBIDDEN" });
+      return publishResearchCollection(
+        { collectionId: input.collectionId, actorId: ctx.session.user.id },
+        ctx.db,
+      );
+    }),
 };
