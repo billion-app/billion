@@ -210,6 +210,7 @@ export function ballotContestRoute(
       translationIdentity,
       translationTitleField,
       translationReference: contest.translationReference ?? "",
+      providerContestId: contest.providerIdentity?.contestId ?? "",
       office:
         contest.office ??
         contest.ballotTitle ??

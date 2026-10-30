@@ -2,6 +2,229 @@
 import type { Catalog } from "./types";
 
 export const electionStrings = {
+  "Judicial background": {
+    en: "Judicial background",
+    es: "Trayectoria judicial",
+    zh: "司法背景",
+  },
+  "Court authority": {
+    en: "Court authority",
+    es: "Facultades del tribunal",
+    zh: "法院职权",
+  },
+  Considerations: {
+    en: "Considerations",
+    es: "Consideraciones",
+    zh: "考量因素",
+  },
+  "Showing the last loaded results.": {
+    en: "Showing the last loaded results.",
+    es: "Se muestran los últimos resultados cargados.",
+    zh: "正在显示上次加载的结果。",
+  },
+  "Local offices": {
+    en: "Local offices",
+    es: "Cargos locales",
+    zh: "地方职位",
+  },
+  "Qualified write-in": {
+    en: "Qualified write-in",
+    es: "Candidatura por escrito habilitada",
+    zh: "合格的手写候选人",
+  },
+  "Office counts follow the current search.": {
+    en: "Office counts follow the current search.",
+    es: "Los recuentos por cargo corresponden a la búsqueda actual.",
+    zh: "各职位人数按当前搜索条件统计。",
+  },
+  "Couldn’t load this page.": {
+    en: "Couldn’t load this page.",
+    es: "No se pudo cargar esta página.",
+    zh: "无法加载此页。",
+  },
+  "Showing the previous page.": {
+    en: "Showing the previous page.",
+    es: "Se muestra la página anterior.",
+    zh: "正在显示上一页。",
+  },
+  "County and city offices": {
+    en: "County and city offices",
+    es: "Cargos de condados y ciudades",
+    zh: "县市职位",
+  },
+  Previous: { en: "Previous", es: "Anterior", zh: "上一页" },
+  Next: { en: "Next", es: "Siguiente", zh: "下一页" },
+  "Roster retrieved {date}": {
+    en: "Roster retrieved {date}",
+    es: "Lista consultada el {date}",
+    zh: "名册获取时间：{date}",
+  },
+  "State Assembly": {
+    en: "State Assembly",
+    es: "Asamblea estatal",
+    zh: "州众议院",
+  },
+  "State Senate": { en: "State Senate", es: "Senado estatal", zh: "州参议院" },
+  "U.S. House": {
+    en: "U.S. House",
+    es: "Cámara de Representantes de EE. UU.",
+    zh: "美国众议院",
+  },
+  "Board of Equalization": {
+    en: "Board of Equalization",
+    es: "Junta de Igualación",
+    zh: "税务平衡委员会",
+  },
+  "Statewide offices": {
+    en: "Statewide offices",
+    es: "Cargos estatales",
+    zh: "全州职位",
+  },
+  "No reviewed judicial record sources are available yet.": {
+    en: "No reviewed judicial record sources are available yet.",
+    es: "Aún no hay fuentes revisadas sobre su historial judicial.",
+    zh: "目前尚无经过审核的司法履历来源。",
+  },
+  "Reviewed research is not yet available for this candidate.": {
+    en: "Reviewed research is not yet available for this candidate.",
+    es: "Aún no hay investigación revisada para este candidato.",
+    zh: "此候选人尚无可用的已审核研究。",
+  },
+  "Research not yet published": {
+    en: "Research not yet published",
+    es: "Investigación aún no publicada",
+    zh: "研究尚未发布",
+  },
+  "Judicial record": {
+    en: "Judicial record",
+    es: "Historial judicial",
+    zh: "司法履历",
+  },
+  "Judicial retention": {
+    en: "Judicial retention",
+    es: "Retención judicial",
+    zh: "法官留任投票",
+  },
+  "Statewide, district and judicial contests.": {
+    en: "Statewide, district and judicial contests.",
+    es: "Contiendas estatales, de distrito y judiciales.",
+    zh: "全州、选区和司法选举。",
+  },
+  "Browse the candidate roster": {
+    en: "Browse the candidate roster",
+    es: "Explorar la lista de candidatos",
+    zh: "浏览候选人名册",
+  },
+  "Local coverage is partial. Check your official ballot.": {
+    en: "Local coverage is partial. Check your official ballot.",
+    es: "La cobertura local es parcial. Consulta tu boleta oficial.",
+    zh: "地方选举覆盖不完整。请查看官方选票。",
+  },
+  "County coverage verified: {verified} of {total}": {
+    en: "County coverage verified: {verified} of {total}",
+    es: "Cobertura de condados verificada: {verified} de {total}",
+    zh: "已核实的县级覆盖范围：{verified}/{total}",
+  },
+  "{count} candidates with reviewed research": {
+    en: "{count} candidates with reviewed research",
+    es: "{count} candidatos con investigación revisada",
+    zh: "{count} 位候选人有已审核研究",
+  },
+  "{candidates} candidates · {contests} contests": {
+    en: "{candidates} candidates · {contests} contests",
+    es: "{candidates} candidatos · {contests} contiendas",
+    zh: "{candidates} 位候选人 · {contests} 场选举",
+  },
+  "Number of candidates in each office group.": {
+    en: "Number of candidates in each office group.",
+    es: "Número de candidatos en cada grupo de cargos.",
+    zh: "各职位类别的候选人数。",
+  },
+  "What this catalog covers": {
+    en: "What this catalog covers",
+    es: "Qué incluye este catálogo",
+    zh: "本目录的覆盖范围",
+  },
+  "Check your official ballot for the contests you can vote in.": {
+    en: "Check your official ballot for the contests you can vote in.",
+    es: "Consulta tu boleta oficial para ver en qué contiendas puedes votar.",
+    zh: "请查看官方选票，确认您可以投票的选举。",
+  },
+  "Try another name, office or district.": {
+    en: "Try another name, office or district.",
+    es: "Prueba otro nombre, cargo o distrito.",
+    zh: "请尝试其他姓名、职位或选区。",
+  },
+  "No candidates match these filters.": {
+    en: "No candidates match these filters.",
+    es: "Ningún candidato coincide con estos filtros.",
+    zh: "没有符合这些筛选条件的候选人。",
+  },
+  "Official roster only": {
+    en: "Official roster only",
+    es: "Solo lista oficial",
+    zh: "仅有官方名册信息",
+  },
+  "Reviewed research": {
+    en: "Reviewed research",
+    es: "Investigación revisada",
+    zh: "已审核研究",
+  },
+  "Alphabetical by name": {
+    en: "Alphabetical by name",
+    es: "Orden alfabético por nombre",
+    zh: "按姓名字母排序",
+  },
+  "Candidates {start}–{end} of {total}": {
+    en: "Candidates {start}–{end} of {total}",
+    es: "Candidatos {start}–{end} de {total}",
+    zh: "候选人第 {start}–{end} 位，共 {total} 位",
+  },
+  "Return to first page": {
+    en: "Return to first page",
+    es: "Volver a la primera página",
+    zh: "返回第一页",
+  },
+  "Candidate catalog unavailable": {
+    en: "Candidate catalog unavailable",
+    es: "Catálogo de candidatos no disponible",
+    zh: "候选人目录暂不可用",
+  },
+  "Loading candidates": {
+    en: "Loading candidates",
+    es: "Cargando candidatos",
+    zh: "正在加载候选人",
+  },
+  "Clear search and filters": {
+    en: "Clear search and filters",
+    es: "Borrar búsqueda y filtros",
+    zh: "清除搜索和筛选",
+  },
+  "Office: {office}": {
+    en: "Office: {office}",
+    es: "Cargo: {office}",
+    zh: "职位：{office}",
+  },
+  "Name, office or district": {
+    en: "Name, office or district",
+    es: "Nombre, cargo o distrito",
+    zh: "姓名、职位或选区",
+  },
+  "Coverage details": {
+    en: "Coverage details",
+    es: "Detalles de cobertura",
+    zh: "覆盖范围详情",
+  },
+  "{listed} listed · {published} with reviewed research": {
+    en: "{listed} listed · {published} with reviewed research",
+    es: "{listed} en la lista · {published} con investigación revisada",
+    zh: "名册共 {listed} 人 · {published} 人有已审核研究",
+  },
+  "California candidates": {
+    en: "California candidates",
+    es: "Candidatos de California",
+    zh: "加州候选人",
+  },
   "Show polls": { en: "Show polls", es: "Mostrar encuestas", zh: "显示民调" },
   "Polls are hidden until you choose to show them.": {
     en: "Polls are hidden until you choose to show them.",
@@ -312,19 +535,19 @@ export const electionStrings = {
     zh: "阅读加州官方指南（英文）",
   },
   "elections.entry.research": {
-    en: "Candidate research",
-    es: "Investigación de candidatos",
-    zh: "候选人研究",
+    en: "California candidate research",
+    es: "Investigación de candidatos de California",
+    zh: "加州候选人研究",
   },
   "elections.entry.researchA11y": {
-    en: "Explore candidate research",
-    es: "Explorar la investigación de candidatos",
-    zh: "浏览候选人研究",
+    en: "California candidate research. Find candidates by name, office or district.",
+    es: "Investigación de candidatos de California. Busca por nombre, cargo o distrito.",
+    zh: "加州候选人研究。按姓名、职位或选区查找候选人。",
   },
   "elections.entry.researchNote": {
-    en: "Records, promises and reported funding.",
-    es: "Historial, promesas y financiamiento declarado.",
-    zh: "履历、承诺和申报的资金。",
+    en: "Find candidates by name, office or district.",
+    es: "Busca candidatos por nombre, cargo o distrito.",
+    zh: "按姓名、职位或选区查找候选人。",
   },
   "elections.entry.process": {
     en: "How elections work",

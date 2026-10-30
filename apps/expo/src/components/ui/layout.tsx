@@ -56,7 +56,7 @@ export function SearchInput({
 }: Omit<TextInputProps, "style"> & { style?: StyleProp<ViewStyle> }) {
   return (
     <View style={[l.searchWrap, style]}>
-      <View style={l.searchIcon}>
+      <View style={l.searchIcon} aria-hidden>
         <SearchMark size={20} color={DigestPalette.quiet} />
       </View>
       <TextInput

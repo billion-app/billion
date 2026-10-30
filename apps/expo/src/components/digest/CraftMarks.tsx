@@ -256,12 +256,7 @@ export function SearchMark({
   color?: string;
 }) {
   return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      accessibilityElementsHidden
-    >
+    <Svg width={size} height={size} viewBox="0 0 24 24">
       <Circle
         cx={10.5}
         cy={10.5}

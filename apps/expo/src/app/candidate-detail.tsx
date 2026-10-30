@@ -29,6 +29,7 @@ import {
   CandidateResearchPrompt,
   CandidateStatementChapter,
 } from "~/components/candidate-research/CandidateResearchCards";
+import { CanonicalCandidateDetail } from "~/components/candidate-research/CanonicalCandidateDetail";
 import { EvidenceSheet } from "~/components/candidate-research/EvidenceSheet";
 import { CardTranslationNotice } from "~/components/CardTranslationNotice";
 import { OfficeRole } from "~/components/office-role/OfficeRole";
@@ -53,6 +54,7 @@ import {
   canMatchCaliforniaGuide,
   ELECTION_DATE,
   findGuideCandidate,
+  isJudicialResearchContext,
   parseBallotCandidate,
   statewideOfficeName,
   statewideOfficeSlug,
@@ -79,7 +81,7 @@ function routeStringList(value: string | undefined): string[] | undefined {
   }
 }
 
-export default function CandidateDetailScreen() {
+function LegacyCandidateDetailScreen() {
   const {
     t: tx,
     locale: appLocale,
@@ -88,6 +90,7 @@ export default function CandidateDetailScreen() {
 
   const router = useRouter();
   const params = useLocalSearchParams<{
+    providerContestId?: string;
     name?: string;
     office?: string;
     state?: string;
@@ -141,7 +144,13 @@ export default function CandidateDetailScreen() {
             photoUrl: undefined,
           }
         : undefined));
-  const canLoadResearch =
+  const canLoadBallotResearch =
+    !!fromBallot &&
+    params.state === "CA" &&
+    params.electionDate === ELECTION_DATE &&
+    !!params.office &&
+    !!params.districtId;
+  const canLoadGuideResearch =
     !!guide &&
     !!office &&
     !query.isError &&
@@ -151,13 +160,13 @@ export default function CandidateDetailScreen() {
         (!params.electionDate || params.electionDate === ELECTION_DATE) &&
         (!params.districtId ||
           params.districtId === "ocd-division/country:us/state:ca"));
-  const researchQuery = useQuery({
+  const guideResearchQuery = useQuery({
     ...trpc.candidateBriefs.forGuideCandidate.queryOptions({
       name: guide?.name ?? "",
       officeSlug: office ?? "governor",
       language: uiLanguage,
     }),
-    enabled: canLoadResearch,
+    enabled: canLoadGuideResearch && !canLoadBallotResearch,
     staleTime: 0,
     refetchInterval: (query) =>
       query.state.data?.status === "published" &&
@@ -165,6 +174,29 @@ export default function CandidateDetailScreen() {
         ? 3_000
         : 30_000,
   });
+  const ballotResearchQuery = useQuery({
+    ...trpc.candidateBriefs.forBallotCandidate.queryOptions({
+      electionDate: params.electionDate ?? ELECTION_DATE,
+      name: fromBallot?.name ?? "unavailable",
+      office: params.office ?? "unavailable",
+      jurisdiction: params.districtId ?? "ocd-division/country:us/state:ca",
+      providerIdentity:
+        fromBallot?.providerIdentity && params.providerContestId
+          ? {
+              ...fromBallot.providerIdentity,
+              contestId: params.providerContestId,
+            }
+          : undefined,
+      language: uiLanguage,
+    }),
+    enabled: canLoadBallotResearch,
+    staleTime: 0,
+    refetchInterval: 30_000,
+  });
+  const researchQuery = canLoadBallotResearch
+    ? ballotResearchQuery
+    : guideResearchQuery;
+  const canLoadResearch = canLoadBallotResearch || canLoadGuideResearch;
   const [now, setNow] = useState(() => Date.now());
   const [selection, setSelection] = useState<
     (EvidenceSelection & { revisionId: string }) | null
@@ -189,12 +221,22 @@ export default function CandidateDetailScreen() {
       Math.max(now, researchQuery.dataUpdatedAt)
       ? researchQuery.data
       : null;
+  const judicial = isJudicialResearchContext({
+    release:
+      researchQuery.data?.status === "published"
+        ? researchQuery.data.race.manifest
+        : undefined,
+    ballotOffice: fromBallot ? params.office : undefined,
+  });
   const researchedCandidate = research?.race.manifest.members.find(
     (member) => member.candidateId === research.identity.candidateId,
   );
-  const brief = research?.race.briefs.find(
-    (item) => item.identity.candidateId === research.identity.candidateId,
-  );
+  const brief =
+    researchedCandidate?.name === candidate?.name
+      ? research?.race.briefs.find(
+          (item) => item.identity.candidateId === research.identity.candidateId,
+        )
+      : undefined;
   const researchTab =
     params.tab === "money" || params.tab === "sources" ? params.tab : "brief";
   const openResearch = (next: Record<string, string>, promise = false) => {
@@ -459,6 +501,7 @@ export default function CandidateDetailScreen() {
                 <CandidateResearchBody
                   key={brief.revisionId}
                   brief={brief}
+                  judicial={judicial}
                   reviewedAt={research.race.reviewedAt}
                   tab={researchTab}
                   onTab={(tab) => router.setParams({ tab })}
@@ -484,6 +527,78 @@ export default function CandidateDetailScreen() {
                       revisionId: brief.revisionId,
                     })
                   }
+                />
+              </>
+            ) : judicial ? (
+              <>
+                {canLoadResearch && researchQuery.isPending ? (
+                  <ActivityIndicator
+                    accessibilityLabel={tx("Loading candidate research")}
+                    color={P.spark}
+                  />
+                ) : null}
+                {canLoadResearch && researchQuery.isError ? (
+                  <Card style={s.panel}>
+                    <Text style={s.heading}>
+                      {tx("Research couldn’t load")}
+                    </Text>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      onPress={() => void researchQuery.refetch()}
+                      style={[s.action, s.retryAction]}
+                    >
+                      <Text style={[s.actionText, { color: colors.white }]}>
+                        {tx("Try again")}
+                      </Text>
+                    </TouchableOpacity>
+                  </Card>
+                ) : null}
+                {(!canLoadResearch || !researchQuery.isPending) && (
+                  <Card style={s.panel}>
+                    <Text accessibilityRole="header" style={s.sectionTitle}>
+                      {tx("Judicial record")}
+                    </Text>
+                    <Text style={s.body}>
+                      {tx(
+                        "Reviewed research is not yet available for this candidate.",
+                      )}
+                    </Text>
+                    <Text style={s.muted}>
+                      {tx(
+                        "No reviewed judicial record sources are available yet.",
+                      )}
+                    </Text>
+                    {publicBiography ? (
+                      <View style={{ gap: 12 }}>
+                        <Text style={s.muted}>
+                          {tx(
+                            "{value1} biography · not an independent assessment or a record of votes",
+                            { value1: publicBiography.sourceName },
+                          )}
+                        </Text>
+                        <BallotReadingText text={publicBiography.biography} />
+                        <SourceLink
+                          label={tx("Biography · {value1}", {
+                            value1: publicBiography.sourceName,
+                          })}
+                          url={publicBiography.sourceUrl}
+                          prominence="primary"
+                        />
+                      </View>
+                    ) : null}
+                    <SourceLink
+                      label={tx(
+                        "Find the election office and official candidate list",
+                      )}
+                      url={electionOfficeUrl}
+                      prominence="primary"
+                    />
+                  </Card>
+                )}
+                <OfficeRole
+                  office={params.office}
+                  state={params.state}
+                  districtId={params.districtId}
                 />
               </>
             ) : (
@@ -983,3 +1098,18 @@ const s = StyleSheet.create({
     fontSize: 18,
   },
 });
+
+export default function CandidateDetailScreen() {
+  const params = useLocalSearchParams<{
+    researchIdentity?: string;
+    name?: string;
+  }>();
+  return params.researchIdentity ? (
+    <CanonicalCandidateDetail
+      identityParam={params.researchIdentity}
+      expectedName={params.name}
+    />
+  ) : (
+    <LegacyCandidateDetailScreen />
+  );
+}
