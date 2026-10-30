@@ -86,6 +86,8 @@ provisioned publisher can approve or revoke policy through the authenticated API
 Development fictional examples remain gated by `__DEV__`; production URL
 parameters cannot enable them. Draft previews require an editor session.
 
+The [approved pilot policy](candidate-brief-publication.md#approved-policy-for-the-2026-pilot) permits independent AI content review and trusted operator publication. Policy ownership and reviewer identities remain distinct from app login access.
+
 The pilot does not provide comprehensive candidate histories, automatic interest
 classification, nationwide matching or local finance ingestion. Physical-device
 VoiceOver and real-reader acceptance remain release checks. No fictional records
