@@ -39,6 +39,16 @@ try {
       nav.getByRole("link", { name: "Team", exact: true }),
     ).toHaveAttribute("aria-current", "location");
     assert.equal(await nav.evaluate((el) => !!el.closest("[inert]")), false);
+    if (reducedMotion === "no-preference") {
+      await expect(page.locator(".cinematic-stage")).toHaveAttribute(
+        "inert",
+        "",
+      );
+      await expect(page.locator(".cinematic-stage")).toHaveAttribute(
+        "aria-hidden",
+        "true",
+      );
+    }
     assert.equal(
       await nav.evaluate((el) => {
         const r = el.getBoundingClientRect();
@@ -79,6 +89,12 @@ try {
     await nav.getByRole("link", { name: "Overview", exact: true }).click();
     await expect(page).toHaveURL(/#overview$/);
     await expect.poll(() => page.evaluate(() => Math.round(scrollY))).toBe(0);
+    if (reducedMotion === "no-preference") {
+      await expect(page.locator(".cinematic-stage")).not.toHaveAttribute(
+        "inert",
+        "",
+      );
+    }
     await page.goBack();
     await expect(page).toHaveURL(/#team$/);
     await expect

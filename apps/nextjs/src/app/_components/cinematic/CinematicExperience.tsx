@@ -17,7 +17,8 @@ import { WorldStage } from "./WorldStage";
 import "./cinematic.css";
 
 function JourneyFrame() {
-  const { reducedMotion, overlayProgress, width, height } = useJourney();
+  const { reducedMotion, stageCovered, overlayProgress, width, height } =
+    useJourney();
 
   if (reducedMotion) return <StaticExperience />;
 
@@ -38,7 +39,11 @@ function JourneyFrame() {
             : "cinematic-root"
       }
     >
-      <div className="cinematic-stage">
+      <div
+        className="cinematic-stage"
+        inert={stageCovered}
+        aria-hidden={stageCovered}
+      >
         <div className="cinematic-world" style={{ opacity: worldOpacity }}>
           <WorldStage />
         </div>

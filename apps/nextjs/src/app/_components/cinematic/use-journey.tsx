@@ -17,6 +17,7 @@ interface JourneyValue {
   progressRef: RefObject<number>;
   overlayProgress: number;
   reducedMotion: boolean;
+  stageCovered: boolean;
   webgl: boolean | null;
   focusTopic: PersonalTopicId | null;
   setFocusTopic: (id: PersonalTopicId | null) => void;
@@ -49,6 +50,7 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
   const progressRef = useRef(0);
   const [overlayProgress, setOverlayProgress] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [stageCovered, setStageCovered] = useState(false);
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [focusTopic, setFocusTopic] = useState<PersonalTopicId | null>(null);
   const [focusEntity, setFocusEntity] = useState<string | null>(null);
@@ -92,7 +94,15 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
     });
 
     const journey = document.getElementById("cinematic-journey");
+    const header = document.querySelector<HTMLElement>(
+      ".cinematic-site-header",
+    );
     const updateProgress = () => {
+      setStageCovered(
+        journey !== null &&
+          journey.offsetHeight - lenis.scroll <=
+            (header?.offsetHeight ?? 0) + 1,
+      );
       const distance = journey
         ? journey.offsetHeight - window.innerHeight
         : lenis.limit;
@@ -181,6 +191,7 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
       progressRef,
       overlayProgress,
       reducedMotion,
+      stageCovered,
       webgl,
       focusTopic,
       setFocusTopic,
@@ -192,6 +203,7 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
     [
       overlayProgress,
       reducedMotion,
+      stageCovered,
       webgl,
       focusTopic,
       focusEntity,
