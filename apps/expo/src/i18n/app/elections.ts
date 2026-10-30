@@ -2,6 +2,11 @@
 import type { Catalog } from "./types";
 
 export const electionStrings = {
+  "Source dated {date}": {
+    en: "Source dated {date}",
+    es: "Fuente fechada el {date}",
+    zh: "来源日期：{date}",
+  },
   "Statements and campaign material": {
     en: "Statements and campaign material",
     es: "Declaraciones y material de campaña",

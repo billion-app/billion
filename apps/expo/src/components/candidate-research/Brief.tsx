@@ -8,6 +8,7 @@ import { CandidateDisclosure } from "~/components/ballot-evidence/CandidateDiscl
 import { Icon } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { hair, DigestPalette as P } from "~/styles";
+import { readBrief } from "./brief-reading";
 import { researchEvidenceAttribution } from "./evidence-attribution";
 import {
   Action,
@@ -39,17 +40,12 @@ export function Brief({
   const { t: tx, locale: appLocale } = useAppTranslation();
 
   const terms = brief.research?.terms;
-  const claims = brief.sections.flatMap((section) => section.claims);
-  const headline = judicial
-    ? undefined
-    : (claims.find((claim) => claim.id === brief.research?.headlineClaimId) ??
-      brief.sections.find((section) => section.topic === "priorities")
-        ?.claims[0]);
-  const recordGap = brief.sections.find(
-    (section) => section.topic === "record",
-  )?.missingEvidence;
-  const records = claims.filter((claim) => claim.kind === "fact");
-  const promises = claims.filter((claim) => claim.kind === "promise");
+  const { headline, record, chapters, hasPromises } = readBrief(
+    brief,
+    judicial,
+  );
+  const records = record?.claims ?? [];
+  const recordGap = record?.missingEvidence;
   return (
     <>
       {brief.correction && (
@@ -67,66 +63,82 @@ export function Brief({
           />
           <EvidenceAction
             ids={headline.evidenceIds}
-            title={tx(judicial ? "Judicial record" : "Candidate priorities")}
+            title={headline.text}
             open={open}
           />
         </Panel>
       )}
       <Text accessibilityRole="header" style={s.heading}>
-        {tx(judicial ? "Judicial record" : "Record & promises")}
+        {tx(judicial ? "Judicial record" : "Record")}
       </Text>
       {records.length ? (
-        records.map((claim) => (
-          <View key={claim.id} style={[s.row, { paddingHorizontal: 8 }]}>
-            <View
-              style={s.tile}
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              aria-hidden
-            >
-              <Icon name="doc" size={19} color={P.primary} />
+        records.map((claim) =>
+          claim.kind === "promise" ? (
+            <PromiseCard
+              key={claim.id}
+              brief={brief}
+              claim={claim}
+              onPromise={onPromise}
+            />
+          ) : (
+            <View key={claim.id} style={[s.row, { paddingHorizontal: 8 }]}>
+              <View
+                style={s.tile}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                aria-hidden
+              >
+                <Icon name="doc" size={19} color={P.primary} />
+              </View>
+              <View
+                style={[
+                  s.grow,
+                  {
+                    borderLeftWidth: 1,
+                    borderLeftColor: hair[3],
+                    paddingLeft: 14,
+                  },
+                ]}
+              >
+                <Text style={s.muted}>{tx(claimLabels[claim.kind])}</Text>
+                {(() => {
+                  const date = brief.evidence.find(
+                    (e) => claim.evidenceIds.includes(e.id) && e.documentDate,
+                  )?.documentDate;
+                  return date ? (
+                    <Text style={s.muted}>
+                      {tx("Source dated {date}", {
+                        date: new Date(`${date}T12:00:00Z`).toLocaleDateString(
+                          appLocale,
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            timeZone: "UTC",
+                          },
+                        ),
+                      })}
+                    </Text>
+                  ) : null;
+                })()}
+                <Emphasis
+                  terms={terms}
+                  text={claim.text}
+                  phrases={claim.emphasis}
+                />
+                <EvidenceAction
+                  ids={claim.evidenceIds}
+                  title={claim.text}
+                  open={open}
+                />
+              </View>
             </View>
-            <View
-              style={[
-                s.grow,
-                {
-                  borderLeftWidth: 1,
-                  borderLeftColor: hair[3],
-                  paddingLeft: 14,
-                },
-              ]}
-            >
-              <Text style={s.muted}>
-                {tx("Documented fact {value1}", {
-                  value1: (() => {
-                    const date = brief.evidence.find(
-                      (e) => claim.evidenceIds.includes(e.id) && e.documentDate,
-                    )?.documentDate;
-                    return date
-                      ? ` · ${new Date(date + "T12:00:00Z").toLocaleDateString(appLocale, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`
-                      : "";
-                  })(),
-                })}
-              </Text>
-              <Emphasis
-                terms={terms}
-                text={claim.text}
-                phrases={claim.emphasis}
-              />
-              <EvidenceAction
-                ids={claim.evidenceIds}
-                title={claim.text}
-                label={tx("Read the record")}
-                open={open}
-              />
-            </View>
-          </View>
-        ))
+          ),
+        )
       ) : (
         <Panel>
           <Text style={s.muted}>
-            {brief.sections.find((section) => section.topic === "record")
-              ?.missingEvidence ??
+            {recordGap ??
               tx(
                 judicial
                   ? "No reviewed judicial record sources are available yet."
@@ -140,49 +152,7 @@ export function Brief({
           <Text style={s.muted}>{recordGap}</Text>
         </Panel>
       )}
-      {!judicial &&
-        promises.map((claim) => (
-          <Panel key={claim.id}>
-            <View style={s.row}>
-              <View
-                style={s.tile}
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-                aria-hidden
-              >
-                <Icon name="quote" size={19} color={P.primary} />
-              </View>
-              <View style={s.grow}>
-                <Text style={s.muted}>{tx("Candidate promise")}</Text>
-                <Text style={s.heading}>
-                  {brief.research?.promises.find((p) => p.claimId === claim.id)
-                    ?.title ?? claim.text}
-                </Text>
-              </View>
-            </View>
-            <Emphasis
-              terms={terms}
-              text={claim.text}
-              phrases={claim.emphasis}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={tx("Explore promise: {value1}", {
-                value1: claim.text,
-              })}
-              onPress={() => onPromise(claim.id)}
-              style={[
-                s.rule,
-                s.row,
-                { justifyContent: "space-between", minHeight: 48 },
-              ]}
-            >
-              <Text style={s.link}>{tx("Explore this promise")}</Text>
-              <Icon name="chevR" size={18} color={P.primary} />
-            </Pressable>
-          </Panel>
-        ))}
-      {!judicial && !promises.length && (
+      {!judicial && !hasPromises && (
         <Panel title={tx("Campaign promises")}>
           <Text style={s.body}>
             {tx("No reviewed campaign promises are available.")}
@@ -220,34 +190,33 @@ export function Brief({
               ))}
           </CandidateDisclosure>
         )}
-      {brief.sections
-        .filter((section) => section.topic !== "record")
-        .map((section) => {
-          const remaining = section.claims.filter(
-            (claim) =>
-              claim !== headline &&
-              claim.kind !== "fact" &&
-              claim.kind !== "promise",
-          );
-          if (
-            (brief.research || judicial) &&
-            !remaining.length &&
-            !section.missingEvidence?.trim()
-          )
-            return null;
-          const title = {
-            priorities: tx(judicial ? "Judicial background" : "Priorities"),
-            mechanisms: tx(
-              judicial ? "Court authority" : "How plans could work",
-            ),
-            effects: tx("Potential effects"),
-            tradeoffs: tx(judicial ? "Considerations" : "Costs & tradeoffs"),
-            unknowns: tx("What is still unknown"),
-            record: tx("Record"),
-          }[section.topic];
-          return (
-            <CandidateDisclosure key={section.topic} title={title}>
-              {remaining.map((claim) => (
+      {chapters.map((section) => {
+        const remaining = section.claims;
+        if (
+          (brief.research || judicial) &&
+          !remaining.length &&
+          !section.missingEvidence?.trim()
+        )
+          return null;
+        const title = {
+          priorities: tx(judicial ? "Judicial background" : "Priorities"),
+          mechanisms: tx(judicial ? "Court authority" : "How plans could work"),
+          effects: tx("Potential effects"),
+          tradeoffs: tx(judicial ? "Considerations" : "Costs & tradeoffs"),
+          unknowns: tx("What is still unknown"),
+          record: tx("Record"),
+        }[section.topic];
+        return (
+          <CandidateDisclosure key={section.topic} title={title}>
+            {remaining.map((claim) =>
+              claim.kind === "promise" ? (
+                <PromiseCard
+                  key={claim.id}
+                  brief={brief}
+                  claim={claim}
+                  onPromise={onPromise}
+                />
+              ) : (
                 <View key={claim.id} style={s.point}>
                   <Text style={s.muted}>{tx(claimLabels[claim.kind])}</Text>
                   <Emphasis
@@ -261,16 +230,67 @@ export function Brief({
                     open={open}
                   />
                 </View>
-              ))}
-              {section.missingEvidence && (
-                <Text style={s.body}>{section.missingEvidence}</Text>
-              )}
-            </CandidateDisclosure>
-          );
-        })}
+              ),
+            )}
+            {section.missingEvidence && (
+              <Text style={s.body}>{section.missingEvidence}</Text>
+            )}
+          </CandidateDisclosure>
+        );
+      })}
     </>
   );
 }
+function PromiseCard({
+  brief,
+  claim,
+  onPromise,
+}: {
+  brief: CandidateBrief;
+  claim: CandidateBrief["sections"][number]["claims"][number];
+  onPromise: (id: string) => void;
+}) {
+  const { t: tx } = useAppTranslation();
+  const terms = brief.research?.terms;
+  return (
+    <Panel>
+      <View style={s.row}>
+        <View
+          style={s.tile}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          aria-hidden
+        >
+          <Icon name="quote" size={19} color={P.primary} />
+        </View>
+        <View style={s.grow}>
+          <Text style={s.muted}>{tx("Candidate promise")}</Text>
+          <Text style={s.heading}>
+            {brief.research?.promises.find((p) => p.claimId === claim.id)
+              ?.title ?? claim.text}
+          </Text>
+        </View>
+      </View>
+      <Emphasis terms={terms} text={claim.text} phrases={claim.emphasis} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={tx("Explore promise: {value1}", {
+          value1: claim.text,
+        })}
+        onPress={() => onPromise(claim.id)}
+        style={[
+          s.rule,
+          s.row,
+          { justifyContent: "space-between", minHeight: 48 },
+        ]}
+      >
+        <Text style={s.link}>{tx("Explore this promise")}</Text>
+        <Icon name="chevR" size={18} color={P.primary} />
+      </Pressable>
+    </Panel>
+  );
+}
+
 export function PromiseDetail({
   brief,
   promiseId,
