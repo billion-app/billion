@@ -98,10 +98,10 @@ export const auditStrings = {
     es: "En la lista de la fuente electoral",
     zh: "选票来源已列出",
   },
-  "Statement guide entry · ballot status unverified": {
-    en: "Statement guide entry · ballot status unverified",
-    es: "Entrada en la guía de declaraciones · presencia en la papeleta sin verificar",
-    zh: "列入声明指南；尚未核实选票状态",
+  "Official guide entry · ballot status unverified": {
+    en: "Official guide entry · ballot status unverified",
+    es: "Entrada en la guía oficial · presencia en la papeleta sin verificar",
+    zh: "列入官方指南；尚未核实选票状态",
   },
   "Ballot status unknown": {
     en: "Ballot status unknown",
@@ -118,10 +118,10 @@ export const auditStrings = {
     es: "Datos parciales del proveedor · pueden faltar contiendas o candidaturas",
     zh: "提供方资料不完整；可能缺少其他选举项目或候选人",
   },
-  "Statement guide · includes statement submitters, not a complete ballot": {
-    en: "Statement guide · includes statement submitters, not a complete ballot",
-    es: "Guía de declaraciones · incluye a quienes presentaron declaraciones; no es una papeleta completa",
-    zh: "声明指南；仅收录提交声明者，并非完整选票",
+  "Official voter guide · not a complete ballot": {
+    en: "Official voter guide · not a complete ballot",
+    es: "Guía oficial del votante · no es una papeleta completa",
+    zh: "官方选民指南；并非完整选票",
   },
   "Coverage unknown · missing data does not mean no election or race exists": {
     en: "Coverage unknown · missing data does not mean no election or race exists",

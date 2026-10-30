@@ -12,7 +12,7 @@ export function candidateStatusLabel(
     return t("Withdrawn; name remains listed by the ballot source");
   if (status === "onBallot") return t("Listed by the ballot source");
   if (inStatementGuide)
-    return t("Statement guide entry · ballot status unverified");
+    return t("Official guide entry · ballot status unverified");
   return t("Ballot status unknown");
 }
 
@@ -35,9 +35,7 @@ export function electionCoverageLabel(
         "Partial provider data · other contests or candidates may be missing",
       );
     case "statement-guide":
-      return t(
-        "Statement guide · includes statement submitters, not a complete ballot",
-      );
+      return t("Official voter guide · not a complete ballot");
     case "unknown":
       return t(
         "Coverage unknown · missing data does not mean no election or race exists",

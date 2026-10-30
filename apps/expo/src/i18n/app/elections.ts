@@ -253,10 +253,10 @@ export const electionStrings = {
     es: "Encuesta de gobernador",
     zh: "州长民调",
   },
-  "Official statements {count}": {
-    en: "Official statements {count}",
-    es: "Declaraciones oficiales {count}",
-    zh: "官方声明 {count}",
+  "Candidates in the official guide {count}": {
+    en: "Candidates in the official guide {count}",
+    es: "Candidatos en la guía oficial {count}",
+    zh: "官方指南中的候选人 {count}",
   },
   "No poll available in our sources": {
     en: "No poll available in our sources",

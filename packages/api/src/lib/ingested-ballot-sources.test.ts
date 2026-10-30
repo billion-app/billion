@@ -104,6 +104,38 @@ void test("base ballot receives cited official fields and guidance without modif
   assert.equal(result.mailOnly, undefined);
   assert.equal(ballot.contests?.[0]?.summary, "Provider summary");
 });
+void test("a guide candidate without a statement preserves provider statements and citations", () => {
+  const noStatement = structuredClone(guide);
+  assert.ok(noStatement.candidates[0]);
+  delete noStatement.candidates[0].statement;
+  const supplied = structuredClone(ballot);
+  const candidate = supplied.contests?.[1]?.candidates?.[0];
+  assert.ok(candidate);
+  candidate.statement = "Provider candidate statement";
+  candidate.statementSummary = "Provider statement summary";
+  candidate.statementSummaryIsAiGenerated = true;
+  candidate.citations = [
+    {
+      field: "statement",
+      sourceName: "Provider",
+      official: false,
+      tier: "ballotpedia",
+    },
+    {
+      field: "statementSummary",
+      sourceName: "Provider",
+      official: false,
+      tier: "ballotpedia",
+    },
+  ];
+  const result = attachIngestedBallotSources(supplied, noStatement, null);
+  assert.deepEqual(result.contests?.[1]?.candidates?.[0], candidate);
+  assert.equal(result.contests[0]?.summary, "Official summary");
+  const absent = attachIngestedBallotSources(ballot, noStatement, null)
+    .contests?.[1]?.candidates?.[0];
+  assert.equal(absent?.statement, undefined);
+  assert.equal(absent?.citations, undefined);
+});
 void test("rejects wrong cycle, partial collection, malformed payload and wrong state", () => {
   for (const value of [
     { ...guide, electionDate: "2026-06-02" },
