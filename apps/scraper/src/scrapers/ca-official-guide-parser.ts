@@ -193,8 +193,10 @@ export function parseGuideCandidates(
       .map((p) => clean($(p).text()));
     // An explicit absence is valid. Missing/unrecognized markup is not proof
     // that a candidate declined to submit a statement; abort the cache refresh.
-    if (paragraphs.some((p) => /^No candidate statement\.?$/i.test(p))) return;
-    const statement = paragraphs
+    const noStatement = paragraphs.some((p) =>
+      /^No candidate statement\.?$/i.test(p),
+    );
+    const statementText = paragraphs
       .filter(
         (p) =>
           !/^(?:No candidate statement\.?|Tel(?:ephone)?\s*:|E-?mail\s*:)/i.test(
@@ -202,7 +204,11 @@ export function parseGuideCandidates(
           ) && !/\b(?:Tel:|E-mail:|Email:)\s*/i.test(p),
       )
       .join("\n\n");
-    if (statement.length < 40 || statement.length > 30_000)
+    const statement = noStatement ? undefined : statementText;
+    if (
+      !noStatement &&
+      (statementText.length < 40 || statementText.length > 30_000)
+    )
       throw new Error(
         `Unrecognized candidate statement for ${name}: ${sourceUrl}`,
       );

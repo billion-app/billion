@@ -94,7 +94,7 @@ export const caOfficialGuide: Scraper = {
         set: { responseData: payload, fetchedAt, expiresAt: values.expiresAt },
       });
     logger.success(
-      `Cached ${payload.measures.length} measures and ${payload.candidates.length} candidate statements for ${electionDate}`,
+      `Cached ${payload.measures.length} measures and ${payload.candidates.length} candidates for ${electionDate}`,
     );
   },
 };
