@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
@@ -67,8 +68,215 @@ export function expectedRoster(document) {
     electionDate,
     candidates,
     scope: document.scopeLabel ?? document.scope,
+    scopeKind: document.scope,
+    localCoverage: document.localCoverage,
+    localCrosswalk: document.localCrosswalk,
+    localPrimary: document.localPrimary,
+    races: document.races,
+    additionalSources: document.additionalSources,
+    historicalSources: document.historicalSources,
     sourceUrl: document.source?.url ?? document.sourceUrl,
   };
+}
+
+const hash = (text) => createHash("sha256").update(text).digest("hex");
+const canonical = (value) => {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value && typeof value === "object")
+    return `{${Object.entries(value)
+      .filter(([, child]) => child !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, child]) => `${JSON.stringify(name)}:${canonical(child)}`)
+      .join(",")}}`;
+  return JSON.stringify(value);
+};
+
+export function finalScopeErrors(roster, now = Date.now()) {
+  const errors = [];
+  const coverage = roster.localCoverage;
+  if (roster.scopeKind !== "ca_sos_certified_and_san_jose")
+    errors.push(
+      "Final scope requires an authoritative combined state and San Jose snapshot",
+    );
+  if (coverage?.scope !== "san_jose" || coverage.status !== "verified")
+    errors.push("San Jose local territorial coverage is not verified complete");
+  if (coverage?.pendingRaces !== 0 || coverage?.pendingCandidates !== 0)
+    errors.push(
+      "San Jose pending races and unresolved candidate identities must explicitly be zero",
+    );
+  const races = (roster.races ?? []).filter(
+    (race) => race.officeFamily === "local",
+  );
+  const localCandidates = roster.candidates.filter(
+    (candidate) => !candidate.identity.candidateId.startsWith("ca-sos:"),
+  );
+  if (
+    !races.length ||
+    coverage?.expectedRaces !== races.length ||
+    coverage?.expectedCandidates !== localCandidates.length ||
+    !localCandidates.length
+  )
+    errors.push(
+      "San Jose verified expected counts do not match the complete local roster",
+    );
+  if (
+    races.reduce((count, race) => count + race.members.length, 0) !==
+    localCandidates.length
+  )
+    errors.push("Local identities are not all accounted for by local contests");
+  const crosswalk = roster.localCrosswalk;
+  const entries = crosswalk?.entries ?? [];
+  if (
+    crosswalk?.schemaVersion !== 1 ||
+    crosswalk.electionDate !== roster.electionDate ||
+    entries.length !== 129 ||
+    new Set(entries.map((entry) => entry.sourceContestId)).size !== 129
+  )
+    errors.push(
+      "San Jose scope ledger must account for all 129 official county contests",
+    );
+  if (
+    entries.some(
+      (entry) => !["include", "exclude", "off_ballot"].includes(entry.status),
+    )
+  )
+    errors.push(
+      "San Jose scope ledger contains pending or unresolved contests",
+    );
+  const sources = [
+    ...(roster.additionalSources ?? []),
+    ...(roster.historicalSources ?? []),
+  ];
+  const archived = (proof) =>
+    validUrl(proof?.url) &&
+    sources.some(
+      (source) =>
+        source.url === proof.url &&
+        source.contentHash === proof.contentHash &&
+        typeof source.text === "string" &&
+        hash(source.text) === proof.contentHash,
+    );
+  const reviewValid = (document) => {
+    if (!document?.review) return false;
+    const { review, ...body } = document;
+    return (
+      nonempty(review.actorId) &&
+      Date.parse(review.reviewedAt) <= now &&
+      review.digest === hash(canonical(body))
+    );
+  };
+  if (!reviewValid(crosswalk))
+    errors.push("San Jose territorial crosswalk lacks a valid reviewed digest");
+  if (
+    !sources.some(
+      (source) =>
+        source.contentHash === crosswalk?.rosterSourceHash &&
+        typeof source.text === "string" &&
+        hash(source.text) === source.contentHash,
+    )
+  )
+    errors.push("San Jose crosswalk lacks its authoritative source archive");
+  for (const entry of entries) {
+    if (
+      !nonempty(entry.reason) ||
+      !entry.proofs?.length ||
+      !entry.proofs.every(archived)
+    )
+      errors.push(
+        `Scope contest ${entry.sourceContestId} lacks archived territorial proof`,
+      );
+    if (entry.status === "include") {
+      const matching = races.filter(
+        (race) =>
+          race.sourceContestId === entry.sourceContestId &&
+          race.jurisdiction === entry.jurisdiction,
+      );
+      if (matching.length !== 1)
+        errors.push(
+          `Included San Jose contest ${entry.sourceContestId} is missing or duplicated`,
+        );
+    }
+  }
+  for (const race of races) {
+    if (
+      !entries.some(
+        (entry) =>
+          entry.status === "include" &&
+          entry.sourceContestId === race.sourceContestId &&
+          entry.jurisdiction === race.jurisdiction,
+      )
+    )
+      errors.push(
+        `Local contest ${race.contestId} is outside verified San Jose scope`,
+      );
+    if (
+      !archived(race.sourceProof) ||
+      race.members.some((member) => !archived(member.sourceProof))
+    )
+      errors.push(
+        `Local contest ${race.contestId} has unresolved source identities`,
+      );
+  }
+  if (roster.localPrimary) {
+    const primary = roster.localPrimary;
+    const identities = primary.identityCrosswalk;
+    if (
+      primary.kind !== "scc_clarity" ||
+      !reviewValid(identities) ||
+      identities?.electionDate !== roster.electionDate
+    )
+      errors.push(
+        "Current local identity crosswalk lacks a valid reviewed digest",
+      );
+    const definition = sources.find(
+      (source) => source.url === primary.definitionURL,
+    );
+    const version = sources.find(
+      (source) => source.url === primary.currentVersionURL,
+    );
+    const settings = sources.find(
+      (source) => source.url === primary.settingsURL,
+    );
+    if (
+      !definition ||
+      !version ||
+      !settings ||
+      ![definition, version, settings].every(archived) ||
+      identities?.definitionHash !== definition?.contentHash ||
+      crosswalk?.rosterSourceHash !== definition?.contentHash
+    )
+      errors.push(
+        "Local current primary source archives and identity crosswalk disagree",
+      );
+    const mapped = identities?.members ?? [];
+    for (const race of races) {
+      const matching = mapped.filter(
+        (member) => member.sourceContestId === race.sourceContestId,
+      );
+      if (
+        matching.length !== race.members.length ||
+        new Set(
+          matching.map(
+            (member) =>
+              `${member.clarityContestKey}:${member.clarityChoiceIndex}`,
+          ),
+        ).size !== matching.length ||
+        race.members.some(
+          (member) =>
+            matching.filter(
+              (item) =>
+                item.name === member.name &&
+                race.contestId.endsWith(`:${item.clarityContestKey}`) &&
+                ["on_ballot", "qualified_write_in"].includes(item.status),
+            ).length !== 1,
+        )
+      )
+        errors.push(
+          `Local contest ${race.contestId} contains unresolved identity mappings`,
+        );
+    }
+  }
+  return errors;
 }
 
 export async function walkCatalog(query, electionDate, limit = 100) {
@@ -431,10 +639,14 @@ async function main() {
     errors.push(
       `Expected 388 state-certified candidates; roster has ${stateCount}`,
     );
-  if (!values["state-only"] && !localCount)
-    errors.push(
-      "Final scope requires official San Jose-serving local contests; this expected roster contains none",
-    );
+  if (!values["state-only"])
+    errors.push(...finalScopeErrors(roster, Date.parse(result.checkedAt)));
+  result.localScope = {
+    coverage: roster.localCoverage ?? null,
+    crosswalkReview: roster.localCrosswalk?.review ?? null,
+    finalScopeVerified: !finalScopeErrors(roster, Date.parse(result.checkedAt))
+      .length,
+  };
   async function query(procedure, input) {
     const url = new URL(`/api/trpc/candidateBriefs.${procedure}`, base);
     url.searchParams.set("input", JSON.stringify({ json: input }));

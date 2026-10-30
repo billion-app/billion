@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
   checkRace,
   expectedRoster,
+  finalScopeErrors,
   walkCatalog,
 } from "./verify-california-research.mjs";
 
@@ -174,4 +176,157 @@ test("judicial research needs cited record or authority, not an invented promise
   );
   assert.match(errors, /Roster-only/);
   assert.match(errors, /Finance unavailable/);
+});
+
+function completeSanJoseFixture() {
+  const text = "Archived official county roster and territorial proof.";
+  const contentHash = createHash("sha256").update(text).digest("hex");
+  const proof = {
+    contentHash,
+    url: "https://files.santaclaracounty.gov/official-source",
+  };
+  const jurisdiction = "ocd-division/country:us/state:ca/place:san_jose";
+  const localIdentity = {
+    ...identity("ca-scc:5205:1"),
+    contestId: "ca-scc:5205",
+    jurisdiction,
+  };
+  const member = {
+    identity: localIdentity,
+    name: "Local Candidate",
+    sourceProof: proof,
+  };
+  const entries = Array.from({ length: 129 }, (_, index) =>
+    index === 0
+      ? {
+          jurisdiction,
+          proofs: [proof],
+          reason: "Official territory serves San Jose",
+          sourceContestId: "5205",
+          status: "include",
+        }
+      : {
+          proofs: [proof],
+          reason: "Official territory is outside the selected scope",
+          sourceContestId: String(6000 + index),
+          status: "exclude",
+        },
+  );
+  const localCrosswalk = {
+    electionDate: "2026-11-03",
+    entries,
+    method:
+      "Reviewed every county contest against official territorial sources",
+    rosterSourceHash: contentHash,
+    schemaVersion: 1,
+  };
+  localCrosswalk.review = {
+    actorId: "independent-reviewer",
+    digest: createHash("sha256")
+      .update(JSON.stringify(localCrosswalk))
+      .digest("hex"),
+    reviewedAt: "2026-10-30T00:00:00Z",
+  };
+  return {
+    electionDate: "2026-11-03",
+    scope: "ca_sos_certified_and_san_jose",
+    localCoverage: {
+      scope: "san_jose",
+      status: "verified",
+      expectedCandidates: 1,
+      expectedRaces: 1,
+      pendingRaces: 0,
+      pendingCandidates: 0,
+    },
+    localCrosswalk,
+    additionalSources: [{ ...proof, text }],
+    races: [
+      {
+        officeFamily: "statewide",
+        members: Array.from({ length: 388 }, (_, index) => ({
+          name: `State ${index}`,
+          identity: identity(`ca-sos:${index}`),
+        })),
+      },
+      {
+        officeFamily: "local",
+        contestId: localIdentity.contestId,
+        sourceContestId: "5205",
+        jurisdiction,
+        members: [member],
+        sourceProof: proof,
+      },
+    ],
+  };
+}
+
+test("complete reviewed San Jose scope passes independently of other county coverage", () => {
+  const snapshot = completeSanJoseFixture();
+  snapshot.countyCoverage = [{ name: "Alameda", status: "not_enumerated" }];
+  const roster = expectedRoster(snapshot);
+  assert.equal(roster.candidates.length, 389);
+  assert.deepEqual(finalScopeErrors(roster), []);
+});
+
+test("publishing every listed member of a pending San Jose subset cannot satisfy final scope", () => {
+  const snapshot = completeSanJoseFixture();
+  snapshot.localCoverage = {
+    ...snapshot.localCoverage,
+    status: "pending",
+    expectedCandidates: null,
+    expectedRaces: null,
+    pendingRaces: 10,
+    pendingCandidates: 25,
+  };
+  const allListedPublished = expectedRoster(snapshot).candidates.map(
+    (candidate) => ({ ...candidate, status: "published" }),
+  );
+  const errors = finalScopeErrors({
+    ...expectedRoster(snapshot),
+    candidates: allListedPublished,
+  });
+  assert.match(errors.join(" "), /not verified complete/);
+  assert.match(errors.join(" "), /unresolved candidate identities/);
+});
+
+test("an unrelated local candidate and manual identity list cannot substitute for verified San Jose scope", () => {
+  const unrelated = completeSanJoseFixture();
+  const race = unrelated.races[1];
+  race.jurisdiction = "ocd-division/country:us/state:ca/place:cupertino";
+  race.members[0].identity.jurisdiction = race.jurisdiction;
+  assert.match(
+    finalScopeErrors(expectedRoster(unrelated)).join(" "),
+    /outside verified San Jose scope/,
+  );
+  const manual = {
+    electionDate: "2026-11-03",
+    members: completeSanJoseFixture()
+      .races.flatMap((item) => item.members)
+      .map((member) => ({ ...member, contestId: member.identity.contestId })),
+  };
+  assert.ok(finalScopeErrors(expectedRoster(manual)).length > 0);
+});
+
+test("verified labels cannot hide missing, pending, tampered, or unmapped local proof", () => {
+  for (const mutate of [
+    (snapshot) => {
+      delete snapshot.localCoverage.pendingCandidates;
+    },
+    (snapshot) => {
+      snapshot.localCrosswalk.entries[1].status = "pending";
+    },
+    (snapshot) => {
+      snapshot.localCrosswalk.review.digest = "forged";
+    },
+    (snapshot) => {
+      snapshot.additionalSources[0].text = "changed source";
+    },
+    (snapshot) => {
+      delete snapshot.races[1].members[0].sourceProof;
+    },
+  ]) {
+    const snapshot = completeSanJoseFixture();
+    mutate(snapshot);
+    assert.ok(finalScopeErrors(expectedRoster(snapshot)).length > 0);
+  }
 });
