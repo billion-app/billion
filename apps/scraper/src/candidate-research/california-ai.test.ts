@@ -120,7 +120,7 @@ test("nested promises compile stable links and separate exact reviewer attestati
   assert.notEqual(a.attestation.runId, r.attestation.runId);
   assert.notEqual(a.attestation.actorId, r.attestation.actorId);
   assert.equal(a.attestation.revisionDigest, r.attestation.revisionDigest);
-  assert.equal(a.attestation.promptVersion, "california-author-v8");
+  assert.equal(a.attestation.promptVersion, "california-author-v9");
   assert.equal(r.attestation.actualModel, "actual-fixture-model");
   assert.equal(calls[1]!.excludedConfiguredModel, "fixture:author");
 });
@@ -789,7 +789,7 @@ test("unchanged typed finance refresh preserves the exact approved brief timesta
   );
 });
 
-test("v8 author contract preserves temporal attribution and bounds negative claims to collected passages", async () => {
+test("v9 author contract preserves temporal attribution and bounds negative claims to collected passages", async () => {
   const output = authorFixture();
   output.record = {
     missingEvidence:
@@ -801,7 +801,7 @@ test("v8 author contract preserves temporal attribution and bounds negative clai
     { dossier: fixtureDossier(), policyVersion: "p1" },
     deps,
   );
-  assert.equal(a.attestation.promptVersion, "california-author-v8");
+  assert.equal(a.attestation.promptVersion, "california-author-v9");
   assert.ok(calls[0]!.system.includes("Never re-label a past accomplishment"));
   assert.ok(
     calls[0]!.system.includes(
@@ -913,5 +913,56 @@ test("review rejects future commitments inferred from past record and campaign-w
     a.brief.sections.find((section) => section.topic === "record")!.claims[0]!
       .kind,
     "analysis",
+  );
+});
+
+test("author and reviewer contracts require reader language, distinct chapters and honest unsupported gaps", async () => {
+  const { deps, calls } = dependencies([
+    authorFixture(),
+    {
+      verdict: "reject",
+      findings: [
+        {
+          claimId: "priorities-1",
+          supported: false,
+          reason:
+            "Internal workflow jargon and repeated record claims are not useful reader research.",
+        },
+      ],
+    },
+  ]);
+  const dossier = fixtureDossier();
+  const a = await authorCaliforniaBrief({ dossier, policyVersion: "p1" }, deps);
+  const r = await reviewCaliforniaBrief(
+    {
+      brief: a.brief,
+      dossier,
+      policyVersion: "p1",
+      authorAttestation: a.attestation,
+    },
+    deps,
+  );
+  assert.equal(a.attestation.promptVersion, "california-author-v9");
+  assert.equal(r.attestation.promptVersion, "california-review-v2");
+  assert.equal(r.verdict, "reject");
+  assert.ok(
+    calls[0]!.system.includes("Write for a voter in plain reader language"),
+  );
+  assert.ok(
+    calls[0]!.system.includes("Past achievements belong only in Record"),
+  );
+  assert.ok(
+    calls[0]!.system.includes(
+      "empty claims and an honest, specific source-limited gap",
+    ),
+  );
+  assert.ok(calls[1]!.system.includes("Reject internal workflow jargon"));
+  assert.ok(
+    calls[1]!.system.includes(
+      "Reject repeated claims used to populate multiple chapters",
+    ),
+  );
+  assert.ok(
+    calls[1]!.system.includes("honest source-limited gaps are preferable"),
   );
 });
