@@ -27,33 +27,54 @@ candidate, an independent editor's approval bound to the exact revision digest
 and policy version, and current evidence hashes. Source changes, withdrawals,
 invalid citations and incomplete rosters suppress the entire race. It does not
 establish whether evidence supports a claim; that is an editorial responsibility.
-The gate now backs the [native research reader and transactional race release](candidate-research-reader.md). Production publication remains disabled pending the human policy and source-review gates.
+The gate now backs the [native research reader and transactional race release](candidate-research-reader.md). Publication stays closed until a recorded policy and independent exact-revision reviews satisfy the gate.
 
-## Proposed resolution of #401 / #344 scheduling
+## Approved policy for the 2026 pilot
 
-For 2026, approve a minimum **single-candidate independent brief** policy under
-#344 as a separately scoped decision. Keep Dual-Lens, comparative rankings,
-endorsements and persuasion deferred. A code review does not approve this policy.
-An accountable human editorial owner must accept it and record a version and
-approval date before any feature switch can open.
+On October 30, 2026, the owner approved policy
+`ca-candidate-research-2026-10-30` and the candidate drafts in the release
+conversation, then confirmed that AI may review and publish. The accountable
+owner is GitHub account [ThatXliner](https://github.com/ThatXliner), ID `66848002`.
+This records the owner's decision, not an authenticated Billion editor session.
 
-The minimum proposal requires primary evidence for documented facts; clear
-candidate attribution for promises; allegation provenance, response and dispute
-status; office powers grounding for potential mechanisms; explicit uncertainty
-and unequal evidence disclosure. Lack of evidence cannot count against someone.
-Publish only complete certified races, including non-statement candidates, with
-review dates and covered/total counts from the verified roster. The implemented first collection is the bounded CA-17 House race; #100's local statement expansion and #333's
-national matching tests do not establish roster completeness or review readiness.
+Publish citation-backed research for the complete verified CA-17 House and
+California Lieutenant Governor races for November 3, 2026. Attribute promises to
+candidates. Keep government records and Billion interpretation distinct. Exclude
+endorsements, candidate rankings, unsupported donor-interest classifications,
+and claims that contributions establish influence. Apply the same research
+questions and explicit evidence gaps to every member of the certified race.
+Missing financial data stays unknown. This coverage is not a personalized ballot
+or a comprehensive account of candidate history, platforms, donors, or spending.
+
+An independent AI reviewer may approve an exact revision and a trusted operator
+may release the race under this policy. The reviewer must differ from the author.
+Record an explicit AI actor identity, the reviewed revision digest, policy
+version, source checks, and review evidence. Do not describe an AI review as a
+human review or invent an app account to represent the owner. Code review alone
+does not approve candidate content. Review the actual collected candidate claims
+and their source archives before recording an editorial approval.
+
+Source changes, failed refreshes, corrections, or withdrawn approvals remove the
+whole race pending renewed review. Expired checks hide the race until a successful
+validated refresh. Unchanged successful refreshes retain approvals only through
+the existing validation path. This policy
+does not add automatic approval to the scheduled collector. Changed revisions
+need another independent content review before a trusted operator releases them.
+
+The earlier human-only proposal is superseded by this decision. The policy does
+not grant app login access. The authenticated workbench still requires an
+existing provisioned account; trusted operator publication uses the existing
+server-only tools and records the actual owner and reviewer identities.
 
 ## Release decisions
 
-The bounded CA-17 roster, source collection, authenticated editorial application,
-refresh invalidation and transactional reader are implemented. The operations
-guide explains how to collect, provision accounts, review and publish. The pilot
-has real source data but has not received human editorial approval. An accountable
-publisher must approve policy and editors must review every exact revision before
-release. Production migrations, deployment, physical-device accessibility and
-real-reader comprehension acceptance remain separately recorded release steps.
+The bounded collectors, authenticated editorial application, refresh invalidation,
+and transactional reader are implemented. The operations guide explains
+collection, account provisioning, reviews, and release. Policy adoption does not
+itself create production approvals or a public release. Verify the latest
+persisted revisions, source freshness, independent reviews, and public API before
+claiming publication. Production deployment, physical-device accessibility, and
+real-reader comprehension remain separately recorded checks.
 
 For corrections, create a successor with its reason and previous revision ID.
 The whole race is withdrawn until fresh independent review. Failed source refresh
