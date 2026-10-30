@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
 import posthog from "posthog-js";
 
 import { APP_STORE_URL } from "~/app/_lib/app-store";
@@ -14,7 +13,7 @@ import {
   COMPLICATED_BEATS,
   copyOpacityAt,
 } from "./journey";
-import { BillionMark, SectionRule } from "./marks";
+import { SectionRule } from "./marks";
 import { useJourney } from "./use-journey";
 
 function CopyBlock({
@@ -77,33 +76,6 @@ export function JourneyOverlay() {
 
   return (
     <div className="cinematic-overlay" suppressHydrationWarning>
-      <a className="cinematic-skip" href="#download">
-        Skip to download
-      </a>
-
-      <header
-        className="cinematic-nav"
-        style={{ opacity: p < 0.96 ? 1 : 0 }}
-        inert={p >= 0.96}
-        aria-hidden={p >= 0.96}
-      >
-        <span className="cinematic-nav-brand">
-          <BillionMark size={28} />
-          Billion
-        </span>
-        <a
-          href={APP_STORE_URL}
-          className="cinematic-pill cinematic-pill-nav"
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() =>
-            posthog.capture("app_store_clicked", { surface: "nav" })
-          }
-        >
-          Download
-        </a>
-      </header>
-
       <CopyBlock opacity={copyOpacityAt("hero", p, !!compact)} align="hero">
         <h1 className="cinematic-headline cinematic-headline-hero">
           Know what government is doing.
@@ -266,19 +238,15 @@ export function JourneyOverlay() {
         </div>
       </CopyBlock>
 
-      <footer
-        className="cinematic-footer"
+      <a
+        href="#team"
+        className="cinematic-team-next"
         inert={p <= 0.92}
         aria-hidden={p <= 0.92}
         style={{ opacity: p > 0.92 ? 1 : 0 }}
       >
-        <span>© 2026 Bryan Hu</span>
-        <div>
-          <Link href="/support">Support</Link>
-          <Link href="/terms">Terms</Link>
-          <Link href="/privacy">Privacy</Link>
-        </div>
-      </footer>
+        Meet the team ↓
+      </a>
     </div>
   );
 }

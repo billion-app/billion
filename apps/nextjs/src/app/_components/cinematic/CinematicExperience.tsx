@@ -8,7 +8,9 @@ import {
 } from "./journey";
 import { JourneyOverlay } from "./JourneyOverlay";
 import { PhoneStage } from "./PhoneStage";
+import { SiteNavigation } from "./SiteNavigation";
 import { StaticExperience } from "./StaticExperience";
+import { TeamSection } from "./TeamSection";
 import { JourneyProvider, useJourney } from "./use-journey";
 import { WorldStage } from "./WorldStage";
 
@@ -25,7 +27,9 @@ function JourneyFrame() {
     overlayProgress < 0.11 ? 0 : Math.min(1, (overlayProgress - 0.11) / 0.05);
 
   return (
-    <div
+    <main
+      id="overview"
+      tabIndex={-1}
       className={
         compact === "stacked"
           ? "cinematic-root is-compact is-stacked"
@@ -42,6 +46,7 @@ function JourneyFrame() {
         <JourneyOverlay />
       </div>
       <div
+        id="cinematic-journey"
         className="cinematic-scroll"
         style={{ height: `${totalJourneyVh()}svh` }}
       >
@@ -54,13 +59,15 @@ function JourneyFrame() {
           />
         ))}
       </div>
-    </div>
+      <TeamSection />
+    </main>
   );
 }
 
 export function CinematicExperience() {
   return (
     <JourneyProvider>
+      <SiteNavigation />
       <JourneyFrame />
     </JourneyProvider>
   );
