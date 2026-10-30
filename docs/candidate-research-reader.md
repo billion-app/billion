@@ -49,6 +49,18 @@ influence. Unavailable amounts remain unavailable rather than becoming zero.
 
 ## Published data path
 
+The California [author and compiler](../apps/scraper/src/candidate-research/california-ai.ts)
+separate cited research from document coverage. The private author response contains
+claims and terms; trusted code fills each chapter's `missingEvidence` field from
+the compiled document and immutable collection gaps. These disclosures describe
+what the brief presents, without asserting that unseen archives lack an answer.
+Original collection notes remain in the review packet. Candidate-source roles
+bound prose citations; roster and finance evidence cannot become filler claims.
+A finance-only brief can contain no prose or headline while retaining reconciled
+financial records. It still requires a real author invocation and independent
+review of the final compiled bytes, including every disclosure. Old responses
+cannot be adapted or reattested under a new compiler version.
+
 The optional `research` fields extend the existing
 [candidate brief schema](../packages/validators/src/candidate-brief.ts) without
 changing old revision digests. Promise details and finance use the

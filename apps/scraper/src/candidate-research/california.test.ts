@@ -293,7 +293,7 @@ async function fixture() {
       stats.failures++;
     },
   };
-  return { deps, snapshot, stats, artifacts, rows };
+  return { deps, snapshot, stats, artifacts, rows, allRaces: original.races };
 }
 test("closed automation policy stops before any source or model work", async () => {
   const f = await fixture();
@@ -1414,4 +1414,227 @@ test("checkpoints use the effective checked time returned by the trusted store",
     ).sourceCheckedAt,
     bound,
   );
+});
+
+test("sparse no-finance dossiers stay pending before any dispatch and retain healthy public coverage", async () => {
+  const f = await fixture();
+  f.snapshot.races.splice(1);
+  const race = f.snapshot.races[0]!;
+  const releaseId = randomUUID();
+  const checkedAt = "2026-10-29T23:00:00.000Z";
+  f.rows.set(race.raceKey, {
+    raceKey: race.raceKey,
+    status: "complete",
+    checkpoint: { releaseId, sourceCheckedAt: checkedAt },
+  });
+  f.deps.readPublishedCoverage = async () => ({
+    snapshotId: f.snapshot.id,
+    races: [
+      {
+        contestId: race.contestId,
+        jurisdiction: race.jurisdiction,
+        electionDate: race.electionDate,
+        releaseId,
+        sourceCheckedAt: checkedAt,
+        policyVersion: "policy",
+        members: race.members.map((member) => ({
+          candidateId: member.candidateId,
+          revisionId: randomUUID(),
+          collectionId: null,
+          author: null,
+          reviewer: null,
+        })),
+      },
+    ],
+  });
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (...args) => {
+    const dossier = await investigate(...args);
+    return buildCaliforniaDossier({
+      ...dossier,
+      evidence: dossier.evidence.filter(
+        (evidence) => evidence.role === "roster",
+      ),
+      sources: dossier.sources.filter((source) => source.id === "roster"),
+      finance: null,
+    });
+  };
+  let dispatches = 0;
+  f.deps.reserveDispatch = async () => {
+    dispatches++;
+    return true;
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds: { ...bounds, maxRaces: 1 },
+    },
+    f.deps,
+  );
+  assert.equal(result.outcomes[0]!.status, "pending");
+  assert.equal(result.usage.modelCalls, 0);
+  assert.equal(dispatches, 0);
+  assert.equal(f.stats.authors, 0);
+  assert.equal(f.stats.reviews, 0);
+  assert.equal(f.stats.releases, 0);
+  assert.equal(f.stats.failures, 0);
+  assert.equal(
+    [...f.artifacts.keys()].some(
+      (key) =>
+        key.startsWith("author:") ||
+        key.startsWith("review:") ||
+        key.startsWith("dispatch:"),
+    ),
+    false,
+  );
+  assert.equal(
+    (f.rows.get(race.raceKey)!.checkpoint as CaliforniaWorkCheckpoint)
+      .releaseId,
+    releaseId,
+  );
+  assert.equal(
+    (await coverage({ snapshotId: f.snapshot.id }, f.deps)).published.races,
+    1,
+  );
+});
+
+test("a substantive typed finance-only dossier still dispatches the author dependency", async () => {
+  const f = await fixture();
+  const race = f.allRaces.find((race) =>
+    race.members.some((member) => member.name === "Mike McGuire"),
+  )!;
+  f.snapshot.races = [race];
+  let substantive = false;
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (...args) => {
+    const base = await investigate(...args);
+    const now = f.deps.now();
+    const indexText = JSON.stringify({
+      results: [
+        {
+          candidate_id: "H6CA01269",
+          name: "MCGUIRE, MIKE",
+          office: "H",
+          state: "CA",
+          district: "01",
+          cycles: [2026],
+          election_years: [2026],
+        },
+      ],
+    });
+    const filingText = JSON.stringify({
+      committee_id: "C00000001",
+      total_receipts: 100,
+      period_start: "2025-01-01",
+      period_end: "2026-09-30",
+    });
+    const index: ResearchSource = {
+      id: "finance-index",
+      url: "https://api.open.fec.gov/v1/candidates/search/?office=H&state=CA&district=01&election_year=2026",
+      publisher: "Synthetic FEC identity fixture",
+      format: "json",
+      text: indexText,
+      contentHash: hash(indexText),
+      fetchedAt: now,
+    };
+    const filing: ResearchSource = {
+      id: "finance-filing",
+      url: "https://www.fec.gov/data/candidate/H6CA01269/?cycle=2026",
+      publisher: "Synthetic FEC finance fixture",
+      format: "json",
+      text: filingText,
+      contentHash: hash(filingText),
+      fetchedAt: now,
+    };
+    return buildCaliforniaDossier({
+      ...base,
+      officeKind: "federal_legislative",
+      sources: [
+        ...base.sources.filter((source) => source.id === "roster"),
+        index,
+        filing,
+      ],
+      evidence: [
+        ...base.evidence.filter((evidence) => evidence.role === "roster"),
+        {
+          id: "filing",
+          sourceId: filing.id,
+          excerpt: filing.text,
+          locator: "Synthetic filing",
+          origin: "primary_record",
+          role: "finance",
+          identityQualification: "exact_election_office",
+        },
+      ],
+      financeIdentityProof: {
+        candidateId: "H6CA01269",
+        name: "MCGUIRE, MIKE",
+        office: "H",
+        state: "CA",
+        district: "01",
+        cycle: 2026,
+        sourceId: index.id,
+        sourceHash: index.contentHash,
+      },
+      finance: {
+        committeeId: "C00000001",
+        committeeName: "Synthetic fixture committee",
+        periodStart: "2025-01-01",
+        periodEnd: "2026-09-30",
+        currency: "USD",
+        coverage: "partial",
+        coverageNote: "Synthetic reconciled filing fixture",
+        updatedAt: now,
+        filingEvidenceIds: ["filing"],
+        receipts: substantive
+          ? {
+              totalCents: 10000,
+              breakdown: {
+                individuals: 10000,
+                committees: 0,
+                self_contributions: 0,
+                candidate_loans: 0,
+                transfers: 0,
+                other: 0,
+              },
+              refundsCents: null,
+            }
+          : null,
+        donors: [],
+        donorCoverage: "unavailable",
+        outsideSpending: null,
+      },
+    });
+  };
+  f.deps.author = async ({ dossier }) => {
+    assert.equal(dossier.classification, "evidence_gap");
+    assert.equal(dossier.finance?.receipts?.totalCents, 10000);
+    f.stats.authors++;
+    throw Error("Author dependency invoked; no provider call in fixture");
+  };
+  const metadataOnly = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds: { ...bounds, maxRaces: 1 },
+    },
+    f.deps,
+  );
+  assert.equal(metadataOnly.outcomes[0]!.status, "pending");
+  assert.equal(metadataOnly.usage.modelCalls, 0);
+  assert.equal(f.stats.authors, 0);
+  substantive = true;
+  const invoked = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds: { ...bounds, maxRaces: 1 },
+    },
+    f.deps,
+  );
+  assert.equal(invoked.usage.modelCalls, 1);
+  assert.equal(f.stats.authors, 1);
+  assert.equal(f.stats.reviews, 0);
+  assert.equal(f.stats.releases, 0);
 });

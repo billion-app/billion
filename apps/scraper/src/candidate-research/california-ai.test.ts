@@ -18,18 +18,23 @@ import {
   fixtureDossier,
 } from "./california-dossier.test.js";
 
+function fixtureAuthorEvidence() {
+  return {
+    candidateIds: ["platform"],
+    officeIds: [],
+    requiredCandidateIds: ["platform"],
+  };
+}
+
 function point(text = "Morgan Lee proposes funding public libraries.") {
   return { title: "Stated goal", text, evidenceIds: ["platform"] };
 }
 function authorFixture() {
   const empty = () => ({
-    missingEvidence:
-      "This bounded collection does not establish this dimension.",
     claims: [],
   });
   return {
     priorities: {
-      missingEvidence: null,
       claims: [
         {
           kind: "promise",
@@ -124,51 +129,41 @@ test("nested promises compile stable links and separate exact reviewer attestati
   assert.notEqual(a.attestation.runId, r.attestation.runId);
   assert.notEqual(a.attestation.actorId, r.attestation.actorId);
   assert.equal(a.attestation.revisionDigest, r.attestation.revisionDigest);
-  assert.equal(a.attestation.promptVersion, "california-author-v12");
+  assert.equal(a.attestation.promptVersion, "california-author-v13");
   assert.equal(r.attestation.actualModel, "actual-fixture-model");
   assert.equal(calls[1]!.excludedConfiguredModel, "fixture:author");
 });
 test("fixed topics and dynamic evidence enums reject missing topics or foreign references", () => {
-  const schema = californiaAuthorOutputSchema(["roster", "platform"]);
+  const schema = californiaAuthorOutputSchema(fixtureAuthorEvidence());
   const missing = { ...authorFixture(), record: undefined };
   assert.equal(schema.safeParse(missing).success, false);
   const foreign = authorFixture();
   foreign.priorities.claims[0]!.evidenceIds = ["foreign"];
   assert.equal(schema.safeParse(foreign).success, false);
 });
-test("promise reading cannot attach to a disputed claim or caller-chosen ID", async () => {
+test("strict author rejects caller IDs, orphan readings and legacy research objects", async () => {
   const output = authorFixture();
-  const primary = {
-    kind: "analysis",
-    id: "orphan-choice",
-    text: "The campaign reports library work, which this dossier does not independently corroborate.",
-    evidenceIds: ["platform"],
-    promiseDetails: output.priorities.claims[0]!.promiseDetails,
-  };
-  const { deps } = dependencies([
-    {
-      ...output,
-      priorities: { missingEvidence: null, claims: [primary] },
-      research: {
-        headlineClaimId: "orphan-choice",
-        promises: [{ claimId: "orphan-choice", title: "orphan" }],
-      },
-    },
-  ]);
-  const a = await authorCaliforniaBrief(
-    { dossier: fixtureDossier(), policyVersion: "p1" },
-    deps,
+  await assert.rejects(
+    authorCaliforniaBrief(
+      { dossier: fixtureDossier(), policyVersion: "p1" },
+      dependencies([
+        {
+          ...output,
+          research: { headlineClaimId: "invented" },
+          priorities: {
+            claims: [{ ...output.priorities.claims[0], id: "invented" }],
+          },
+        },
+      ]).deps,
+    ),
+    CaliforniaModelInvocationError,
   );
-  assert.equal(a.brief.sections[0]!.claims[0]!.kind, "analysis");
-  assert.equal(a.brief.sections[0]!.claims[0]!.id, "priorities-1");
-  assert.equal(a.brief.research!.promises.length, 0);
-  assert.equal(a.brief.research!.headlineClaimId, "priorities-1");
 });
+
 test("uncorroborated campaign record cannot be labeled an actual dispute", async () => {
   const output = {
     ...authorFixture(),
     record: {
-      missingEvidence: null,
       claims: [
         {
           kind: "disputed",
@@ -191,30 +186,7 @@ test("uncorroborated campaign record cannot be labeled an actual dispute", async
       ),
   );
 });
-test("cosmetic extras never change prose or trusted financial disclosures", async () => {
-  const prose =
-    "Make life more affordable and grow the economy and jobs for working families.";
-  const output = authorFixture();
-  output.priorities.claims[0]!.text = prose;
-  const malformed = {
-    ...output,
-    finance: { inventedTotal: 123 },
-    financeGap: "invented",
-    priorities: {
-      ...output.priorities,
-      claims: output.priorities.claims.map((claim) => ({
-        ...claim,
-        emphasis: ["grow jobs"],
-        promiseDetails: {
-          ...claim.promiseDetails,
-          brief: {
-            ...claim.promiseDetails.brief,
-            change: { ...point(prose), emphasis: ["grow jobs"] },
-          },
-        },
-      })),
-    },
-  };
+test("strict author rejects cosmetic or financial extras while code preserves finance gaps", async () => {
   const input = dossierInput();
   const gap =
     "State finance has not been reconciled. Amounts and donors remain unknown.";
@@ -225,18 +197,32 @@ test("cosmetic extras never change prose or trusted financial disclosures", asyn
     checkedSourceIds: [],
     required: false,
   });
-  const { deps } = dependencies([malformed]);
-  const a = await authorCaliforniaBrief(
-    { dossier: buildCaliforniaDossier(input), policyVersion: "p1" },
-    deps,
+  const dossier = buildCaliforniaDossier(input);
+  const output = authorFixture();
+  const good = await authorCaliforniaBrief(
+    { dossier, policyVersion: "p1" },
+    dependencies([output]).deps,
   );
-  assert.equal(a.brief.sections[0]!.claims[0]!.text, prose);
-  assert.deepEqual(a.brief.sections[0]!.claims[0]!.emphasis, []);
-  assert.equal(a.brief.research!.promises[0]!.brief.change.text, prose);
-  assert.deepEqual(a.brief.research!.promises[0]!.brief.change.emphasis, []);
-  assert.equal(a.brief.research!.finance, null);
-  assert.equal(a.brief.research!.financeGap, gap);
+  assert.equal(good.brief.research!.finance, null);
+  assert.equal(good.brief.research!.financeGap, gap);
+  for (const bad of [
+    { ...output, finance: { inventedTotal: 123 } },
+    {
+      ...output,
+      priorities: {
+        claims: [{ ...output.priorities.claims[0], emphasis: ["invented"] }],
+      },
+    },
+  ])
+    await assert.rejects(
+      authorCaliforniaBrief(
+        { dossier, policyVersion: "p1" },
+        dependencies([bad]).deps,
+      ),
+      CaliforniaModelInvocationError,
+    );
 });
+
 test("unsupported and omitted reviewer findings never autoapprove", async () => {
   for (const findings of [
     [{ claimId: "priorities-1", supported: false, reason: "Unsupported cost" }],
@@ -423,7 +409,6 @@ test("a broad promise without implementation details stays attributed without in
     {
       ...output,
       priorities: {
-        missingEvidence: "No implementation details are established.",
         claims: [{ ...broad, promiseDetails: null }],
       },
     },
@@ -438,17 +423,26 @@ test("a broad promise without implementation details stays attributed without in
   assert.equal(a.brief.research!.headlineClaimId, "priorities-1");
 });
 
-test("generic roster-only output remains private and fails the shared substantive research gate", async () => {
-  const { hasSubstantiveCandidateResearch } = await import("@acme/validators");
-  const output = authorFixture();
-  output.priorities.claims[0]!.evidenceIds = ["roster"];
-  const { deps } = dependencies([output]);
-  const dossier = fixtureDossier();
-  const authored = await authorCaliforniaBrief(
-    { dossier, policyVersion: "p1" },
-    deps,
+test("roster-only prose is rejected at the author boundary", async () => {
+  const output = {
+    ...authorFixture(),
+    priorities: {
+      claims: [
+        {
+          kind: "fact",
+          text: "The roster lists Morgan Lee.",
+          evidenceIds: ["roster"],
+        },
+      ],
+    },
+  };
+  await assert.rejects(
+    authorCaliforniaBrief(
+      { dossier: fixtureDossier(), policyVersion: "p1" },
+      dependencies([output]).deps,
+    ),
+    CaliforniaModelInvocationError,
   );
-  assert.equal(hasSubstantiveCandidateResearch(authored.brief, dossier), false);
 });
 
 test("California author and Astra reviewer request strict JSON with independent reasoning settings", async (t) => {
@@ -530,7 +524,7 @@ test("California author and Astra reviewer request strict JSON with independent 
     role: "author",
     system: "fixture",
     prompt: "fixture",
-    evidenceIds: ["roster", "platform"],
+    authorEvidence: fixtureAuthorEvidence(),
     maxOutputTokens: 1000,
   });
   await invokeCaliforniaModel({
@@ -798,31 +792,25 @@ test("unchanged typed finance refresh preserves the exact approved brief timesta
   );
 });
 
-test("v12 author contract preserves temporal attribution and bounds negative claims to supplied passages", async () => {
-  const output = authorFixture();
-  output.record = {
-    missingEvidence:
-      "The collected passages contain no independent corroboration.",
-    claims: [],
-  };
-  const { deps, calls } = dependencies([output]);
-  const a = await authorCaliforniaBrief(
+test("v13 author owns claims only and preserves temporal and contextual constraints", async () => {
+  const { deps, calls } = dependencies([authorFixture()]);
+  const result = await authorCaliforniaBrief(
     { dossier: fixtureDossier(), policyVersion: "p1" },
     deps,
   );
-  assert.equal(a.attestation.promptVersion, "california-author-v12");
-  assert.ok(calls[0]!.system.includes("Never re-label a past accomplishment"));
+  assert.equal(result.attestation.promptVersion, "california-author-v13");
   assert.ok(
-    calls[0]!.system.includes(
-      "separately contains an explicit future commitment",
-    ),
+    calls[0]!.system.includes("Past achievements belong only in Record"),
   );
   assert.ok(
     calls[0]!.system.includes(
-      "never assert that the whole campaign lacks a plan",
+      "never roster facts, generic powers, source availability or packet absence filler",
     ),
   );
-  assert.ok(calls[0]!.system.includes("exact supplied and cited passages"));
+  assert.ok(
+    calls[0]!.system.includes("Trusted code owns coverage and typed finance"),
+  );
+  assert.deepEqual(calls[0]!.authorEvidence, fixtureAuthorEvidence());
 });
 
 test("review rejects future commitments inferred from past record and campaign-wide absence inferred from excerpts", async () => {
@@ -837,19 +825,15 @@ test("review rejects future commitments inferred from past record and campaign-w
     .digest("hex");
   input.evidence[1]!.excerpt = past;
   const empty = {
-    missingEvidence:
-      "Implementation details are absent from the collected passages.",
     claims: [],
   };
   const output = {
     ...authorFixture(),
     priorities: empty,
     record: {
-      missingEvidence: null,
       claims: [{ kind: "analysis", text: past, evidenceIds: ["platform"] }],
     },
     mechanisms: {
-      missingEvidence: null,
       claims: [
         {
           kind: "promise",
@@ -860,7 +844,6 @@ test("review rejects future commitments inferred from past record and campaign-w
       ],
     },
     unknowns: {
-      missingEvidence: null,
       claims: [
         {
           kind: "analysis",
@@ -925,67 +908,39 @@ test("review rejects future commitments inferred from past record and campaign-w
   );
 });
 
-test("author and reviewer contracts require reader language, distinct chapters and honest unsupported gaps", async () => {
+test("author and reviewer retain ordinary source truth checks without authored coverage", async () => {
   const { deps, calls } = dependencies([
     authorFixture(),
     {
       verdict: "reject",
-      overallReason:
-        "The exact source context does not support the complete brief.",
+      overallReason: "Fixture unsupported claim",
       findings: [
         {
           claimId: "priorities-1",
           supported: false,
-          reason:
-            "Internal workflow jargon and repeated record claims are not useful reader research.",
+          reason: "Fixture unsupported claim",
         },
       ],
     },
   ]);
   const dossier = fixtureDossier();
-  const a = await authorCaliforniaBrief({ dossier, policyVersion: "p1" }, deps);
-  const r = await reviewCaliforniaBrief(
+  const authored = await authorCaliforniaBrief(
+    { dossier, policyVersion: "p1" },
+    deps,
+  );
+  const reviewed = await reviewCaliforniaBrief(
     {
-      brief: a.brief,
+      brief: authored.brief,
       dossier,
       policyVersion: "p1",
-      authorAttestation: a.attestation,
+      authorAttestation: authored.attestation,
     },
     deps,
   );
-  assert.equal(a.attestation.promptVersion, "california-author-v12");
-  assert.equal(r.attestation.promptVersion, "california-review-v5");
-  assert.ok(
-    calls[0]!.system.includes(
-      "not fresh or citable substantive campaign evidence",
-    ),
-  );
-  assert.ok(
-    calls[1]!.system.includes(
-      "require freshly retrieved substantive campaign-source text",
-    ),
-  );
-  assert.equal(r.verdict, "reject");
-  assert.ok(
-    calls[0]!.system.includes("Write for a voter in plain reader language"),
-  );
-  assert.ok(
-    calls[0]!.system.includes("Past achievements belong only in Record"),
-  );
-  assert.ok(
-    calls[0]!.system.includes(
-      "empty claims and an honest, specific source-limited gap",
-    ),
-  );
-  assert.ok(calls[1]!.system.includes("Reject internal workflow jargon"));
-  assert.ok(
-    calls[1]!.system.includes(
-      "Reject repeated claims used to populate multiple chapters",
-    ),
-  );
-  assert.ok(
-    calls[1]!.system.includes("honest source-limited gaps are preferable"),
-  );
+  assert.equal(reviewed.verdict, "reject");
+  assert.ok(calls[0]!.system.includes("claims only"));
+  assert.ok(calls[1]!.system.includes("OWN cited evidenceIds"));
+  assert.ok(calls[1]!.system.includes("Check missing-evidence disclosures"));
 });
 
 test("both model packets retain full speaker context and trusted compilation preserves public attribution", async () => {
@@ -993,8 +948,6 @@ test("both model packets retain full speaker context and trusted compilation pre
   const output = {
     ...authorFixture(),
     priorities: {
-      missingEvidence:
-        "The campaign-published passage attributes the pledge to another speaker; the checked material does not establish a candidate promise.",
       claims: [],
     },
   };
@@ -1082,6 +1035,7 @@ test("finance-only quality requires actual identity-reconciled amounts and retur
   const { createHash } = await import("node:crypto");
   const { deriveCandidateResearchQuality } = await import("@acme/validators");
   const input = dossierInput();
+  input.evidence = input.evidence.filter((entry) => entry.role === "roster");
   input.officeKind = "federal_legislative";
   input.officeFamily = "us_house";
   input.identity.jurisdiction = "ocd-division/country:us/state:ca/cd:1";
@@ -1159,17 +1113,13 @@ test("finance-only quality requires actual identity-reconciled amounts and retur
     outsideSpending: null,
   };
   const output = {
-    ...authorFixture(),
-    priorities: {
-      missingEvidence: null,
-      claims: [
-        {
-          kind: "fact",
-          text: "The official roster lists Morgan Lee.",
-          evidenceIds: ["roster"],
-        },
-      ],
-    },
+    priorities: { claims: [] },
+    record: { claims: [] },
+    mechanisms: { claims: [] },
+    effects: { claims: [] },
+    tradeoffs: { claims: [] },
+    unknowns: { claims: [] },
+    terms: [],
   };
   const dossier = buildCaliforniaDossier(input);
   const { deps } = dependencies([output]);
@@ -1179,14 +1129,7 @@ test("finance-only quality requires actual identity-reconciled amounts and retur
     claimIds: [],
     evidenceIds: ["finance"],
   });
-  const emptyOutput = {
-    ...authorFixture(),
-    priorities: {
-      missingEvidence:
-        "The sources we checked do not establish a candidate proposal.",
-      claims: [],
-    },
-  };
+  const emptyOutput = output;
   for (const finance of [
     input.finance,
     {
@@ -1232,6 +1175,42 @@ test("finance-only quality requires actual identity-reconciled amounts and retur
       dependencies([emptyOutput]).deps,
     );
     assert.deepEqual(compiled.brief.research!.finance, packet.finance);
+    const financialQuestions = compiled.brief.sections.find(
+      (section) => section.topic === "unknowns",
+    )!.missingEvidence!;
+    if (!finance.receipts)
+      assert.ok(
+        financialQuestions.includes(
+          "does not present reconciled receipt totals",
+        ),
+      );
+    if (finance.donorCoverage === "unavailable" && !finance.donors.length)
+      assert.ok(
+        financialQuestions.includes(
+          "does not present itemized contribution findings",
+        ),
+      );
+    if (finance.donors.length)
+      assert.ok(
+        !financialQuestions.includes(
+          "does not present itemized contribution findings",
+        ),
+      );
+    if (finance.outsideSpending === null)
+      assert.ok(
+        financialQuestions.includes(
+          "does not present independent-spending analysis",
+        ),
+      );
+    else
+      assert.ok(
+        !financialQuestions.includes(
+          "does not present independent-spending analysis",
+        ),
+      );
+    assert.ok(!financialQuestions.includes("research was not performed"));
+    assert.ok(!financialQuestions.includes("expected consequences"));
+
     const financeReview = await reviewCaliforniaBrief(
       {
         brief: compiled.brief,
@@ -1300,7 +1279,22 @@ test("finance-only quality requires actual identity-reconciled amounts and retur
       () =>
         candidateBriefSchema.parse({
           ...compiled.brief,
-          sections: a.brief.sections,
+          sections: compiled.brief.sections.map((section, index) =>
+            index
+              ? section
+              : {
+                  ...section,
+                  claims: [
+                    {
+                      id: "unexpected-prose",
+                      kind: "fact",
+                      text: "The roster lists a candidate.",
+                      evidenceIds: ["roster"],
+                      emphasis: [],
+                    },
+                  ],
+                },
+          ),
         }),
       /Finance-only research cannot omit a prose headline/,
     );
@@ -1389,7 +1383,6 @@ test("v5 reviewer contract distinguishes named campaign proposals from another p
     const output = {
       ...authorFixture(),
       priorities: {
-        missingEvidence: null,
         claims: [
           {
             kind: "promise",
@@ -1454,7 +1447,6 @@ test("v5 zero-claim reviews require an overall reason and preserve missing-reaso
   const output = {
     ...authorFixture(),
     priorities: {
-      missingEvidence: "The checked passage belongs to another speaker.",
       claims: [],
     },
   };
@@ -1508,34 +1500,20 @@ test("v5 zero-claim reviews require an overall reason and preserve missing-reaso
   assert.equal(JSON.stringify(oldPrivateReview), oldBefore);
 });
 
-test("v12 author preserves a specific supplied-passage gap without inventing archive-wide verification", async () => {
+test("legacy authored coverage fails rather than being dropped or repaired", async () => {
   const output = {
     ...authorFixture(),
     priorities: {
       ...authorFixture().priorities,
-      missingEvidence:
-        "The supplied candidate statement does not specify a funding amount or timetable.",
+      missingEvidence: "The supplied passage omits details.",
     },
   };
-  const { deps, calls } = dependencies([output]);
-  const authored = await authorCaliforniaBrief(
-    { dossier: fixtureDossier(), policyVersion: "p1" },
-    deps,
-  );
-  assert.equal(
-    authored.brief.sections[0]!.missingEvidence,
-    output.priorities.missingEvidence,
-  );
-  assert.ok(calls[0]!.system.includes("exact supplied and cited passages"));
-  assert.ok(
-    calls[0]!.system.includes(
-      "never generalize a passage-level limit to all collected archives",
+  await assert.rejects(
+    authorCaliforniaBrief(
+      { dossier: fixtureDossier(), policyVersion: "p1" },
+      dependencies([output]).deps,
     ),
-  );
-  assert.ok(
-    calls[0]!.system.includes(
-      "does not require an added broad independent-verification disclaimer",
-    ),
+    CaliforniaModelInvocationError,
   );
 });
 
@@ -1576,12 +1554,8 @@ test("v5 reviewer rejects a wrong cited ID even when the full packet contains co
   const dossier = buildCaliforniaDossier(input);
   const output = {
     ...authorFixture(),
-    priorities: {
-      missingEvidence: "No proposal established here.",
-      claims: [],
-    },
+    priorities: authorFixture().priorities,
     mechanisms: {
-      missingEvidence: null,
       claims: [
         {
           kind: "fact",
@@ -1598,6 +1572,11 @@ test("v5 reviewer rejects a wrong cited ID even when the full packet contains co
       overallReason:
         "The mechanism's cited evidence is a biography. Correct authority elsewhere does not repair that citation.",
       findings: [
+        {
+          claimId: "priorities-1",
+          supported: true,
+          reason: "The candidate statement supports the proposal.",
+        },
         {
           claimId: "mechanisms-1",
           supported: false,
@@ -1639,4 +1618,363 @@ test("v5 reviewer rejects a wrong cited ID even when the full packet contains co
       "never all collected archives whose text was not supplied",
     ),
   );
+});
+
+function emptyAuthorFixture() {
+  return {
+    priorities: { claims: [] },
+    record: { claims: [] },
+    mechanisms: { claims: [] },
+    effects: { claims: [] },
+    tradeoffs: { claims: [] },
+    unknowns: { claims: [] },
+    terms: [],
+  };
+}
+
+test("one role envelope constrains provider schema and return parsing including zero-candidate maxItems zero", async () => {
+  const { zodSchema } = await import("ai");
+  for (const envelope of [
+    fixtureAuthorEvidence(),
+    { candidateIds: [], officeIds: ["office"], requiredCandidateIds: [] },
+  ]) {
+    const schema = californiaAuthorOutputSchema(envelope);
+    const json = await zodSchema(schema).jsonSchema;
+    const visit = (value: unknown) => {
+      if (Array.isArray(value)) value.forEach(visit);
+      else if (value && typeof value === "object")
+        for (const [key, item] of Object.entries(value)) {
+          assert.ok(!["not", "oneOf"].includes(key));
+          if (key === "enum") assert.ok((item as unknown[]).length > 0);
+          visit(item);
+        }
+    };
+    visit(json);
+    assert.ok(JSON.stringify(json).includes('"anyOf"'));
+    if (!envelope.candidateIds.length) {
+      const properties = (json as any).properties;
+      for (const topic of [
+        "priorities",
+        "record",
+        "mechanisms",
+        "effects",
+        "tradeoffs",
+        "unknowns",
+      ]) {
+        assert.equal(properties[topic].properties.claims.maxItems, 0);
+        assert.ok(properties[topic].properties.claims.items.anyOf.length > 0);
+      }
+      assert.equal(properties.terms.maxItems, 0);
+      assert.ok(properties.terms.items.properties.term);
+      assert.equal(schema.safeParse(emptyAuthorFixture()).success, true);
+      assert.equal(schema.safeParse(authorFixture()).success, false);
+    }
+  }
+  const dossier = fixtureDossier(false);
+  const { deps, calls } = dependencies([emptyAuthorFixture()]);
+  const authored = await authorCaliforniaBrief(
+    { dossier, policyVersion: "p1" },
+    deps,
+  );
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0]!.authorEvidence, {
+    candidateIds: [],
+    officeIds: [],
+    requiredCandidateIds: [],
+  });
+  assert.deepEqual(
+    JSON.parse(calls[0]!.prompt).authorEvidence,
+    calls[0]!.authorEvidence,
+  );
+  assert.equal(
+    authored.brief.sections.flatMap((section) => section.claims).length,
+    0,
+  );
+  assert.equal(authored.brief.research, undefined);
+});
+
+test("strict role boundary excludes roster and finance and limits office-only nested references to authority", () => {
+  const schema = californiaAuthorOutputSchema({
+    candidateIds: ["platform"],
+    officeIds: ["office"],
+    requiredCandidateIds: ["platform"],
+  });
+  const good = authorFixture();
+  good.priorities.claims[0]!.promiseDetails.brief.authority.evidenceIds = [
+    "office",
+  ];
+  assert.equal(schema.safeParse(good).success, true);
+  for (const field of ["change", "unknowns"] as const) {
+    const bad = structuredClone(good);
+    bad.priorities.claims[0]!.promiseDetails.brief[field].evidenceIds = [
+      "office",
+    ];
+    assert.equal(schema.safeParse(bad).success, false);
+  }
+  const badBenefit = structuredClone(good);
+  badBenefit.priorities.claims[0]!.promiseDetails.benefits = [
+    { ...point(), evidenceIds: ["office"] },
+  ] as never;
+  assert.equal(schema.safeParse(badBenefit).success, false);
+  for (const id of ["roster", "finance", "office"]) {
+    const bad = structuredClone(good);
+    bad.priorities.claims[0]!.evidenceIds = [id];
+    assert.equal(schema.safeParse(bad).success, false);
+  }
+  const onlyMechanisms = {
+    ...emptyAuthorFixture(),
+    mechanisms: {
+      claims: [
+        { kind: "fact", text: "Board adopts policy.", evidenceIds: ["office"] },
+      ],
+    },
+  };
+  assert.equal(schema.safeParse(onlyMechanisms).success, false);
+  const unknownOnly = {
+    ...emptyAuthorFixture(),
+    unknowns: {
+      claims: [
+        {
+          kind: "analysis",
+          text: "What funding is proposed?",
+          evidenceIds: ["platform"],
+        },
+      ],
+    },
+  };
+  assert.equal(schema.safeParse(unknownOnly).success, false);
+  for (const extra of [
+    { missingEvidence: "legacy" },
+    { finance: null },
+    { emphasis: [] },
+  ])
+    assert.equal(schema.safeParse({ ...good, ...extra }).success, false);
+});
+
+test("compiler projects gap meanings without asserting retrieval cause or unseen archive absence", async () => {
+  const gaps = [
+    { code: "source_unavailable" as const, message: "HTTP retrieval failed." },
+    {
+      code: "source_unavailable" as const,
+      message: "Retrieved campaign page exceeds the complete context bound.",
+    },
+    {
+      code: "source_unavailable" as const,
+      message: "Discovery service unavailable.",
+    },
+    {
+      code: "identity_unresolved" as const,
+      message: "An optional official campaign URL could not be verified.",
+    },
+    {
+      code: "not_found_in_checked_sources" as const,
+      message: "No additional selected passage for this topic.",
+    },
+  ];
+  for (const gap of gaps) {
+    const input = dossierInput();
+    input.gaps.push({
+      ...gap,
+      dimension: "priorities",
+      checkedSourceIds: ["official"],
+      required: false,
+    });
+    const dossier = buildCaliforniaDossier(input);
+    const before = JSON.stringify(dossier.gaps);
+    const { deps, calls } = dependencies([authorFixture()]);
+    const authored = await authorCaliforniaBrief(
+      { dossier, policyVersion: "p1" },
+      deps,
+    );
+    const coverage = authored.brief.sections[0]!.missingEvidence!;
+    assert.ok(coverage);
+    assert.ok(!coverage.includes("could not be retrieved"));
+    assert.ok(!coverage.includes("person's identity"));
+    if (gap.code === "source_unavailable")
+      assert.ok(coverage.includes("Collection of usable material"));
+    if (gap.code === "identity_unresolved")
+      assert.ok(coverage.includes("Verification of sources"));
+    assert.equal(
+      JSON.stringify(JSON.parse(calls[0]!.prompt).dossier.gaps),
+      before,
+    );
+    assert.equal(JSON.stringify(dossier.gaps), before);
+  }
+  const input = dossierInput();
+  input.gaps.push({
+    dimension: "mechanisms",
+    code: "identity_unresolved",
+    message: "No verified office-authority adapter.",
+    checkedSourceIds: [],
+    required: true,
+  });
+  const { deps, calls } = dependencies([authorFixture()]);
+  await assert.rejects(
+    authorCaliforniaBrief(
+      { dossier: buildCaliforniaDossier(input), policyVersion: "p1" },
+      deps,
+    ),
+    /Required source or identity/,
+  );
+  assert.equal(calls.length, 0);
+});
+
+test("nonempty local Mechanisms retains incomplete authority scope and exact private notes", async () => {
+  const { createHash } = await import("node:crypto");
+  const input = dossierInput();
+  input.officeKind = "local";
+  input.officeFamily = "local";
+  const passage =
+    "The Board collectively adopts policy and staff implements it.";
+  input.sources[0]!.text += "\n" + passage;
+  input.sources[0]!.contentHash = createHash("sha256")
+    .update(input.sources[0]!.text)
+    .digest("hex");
+  input.evidence.push({
+    id: "office",
+    sourceId: "official",
+    excerpt: passage,
+    locator: "Board policy",
+    origin: "primary_record",
+    role: "office_authority",
+    identityQualification: "exact_election_office",
+  });
+  const note =
+    "The 2015 policy establishes collective Board adoption and staff implementation, not all statutory powers or spending adoption.";
+  input.gaps.push({
+    dimension: "mechanisms",
+    code: "not_found_in_checked_sources",
+    message: note,
+    checkedSourceIds: ["official"],
+    required: false,
+  });
+  const output = {
+    ...authorFixture(),
+    mechanisms: {
+      claims: [{ kind: "fact", text: passage, evidenceIds: ["office"] }],
+    },
+  };
+  const { deps, calls } = dependencies([output]);
+  const dossier = buildCaliforniaDossier(input);
+  const authored = await authorCaliforniaBrief(
+    { dossier, policyVersion: "p1" },
+    deps,
+  );
+  assert.equal(authored.brief.sections[2]!.claims.length, 1);
+  assert.ok(
+    authored.brief.sections[2]!.missingEvidence!.includes(
+      "office powers and institutional limits is incomplete",
+    ),
+  );
+  assert.ok(calls[0]!.prompt.includes(note));
+});
+
+test("not_applicable is valid only for judicial-retention Priorities", async () => {
+  const { createHash } = await import("node:crypto");
+  const input = dossierInput();
+  input.officeKind = "judicial_retention";
+  input.officeFamily = "judicial_retention";
+  const passage = "Morgan Lee served on the court.";
+  input.sources[0]!.text += "\n" + passage;
+  input.sources[0]!.contentHash = createHash("sha256")
+    .update(input.sources[0]!.text)
+    .digest("hex");
+  input.evidence[1] = {
+    ...input.evidence[1]!,
+    excerpt: passage,
+    origin: "primary_record",
+    role: "candidate_record",
+  };
+  input.gaps.push({
+    dimension: "priorities",
+    code: "not_applicable",
+    message: "Retention, not a legislative platform.",
+    checkedSourceIds: [],
+    required: false,
+  });
+  const output = {
+    ...emptyAuthorFixture(),
+    record: {
+      claims: [{ kind: "fact", text: passage, evidenceIds: ["platform"] }],
+    },
+  };
+  const valid = await authorCaliforniaBrief(
+    { dossier: buildCaliforniaDossier(input), policyVersion: "p1" },
+    dependencies([output]).deps,
+  );
+  assert.ok(
+    valid.brief.sections[0]!.missingEvidence!.includes(
+      "continued judicial service",
+    ),
+  );
+  for (const altered of [
+    { ...input, officeKind: "judicial_election" as const },
+    { ...input, gaps: [{ ...input.gaps[0]!, dimension: "effects" as const }] },
+  ])
+    await assert.rejects(
+      authorCaliforniaBrief(
+        { dossier: buildCaliforniaDossier(altered), policyVersion: "p1" },
+        dependencies([output]).deps,
+      ),
+      CaliforniaModelInvocationError,
+    );
+});
+
+test("compiler coverage is included in final byte attestations with explicit test doubles", async () => {
+  const { evidenceDigest, validateBriefAgainstDossier } =
+    await import("./california-dossier.js");
+  const { candidateBriefSchema } = await import("@acme/validators");
+  const dossier = fixtureDossier();
+  const { deps } = dependencies([
+    authorFixture(),
+    {
+      verdict: "approve",
+      overallReason: "Fixture source support.",
+      findings: [
+        {
+          claimId: "priorities-1",
+          supported: true,
+          reason: "Fixture supports proposal.",
+        },
+      ],
+    },
+  ]);
+  const authored = await authorCaliforniaBrief(
+    { dossier, policyVersion: "p1" },
+    deps,
+  );
+  const reviewed = await reviewCaliforniaBrief(
+    {
+      brief: authored.brief,
+      dossier,
+      policyVersion: "p1",
+      authorAttestation: authored.attestation,
+    },
+    deps,
+  );
+  candidateBriefSchema.parse(authored.brief);
+  validateBriefAgainstDossier(authored.brief, dossier);
+  assert.equal(authored.attestation.provider, "fixture");
+  assert.equal(
+    authored.attestation.revisionDigest,
+    evidenceDigest(candidateBriefSchema.parse(authored.brief)),
+  );
+  assert.equal(
+    reviewed.attestation.revisionDigest,
+    authored.attestation.revisionDigest,
+  );
+  const modified = structuredClone(authored.brief);
+  modified.sections[3]!.missingEvidence = "Changed compiler coverage.";
+  assert.notEqual(
+    evidenceDigest(modified),
+    authored.attestation.revisionDigest,
+  );
+  for (const entry of authored.brief.evidence) {
+    const selected = dossier.evidence.find((e) => e.id === entry.id)!;
+    const source = dossier.sources.find((s) => s.id === selected.sourceId)!;
+    assert.equal(entry.excerpt, selected.excerpt);
+    assert.equal(entry.url, source.url);
+    assert.equal(entry.contentHash, source.contentHash);
+    assert.deepEqual(entry.attribution, selected.attribution);
+  }
 });

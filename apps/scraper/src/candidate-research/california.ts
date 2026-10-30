@@ -15,6 +15,7 @@ import {
   authorityRenewalProjectionSchema,
   candidateModelAttestationSchema,
   candidateResearchCollectionSchema,
+  hasSubstantiveCampaignFinance,
   hasSubstantiveCandidateResearch,
   researchSourceSchema,
 } from "@acme/validators";
@@ -1159,6 +1160,13 @@ export async function reconcile(
         )
           throw new RequiredCaliforniaSourceFailure(
             "Required candidate source or office authority remains unresolved",
+          );
+        if (
+          dossier.classification === "evidence_gap" &&
+          !hasSubstantiveCampaignFinance(dossier.finance)
+        )
+          throw new PendingCandidateResearchGap(
+            "The material collected in this attempt does not yet support a substantive candidate brief.",
           );
         const authorKey = `author:${evidenceDigest([dossier.dossierDigest, input.policyVersion, californiaResearchVersion, californiaAuthorPromptVersion, deps.authorConfigurationKey ?? deps.modelConfigurationKey ?? "fixture"])}`;
         let authored = (await deps.artifact(authorKey)) as Awaited<
