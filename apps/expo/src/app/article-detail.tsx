@@ -517,6 +517,12 @@ function ArticleDetail({ articleId }: { articleId: string | undefined }) {
   const brief = storedBrief
     ? {
         ...storedBrief,
+        legalStatus: readerLegalContext(
+          storedBrief.legalStatus,
+          content.type === "bill" ? content.status : undefined,
+        ).enacted
+          ? ("enacted" as const)
+          : ("proposed" as const),
         sourceStatus: content.type === "bill" ? content.status : undefined,
         sourceLabel:
           content.type === "bill"
