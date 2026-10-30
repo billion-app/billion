@@ -150,7 +150,7 @@ test("shared official documents fetch once for separate candidate dossiers", asy
   };
   for (const member of race.members)
     await collectCaliforniaEvidence({ snapshot, race, member }, deps);
-  assert.equal(fetched, 3);
+  assert.equal(fetched, 2);
 });
 test("source stream cancels before retaining data over the total byte bound", async () => {
   let cancelled = false;
@@ -1301,4 +1301,187 @@ test("campaign context over the complete-page bound is a gap instead of a clippe
     dossier.gaps.some((gap) => gap.message.includes("bounded context limit")),
   );
   assert.equal(dossier.classification, "evidence_gap");
+});
+
+test("Lieutenant Governor authority selects actual archived constitutional powers instead of the incumbent biography", async () => {
+  const powers: ResearchSource = {
+    id: "lt-governor-powers",
+    url: "https://ltg.ca.gov/about-the-office-of-lt-governor/",
+    publisher: "Office of the California Lieutenant Governor",
+    format: "html",
+    text: "About the Office of Lt. Governor Under California’s Constitution, the Lieutenant Governor serves as Acting Governor whenever the Governor is absent from the state and automatically becomes Governor if a vacancy occurs in the Office of Governor. The Lieutenant Governor is also President of the Senate and votes in case of a tie. The Lieutenant Governor serves as a voting member of the Board of Regents of the University of California, the Board of Trustees of the California State University system, and the Board of Governors of the California Community Colleges system. The Lieutenant Governor also sits on the Calbright College Board of Trustees. The Lieutenant Governor also serves on and rotates with the State Controller as chair of the three-member State Lands Commission, which oversees the control and leasing of millions of acres of state-owned land, including offshore oil resources, as well as use and permitting for all navigable waterways in California. The Commission also manages state land-use planning, revenues, and related interstate issues. During alternate years, when the Lieutenant Governor serves as Chairperson of the State Lands Commission, she also serves as a California Ocean Protection Council member and a non-voting member of the California Coastal Commission. In addition, under state statutes, the Lieutenant Governor chairs the California Commission for Economic Development, which provides support and guidance to the Governor, Legislature, and private sector regarding the development of California’s economy. The Commission is comprised of appointees from the Legislature and the Governor, and currently, there is no quorum to meet.",
+    contentHash:
+      "72169db34d4623abe7e97812a4a236705ed80ec46befe0f9b5d72c2d2140aef0",
+    fetchedAt: "2026-10-30T14:35:09.771Z",
+  };
+  const biography =
+    "About Eleni Kounalakis Ambassador Eleni Kounalakis was sworn in as the 50th Lieutenant Governor of California by Governor Gavin Newsom on January 7th, 2019. She is the first woman elected Lt. Governor of California. A native Californian, she visited each of the state’s 58 counties during her historic campaign. In addition to her duties as Lt. Governor, Kounalakis is California’s Representative for International Affairs and Trade, appointed by Governor Gavin Newsom by executive order. From 2010 to 2013, Kounalakis served as President Obama’s Ambassador to the Republic of Hungary. Her highly acclaimed memoir, “Madam Ambassador, Three Years of Diplomacy, Dinner Parties and Democracy in Budapest” (The New Press, 2015), chronicles the onset of Hungary’s democratic backsliding. Governor Jerry Brown appointed Kounalakis to chair the California Advisory Council for International Trade and Investment in 2014. Kounalakis was a Virtual Fellow at the U.S. Department of State, Bureau of Intelligence and Research (INR) between 2014 and 2017, specializing in international trade and immigration. She is currently a director of the Association of American Ambassadors and a National Democratic Institute (NDI) “Ambassadors Circle” advisor. Prior to her public service, Kounalakis was president of one of California’s most respected housing development firms, AKT Development, where she worked for 18 years. She built master-planned communities and delivered quality housing to the Sacramento region’s working families – recognizing her as one of the capital region’s most prominent businesswomen. Passionate about early childhood development, Kounalakis served as a member of California’s First 5 Commission and the California Blue Ribbon Commission on Autism. Eleni Kounalakis graduated from Dartmouth College in 1989 and earned her Masters in Business Administration (MBA) from U.C. Berkeley’s Haas School of Business in 1992. She holds an Honorary Doctorate of Law from the American College of Greece and the University of Piraeus and is a member of the Council on Foreign Relations. She is married to Dr. Markos Kounalakis, and the couple has two sons, Neo and Eon.";
+  assert.equal(
+    powers.contentHash,
+    createHash("sha256").update(powers.text).digest("hex"),
+  );
+  const { snapshot } = await fixture();
+  const race = snapshot.races.find(
+    (target) => target.office === "Lieutenant Governor",
+  )!;
+  const member = race.members[0]!;
+  for (const useBiography of [false, true]) {
+    const urls: string[] = [];
+    const dossier = await collectCaliforniaEvidence(
+      { snapshot, race, member },
+      {
+        now: () => now,
+        sharedSources: new Map(),
+        budget: { request() {}, bytes() {} },
+        search: async () => ({ sources: [] }),
+        fetch: async (id, url) => {
+          urls.push(url);
+          return url === powers.url
+            ? useBiography
+              ? source(id, url, biography)
+              : powers
+            : source(
+                id,
+                url,
+                "Official contact source without a campaign website or candidate-specific statement.",
+              );
+        },
+      },
+    );
+    assert.ok(urls.includes(powers.url));
+    assert.equal(urls.includes("https://ltg.ca.gov/about/"), false);
+    const evidence = dossier.evidence.find(
+      (entry) => entry.role === "office_authority",
+    );
+    if (useBiography) {
+      assert.equal(evidence, undefined);
+      assert.ok(
+        dossier.gaps.some(
+          (gap) => gap.dimension === "mechanisms" && gap.required,
+        ),
+      );
+    } else {
+      assert.ok(evidence);
+      assert.equal(evidence.sourceId, powers.id);
+      assert.ok(powers.text.includes(evidence.excerpt));
+      assert.ok(evidence.excerpt.includes("serves as Acting Governor"));
+      assert.ok(
+        evidence.excerpt.includes(
+          "President of the Senate and votes in case of a tie",
+        ),
+      );
+      assert.ok(
+        evidence.excerpt.includes(
+          "Board of Regents of the University of California",
+        ),
+      );
+      assert.ok(evidence.excerpt.includes("State Lands Commission"));
+      assert.equal(evidence.excerpt.includes("About Eleni Kounalakis"), false);
+      const archived = dossier.sources.find(
+        (entry) => entry.id === evidence.sourceId,
+      )!;
+      assert.equal(archived.contentHash, powers.contentHash);
+      assert.equal(archived.fetchedAt, "2026-10-30T14:35:09.771Z");
+    }
+  }
+});
+
+test("Governor authority selects only the official role preface and never candidate statements or incumbent biography", async () => {
+  const guide: ResearchSource = {
+    id: "source-0adc75f3506cf755b1c17028",
+    url: "https://voterguide.sos.ca.gov/candidates/governor-candidate-statements.htm",
+    publisher: "voterguide.sos.ca.gov",
+    format: "html",
+    text: "Skip to Main Content Secretary of State Main Website Elections & Voter Information Feedback California General ElectionNovember 3, 2026 Official Voter Information Guide Home Propositions Candidates Justices Quick Reference Guide Voter Information Audio/PDF/Large Print Please Make a Selection Home Propositions Candidates Justices Quick Reference Guide Voter Information Audio/PDF/Large Print Home » Candidates Governor Candidate Statements As the state's chief executive officer, oversees most state departments and agencies, and appoints judges. Proposes new laws, approves or vetoes legislation, and submits the annual state budget to the Legislature. Mobilizes and directs state resources during emergencies. Xavier Becerra | DEMOCRATIC No candidate statement. Steve Hilton | REPUBLICAN No candidate statement. Back to the Top The views and opinions expressed by the candidates are their own and do not represent the views and opinions of the Secretary of State's office. The order of the statements was determined by randomized drawing. Statements on this page were supplied by the candidates and have not been checked for accuracy by any official agency. Each statement was voluntarily submitted and paid for by the candidate. Candidates who did not submit statements could otherwise be qualified to appear on the ballot. Candidates Governor Candidate Statements Lieutenant Governor Candidate Statements Secretary of State Candidate Statements Controller Candidate Statements Treasurer Candidate Statements Attorney General Candidate Statements Insurance Commissioner Candidate Statements Board of Equalization Candidate Statements Superintendent of Public Instruction Candidate Statements Voter Information Guide American Sign Language PDF Version English Español 中文 / Chinese हिन्दी / Hindi 日本語 / Japanese ខ្មែរ / Khmer 한국어 / Korean Tagalog ภาษาไทย/ Thai Tiếng Việt / Vietnamese Audio Versions Contact Us\nLinked source navigation (discovery only):\nSkip to Main Content => https://voterguide.sos.ca.gov/candidates/governor-candidate-statements.htm#mainCont\nSecretary of State Main Website => https://www.sos.ca.gov/\nElections & Voter Information => https://www.sos.ca.gov/elections\nHome => https://voterguide.sos.ca.gov/\nPropositions => https://voterguide.sos.ca.gov/propositions/\nCandidates => https://voterguide.sos.ca.gov/candidates/\nJustices => https://voterguide.sos.ca.gov/justices/\nQuick Reference Guide => https://voterguide.sos.ca.gov/quick-reference-guide/\nVoter Information => https://voterguide.sos.ca.gov/voter-info/\nAudio/PDF/Large Print => https://voterguide.sos.ca.gov/en/alt-versions/\nHome => https://voterguide.sos.ca.gov/\nCandidates => https://voterguide.sos.ca.gov/candidates/\nBack to the Top => https://voterguide.sos.ca.gov/candidates/governor-candidate-statements.htm#top\nCandidates => https://voterguide.sos.ca.gov/candidates/\nGovernor Candidate Statements => https://voterguide.sos.ca.gov/candidates/governor-candidate-statements.htm\nLieutenant Governor Candidate Statements => https://voterguide.sos.ca.gov/candidates/lt-governor-candidate-statements.htm\nSecretary of State Candidate Statements => https://voterguide.sos.ca.gov/candidates/sos-candidate-statements.htm\nController Candidate Statements => https://voterguide.sos.ca.gov/candidates/controller-candidate-statements.htm\nTreasurer Candidate Statements => https://voterguide.sos.ca.gov/candidates/treasurer-candidate-statements.htm\nAttorney General Candidate Statements => https://voterguide.sos.ca.gov/candidates/attorney-general-candidate-statements.htm\nInsurance Commissioner Candidate Statements => https://voterguide.sos.ca.gov/candidates/insurance-commissioner-candidate-statements.htm\nBoard of Equalization Candidate Statements => https://voterguide.sos.ca.gov/candidates/boe-candidate-statements.htm\nSuperintendent of Public Instruction Candidate Statements => https://voterguide.sos.ca.gov/candidates/superintendent-candidate-statements.htm\nAmerican Sign Language => https://voterguide.sos.ca.gov/asl/\nEnglish => https://vig.cdn.sos.ca.gov/2026/general/pdf/complete-vig.pdf\nEspañol => https://vig.cdn.sos.ca.gov/2026/general/es/pdf/complete-vig.pdf\n中文 / Chinese => https://vig.cdn.sos.ca.gov/2026/general/ch/pdf/complete-vig.pdf\nहिन्दी / Hindi => https://vig.cdn.sos.ca.gov/2026/general/hi/pdf/complete-vig.pdf\n日本語 / Japanese => https://vig.cdn.sos.ca.gov/2026/general/ja/pdf/complete-vig.pdf\nខ្មែរ / Khmer => https://vig.cdn.sos.ca.gov/2026/general/km/pdf/complete-vig.pdf\n한국어 / Korean => https://vig.cdn.sos.ca.gov/2026/general/ko/pdf/complete-vig.pdf\nTagalog => https://vig.cdn.sos.ca.gov/2026/general/tl/pdf/complete-vig.pdf\nภาษาไทย/ Thai => https://vig.cdn.sos.ca.gov/2026/general/th/pdf/complete-vig.pdf\nTiếng Việt / Vietnamese => https://vig.cdn.sos.ca.gov/2026/general/vi/pdf/complete-vig.pdf\nAudio Versions => https://voterguide.sos.ca.gov/en/alt-versions/\nContact Us => https://voterguide.sos.ca.gov/voter-info/contact-us.htm\nSecretary of State Main Website => https://www.sos.ca.gov/\nElections & Voter Information => https://www.sos.ca.gov/elections\nFind Your Polling Place => https://www.sos.ca.gov/elections/polling-place\nPropositions => https://voterguide.sos.ca.gov/propositions/\nCandidates => https://voterguide.sos.ca.gov/candidates/\nJustices => https://voterguide.sos.ca.gov/justices/\nQuick Reference Guide => https://voterguide.sos.ca.gov/quick-reference-guide/\nVoter Information => https://voterguide.sos.ca.gov/voter-info/\nAudio/PDF/Large Print => https://voterguide.sos.ca.gov/en/alt-versions/\nCampaign publisher disclosure (identity only):\n",
+    contentHash:
+      "602986d0f25c7e48db105dd986e0baff8608c8618f5995eb4380136b773489ae",
+    byteHash:
+      "23a52d40b8bf74595dd1b978638b349b340ea29c3991fdf937ff76e844d31a49",
+    fetchedAt: "2026-10-30T21:04:33.660Z",
+    retrievalUrls: [
+      "https://voterguide.sos.ca.gov/candidates/governor-candidate-statements.htm",
+    ],
+  };
+  const incumbent: ResearchSource = {
+    id: "source-11075f80fd11e1048f93c165",
+    url: "https://www.gov.ca.gov/about/",
+    publisher: "Official office responsibilities",
+    format: "html",
+    text: "Governor Gavin Newsom Gavin Newsom was elected as California’s 40th Governor on November 6, 2018. Gavin Newsom is the 40th Governor of California Born in 1967 in San Francisco, Governor Newsom attended Redwood High School and later Santa Clara University. After college, Newsom started a retail wine shop that grew into the PlumpJack Group, which managed restaurants, hotels, and wineries across California. Newsom’s first job in politics was on the San Francisco Parking and Traffic Commission, and later on the San Francisco Board of Supervisors. In 2003, Newsom became the youngest elected Mayor of San Francisco in a century. He brought same-sex marriage to the forefront of the national conversation, directing the city-county clerk to issue marriage licenses to thousands of same-sex couples. As he did in that historic moment, Governor Newsom has stood up for California’s values time and time again. He is committed to serving all Californians, building a government that is more efficient, more effective, and more responsive to the needs of all who call this state home. Since his earliest days as a local elected official, he has connected with people and communities across the state to better understand their unique challenges and advantages, and how to bring all our communities together for a stronger, more united California. Governor Newsom is leading the fight for our fundamental freedoms and protecting California’s unique spirit of innovation and entrepreneurship. From gun safety, reproductive rights, education and literacy, and climate action, California has enacted nation-leading policies under Governor Newsom, laying the foundation for a safer, brighter, and fairer future for all Californians. He has strengthened California’s economic foundation through significant investments in college and career education, apprenticeships, and skilled job training – ensuring our remarkable innovation economy is protected and nurtured. Governor Newsom is married to filmmaker Jennifer Siebel Newsom, the First Partner of California and a leader in efforts to make the Golden State a more equitable, healthier, and safer place for all. They have four children: Montana, Hunter, Brooklynn, and Dutch. Download a high-res portrait of the Governor here. First Partner Jennifer Siebel Newsom Governor’s cabinet\nLinked source navigation (discovery only):\nGovernor of California => https://www.gov.ca.gov/\nAbout => https://www.gov.ca.gov/about/\nPriorities => https://www.gov.ca.gov/priorities-and-progress/\nNews => https://www.gov.ca.gov/newsroom/\nJoin the Administration => https://www.gov.ca.gov/join-the-administration/\nFirst Partner => https://www.gov.ca.gov/about/first-partner/\nContact => https://www.gov.ca.gov/contact/\nCA.gov => https://www.ca.gov/\nHealth insurance or Medi-Cal => https://www.coveredca.com/\nBusiness licenses => https://www.cdtfa.ca.gov/services/#Register-Renewals\nFood & social assistance => https://benefitscal.com/\nFind a CA state job => https://calcareers.ca.gov/\nVehicle registration => https://www.dmv.ca.gov/portal/vehicle-registration/vehicle-registration-renewal/\nDigital vaccine record => https://myvaccinerecord.cdph.ca.gov/\nTraffic tickets => https://www.ca.gov/service/?item=traffic-tickets\nBirth certificates => https://www.cdph.ca.gov/Programs/CHSI/Pages/Vital-Records-Obtaining-Certified-Copies-of-Birth-Records.aspx\nLottery numbers => https://www.calottery.com/draw-games\nUnemployment => https://edd.ca.gov/en/Unemployment/UI_Online\nView all CA.gov services => https://www.ca.gov/services/\nAbortion => https://abortion.ca.gov/\nBuilding California => https://build.ca.gov/\nClimate Action => https://climateaction.ca.gov/\nGun Safety => https://www.caloes.ca.gov/gunsafety/\nMental health care for all => https://mentalhealth.ca.gov/\nOpioids => https://www.cdph.ca.gov/Programs/CCDPHP/opioids/Pages/landingpage.aspx\nhere => https://www.gov.ca.gov/wp-content/uploads/2026/03/OFFICIAL-PORTRAIT.jpg\nFirst Partner Jennifer Siebel Newsom => https://www.gov.ca.gov/first-partner/\nGovernor’s cabinet => https://www.gov.ca.gov/about/cabinet/\nContact us => https://www.gov.ca.gov/contact/\nSign up for news updates => https://www.gov.ca.gov/newsroom/#updates\nJoin the Administration => https://www.gov.ca.gov/join-the-administration/\nOrganizational chart => https://www.gov.ca.gov/about/orgchart/\nAbortion access => https://abortion.ca.gov/\nAccountability => https://accountability.ca.gov/\nBuilding California's future => https://build.ca.gov/\nClimate action => https://climateaction.ca.gov/\nMental health for all => https://mentalhealth.ca.gov/\nHeat Ready => https://heatreadyca.com/\nReady for Wildfire => https://readyforwildfire.org/\nRegister to Vote => https://registertovote.ca.gov/\nSave Our Water => https://saveourwater.com/\nClemency => https://www.gov.ca.gov/clemency/\nParole => https://www.gov.ca.gov/clemency/parole/\nRewards for unsolved cases => https://www.gov.ca.gov/clemency/rewards-for-unsolved-crimes/\nConditions of Use => https://www.gov.ca.gov/conditions-of-use/\nPrivacy Policy => https://www.gov.ca.gov/privacy-policy/\nAccessibility => https://www.gov.ca.gov/accessibility/\nWebsite Certification => https://www.gov.ca.gov/wp-content/uploads/2025/06/SIMM-25B-Web-Accessibility-Certificate_Gov.CA_.GOV-Signed.pdf\nSitemap => https://www.gov.ca.gov/sitemap/\nCampaign publisher disclosure (identity only):\n",
+    contentHash:
+      "2b8a141f793ee27ad8b8babd512e3d808a312a94743a959c459fb9fd8d3e5204",
+    byteHash:
+      "d073339af5d7ff1f5b95cf25a51399687e1b383a5513f96be25d42054502c5d6",
+    fetchedAt: "2026-10-30T21:04:29.011Z",
+    retrievalUrls: ["https://www.gov.ca.gov/about/"],
+  };
+  const expected =
+    "As the state's chief executive officer, oversees most state departments and agencies, and appoints judges. Proposes new laws, approves or vetoes legislation, and submits the annual state budget to the Legislature. Mobilizes and directs state resources during emergencies.";
+  assert.equal(
+    guide.contentHash,
+    createHash("sha256").update(guide.text).digest("hex"),
+  );
+  const { snapshot, race } = await fixture();
+  assert.equal(race.office, "Governor");
+  const member = race.members.find(
+    (candidate) => candidate.name === "Steve Hilton",
+  )!;
+  for (const useBiography of [false, true]) {
+    const urls: string[] = [];
+    const dossier = await collectCaliforniaEvidence(
+      { snapshot, race, member },
+      {
+        now: () => now,
+        sharedSources: new Map(),
+        budget: { request() {}, bytes() {} },
+        search: async () => ({ sources: [] }),
+        fetch: async (id, url) => {
+          urls.push(url);
+          return url === guide.url
+            ? useBiography
+              ? { ...incumbent, id, url }
+              : guide
+            : source(
+                id,
+                url,
+                "Official contact source with no campaign website or candidate-specific statement.",
+              );
+        },
+      },
+    );
+    assert.ok(urls.includes(guide.url));
+    assert.equal(urls.includes(incumbent.url), false);
+    const authority = dossier.evidence.find(
+      (entry) => entry.role === "office_authority",
+    );
+    if (useBiography) {
+      assert.equal(authority, undefined);
+      assert.ok(
+        dossier.gaps.some(
+          (gap) => gap.dimension === "mechanisms" && gap.required,
+        ),
+      );
+    } else {
+      assert.ok(authority);
+      assert.equal(authority.origin, "primary_record");
+      assert.equal(authority.excerpt, expected);
+      assert.equal(authority.excerpt.includes("Xavier Becerra"), false);
+      assert.equal(authority.excerpt.includes("Steve Hilton"), false);
+      assert.equal(authority.excerpt.includes("Gavin Newsom"), false);
+      assert.equal(authority.attribution, undefined);
+      const archived = dossier.sources.find(
+        (entry) => entry.id === authority.sourceId,
+      )!;
+      assert.equal(archived.contentHash, guide.contentHash);
+      assert.equal(archived.fetchedAt, "2026-10-30T21:04:33.660Z");
+      assert.equal(
+        dossier.evidence.some(
+          (entry) =>
+            entry.role === "candidate_statement" &&
+            entry.excerpt.includes(expected),
+        ),
+        false,
+      );
+    }
+  }
 });

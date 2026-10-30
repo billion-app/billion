@@ -1095,7 +1095,7 @@ test("permanently changed cited pages recover in the new review epoch without re
       search: async () => ({ sources: [] }),
       fetch: async (id, url, _publisher, format) => {
         const text = url.includes("voterguide.sos.ca.gov/candidates/")
-          ? `${race.office} California 2026\n` +
+          ? `${race.office} California 2026\nAs the state's chief executive officer, oversees most state departments and agencies, and appoints judges. Proposes new laws, approves or vetoes legislation, and submits the annual state budget to the Legislature. Mobilizes and directs state resources during emergencies.\n` +
             race.members
               .map(
                 (member) =>

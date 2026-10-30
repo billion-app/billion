@@ -50,8 +50,9 @@ const authority: Record<string, string> = {
     "https://supreme.courts.ca.gov/about-court/court-and-judicial-branch",
 };
 const statewide: Record<string, string> = {
-  Governor: "https://www.gov.ca.gov/about/",
-  "Lieutenant Governor": "https://ltg.ca.gov/about/",
+  Governor:
+    "https://voterguide.sos.ca.gov/candidates/governor-candidate-statements.htm",
+  "Lieutenant Governor": "https://ltg.ca.gov/about-the-office-of-lt-governor/",
   "Secretary of State": "https://www.sos.ca.gov/administration/about-agency",
   Controller: "https://www.sco.ca.gov/about_us.html",
   Treasurer: "https://www.treasurer.ca.gov/about.asp",
@@ -73,6 +74,7 @@ interface OfficeAuthoritySource {
   marker: RegExp;
   format?: ResearchSource["format"];
   maxExcerpt?: number;
+  exactMatch?: boolean;
 }
 interface LocalAuthorityCapability extends OfficeAuthoritySource {
   id: string;
@@ -502,7 +504,25 @@ export async function collectCaliforniaEvidence(
     try {
       const requiredAuthoritySources: OfficeAuthoritySource[] = localCapability
         ? [localCapability, ...(localCapability.supporting ?? [])]
-        : [{ url: authorityUrl, marker: /.*/ }];
+        : race.officeFamily === "statewide" &&
+            race.office === "Lieutenant Governor"
+          ? [
+              {
+                url: authorityUrl,
+                marker:
+                  /Under California[’']s Constitution, the Lieutenant Governor serves as Acting Governor/,
+              },
+            ]
+          : race.officeFamily === "statewide" && race.office === "Governor"
+            ? [
+                {
+                  url: authorityUrl,
+                  marker:
+                    /As the state[’']s chief executive officer, oversees most state departments and agencies, and appoints judges\. Proposes new laws, approves or vetoes legislation, and submits the annual state budget to the Legislature\. Mobilizes and directs state resources during emergencies\./,
+                  exactMatch: true,
+                },
+              ]
+            : [{ url: authorityUrl, marker: /.*/ }];
       const checkedAuthoritySourceIds: string[] = [];
       for (const [index, descriptor] of requiredAuthoritySources.entries()) {
         const source = await get(
@@ -521,7 +541,9 @@ export async function collectCaliforniaEvidence(
           id:
             index === 0 ? "office-authority" : `office-authority-${index + 1}`,
           sourceId: source.id,
-          excerpt: body.slice(start, start + (descriptor.maxExcerpt ?? 3800)),
+          excerpt: descriptor.exactMatch
+            ? match[0]
+            : body.slice(start, start + (descriptor.maxExcerpt ?? 3800)),
           locator: localCapability
             ? `Official office authority: ${localCapability.id}`
             : "Official responsibilities and institutional constraints",
