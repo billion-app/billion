@@ -61,11 +61,11 @@ pnpm --filter @acme/api candidate-research revoke-editor /path/to/editor.json --
 
 Editors can inspect sources, preview the exact draft in the native reader, edit a structured revision, and approve or withdraw it with a reason. Editing creates a successor and withdraws any published race. The author cannot approve their own revision. These actions use the signed-in account ID; clients cannot supply the reviewer identity. Source URLs, quotes and hashes must continue to match the collected source set.
 
-Publisher access (`canPublish: true`) additionally allows an accountable owner to record a versioned publication policy and publish an independently approved complete race. The UI requires the owner's policy statement; an automated test or code review does not supply editorial approval. Revoking the latest policy closes public reads and does not revive an older policy. Policy and release data are read within the same repeatable-read transaction.
+Publisher access (`canPublish: true`) additionally allows an accountable owner to record a versioned publication policy and publish an independently approved complete race. The UI requires the owner's policy statement. An automated test or code review does not supply editorial approval. The [approved pilot policy](candidate-brief-publication.md#approved-policy-for-the-2026-pilot) also permits independent AI content review and trusted operator publication, with explicit actor identities and exact-revision evidence. Revoking the latest policy closes public reads and does not revive an older policy. Policy and release data are read within the same repeatable-read transaction.
 
 A draft app URL uses `/candidate-research?draft=<collection UUID>`. It requires an editor session, is visibly unpublished, and preserves that context through candidate, promise and money navigation. Public users cannot fetch the collection or its source archive. Published URLs use `race=<release UUID>` and work without an editor session.
 
-The older trusted database CLI remains available for operators. Its JSON actor fields are not authenticated and it must never be exposed as an end-user endpoint. Prefer the authenticated workbench for editorial decisions.
+The older trusted database CLI remains available for operators. Its JSON actor fields are not authenticated and it must never be exposed as an end-user endpoint. Use the authenticated workbench for signed-in editorial decisions. For delegated AI review, use the trusted operator path and identify the AI reviewer explicitly. The owner may be recorded by a verified external account identity; this does not create a Billion login or grant workbench access.
 
 ## Verification and limits
 
@@ -97,4 +97,4 @@ After production editorial review and publication, verify the actual public API 
 node scripts/verify-candidate-research.mjs --name "Fiona Ma" --office lt-governor --out /tmp/fiona-public-verification.json
 ```
 
-Use `--base-url` only when deliberately verifying another deployment. Local screenshots with collected data demonstrate rendering, while this check establishes public availability. Neither substitutes for human review of the exact revisions.
+Use `--base-url` only when deliberately verifying another deployment. Local screenshots with collected data demonstrate rendering, while this check establishes public availability. Neither substitutes for independent content and source review of the exact revisions.
