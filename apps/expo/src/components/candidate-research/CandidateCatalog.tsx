@@ -448,15 +448,6 @@ export function CandidateCatalog() {
                             count: data.coverage.publishedCandidates,
                           })}
                         </Text>
-                        <Text style={s.body}>
-                          {tx(
-                            "County coverage verified: {verified} of {total}",
-                            {
-                              verified: data.coverage.countyCoverage.verified,
-                              total: data.coverage.countyCoverage.total,
-                            },
-                          )}
-                        </Text>
                         <Text style={s.muted}>
                           {tx("Office counts follow the current search.")}
                         </Text>

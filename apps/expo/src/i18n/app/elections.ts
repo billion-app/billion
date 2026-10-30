@@ -120,11 +120,6 @@ export const electionStrings = {
     es: "La cobertura local es parcial. Consulta tu boleta oficial.",
     zh: "地方选举覆盖不完整。请查看官方选票。",
   },
-  "County coverage verified: {verified} of {total}": {
-    en: "County coverage verified: {verified} of {total}",
-    es: "Cobertura de condados verificada: {verified} de {total}",
-    zh: "已核实的县级覆盖范围：{verified}/{total}",
-  },
   "{count} candidates with reviewed research": {
     en: "{count} candidates with reviewed research",
     es: "{count} candidatos con investigación revisada",
