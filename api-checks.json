@@ -1,0 +1,68 @@
+[
+  {
+    "race": "ltgov",
+    "releaseId": "dcaeb849-d023-4912-a20f-f9fc822af176",
+    "members": [
+      {
+        "name": "Fiona Ma",
+        "revisionId": "7a0ed9c6-a5a9-4c9c-aa33-4d46a2303928"
+      },
+      {
+        "name": "Gloria Romero",
+        "revisionId": "88dd933c-825f-4358-9530-f1d99263e1e7"
+      }
+    ],
+    "briefCount": 2,
+    "evidenceCount": [
+      6,
+      6
+    ],
+    "expiresAt": "2026-10-31T18:38:02.485Z",
+    "finance": [
+      {
+        "candidateId": "ca-sos:2026-11-03:030000000000:3550",
+        "financeGap": "California campaign-finance totals, named contributors, refunds and independent spending have not been collected and reconciled for this candidate and election. This is missing coverage, not zero dollars. Open the California Secretary of State Power Search source to search candidate-controlled committees and independent expenditures; federal FEC filings are not used for this state race."
+      },
+      {
+        "candidateId": "ca-sos:2026-11-03:030000000000:3652",
+        "financeGap": "California campaign-finance totals, named contributors, refunds and independent spending have not been collected and reconciled for this candidate and election. This is missing coverage, not zero dollars. Open the California Secretary of State Power Search source to search candidate-controlled committees and independent expenditures; federal FEC filings are not used for this state race."
+      }
+    ]
+  },
+  {
+    "race": "ca17",
+    "releaseId": "d2d2b511-06b0-45bb-b24d-f269af2ea73a",
+    "members": [
+      {
+        "name": "Ro Khanna",
+        "revisionId": "991b847b-7e2e-4ecd-8192-ea6cc692b6da"
+      },
+      {
+        "name": "Ritesh Tandon",
+        "revisionId": "e15d4de0-06c6-4f97-8ae2-59b5589841a7"
+      }
+    ],
+    "briefCount": 2,
+    "evidenceCount": [
+      32,
+      24
+    ],
+    "expiresAt": "2026-10-31T07:09:48.086Z",
+    "finance": [
+      {
+        "candidateId": "ca-sos:2026-11-03:110000170000:3220",
+        "committeeId": "C00503185",
+        "totalCents": 1532081281,
+        "donorRows": 20,
+        "financeGap": null
+      },
+      {
+        "candidateId": "ca-sos:2026-11-03:110000170000:3430",
+        "committeeId": "C00721878",
+        "totalCents": 5701148,
+        "donorRows": 20,
+        "financeGap": null
+      }
+    ]
+  }
+]

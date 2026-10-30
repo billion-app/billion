@@ -1,0 +1,1 @@
+Live candidate research release evidence, October 30, 2026. Local Expo web at exact OTA source 294ba88470b14157d03610e39536d7830b81d9dc uses actual public production tRPC. No fixtures or response interception. Native OTA publication and endpoint delivery verified separately. Physical installation is unverified. Read report.md for full methods and limitations.
