@@ -223,8 +223,16 @@ function candidateNamePosition(text: string, name: string): number {
   const tokens = name.match(/[\p{L}\p{N}]+/gu) ?? [];
   if (!tokens.length) return -1;
   const pattern = tokens.join("[^\\p{L}\\p{N}]+");
+  const suffix = /^(?:jr|sr|junior|senior|ii|iii|iv|v)$/i.test(
+    tokens.at(-1) ?? "",
+  )
+    ? ""
+    : "(?![\\s,]+(?:jr|sr|junior|senior|ii|iii|iv|v)(?:\\.|(?![\\p{L}\\p{N}])))";
   return text.search(
-    new RegExp(`(?<![\\p{L}\\p{N}])${pattern}(?![\\p{L}\\p{N}])`, "iu"),
+    new RegExp(
+      `(?<![\\p{L}\\p{N}])${pattern}(?![\\p{L}\\p{N}])${suffix}`,
+      "iu",
+    ),
   );
 }
 function excerpt(text: string, name: string): string | undefined {
@@ -234,20 +242,31 @@ function excerpt(text: string, name: string): string | undefined {
     .slice(Math.max(0, position - 120), Math.min(text.length, position + 2800))
     .trim();
 }
-function candidateAuthorshipCue(source: ResearchSource, name: string): boolean {
-  const text = substantiveSourceText(source);
-  const body = compact(text);
-  const candidate = compact(name);
-  return [
-    `paid for by ${candidate}`,
-    `vote ${candidate}`,
-    `vote for ${candidate}`,
-    `elect ${candidate}`,
-    `${candidate} for trustee`,
-    `${candidate} for school board`,
-    `${candidate} for city council`,
-    `${candidate} campaign`,
-  ].some((cue) => candidateNamePosition(body, cue) >= 0);
+const publisherDisclosureMarker =
+  "\nCampaign publisher disclosure (identity only):\n";
+function candidatePublisherDisclosure(
+  source: ResearchSource,
+  name: string,
+): boolean {
+  const marker = source.text.lastIndexOf(publisherDisclosureMarker);
+  if (marker < 0) return false;
+  const disclosure = source.text.slice(
+    marker + publisherDisclosureMarker.length,
+  );
+  if (!disclosure) return false;
+  return disclosure.split("\n").some((line) => {
+    const owner =
+      /^(?:Paid for by|Authorized (?:and paid for )?by)\s+(.+)$/i.exec(
+        line.trim(),
+      );
+    return (
+      !!owner &&
+      candidateNamePosition(owner[1]!, name) === 0 &&
+      !/["“”]|\b(?:says?|said|quoted?|according to|not authorized|not affiliated|independent expenditure)\b/i.test(
+        line,
+      )
+    );
+  });
 }
 export function qualifiedCandidatePage(
   source: ResearchSource,
@@ -719,12 +738,12 @@ export async function collectCaliforniaEvidence(
       )
         continue;
       if (linked.includes(url)) {
+        if (!candidatePublisherDisclosure(source, member.name)) continue;
         if (localWebsite?.status === "listed") {
           if (
             !localWebsite.url ||
             !localWebsite.officialSource ||
-            !source.retrievalUrls ||
-            !candidateAuthorshipCue(source, member.name)
+            !source.retrievalUrls
           )
             continue;
           campaignContactProof = {
@@ -810,18 +829,51 @@ export async function collectCaliforniaEvidence(
         )
       )
         continue;
+      const officialStatement =
+        officialStatements.includes(url) &&
+        race.kind !== "retention" &&
+        new URL(source.url).origin === new URL(url).origin;
       const candidateSupplied =
-        linked.includes(url) ||
-        !!parent ||
-        (officialStatements.includes(url) && race.kind !== "retention");
+        linked.includes(url) || !!parent || officialStatement;
       if (!candidateSupplied && !official) continue;
+      const campaignMaterial = candidateSupplied && !officialStatement;
+      if (campaignMaterial && substantive.length > 12_000) {
+        gaps.push({
+          dimension: "record",
+          code: "source_unavailable",
+          message:
+            "A campaign page exceeded the bounded context limit. Its attribution context was not clipped or inferred.",
+          checkedSourceIds: [source.id],
+          required: false,
+        });
+        continue;
+      }
       evidence.push({
         id: `candidate-${evidence.length}`,
         sourceId: source.id,
         excerpt: quote,
         locator: `Candidate-specific passage for ${member.name}`,
         origin: candidateSupplied ? "candidate" : "primary_record",
-        role: candidateSupplied ? "candidate_statement" : "candidate_record",
+        role: campaignMaterial
+          ? "campaign_material"
+          : officialStatement
+            ? "candidate_statement"
+            : "candidate_record",
+        ...(candidateSupplied
+          ? {
+              attribution: {
+                status: campaignMaterial
+                  ? ("unresolved" as const)
+                  : ("official_candidate_statement" as const),
+                context: {
+                  excerpt: campaignMaterial ? substantive : quote,
+                  locator: campaignMaterial
+                    ? "Complete bounded substantive campaign page; publisher identity does not establish the speaker."
+                    : "Official candidate-submitted statement channel.",
+                },
+              },
+            }
+          : {}),
         identityQualification:
           linked.includes(url) || !!parent
             ? "official_cross_link"
@@ -839,6 +891,7 @@ export async function collectCaliforniaEvidence(
   if (
     !evidence.some(
       (entry) =>
+        entry.role === "campaign_material" ||
         entry.role === "candidate_statement" ||
         entry.role === "candidate_record",
     )
@@ -1052,11 +1105,34 @@ export async function fetchBoundedCaliforniaSource(
           links.push(`${label} => ${target.toString()}`);
       } catch {}
     });
+    const substantive = htmlText(html);
+    $("blockquote,q,script,style,noscript").remove();
+    const disclosures = $(
+      "footer,[role=contentinfo],[class*=disclaimer],[id*=disclaimer]",
+    )
+      .toArray()
+      .filter((element) => !$(element).parents("article").length)
+      .flatMap((element) => {
+        const value = $(element).text().replace(/\s+/g, " ").trim();
+        const offset =
+          /\b(?:Paid for by|Authorized (?:and paid for )?by)\b/i.exec(
+            value,
+          )?.index;
+        if (
+          offset === undefined ||
+          /["“”'‘’]|\b(?:says?|said|reports?|quoted?|according to)\b/i.test(
+            value.slice(0, offset),
+          )
+        )
+          return [];
+        return [value.slice(offset)];
+      });
     text =
-      htmlText(html) +
-      (links.length
-        ? "\nLinked source navigation (discovery only):\n" + links.join("\n")
-        : "");
+      substantive +
+      "\nLinked source navigation (discovery only):\n" +
+      links.join("\n") +
+      publisherDisclosureMarker +
+      [...new Set(disclosures)].join("\n");
   } else if (format === "json")
     text = JSON.stringify(JSON.parse(buffer.toString("utf8")), null, 2);
   else if (format === "text" && /\.zip$/.test(currentURL))

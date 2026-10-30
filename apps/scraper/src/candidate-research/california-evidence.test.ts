@@ -77,6 +77,8 @@ test("official candidate statements preserve candidate origin and exclude oppone
   );
   assert.ok(evidence);
   assert.equal(evidence.origin, "candidate");
+  assert.equal(evidence.attribution?.status, "official_candidate_statement");
+  assert.equal(evidence.attribution!.context.excerpt, evidence.excerpt);
   assert.equal(evidence.excerpt.includes(second.name), false);
   assert.equal(result.classification, "supported");
   assert.ok(requests <= 6);
@@ -190,7 +192,7 @@ test("campaign endorsement of another-race candidate does not truncate its platf
   const { snapshot, race } = await fixture();
   const member = race.members[0]!;
   const endorser = snapshot.races[2]!.members[0]!;
-  const text = `${member.name} is endorsed by ${endorser.name}. ${"I will protect public services and support public schools through published budget proposals. ".repeat(5)}\nLinked source navigation (discovery only):\nDonate => https://example.com/donate`;
+  const text = `${member.name} is endorsed by ${endorser.name}. ${"I will protect public services and support public schools through published budget proposals. ".repeat(5)}\nLinked source navigation (discovery only):\nDonate => https://example.com/donate\nCampaign publisher disclosure (identity only):\nPaid for by ${member.name} for Governor.`;
   const result = await collectCaliforniaEvidence(
     { snapshot, race, member },
     {
@@ -210,7 +212,7 @@ test("campaign endorsement of another-race candidate does not truncate its platf
         ),
     },
   );
-  const entry = result.evidence.find((e) => e.role === "candidate_statement");
+  const entry = result.evidence.find((e) => e.role === "campaign_material");
   assert.ok(entry);
   assert.ok(entry.excerpt.includes(endorser.name));
   assert.equal(entry.excerpt.includes("Linked source navigation"), false);
@@ -356,7 +358,7 @@ test("verified campaign root follows bounded same-origin platform children even 
         const text = url.includes("contact-list")
           ? `${member.name}\nWEBSITE: www.example.com\n${race.members[1]!.name}`
           : url === "https://www.example.com"
-            ? `${member.name}\nLinked source navigation (discovery only):\nIssues => https://www.example.com/issues\nDonate => https://www.example.com/donate`
+            ? `${member.name}\nLinked source navigation (discovery only):\nIssues => https://www.example.com/issues\nDonate => https://www.example.com/donate\nCampaign publisher disclosure (identity only):\nPaid for by ${member.name} for Governor.`
             : url.endsWith("/issues")
               ? "I will support public schools with published budget proposals and independent progress reports. ".repeat(
                   5,
@@ -368,7 +370,7 @@ test("verified campaign root follows bounded same-origin platform children even 
   );
   const issue = result.evidence.find(
     (entry) =>
-      entry.role === "candidate_statement" &&
+      entry.role === "campaign_material" &&
       result.sources
         .find((s) => s.id === entry.sourceId)
         ?.url.endsWith("/issues"),
@@ -397,6 +399,13 @@ test("candidate names require complete Unicode token boundaries", async () => {
   for (const body of [
     "Steve Hiltonson",
     "Steve Hiltonshire",
+    "Steve Hilton Jr.",
+    "Steve Hilton, Jr.",
+    "Steve Hilton II",
+    "Steve Hilton III",
+    "Steve Hilton Sr.",
+    "Steve Hilton Junior",
+    "Steve Hilton Senior",
     "Esteve Hilton",
   ]) {
     assert.equal(
@@ -457,7 +466,7 @@ test("unknown campaign and party discovery cannot masquerade as independent repo
     result.evidence.some(
       (item) =>
         item.origin === "reporting" ||
-        item.role === "candidate_statement" ||
+        item.role === "campaign_material" ||
         item.role === "candidate_record",
     ),
     false,
@@ -529,7 +538,7 @@ test("local campaign discovery without an official provenance chain stays an evi
   assert.equal(
     result.evidence.some(
       (item) =>
-        item.role === "candidate_record" || item.role === "candidate_statement",
+        item.role === "candidate_record" || item.role === "campaign_material",
     ),
     false,
   );
@@ -555,13 +564,13 @@ test("official campaign link remains candidate attributed after a verified publi
             ? source(
                 id,
                 "https://campaign-current.example/",
-                `${member.name} ${"I will support schools and expand public services through a budget proposal. ".repeat(8)}`,
+                `${member.name} ${"I will support schools and expand public services through a budget proposal. ".repeat(8)}\nLinked source navigation (discovery only):\n\nCampaign publisher disclosure (identity only):\nPaid for by ${member.name} for Governor.`,
               )
             : source(id, url, "Official office responsibilities and powers."),
     },
   );
   const evidence = result.evidence.find(
-    (item) => item.role === "candidate_statement",
+    (item) => item.role === "campaign_material",
   );
   assert.ok(evidence);
   assert.equal(evidence.origin, "candidate");
@@ -808,7 +817,7 @@ async function localCampaignFixture() {
                   headers: { location: "/current" },
                 });
               return new Response(
-                `<html><body>Anne J. Kepner ${institutional ? "serves on a board. Institutional board members and administrative policies are listed here. The board will vote on the annual fundraising campaign; donate to the student foundation. Principal Garcia: My vision is to improve reading, and I will support every student. ".repeat(8) : "for Trustee. I will support affordable college access and expand student programs through a transparent budget proposal. ".repeat(8)}</body></html>`,
+                `<html><body>Anne J. Kepner ${institutional ? "serves on a board. Institutional board members and administrative policies are listed here. The board will vote on the annual fundraising campaign; donate to the student foundation. Principal Garcia: My vision is to improve reading, and I will support every student. ".repeat(8) : "for Trustee. I will support affordable college access and expand student programs through a transparent budget proposal. ".repeat(8)}</body>${institutional ? "" : "<footer>Paid for by Anne J. Kepner for Trustee.</footer>"}</html>`,
               );
             },
           },
@@ -851,7 +860,7 @@ test("local official Website proof accepts a fresh Anne Kepner campaign without 
   );
   assert.ok(
     dossier.evidence.some(
-      (e) => e.origin === "candidate" && e.role === "candidate_statement",
+      (e) => e.origin === "candidate" && e.role === "campaign_material",
     ),
   );
   assert.equal(
@@ -943,4 +952,353 @@ test("unavailable filed campaign page remains a retrieval gap without a fabricat
   assert.equal(dossier.classification, "evidence_gap");
   assert.equal(dossier.campaignContactProof, undefined);
   assert.ok(dossier.gaps.some((gap) => gap.code === "source_unavailable"));
+});
+
+test("a filed URL and quoted campaign slogan do not establish institutional publisher ownership", async () => {
+  const f = await localCampaignFixture();
+  const original = f.deps.fetch;
+  f.deps.fetch = async (id, url, publisher, format) => {
+    if (!url.includes("annekepner.org"))
+      return original(id, url, publisher, format);
+    return {
+      ...source(
+        id,
+        "https://institution.example/board",
+        "Anne J. Kepner serves on our board. Election news: Elect Anne J. Kepner for Trustee. Principal Garcia says: I will expand our student foundation and support every school. ".repeat(
+          8,
+        ),
+      ),
+      retrievalUrls: [url, "https://institution.example/board"],
+    };
+  };
+  const dossier = await collectCaliforniaEvidence(f, f.deps);
+  assert.equal(dossier.campaignContactProof, undefined);
+  assert.equal(
+    dossier.evidence.some((entry) => entry.role === "campaign_material"),
+    false,
+  );
+  assert.notEqual(dossier.classification, "supported");
+});
+
+test("same-origin campaign children do not inherit the candidate as every passage speaker", async () => {
+  const f = await localCampaignFixture();
+  const original = f.deps.fetch;
+  f.deps.fetch = async (id, url, publisher, format) => {
+    if (!url.includes("annekepner.org"))
+      return original(id, url, publisher, format);
+    const body = url.endsWith("/issues-foundation")
+      ? "Principal Garcia says: I will expand our student foundation and support every school. ".repeat(
+          8,
+        )
+      : "Anne J. Kepner for Trustee. I will support college access. ".repeat(
+          8,
+        ) +
+        "\nLinked source navigation (discovery only):\nIssues foundation => https://annekepner.org/issues-foundation\nCampaign publisher disclosure (identity only):\nPaid for by Anne J. Kepner for Trustee.";
+    return { ...source(id, url, body), retrievalUrls: [url] };
+  };
+  const dossier = await collectCaliforniaEvidence(f, f.deps);
+  assert.ok(dossier.campaignContactProof);
+  assert.ok(
+    dossier.evidence.some((entry) => entry.role === "campaign_material"),
+  );
+  assert.equal(
+    dossier.evidence.some(
+      (entry) =>
+        entry.role === "campaign_material" &&
+        entry.excerpt.includes("Principal Garcia") &&
+        entry.attribution?.status === "unresolved",
+    ),
+    true,
+  );
+});
+
+test("only unquoted legal publisher disclosures qualify filed destinations", async () => {
+  for (const [disclosure, accepted] of [
+    ["<footer>Paid for by Anne J. Kepner for Trustee.</footer>", true],
+    [
+      '<div class="legal-disclaimer">Authorized and paid for by Anne J. Kepner for Trustee.</div>',
+      true,
+    ],
+    ["<footer><q>Paid for by Anne J. Kepner for Trustee.</q></footer>", false],
+    [
+      "<footer><blockquote>Paid for by Anne J. Kepner for Trustee.</blockquote></footer>",
+      false,
+    ],
+    [
+      "<footer>News reports say “Paid for by Anne J. Kepner for Trustee.”</footer>",
+      false,
+    ],
+    [
+      "<footer>News reports say 'Paid for by Anne J. Kepner for Trustee.'</footer>",
+      false,
+    ],
+    [
+      "<footer>Paid for by Anne J. Kepner for Trustee. Independent expenditure, not authorized by the candidate.</footer>",
+      false,
+    ],
+    ["<footer>Paid for by Anne J. Kepner Jr. for Trustee.</footer>", false],
+    ["<article>Paid for by Anne J. Kepner for Trustee.</article>", false],
+  ] as const) {
+    const f = await localCampaignFixture();
+    const original = f.deps.fetch;
+    f.deps.fetch = async (id, url, publisher, format) => {
+      if (!url.includes("annekepner.org"))
+        return original(id, url, publisher, format);
+      return fetchBoundedCaliforniaSource(
+        id,
+        url,
+        publisher,
+        format,
+        { request() {}, bytes() {} },
+        undefined,
+        {
+          addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+          transport: async () =>
+            new Response(
+              `<html><body><main>Anne J. Kepner for Trustee. ${"I will support affordable college access through a public budget proposal. ".repeat(8)}</main>${disclosure}</body></html>`,
+            ),
+        },
+      ).then((archive) => ({ ...archive, fetchedAt: now }));
+    };
+    const dossier = await collectCaliforniaEvidence(f, f.deps);
+    assert.equal(!!dossier.campaignContactProof, accepted, disclosure);
+    assert.equal(
+      dossier.evidence.some((entry) => entry.role === "campaign_material"),
+      accepted,
+      disclosure,
+    );
+    if (accepted) {
+      const destination = dossier.sources.find((entry) =>
+        entry.url.includes("annekepner.org"),
+      )!;
+      assert.ok(
+        destination.text.includes(
+          "Campaign publisher disclosure (identity only):",
+        ),
+      );
+      assert.equal(
+        destination.text
+          .split("\nLinked source navigation (discovery only):\n")[0]!
+          .includes("Paid for by"),
+        false,
+      );
+      assert.equal(
+        dossier.evidence.some((entry) => entry.excerpt.includes("Paid for by")),
+        false,
+      );
+    }
+  }
+});
+
+test("a campaign-owned page cannot assign an endorsement speaker's commitments to the candidate", async () => {
+  for (const thirdParty of [
+    "Principal Garcia says: I will expand the student foundation and support every school. ",
+    "Principal Garcia says I will expand the student foundation and support every school. ",
+    "Principal Garcia: I will expand the student foundation and support every school. ",
+    "“I will expand the student foundation and support every school,” says Principal Garcia. ",
+    "'I will expand our student foundation and support every school,' says Principal Garcia. ",
+    "‘I will expand our student foundation and support every school,’ says Principal Garcia. ",
+    "Our principal says: I will expand our student foundation and support every school. ",
+    "our principal says I will expand our student foundation and support every school. ",
+    "According to our principal, I will expand our student foundation and support every school. ",
+    "the principal: I will expand our student foundation and support every school. ",
+    "In the words of our principal, I will expand our student foundation and support every school. ",
+  ]) {
+    const f = await localCampaignFixture();
+    const original = f.deps.fetch;
+    f.deps.fetch = async (id, url, publisher, format) => {
+      if (!url.includes("annekepner.org"))
+        return original(id, url, publisher, format);
+      const body = `Anne J. Kepner for Trustee. ${"I will support college access through a public budget proposal. ".repeat(5)}${thirdParty.repeat(5)}\nLinked source navigation (discovery only):\n\nCampaign publisher disclosure (identity only):\nPaid for by Anne J. Kepner for Trustee.`;
+      return { ...source(id, url, body), retrievalUrls: [url] };
+    };
+    const dossier = await collectCaliforniaEvidence(f, f.deps);
+    const statements = dossier.evidence.filter(
+      (entry) => entry.role === "campaign_material",
+    );
+    assert.equal(statements.length, 1);
+    assert.equal(statements[0]!.attribution?.status, "unresolved");
+    assert.ok(
+      statements[0]!.attribution!.context.excerpt.includes(thirdParty.trim()),
+    );
+    assert.equal(
+      dossier.evidence.some((entry) => entry.role === "candidate_statement"),
+      false,
+    );
+  }
+});
+
+test("the archived McGuire campaign excerpt alone does not prove its stripped publisher disclosure", async () => {
+  const { snapshot } = await fixture();
+  const race = snapshot.races.find((target) =>
+    target.members.some((member) => member.name === "Mike McGuire"),
+  )!;
+  const member = race.members.find(
+    (candidate) => candidate.name === "Mike McGuire",
+  )!;
+  const dossier = await collectCaliforniaEvidence(
+    { snapshot, race, member },
+    {
+      now: () => now,
+      sharedSources: new Map(),
+      budget: { request() {}, bytes() {} },
+      search: async () => ({ sources: [] }),
+      fetch: async (id, url) =>
+        source(
+          id,
+          url,
+          url.includes("contact-list")
+            ? `${member.name}\nWEBSITE: https://www.votemikemcguire.com/\n${race.members.find((other) => other.name !== member.name)!.name}`
+            : url.includes("votemikemcguire")
+              ? "When Northern California needs results, Mike McGuire delivers.No one fights harder for rural Californians and our communities than Senator Mike McGuire. He’s one of California’s few rural Democratic leaders at the state level—the first to rise up to serve as Leader of the Senate in over a century."
+              : "Official office authority and constitutional responsibilities.",
+        ),
+    },
+  );
+  assert.equal(
+    dossier.evidence.some((entry) => entry.role === "campaign_material"),
+    false,
+  );
+});
+
+test("campaign material preserves full context beside a different speaker", async () => {
+  const f = await localCampaignFixture();
+  const original = f.deps.fetch;
+  const ownPassage =
+    "Anne J. Kepner for Trustee. " +
+    "I will support college access through a public budget proposal. ".repeat(
+      5,
+    );
+  const otherPassage =
+    "Our principal says: I will expand our student foundation and support every school. ".repeat(
+      5,
+    );
+  f.deps.fetch = async (id, url, publisher, format) => {
+    if (!url.includes("annekepner.org"))
+      return original(id, url, publisher, format);
+    return fetchBoundedCaliforniaSource(
+      id,
+      url,
+      publisher,
+      format,
+      { request() {}, bytes() {} },
+      undefined,
+      {
+        addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+        transport: async () =>
+          new Response(
+            `<html><body><main><p>${ownPassage}</p><p>${otherPassage}</p><blockquote><p>'I will expand our student foundation,' says Principal Garcia.</p></blockquote></main><footer>Paid for by Anne J. Kepner for Trustee.</footer></body></html>`,
+          ),
+      },
+    ).then((archive) => ({ ...archive, fetchedAt: now }));
+  };
+  const dossier = await collectCaliforniaEvidence(f, f.deps);
+  const statements = dossier.evidence.filter(
+    (entry) => entry.role === "campaign_material",
+  );
+  assert.equal(statements.length, 1);
+  assert.equal(statements[0]!.attribution?.status, "unresolved");
+  assert.ok(
+    statements[0]!.attribution!.context.excerpt.includes(ownPassage.trim()),
+  );
+  assert.ok(
+    statements[0]!.attribution!.context.excerpt.includes(otherPassage.trim()),
+  );
+  const archived = dossier.sources.find(
+    (entry) => entry.id === statements[0]!.sourceId,
+  )!;
+  assert.ok(archived.text.includes(ownPassage.trim()));
+  assert.equal(
+    statements[0]!.attribution!.context.excerpt,
+    archived.text.split("\nLinked source navigation (discovery only):\n")[0],
+  );
+  assert.equal(
+    archived.text
+      .split("\nLinked source navigation (discovery only):\n")[0]!
+      .includes("Campaign passage blocks"),
+    false,
+  );
+});
+
+test("campaign material retains a different speaker's sibling heading in exact unresolved context", async () => {
+  const f = await localCampaignFixture();
+  const original = f.deps.fetch;
+  const speech =
+    "I will expand our student foundation and support every school. ".repeat(4);
+  f.deps.fetch = async (id, url, publisher, format) => {
+    if (!url.includes("annekepner.org"))
+      return original(id, url, publisher, format);
+    return fetchBoundedCaliforniaSource(
+      id,
+      url,
+      publisher,
+      format,
+      { request() {}, bytes() {} },
+      undefined,
+      {
+        addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+        transport: async () =>
+          new Response(
+            `<html><body><main><h1>Anne J. Kepner for Trustee</h1><section><h2>Statement by Principal Garcia</h2><p>${speech}</p></section></main><footer>Paid for by Anne J. Kepner for Trustee.</footer></body></html>`,
+          ),
+      },
+    ).then((archive) => ({ ...archive, fetchedAt: now }));
+  };
+  const dossier = await collectCaliforniaEvidence(f, f.deps);
+  const material = dossier.evidence.find(
+    (entry) => entry.role === "campaign_material",
+  )!;
+  assert.ok(material);
+  assert.equal(material.origin, "candidate");
+  assert.equal(material.attribution?.status, "unresolved");
+  assert.ok(
+    material.attribution!.context.excerpt.includes(
+      "Statement by Principal Garcia",
+    ),
+  );
+  assert.ok(material.attribution!.context.excerpt.includes(speech.trim()));
+  const archive = dossier.sources.find(
+    (entry) => entry.id === material.sourceId,
+  )!;
+  assert.equal(
+    material.attribution!.context.excerpt,
+    archive.text.split("\nLinked source navigation (discovery only):\n")[0],
+  );
+  assert.ok(material.attribution!.context.excerpt.includes(material.excerpt));
+  assert.equal(
+    dossier.evidence.some((entry) => entry.role === "candidate_statement"),
+    false,
+  );
+});
+
+test("campaign context over the complete-page bound is a gap instead of a clipped speaker attribution", async () => {
+  const f = await localCampaignFixture();
+  const original = f.deps.fetch;
+  f.deps.fetch = async (id, url, publisher, format) => {
+    if (!url.includes("annekepner.org"))
+      return original(id, url, publisher, format);
+    return {
+      ...source(
+        id,
+        url,
+        "Anne J. Kepner for Trustee. " +
+          "I will support affordable college access. ".repeat(320) +
+          "Statement by Principal Garcia.\nLinked source navigation (discovery only):\n\nCampaign publisher disclosure (identity only):\nPaid for by Anne J. Kepner for Trustee.",
+      ),
+      retrievalUrls: [url],
+    };
+  };
+  const dossier = await collectCaliforniaEvidence(f, f.deps);
+  assert.equal(
+    dossier.evidence.some(
+      (entry) =>
+        entry.role === "campaign_material" ||
+        entry.role === "candidate_statement",
+    ),
+    false,
+  );
+  assert.ok(
+    dossier.gaps.some((gap) => gap.message.includes("bounded context limit")),
+  );
+  assert.equal(dossier.classification, "evidence_gap");
 });
