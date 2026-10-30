@@ -69,6 +69,7 @@ export function expectedRoster(document) {
     candidates,
     scope: document.scopeLabel ?? document.scope,
     scopeKind: document.scope,
+    snapshotId: document.id,
     localCoverage: document.localCoverage,
     localCrosswalk: document.localCrosswalk,
     localPrimary: document.localPrimary,
@@ -688,6 +689,24 @@ async function main() {
   if (result.extra.length)
     errors.push(`${result.extra.length} unexpected catalog identities`);
   if (catalog) {
+    if (roster.snapshotId && catalog.snapshotId !== roster.snapshotId)
+      errors.push(
+        "Public catalog snapshot differs from the authoritative expected snapshot",
+      );
+    if (!values["state-only"]) {
+      const local = catalog.coverage?.localCoverage;
+      if (
+        local?.scope !== "san_jose" ||
+        local.status !== "verified" ||
+        local.pendingRaces !== 0 ||
+        local.pendingCandidates !== 0 ||
+        local.expectedRaces !== roster.localCoverage?.expectedRaces ||
+        local.expectedCandidates !== roster.localCoverage?.expectedCandidates
+      )
+        errors.push(
+          "Public catalog does not report the verified complete San Jose scope",
+        );
+    }
     if (
       !validUrl(catalog.coverage?.sourceUrl) ||
       !nonempty(catalog.coverage?.sourceName) ||
