@@ -8,7 +8,7 @@
  *
  *   summary   → one-sentence takeaway, visible by default
  *   hook      → fuller "What this means for you" explanation, on demand
- *   facts     → retained as structured data for cards and future visuals
+ *   facts     → shared prominent figures, with complete units and conditions
  *   changes   → before → after, source quote one tap away
  *   affected  → who this lands on
  *   unknowns  → what the text does not settle
@@ -19,11 +19,9 @@
  *
  * Two brand constraints shape the visual language here:
  *
- *  - Outcome color is a navigation aid, not a verdict. Gains, losses, mixed
- *    effects, and uncertainty each use a distinct nonpartisan hue, icon, and
- *    written label. Color is never the only signal, and the palette avoids a
- *    red-vs-green or red-vs-blue binary.
- *  - Every claim keeps a path back to the source. Change cards expose the
+ *  - Outcome meaning lives in written labels. Flat sections keep uncertainty
+ *    visible without colored warning containers.
+ *  - Every claim keeps a path back to the source. Change sections expose the
  *    verbatim provision that backs them, and the block ends by pointing at the
  *    official text rather than presenting itself as the last word.
  */
@@ -39,23 +37,27 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Image } from "expo-image";
 import * as WebBrowser from "expo-web-browser";
 import Markdown from "@ronradtke/react-native-markdown-display";
 
-import type { IconName } from "./Icon";
 import type { StringKey } from "~/i18n/strings";
 import { useLanguage } from "~/hooks/useLanguage";
 import {
-  colors,
   darkTheme,
   fontBody,
   fontEditorial,
   getMarkdownStyles,
   hair,
-  planes,
+  BillReaderPalette as R,
+  BillReaderType as T,
 } from "~/styles";
+import { getBillFactFigure } from "./bill-fact-figure";
+import { BillChangeExplorer } from "./BillChangeExplorer";
+import { BillFactFigure } from "./BillFactFigure";
 import { Icon } from "./Icon";
+import { ReaderDisclosureIcon, ReaderReveal } from "./ReaderMotion";
+import { ReaderPressable } from "./ReaderPressable";
+import { ReaderText } from "./ReaderText";
 
 /* ---------- data shape ---------- */
 // Mirrors @acme/validators' BillBriefRecord. Redeclared rather than imported so
@@ -80,6 +82,11 @@ export interface BriefQuote {
 }
 
 export interface BillBriefData {
+  /** Source-owned view metadata supplied by the article route, never generated. */
+  sourceStatus?: string;
+  sourceLabel?: string;
+  /** Standalone article headline; older cached records may omit it. */
+  headline?: string;
   /** Optional only so a pre-v8 brief held across fast refresh still renders. */
   summary?: string;
   hook: string;
@@ -90,6 +97,12 @@ export interface BillBriefData {
     title: string;
     before: string;
     after: string;
+    reader?: {
+      summary: string;
+      question: string;
+      answer: string;
+      quote?: BriefQuote;
+    };
     /** Generated photograph for this change, when one helps. Absent is normal. */
     imageUri?: string;
     quote?: BriefQuote;
@@ -118,25 +131,14 @@ export interface BillBriefData {
   }[];
 }
 
-const CHANGE_KIND_LABEL: Record<BriefChangeKind, StringKey> = {
-  creates: "readerUi.creates",
-  repeals: "readerUi.repeals",
-  expands: "readerUi.expands",
-  restricts: "readerUi.restricts",
-  requires: "readerUi.requires",
-  waives: "readerUi.waives",
-  funds: "readerUi.funds",
-  transfers: "readerUi.transfers",
-};
-
 const DIRECTION: Record<
   BillBriefData["affected"][number]["direction"],
-  { icon: IconName; label: StringKey; color: string }
+  StringKey
 > = {
-  gains: { icon: "arrowUp", label: "readerUi.gains", color: "#55D6BE" },
-  loses: { icon: "arrowDown", label: "readerUi.loses", color: "#FF9575" },
-  mixed: { icon: "minus", label: "readerUi.mixed", color: "#B8A1FF" },
-  unclear: { icon: "help", label: "readerUi.unclear", color: "#F4C95D" },
+  gains: "readerUi.effectGains",
+  loses: "readerUi.effectLoses",
+  mixed: "readerUi.effectMixed",
+  unclear: "readerUi.effectUnclear",
 };
 
 /* ---------- Inline emphasis — useful phrases, not whole paragraphs ---------- */
@@ -190,12 +192,14 @@ function EmphasizedText({
 }
 
 /* ---------- Hook — the one sentence that must land ---------- */
-function Hook({
+export function BillSummary({
   summary,
   text,
   legalStatus,
   accent,
+  compact = false,
 }: {
+  compact?: boolean;
   summary?: string;
   text: string;
   legalStatus: BillBriefData["legalStatus"];
@@ -208,23 +212,25 @@ function Hook({
 
   return (
     <View
-      style={[s.summaryCard, { borderLeftColor: accent }]}
+      style={[s.summaryCard, compact && s.compactSummary]}
       testID="brief-summary"
     >
-      <View style={s.summaryHead}>
-        <View style={[s.summaryIcon, { backgroundColor: `${accent}28` }]}>
-          <Icon name="sparkle" size={16} color={accent} />
+      {!compact && (
+        <View style={s.summaryHead}>
+          <Text style={s.summaryTitle}>{tr("readerUi.shortVersion")}</Text>
+          <View style={s.summaryStatus}>
+            <Text style={s.summaryStatusText}>
+              {legalStatus === "enacted"
+                ? tr("readerUi.law")
+                : tr("readerUi.proposal")}
+            </Text>
+          </View>
         </View>
-        <Text style={s.summaryTitle}>{tr("readerUi.shortVersion")}</Text>
-        <View style={[s.summaryStatus, { borderColor: `${accent}66` }]}>
-          <Text style={[s.summaryStatusText, { color: accent }]}>
-            {legalStatus === "enacted"
-              ? tr("readerUi.law")
-              : tr("readerUi.proposal")}
-          </Text>
-        </View>
-      </View>
-      <EmphasizedText style={s.summaryText} testID="brief-summary-text">
+      )}
+      <EmphasizedText
+        style={[s.summaryText, compact && s.compactSummaryText]}
+        testID="brief-summary-text"
+      >
         {shortText}
       </EmphasizedText>
       {hasExtendedVersion ? (
@@ -243,7 +249,7 @@ function Hook({
           <Text style={[s.summaryToggleText, { color: accent }]}>
             {expanded
               ? tr("readerUi.hideExtended")
-              : tr("readerUi.readExtended")}
+              : tr(compact ? "readerUi.whyMatters" : "readerUi.readExtended")}
           </Text>
           <View style={expanded ? s.chevFlip : undefined}>
             <Icon name="chevD" size={14} color={accent} />
@@ -293,8 +299,8 @@ function WhyNotBefore({
           open ? tr("readerUi.hideHistory") : tr("readerUi.showHistory")
         }
       >
-        <View style={[s.contextIcon, { backgroundColor: `${accent}28` }]}>
-          <Icon name="clock" size={15} color={accent} />
+        <View style={[s.contextIcon, { backgroundColor: R.wash }]}>
+          <Icon name="clock" size={15} color={R.muted} />
         </View>
         <View style={s.contextHeadingCopy}>
           <Text style={s.contextTitle}>{tr("readerUi.history")}</Text>
@@ -312,7 +318,7 @@ function WhyNotBefore({
 
           {context.points.map((point, index) => (
             <View key={index} style={s.contextPoint}>
-              <Text style={[s.contextIndex, { color: accent }]}>
+              <Text style={[s.contextIndex, { color: R.muted }]}>
                 {String(index + 1).padStart(2, "0")}
               </Text>
               <View style={s.contextPointCopy}>
@@ -356,7 +362,7 @@ function WhyNotBefore({
                     {source.publisher}
                   </Text>
                 </View>
-                <Icon name="external" size={13} color={colors.textSecondary} />
+                <Icon name="external" size={13} color={R.muted} />
               </TouchableOpacity>
             ))}
           </View>
@@ -366,284 +372,33 @@ function WhyNotBefore({
   );
 }
 
-/* ---------- Quote disclosure — provenance, one tap away ---------- */
-// Collapsed by default: the reader asked for plain language, so raw statutory
-// text is opt-in. But it is always one tap away, never a dead end.
-function QuoteDisclosure({
-  quote,
-  accent,
-  onViewSource,
-}: {
-  quote: BriefQuote;
-  accent: string;
-  onViewSource?: (quote: BriefQuote) => void;
-}) {
-  const { t: tr } = useLanguage();
-  const [open, setOpen] = useState(false);
-  return (
-    <View style={s.quoteWrap}>
-      <TouchableOpacity
-        style={s.quoteToggle}
-        activeOpacity={0.7}
-        onPress={() => setOpen((v) => !v)}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
-        accessibilityLabel={
-          open ? tr("readerUi.hideSource") : tr("readerUi.showSource")
-        }
-      >
-        <Icon name="quote" size={11} color={colors.textSecondary} />
-        <Text style={s.quoteToggleText}>
-          {quote.locator
-            ? `${tr("readerUi.inText")} · ${quote.locator}`
-            : tr("readerUi.inText")}
-        </Text>
-        <View style={open ? s.chevFlip : undefined}>
-          <Icon name="chevD" size={13} color={colors.textSecondary} />
-        </View>
-      </TouchableOpacity>
-      {open && (
-        <View style={s.quoteBody}>
-          <Text style={s.quoteText}>{quote.text}</Text>
-        </View>
-      )}
-      {onViewSource ? (
-        <TouchableOpacity
-          style={[s.viewSourceButton, { backgroundColor: accent }]}
-          activeOpacity={0.78}
-          onPress={() => onViewSource(quote)}
-          accessibilityRole="button"
-          accessibilityLabel={
-            quote.locator
-              ? tr("readerUi.viewSourceAt", { locator: quote.locator })
-              : tr("readerUi.viewSource")
-          }
-        >
-          <Text style={s.viewSourceText}>{tr("readerUi.viewSource")}</Text>
-          <Icon name="arrowRight" size={13} color={colors.white} />
-        </TouchableOpacity>
-      ) : null}
-    </View>
-  );
-}
-
-/* ---------- Changes — before → after ---------- */
-function Changes({
-  changes,
-  accent,
-  onViewSource,
-}: {
-  changes: BillBriefData["changes"];
-  accent: string;
-  onViewSource?: (quote: BriefQuote) => void;
-}) {
-  const { t: tr } = useLanguage();
-  const { width: screenWidth } = useWindowDimensions();
-  const [activeIndex, setActiveIndex] = useState(0);
-  const cardWidth = Math.max(260, Math.min(screenWidth - 64, 390));
-  const snapInterval = cardWidth + 12;
-
-  return (
-    <View style={s.changeCarouselWrap} testID="brief-changes">
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.changeCarouselContent}
-        snapToInterval={snapInterval}
-        snapToAlignment="start"
-        decelerationRate="fast"
-        disableIntervalMomentum
-        nestedScrollEnabled
-        directionalLockEnabled
-        alwaysBounceVertical={false}
-        alwaysBounceHorizontal
-        overScrollMode="never"
-        onMomentumScrollEnd={(event) => {
-          const next = Math.round(
-            event.nativeEvent.contentOffset.x / snapInterval,
-          );
-          setActiveIndex(Math.max(0, Math.min(changes.length - 1, next)));
-        }}
-      >
-        {changes.map((c, i) => (
-          <View key={i} style={[s.changeCard, { width: cardWidth }]}>
-            <View style={s.changeHead}>
-              <View style={[s.kindChip, { borderColor: accent }]}>
-                <Text style={[s.kindChipText, { color: accent }]}>
-                  {tr(CHANGE_KIND_LABEL[c.kind])}
-                </Text>
-              </View>
-              <Text style={s.changeIndex}>
-                {i + 1}/{changes.length}
-              </Text>
-            </View>
-            <Text style={s.changeTitle}>{c.title}</Text>
-
-            {c.imageUri ? (
-              <Image
-                source={{ uri: c.imageUri }}
-                style={s.changeVisual}
-                contentFit="cover"
-                transition={180}
-                accessible
-                accessibilityLabel={tr("readerUi.photo", { title: c.title })}
-              />
-            ) : null}
-
-            <View style={s.deltaStack}>
-              <View style={s.deltaBefore}>
-                <Text style={s.deltaLabel}>{tr("readerUi.now")}</Text>
-                <EmphasizedText style={s.deltaText}>{c.before}</EmphasizedText>
-              </View>
-              <View style={s.deltaTransition}>
-                <View
-                  style={[s.deltaTransitionLine, { backgroundColor: accent }]}
-                />
-                <Icon name="arrowDown" size={13} color={accent} />
-                <Text style={[s.deltaTransitionText, { color: accent }]}>
-                  {tr("readerUi.proposalChanges")}
-                </Text>
-              </View>
-              <View
-                style={[
-                  s.deltaAfter,
-                  {
-                    borderColor: `${accent}66`,
-                    backgroundColor: `${accent}18`,
-                  },
-                ]}
-              >
-                <Text style={s.deltaLabel}>{tr("readerUi.underBill")}</Text>
-                <EmphasizedText style={[s.deltaText, s.deltaTextAfter]}>
-                  {c.after}
-                </EmphasizedText>
-              </View>
-            </View>
-
-            {c.quote ? (
-              <QuoteDisclosure
-                quote={c.quote}
-                accent={accent}
-                onViewSource={onViewSource}
-              />
-            ) : null}
-          </View>
-        ))}
-      </ScrollView>
-
-      {changes.length > 1 ? (
-        <View style={s.changePager}>
-          {changes.map((change, index) => (
-            <View
-              key={`${change.title}-${index}`}
-              style={[
-                s.changePagerDot,
-                index === activeIndex
-                  ? [s.changePagerDotActive, { backgroundColor: accent }]
-                  : null,
-              ]}
-            />
-          ))}
-          <Text style={s.changePagerText}>
-            {activeIndex < changes.length - 1
-              ? `${tr("readerUi.changeCount", { current: activeIndex + 1, total: changes.length })} · ${tr("readerUi.swipeMore")}`
-              : tr("readerUi.changeCount", {
-                  current: activeIndex + 1,
-                  total: changes.length,
-                })}
-          </Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-/* ---------- Affected — who this lands on ---------- */
 function Affected({ affected }: { affected: BillBriefData["affected"] }) {
-  const { t: tr } = useLanguage();
+  const { t } = useLanguage();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   return (
-    <View style={s.affectedList} testID="brief-affected">
-      {affected.map((a, i) => {
-        const d = DIRECTION[a.direction];
-        const outcomeColor = d.color;
-        const takeaway = a.takeaway;
-        const open = openIndex === i;
-        return (
-          <View
-            key={i}
-            style={[
-              s.affectedRow,
-              {
-                backgroundColor: `${outcomeColor}0D`,
-                borderColor: `${outcomeColor}4A`,
-                borderLeftColor: outcomeColor,
-              },
-            ]}
+    <View testID="brief-affected">
+      {affected.map((person, index) => (
+        <View key={index} style={s.flatSection}>
+          <ReaderPressable
+            style={s.flatToggle}
+            onPress={() => setOpenIndex(openIndex === index ? null : index)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: openIndex === index }}
+            testID={`brief-person-${index}`}
           >
-            <View style={s.affectedBody}>
-              <View style={s.affectedHead}>
-                <View
-                  style={[
-                    s.affectedIcon,
-                    {
-                      backgroundColor: `${outcomeColor}24`,
-                      borderColor: `${outcomeColor}4A`,
-                    },
-                  ]}
-                >
-                  <Icon name={d.icon} size={14} color={outcomeColor} />
-                </View>
-                <Text style={s.affectedGroup}>{a.group}</Text>
-                <View
-                  style={[
-                    s.directionChip,
-                    {
-                      backgroundColor: `${outcomeColor}18`,
-                      borderColor: `${outcomeColor}70`,
-                    },
-                  ]}
-                >
-                  <Text style={[s.affectedDirection, { color: outcomeColor }]}>
-                    {tr(d.label)}
-                  </Text>
-                </View>
-              </View>
-              <EmphasizedText
-                style={s.affectedTakeaway}
-                strongStyle={s.inlineStrongEditorial}
-              >
-                {takeaway ?? a.effect.replaceAll("**", "")}
-              </EmphasizedText>
-              {takeaway ? (
-                <>
-                  <TouchableOpacity
-                    style={s.affectedMore}
-                    activeOpacity={0.7}
-                    onPress={() => setOpenIndex(open ? null : i)}
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: open }}
-                  >
-                    <Text style={[s.affectedMoreText, { color: outcomeColor }]}>
-                      {open
-                        ? tr("readerUi.hideContext")
-                        : tr("readerUi.whyMatters")}
-                    </Text>
-                    <View style={open ? s.chevFlip : undefined}>
-                      <Icon name="chevD" size={13} color={outcomeColor} />
-                    </View>
-                  </TouchableOpacity>
-                  {open ? (
-                    <EmphasizedText style={s.affectedContext}>
-                      {a.effect}
-                    </EmphasizedText>
-                  ) : null}
-                </>
-              ) : null}
-            </View>
-          </View>
-        );
-      })}
+            <Text style={[s.flatTitle, { flex: 1 }]}>{person.group}</Text>
+            <ReaderDisclosureIcon expanded={openIndex === index} />
+          </ReaderPressable>
+          {openIndex === index ? (
+            <ReaderReveal style={{ paddingBottom: 24, gap: 12 }}>
+              <Text style={s.affectedDirection}>
+                {t(DIRECTION[person.direction])}
+              </Text>
+              <ReaderText text={person.effect} />
+            </ReaderReveal>
+          ) : null}
+        </View>
+      ))}
     </View>
   );
 }
@@ -651,25 +406,19 @@ function Affected({ affected }: { affected: BillBriefData["affected"] }) {
 /* ---------- Unknowns — the honesty block ---------- */
 // Deliberately given the same visual weight as the analysis blocks. Burying it
 // would let a brief read as more settled than the source actually is.
-function Unknowns({
-  unknowns,
-  accent,
-}: {
-  unknowns: string[];
-  accent: string;
-}) {
+function Unknowns({ unknowns }: { unknowns: string[] }) {
   const { t: tr } = useLanguage();
   if (unknowns.length === 0) return null;
   return (
     <View style={s.unknownCard} testID="brief-unknowns">
       <View style={s.unknownHead}>
-        <Icon name="help" size={15} color={colors.textSecondary} />
+        <Icon name="help" size={15} color={R.muted} />
         <Text style={s.unknownTitle}>{tr("readerUi.unknowns")}</Text>
       </View>
       <View style={s.unknownList}>
         {unknowns.map((u, i) => (
           <View key={i} style={s.unknownRow}>
-            <Text style={[s.unknownIndex, { color: accent }]}>
+            <Text style={[s.unknownIndex, { color: R.muted }]}>
               {String(i + 1).padStart(2, "0")}
             </Text>
             <EmphasizedText style={s.unknownText}>{u}</EmphasizedText>
@@ -681,44 +430,38 @@ function Unknowns({
 }
 
 /* ---------- Terms — essential vocabulary before the analysis ---------- */
-function Terms({
-  terms,
-  accent,
-}: {
-  terms: BillBriefData["terms"];
-  accent: string;
-}) {
+function Terms({ terms }: { terms: BillBriefData["terms"] }) {
   const { t: tr } = useLanguage();
+  const [open, setOpen] = useState(false);
   if (terms.length === 0) return null;
   return (
     <View style={s.termSection} testID="brief-key-terms">
-      <View style={s.termHeading}>
-        <View style={[s.termIcon, { backgroundColor: `${accent}28` }]}>
-          <Icon name="book" size={15} color={accent} />
+      <TouchableOpacity
+        style={s.termHeading}
+        onPress={() => setOpen((value) => !value)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        testID="brief-terms-toggle"
+      >
+        <View style={[s.termIcon, { backgroundColor: R.wash }]}>
+          <Icon name="book" size={15} color={R.muted} />
         </View>
         <View style={s.termHeadingCopy}>
           <Text style={s.termTitle}>{tr("readerUi.terms")}</Text>
-          <Text style={s.termSubtitle}>{tr("readerUi.termsSub")}</Text>
         </View>
-      </View>
-      <View style={s.termList}>
-        {terms.map((t, i) => (
-          <View
-            key={i}
-            style={[
-              s.termRow,
-              { borderLeftColor: i % 2 === 0 ? accent : "#8B7CFF" },
-            ]}
-          >
-            <Text
-              style={[s.termName, { color: i % 2 === 0 ? accent : "#A99EFF" }]}
-            >
-              {t.term}
-            </Text>
-            <EmphasizedText style={s.termPlain}>{t.plain}</EmphasizedText>
-          </View>
-        ))}
-      </View>
+        <Text style={s.changeIndex}>{terms.length}</Text>
+        <Icon name={open ? "minus" : "chevD"} size={16} color={R.muted} />
+      </TouchableOpacity>
+      {open && (
+        <View style={s.termList}>
+          {terms.map((t, i) => (
+            <View key={i} style={[s.termRow, { borderLeftColor: R.rule }]}>
+              <Text style={[s.termName, { color: R.text }]}>{t.term}</Text>
+              <EmphasizedText style={s.termPlain}>{t.plain}</EmphasizedText>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -789,7 +532,7 @@ function FurtherReading({
             })}
           >
             <View style={s.readingIcon}>
-              <Icon name="external" size={15} color={colors.textSecondary} />
+              <Icon name="external" size={15} color={R.muted} />
             </View>
             <View style={s.readingCopy}>
               <Text style={s.readingPublisher}>{item.publisher}</Text>
@@ -808,7 +551,7 @@ function FurtherReading({
                 {item.whyRead}
               </EmphasizedText>
             </View>
-            <Icon name="chevR" size={16} color={colors.textSecondary} />
+            <Icon name="chevR" size={16} color={R.muted} />
           </TouchableOpacity>
         ))}
       </View>
@@ -834,7 +577,7 @@ function FurtherReading({
                 accessibilityRole="button"
                 accessibilityLabel={tr("readerUi.closeExplainer")}
               >
-                <Icon name="close" size={20} color={colors.white} />
+                <Icon name="close" size={20} color={R.text} />
               </TouchableOpacity>
             </View>
             <ScrollView
@@ -862,11 +605,7 @@ function FurtherReading({
                         <Text style={s.readingPublisher}>{item.publisher}</Text>
                         <Text style={s.modalSourceTitle}>{item.title}</Text>
                       </View>
-                      <Icon
-                        name="external"
-                        size={15}
-                        color={colors.textSecondary}
-                      />
+                      <Icon name="external" size={15} color={R.muted} />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -879,6 +618,31 @@ function FurtherReading({
   );
 }
 
+function OptionalSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={s.optionalSection}>
+      <TouchableOpacity
+        style={s.optionalToggle}
+        onPress={() => setOpen((value) => !value)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        testID="brief-perspectives-toggle"
+      >
+        <Text style={s.optionalTitle}>{title}</Text>
+        <Icon name={open ? "minus" : "chevD"} size={16} color={R.muted} />
+      </TouchableOpacity>
+      {open ? children : null}
+    </View>
+  );
+}
+
 /* ---------- Section heading ---------- */
 function BlockTitle({ children }: { children: string }) {
   return <Text style={s.blockTitle}>{children}</Text>;
@@ -887,49 +651,63 @@ function BlockTitle({ children }: { children: string }) {
 /* ---------- BillBrief ---------- */
 export function BillBrief({
   data,
-  accent = colors.civicBlue,
+  showSummary = true,
+  accent = R.link,
   dualLens,
   onViewSource,
 }: {
   data: BillBriefData;
+  showSummary?: boolean;
   accent?: string;
   dualLens?: ReactNode;
   onViewSource?: (quote: BriefQuote) => void;
 }) {
   const { t: tr } = useLanguage();
+  const { fontScale } = useWindowDimensions();
   // Keep fast refresh safe while a screen still holds a pre-v5 brief in memory.
   const reading = data.reading ?? [];
+  const figure = getBillFactFigure(data.facts);
 
   return (
-    <View style={s.root} testID="bill-brief">
-      <Hook
-        summary={data.summary}
-        text={data.hook}
-        legalStatus={data.legalStatus}
-        accent={accent}
-      />
-      {data.whyNotBefore ? (
-        <WhyNotBefore context={data.whyNotBefore} accent={accent} />
-      ) : null}
-      <Terms terms={data.terms} accent={accent} />
+    <View key={fontScale} style={s.root} testID="bill-brief">
+      {showSummary && (
+        <BillSummary
+          summary={data.summary}
+          text={data.hook}
+          legalStatus={data.legalStatus}
+          accent={accent}
+        />
+      )}
 
-      <BlockTitle>{tr("readerUi.changes")}</BlockTitle>
-      <Changes
-        changes={data.changes}
-        accent={accent}
+      <BillChangeExplorer
+        data={data}
+        showFirstTitle
+        testIDPrefix="brief"
         onViewSource={onViewSource}
       />
 
-      <BlockTitle>{tr("readerUi.affected")}</BlockTitle>
+      {figure ? (
+        <BillFactFigure
+          figure={figure}
+          onViewSource={onViewSource}
+          changes={data.changes}
+          legalStatus={data.legalStatus}
+        />
+      ) : null}
+
+      <BlockTitle>{tr("readerUi.whoAffected")}</BlockTitle>
       <Affected affected={data.affected} />
 
-      <Unknowns unknowns={data.unknowns} accent={accent} />
+      <Unknowns unknowns={data.unknowns} />
 
+      <Terms terms={data.terms} />
+      {data.whyNotBefore ? (
+        <WhyNotBefore context={data.whyNotBefore} accent={accent} />
+      ) : null}
       {dualLens ? (
-        <View style={s.lensSection}>
-          <BlockTitle>{tr("readerUi.arguments")}</BlockTitle>
+        <OptionalSection title={tr("readerUi.arguments")}>
           {dualLens}
-        </View>
+        </OptionalSection>
       ) : null}
 
       {data.deepDive || reading.length > 0 ? (
@@ -947,59 +725,78 @@ export function BillBrief({
 }
 
 const s = StyleSheet.create({
+  flatSection: { borderTopWidth: 1, borderTopColor: R.rule },
+  flatToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    paddingVertical: 16,
+    minHeight: 60,
+  },
+  flatTitle: { ...T.body, fontFamily: fontBody.medium, color: R.text },
   root: { gap: 18 },
+  compactSummary: { paddingTop: 0, paddingBottom: 0, gap: 6 },
+  compactSummaryText: { ...T.body },
+  optionalSection: {
+    backgroundColor: "transparent",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+  },
+  optionalToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    minHeight: 56,
+  },
+  optionalTitle: {
+    ...T.action,
+    flex: 1,
+    color: R.text,
+  },
 
   /* summary */
   summaryCard: {
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderColor: hair[1],
-    borderLeftWidth: 3,
-    borderRadius: 14,
-    padding: 16,
+    paddingVertical: 12,
     gap: 13,
   },
   summaryHead: { flexDirection: "row", alignItems: "center", gap: 9 },
-  summaryIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   summaryTitle: {
     flex: 1,
     fontFamily: fontEditorial.bold,
     fontSize: 17,
-    color: colors.white,
+    color: R.text,
   },
   summaryStatus: {
-    borderWidth: 1,
+    backgroundColor: "transparent",
+    borderWidth: 0,
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
   summaryStatusText: {
+    ...T.label,
+    color: R.muted,
     fontFamily: fontBody.semibold,
-    fontSize: 9,
     letterSpacing: 0.8,
   },
   summaryText: {
     fontFamily: fontBody.regular,
-    fontSize: 15,
-    lineHeight: 23,
-    color: colors.white,
+    fontSize: 18,
+    lineHeight: 27,
+    color: R.text,
   },
   summaryToggle: {
-    minHeight: 32,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
     gap: 6,
   },
   summaryToggleText: {
+    ...T.label,
+    ...T.action,
     fontFamily: fontBody.semibold,
-    fontSize: 12,
   },
   extendedSummary: {
     borderTopWidth: 1,
@@ -1008,147 +805,46 @@ const s = StyleSheet.create({
     gap: 7,
   },
   extendedSummaryLabel: {
+    ...T.label,
     fontFamily: fontBody.semibold,
-    fontSize: 9,
     letterSpacing: 0.9,
-    color: colors.textSecondary,
+    color: R.muted,
   },
   extendedSummaryText: {
+    ...T.body,
     fontFamily: fontBody.regular,
-    fontSize: 14,
-    lineHeight: 21,
-    color: "rgba(255,255,255,0.78)",
+    color: R.text,
   },
 
   /* block heading */
   blockTitle: {
-    fontFamily: fontEditorial.bold,
-    fontSize: 18,
-    color: colors.white,
-    marginBottom: -6,
+    ...T.action,
+    color: R.text,
   },
 
   /* changes */
-  changeCarouselWrap: { gap: 10, marginHorizontal: -4 },
-  changeCarouselContent: {
-    gap: 12,
-    paddingHorizontal: 4,
-    paddingRight: 28,
-  },
-  changeCard: {
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderColor: hair[1],
-    borderRadius: 14,
-    padding: 15,
-    gap: 11,
-  },
-  changePager: {
-    minHeight: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 8,
-  },
-  changePagerDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: hair[2],
-  },
-  changePagerDotActive: { width: 18 },
-  changePagerText: {
-    marginLeft: 4,
-    fontFamily: fontBody.medium,
-    fontSize: 10.5,
-    color: colors.textSecondary,
-  },
-  changeHead: { flexDirection: "row", alignItems: "center" },
-  kindChip: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-  },
   kindChipText: {
+    ...T.label,
+    color: R.muted,
     fontFamily: fontBody.semibold,
-    fontSize: 9.5,
     letterSpacing: 0.9,
   },
   changeIndex: {
+    ...T.label,
     marginLeft: "auto",
     fontFamily: fontBody.medium,
-    fontSize: 10.5,
-    color: colors.textSecondary,
-  },
-  changeTitle: {
-    fontFamily: fontBody.semibold,
-    fontSize: 16,
-    lineHeight: 22,
-    color: colors.white,
-  },
-  deltaStack: { gap: 8 },
-  deltaBefore: {
-    backgroundColor: planes.surface,
-    borderRadius: 10,
-    padding: 12,
-    gap: 5,
-  },
-  deltaAfter: {
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    gap: 5,
-  },
-  deltaLabel: {
-    fontFamily: fontBody.medium,
-    fontSize: 9,
-    letterSpacing: 0.9,
-    color: colors.textSecondary,
-  },
-  deltaText: {
-    fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 19,
-    color: "rgba(255,255,255,0.66)",
-  },
-  // The "after" column carries the actual change, so it reads at full strength
-  // while "now" recedes. This is emphasis, not endorsement.
-  deltaTextAfter: { color: "rgba(255,255,255,0.92)" },
-  deltaTransition: {
-    height: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 8,
-  },
-  deltaTransitionLine: { width: 2, height: 18, borderRadius: 2 },
-  deltaTransitionText: {
-    fontFamily: fontBody.semibold,
-    fontSize: 8.5,
-    letterSpacing: 0.7,
+    color: R.muted,
   },
   inlineStrong: {
     fontFamily: fontBody.semibold,
-    color: colors.white,
+    color: R.text,
   },
-  inlineStrongEditorial: {
-    fontFamily: fontEditorial.bold,
-  },
-
-  changeVisual: {
-    height: 142,
-    borderRadius: 11,
-    backgroundColor: planes.ink,
-  },
-
-  /* cited historical context */
   contextCard: {
-    backgroundColor: planes.slate,
-    borderWidth: 1,
+    backgroundColor: "transparent",
+    borderWidth: 0,
     borderColor: hair[1],
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 0,
+    paddingVertical: 16,
   },
   contextToggle: {
     flexDirection: "row",
@@ -1164,16 +860,13 @@ const s = StyleSheet.create({
   },
   contextHeadingCopy: { flex: 1, gap: 6 },
   contextTitle: {
-    fontFamily: fontEditorial.bold,
-    fontSize: 16,
-    lineHeight: 21,
-    color: colors.white,
+    ...T.action,
+    color: R.text,
   },
   contextSummary: {
+    ...T.body,
     fontFamily: fontBody.regular,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: "rgba(255,255,255,0.72)",
+    color: R.text,
   },
   contextDetails: {
     marginTop: 14,
@@ -1185,35 +878,39 @@ const s = StyleSheet.create({
   contextPoint: {
     flexDirection: "row",
     gap: 10,
-    backgroundColor: planes.surface,
+    backgroundColor: "transparent",
     borderRadius: 10,
     padding: 11,
   },
   contextIndex: {
+    ...T.label,
     fontFamily: fontBody.bold,
-    fontSize: 10,
     letterSpacing: 0.6,
     paddingTop: 2,
   },
   contextPointCopy: { flex: 1, gap: 6 },
   contextPointText: {
+    ...T.body,
     fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 19,
-    color: "rgba(255,255,255,0.82)",
+    color: R.text,
   },
-  contextCitations: { flexDirection: "row", gap: 5 },
+  contextCitations: {
+    ...T.label,
+    flexDirection: "row",
+    gap: 5,
+  },
   contextCitation: {
     fontFamily: fontBody.bold,
-    fontSize: 10.5,
   },
-  contextSources: { gap: 8 },
+  contextSources: {
+    ...T.label,
+    gap: 8,
+  },
   contextSourcesTitle: {
     fontFamily: fontBody.semibold,
-    fontSize: 11,
     letterSpacing: 0.8,
     textTransform: "uppercase",
-    color: colors.textSecondary,
+    color: R.muted,
   },
   contextSource: {
     flexDirection: "row",
@@ -1222,182 +919,59 @@ const s = StyleSheet.create({
     paddingVertical: 3,
   },
   contextSourceNumber: {
+    ...T.label,
     fontFamily: fontBody.bold,
-    fontSize: 10.5,
   },
   contextSourceCopy: { flex: 1, gap: 1 },
   contextSourceTitle: {
+    ...T.action,
     fontFamily: fontBody.medium,
-    fontSize: 11.5,
-    color: colors.white,
+    color: R.text,
   },
   contextSourcePublisher: {
+    ...T.label,
     fontFamily: fontBody.regular,
-    fontSize: 10.5,
-    color: colors.textSecondary,
+    color: R.muted,
   },
 
   /* quote disclosure */
-  quoteWrap: {
-    borderTopWidth: 1,
-    borderTopColor: hair[1],
-    paddingTop: 10,
-    gap: 9,
-  },
-  quoteToggle: { flexDirection: "row", alignItems: "center", gap: 7 },
-  quoteToggleText: {
-    flex: 1,
-    fontFamily: fontBody.medium,
-    fontSize: 11.5,
-    color: colors.textSecondary,
-  },
-  quoteBody: {
-    backgroundColor: planes.ink,
-    borderRadius: 10,
-    padding: 12,
-  },
-  quoteText: {
-    fontFamily: fontEditorial.italic,
-    fontSize: 13.5,
-    lineHeight: 20,
-    color: "rgba(255,255,255,0.8)",
-  },
-  viewSourceButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    borderRadius: 999,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-  },
-  viewSourceText: {
-    fontFamily: fontBody.semibold,
-    fontSize: 11.5,
-    color: colors.white,
-  },
-
-  /* affected */
-  affectedList: { width: "100%", minWidth: 0, gap: 10 },
-  affectedRow: {
-    width: "100%",
-    minWidth: 0,
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderColor: hair[1],
-    borderRadius: 14,
-    padding: 14,
-    alignItems: "stretch",
-  },
-  affectedIcon: {
-    width: 28,
-    height: 28,
-    borderWidth: 1,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  // A column child's `flex: 1` constrains its height, not its width. Give the
-  // prose an explicit horizontal boundary so nested bold Text spans measure
-  // against the card and React Native can wrap them natively.
-  affectedBody: { width: "100%", minWidth: 0, gap: 9 },
-  affectedHead: {
-    width: "100%",
-    minWidth: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-  },
-  affectedGroup: {
-    flex: 1,
-    minWidth: 0,
-    flexShrink: 1,
-    fontFamily: fontBody.bold,
-    fontSize: 14.5,
-    color: colors.white,
-  },
   affectedDirection: {
+    ...T.label,
     fontFamily: fontBody.medium,
-    fontSize: 10,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    color: colors.textSecondary,
+    color: R.muted,
   },
-  directionChip: {
-    flexShrink: 0,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  affectedTakeaway: {
-    width: "100%",
-    minWidth: 0,
-    flexShrink: 1,
-    fontFamily: fontEditorial.regular,
-    fontSize: 15.5,
-    lineHeight: 21,
-    color: "rgba(255,255,255,0.72)",
-  },
-  affectedEffect: {
-    fontFamily: fontBody.regular,
-    fontSize: 13.5,
-    lineHeight: 20,
-    color: "rgba(255,255,255,0.78)",
-  },
-  affectedMore: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  affectedMoreText: {
-    fontFamily: fontBody.medium,
-    fontSize: 11,
-    opacity: 0.86,
-  },
-  affectedContext: {
-    fontFamily: fontBody.regular,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: "rgba(255,255,255,0.68)",
-  },
-
-  /* unknowns */
   unknownCard: {
-    backgroundColor: planes.surface,
-    borderWidth: 1,
+    backgroundColor: "transparent",
+    borderWidth: 0,
     borderColor: hair[2],
-    borderRadius: 14,
-    padding: 15,
+    borderRadius: 0,
+    paddingVertical: 16,
     gap: 10,
   },
   unknownHead: { flexDirection: "row", alignItems: "center", gap: 8 },
   unknownTitle: {
-    fontFamily: fontEditorial.bold,
-    fontSize: 15,
-    color: colors.white,
+    ...T.action,
+    color: R.text,
   },
   unknownList: { gap: 8 },
   unknownRow: {
     flexDirection: "row",
     gap: 10,
-    backgroundColor: planes.slate,
+    backgroundColor: "transparent",
     borderRadius: 10,
     padding: 11,
   },
   unknownIndex: {
+    ...T.label,
     fontFamily: fontBody.bold,
-    fontSize: 10,
     letterSpacing: 0.6,
     paddingTop: 2,
   },
   unknownText: {
+    ...T.body,
     flex: 1,
     fontFamily: fontBody.regular,
-    fontSize: 13.5,
-    lineHeight: 20,
-    color: "rgba(255,255,255,0.78)",
+    color: R.text,
   },
 
   /* disclosures */
@@ -1405,14 +979,19 @@ const s = StyleSheet.create({
 
   /* terms */
   termSection: {
-    backgroundColor: planes.slate,
-    borderWidth: 1,
+    backgroundColor: "transparent",
+    borderWidth: 0,
     borderColor: hair[1],
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 0,
+    paddingVertical: 16,
     gap: 12,
   },
-  termHeading: { flexDirection: "row", alignItems: "center", gap: 10 },
+  termHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 44,
+  },
   termIcon: {
     width: 32,
     height: 32,
@@ -1422,38 +1001,30 @@ const s = StyleSheet.create({
   },
   termHeadingCopy: { flex: 1, gap: 1 },
   termTitle: {
-    fontFamily: fontEditorial.bold,
-    fontSize: 16,
-    color: colors.white,
-  },
-  termSubtitle: {
-    fontFamily: fontBody.regular,
-    fontSize: 11.5,
-    color: colors.textSecondary,
+    ...T.action,
+    color: R.text,
   },
   termList: { gap: 8 },
   termRow: {
     borderLeftWidth: 3,
-    backgroundColor: planes.surface,
+    backgroundColor: "transparent",
     borderRadius: 9,
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 3,
   },
   termName: {
+    ...T.action,
     fontFamily: fontBody.semibold,
-    fontSize: 13.5,
-    color: colors.white,
+    color: R.text,
   },
   termPlain: {
+    ...T.body,
     fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 19,
-    color: "rgba(255,255,255,0.74)",
+    color: R.text,
   },
 
   /* further reading */
-  lensSection: { gap: 12 },
   readingList: { gap: 10 },
   deepDiveCard: {
     width: "100%",
@@ -1461,12 +1032,12 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 11,
-    backgroundColor: planes.slate,
+    backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: hair[1],
     borderLeftWidth: 3,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 0,
+    paddingVertical: 16,
     overflow: "hidden",
   },
   readingCard: {
@@ -1475,54 +1046,58 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 11,
-    backgroundColor: planes.surface,
+    backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: hair[1],
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 0,
+    paddingVertical: 16,
     overflow: "hidden",
   },
   readingIcon: {
     width: 32,
     height: 32,
     borderRadius: 9,
-    backgroundColor: planes.slate,
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },
-  readingCopy: { flex: 1, flexShrink: 1, minWidth: 0, gap: 4 },
+  readingCopy: {
+    ...T.label,
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    gap: 4,
+  },
   readingPublisher: {
     fontFamily: fontBody.bold,
-    fontSize: 10,
     letterSpacing: 0.7,
-    color: colors.textSecondary,
+    color: R.muted,
   },
   deepDiveTitle: {
     fontFamily: fontEditorial.bold,
     fontSize: 18,
     lineHeight: 22,
-    color: colors.white,
+    color: R.text,
   },
   readingTitle: {
+    ...T.action,
     flexShrink: 1,
     fontFamily: fontBody.semibold,
-    fontSize: 14.5,
-    lineHeight: 19,
-    color: colors.white,
+    color: R.text,
   },
   readingWhy: {
+    ...T.body,
     flexShrink: 1,
     fontFamily: fontBody.regular,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: "rgba(255,255,255,0.68)",
+    color: R.text,
   },
   readingAction: {
+    ...T.label,
+    ...T.action,
     marginTop: 4,
     fontFamily: fontBody.semibold,
-    fontSize: 12,
   },
-  deepDiveModal: { flex: 1, backgroundColor: planes.navy },
+  deepDiveModal: { flex: 1, backgroundColor: R.canvas },
   modalHead: {
     flexDirection: "row",
     alignItems: "center",
@@ -1534,21 +1109,21 @@ const s = StyleSheet.create({
     borderBottomColor: hair[1],
   },
   modalKicker: {
+    ...T.label,
     fontFamily: fontBody.bold,
-    fontSize: 10,
     letterSpacing: 1.1,
   },
   modalBrand: {
+    ...T.label,
     marginTop: 2,
     fontFamily: fontBody.medium,
-    fontSize: 12,
-    color: colors.textSecondary,
+    color: R.muted,
   },
   modalClose: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: planes.slate,
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1561,14 +1136,13 @@ const s = StyleSheet.create({
     fontFamily: fontEditorial.bold,
     fontSize: 31,
     lineHeight: 36,
-    color: colors.white,
+    color: R.text,
   },
   modalDek: {
+    ...T.body,
     marginTop: 12,
     fontFamily: fontBody.regular,
-    fontSize: 16,
-    lineHeight: 24,
-    color: "rgba(255,255,255,0.7)",
+    color: R.text,
   },
   modalRule: {
     width: 44,
@@ -1587,7 +1161,7 @@ const s = StyleSheet.create({
   modalSourcesTitle: {
     fontFamily: fontEditorial.bold,
     fontSize: 19,
-    color: colors.white,
+    color: R.text,
   },
   modalSourceRow: {
     flexDirection: "row",
@@ -1596,9 +1170,8 @@ const s = StyleSheet.create({
     paddingVertical: 10,
   },
   modalSourceTitle: {
+    ...T.action,
     fontFamily: fontBody.semibold,
-    fontSize: 14,
-    lineHeight: 19,
-    color: colors.white,
+    color: R.text,
   },
 });
