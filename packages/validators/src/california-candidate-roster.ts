@@ -1,0 +1,157 @@
+import { z } from "zod/v4";
+
+import { candidateBriefIdentitySchema } from "./candidate-brief";
+import { researchSourceSchema } from "./candidate-research-collection";
+
+const hash = z.string().regex(/^[a-f0-9]{64}$/);
+const text = z.string().min(1);
+export const californiaOfficeFamilySchema = z.enum([
+  "statewide",
+  "board_of_equalization",
+  "us_house",
+  "state_senate",
+  "state_assembly",
+  "judicial_retention",
+  "local",
+]);
+export const californiaRaceTargetSchema = z.object({
+  raceKey: text,
+  contestId: text,
+  jurisdiction: text,
+  jurisdictionLabel: text,
+  electionDate: z.iso.date(),
+  sourceContestId: text,
+  officeFamily: californiaOfficeFamilySchema,
+  office: text,
+  district: text.nullable(),
+  kind: z.enum(["election", "retention"]),
+  voteFor: z.number().int().positive().optional(),
+  territoryProof: z
+    .union([
+      z.object({
+        url: z.url(),
+        contentHash: hash,
+        excerpt: text,
+        locator: text,
+      }),
+      z.object({
+        kind: z.literal("reviewed_crosswalk"),
+        digest: hash,
+        actorId: text,
+        reviewedAt: z.iso.datetime(),
+        method: text,
+        reason: text,
+        proofs: z.array(z.object({ url: z.url(), contentHash: hash })).min(1),
+      }),
+    ])
+    .optional(),
+  rosterDigest: hash,
+  rosterSourceUrl: z.url().optional(),
+  sourceProof: z
+    .object({ url: z.url(), contentHash: hash, locator: text })
+    .optional(),
+  members: z
+    .array(
+      z.object({
+        identity: candidateBriefIdentitySchema,
+        candidateId: text,
+        name: text,
+        sourceCandidateId: text,
+        partyCode: z.string(),
+        party: text.nullable(),
+        sourceProof: z
+          .object({
+            url: z.url(),
+            contentHash: hash,
+            excerpt: text,
+            locator: text,
+          })
+          .optional(),
+        ballotStatus: z.enum([
+          "on_ballot",
+          "withdrawn_on_ballot",
+          "qualified_write_in",
+        ]),
+      }),
+    )
+    .min(1),
+});
+export const sanJoseScopeCrosswalkSchema = z.object({
+  schemaVersion: z.literal(1),
+  electionDate: z.literal("2026-11-03"),
+  rosterSourceHash: hash,
+  method: text,
+  entries: z
+    .array(
+      z.object({
+        sourceContestId: text,
+        status: z.enum(["include", "exclude", "pending", "off_ballot"]),
+        reason: text,
+        jurisdiction: text.optional(),
+        jurisdictionLabel: text.optional(),
+        district: text.nullable().optional(),
+        proofs: z.array(z.object({ url: z.url(), contentHash: hash })).min(1),
+      }),
+    )
+    .length(129),
+  review: z.object({
+    digest: hash,
+    actorId: text,
+    reviewedAt: z.iso.datetime(),
+  }),
+});
+export type SanJoseScopeCrosswalk = z.infer<typeof sanJoseScopeCrosswalkSchema>;
+
+export const californiaRosterSnapshotSchema = z.object({
+  schemaVersion: z.literal(1),
+  id: hash,
+  electionDate: z.iso.date(),
+  scope: z.enum(["ca_sos_certified", "ca_sos_certified_and_san_jose"]),
+  localCoverage: z
+    .object({
+      scope: z.literal("san_jose"),
+      status: z.enum(["pending", "verified"]),
+      expectedCandidates: z.number().int().nonnegative().nullable(),
+      expectedRaces: z.number().int().nonnegative().nullable(),
+      notes: text,
+      pendingRaces: z.number().int().nonnegative().optional(),
+      pendingCandidates: z.number().int().nonnegative().optional(),
+    })
+    .optional(),
+  scopeLabel: text,
+  source: z.object({
+    url: z.url(),
+    byteHash: hash,
+    textHash: hash,
+    fetchedAt: z.iso.datetime(),
+    encoding: z.literal("windows-1252"),
+    text,
+  }),
+  certification: z.object({
+    url: z.url(),
+    textHash: hash,
+    fetchedAt: z.iso.datetime(),
+    text,
+  }),
+  races: z.array(californiaRaceTargetSchema).min(1),
+  additionalSources: z.array(researchSourceSchema).max(200).optional(),
+  localCrosswalk: sanJoseScopeCrosswalkSchema.optional(),
+  excludedContests: z.array(
+    z.object({ sourceContestId: text, reason: z.literal("proposition") }),
+  ),
+  countyCoverage: z.array(
+    z.object({
+      fips: text,
+      name: text,
+      status: z.literal("not_enumerated"),
+      sourceUrl: z.url().optional(),
+    }),
+  ),
+});
+export type CaliforniaOfficeFamily = z.infer<
+  typeof californiaOfficeFamilySchema
+>;
+export type CaliforniaRaceTarget = z.infer<typeof californiaRaceTargetSchema>;
+export type CaliforniaRosterSnapshot = z.infer<
+  typeof californiaRosterSnapshotSchema
+>;

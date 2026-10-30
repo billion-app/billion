@@ -200,6 +200,26 @@ export const candidateRaceManifestSchema = z
     office: text,
     rosterSourceUrl: z.url().refine((url) => /^https?:\/\//.test(url)),
     rosterHash: z.string().regex(/^[a-f0-9]{64}$/),
+    rosterSnapshotId: z.string().min(1).max(100).optional(),
+    rosterDigest: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
+    collectionId: z.uuid().optional(),
+    reviewedDossiers: z
+      .record(
+        z.string(),
+        z.object({
+          dossierDigest: z.string().regex(/^[a-f0-9]{64}$/),
+          sourceSetDigest: z.string().regex(/^[a-f0-9]{64}$/),
+          authorRunId: z.uuid(),
+        }),
+      )
+      .optional(),
+    sourceDigest: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
     rosterVerifiedAt: z.iso.datetime(),
     rosterVerifiedBy: text,
     members: z
@@ -209,7 +229,11 @@ export const candidateRaceManifestSchema = z
           revisionId: z.uuid(),
           name: text,
           description: text.nullable(),
-          ballotStatus: z.enum(["on_ballot", "withdrawn_on_ballot"]),
+          ballotStatus: z.enum([
+            "on_ballot",
+            "withdrawn_on_ballot",
+            "qualified_write_in",
+          ]),
         }),
       )
       .min(1)

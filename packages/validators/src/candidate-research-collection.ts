@@ -17,7 +17,25 @@ export const researchSourceSchema = z.object({
 });
 export const candidateResearchCollectionSchema = z
   .object({
-    pilotKey: z.string().min(1).max(100),
+    pilotKey: z.string().min(1).max(200),
+    candidateArtifacts: z
+      .array(
+        z.object({
+          candidateId: z.string().min(1),
+          dossierDigest: z.string().regex(/^[a-f0-9]{64}$/),
+          sourceSetDigest: z.string().regex(/^[a-f0-9]{64}$/),
+          author: z.unknown(),
+          dossier: z.unknown().optional(),
+        }),
+      )
+      .max(100)
+      .optional(),
+    researchVersion: z.string().min(1).max(100).optional(),
+    rosterSnapshotId: z.string().min(1).max(100).optional(),
+    rosterDigest: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
     manifest: candidateRaceManifestSchema,
     briefs: z.array(candidateBriefSchema).min(1).max(100),
     sources: z.array(researchSourceSchema).min(1).max(200),
