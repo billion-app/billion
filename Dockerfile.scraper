@@ -74,6 +74,7 @@ COPY --from=builder /app/deploy ./
 # Verify bundled workspace imports resolve from the deployed production root.
 # --help exits before database access or generation.
 RUN node dist/main.js --help > /dev/null && \
-    node dist/content-translations.js --help > /dev/null
+    node dist/content-translations.js --help > /dev/null && \
+    node dist/california-research.js --help > /dev/null
 
 CMD ["node", "dist/main.js"]
