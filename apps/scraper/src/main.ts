@@ -1,6 +1,7 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
+import { validateResearchTargetArgs } from "./candidate-research/statewide-target.js";
 import {
   databaseTarget,
   databaseTargetMessage,
@@ -44,6 +45,13 @@ const argv = await yargs(hideBin(process.argv))
     describe:
       'Fetch specific bills by number (e.g. --bill "H.R. 7008" for congress, --bill "SB 243" for open-states), ignoring the incremental update cursor. Repeatable. Requires the "congress" or "open-states" scraper',
   })
+  .option("target", {
+    type: "string",
+    array: true,
+    requiresArg: true,
+    describe:
+      "Select one complete candidate-research race, e.g. ca-lieutenant-governor-2026; requires --max-items 1",
+  })
   .option("congress", {
     type: "number",
     describe: "Congress number for --bill (default: 119)",
@@ -74,6 +82,7 @@ const argv = await yargs(hideBin(process.argv))
     describe: "Rolling activity window protected by --retain",
   })
   .check((args) => {
+    validateResearchTargetArgs(args);
     const maxItems = args.maxItems;
     if (
       maxItems !== undefined &&
@@ -159,7 +168,9 @@ const argv = await yargs(hideBin(process.argv))
 const arg = argv.scraper as string;
 const concurrency = (argv as { concurrency: number }).concurrency;
 const maxItems = (argv as { maxItems?: number }).maxItems;
-const targets = (argv as { bill?: string[] }).bill;
+const targets =
+  (argv as { target?: string[]; bill?: string[] }).target ??
+  (argv as { bill?: string[] }).bill;
 const congressNumber = (argv as { congress?: number }).congress;
 const session = (argv as { session?: string }).session;
 const bulkDir = (argv as { bulkDir?: string }).bulkDir;
