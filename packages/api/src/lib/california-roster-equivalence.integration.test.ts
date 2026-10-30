@@ -250,7 +250,10 @@ void test(
         currentHashes: { [evidenceHashKey(identity, "record")]: recordHash },
       },
     });
-    const artifactKeys: string[] = [],
+    const artifactKeys: string[] = (initial.additionalSources ?? []).map(
+        (source) =>
+          `roster-source:${hash([source.format, source.contentHash, source.byteHash ?? null])}`,
+      ),
       observationKeys: string[] = [],
       rosterIds = [snapshotId];
     let collectionId: string | undefined, releaseId: string | undefined;
@@ -416,6 +419,7 @@ void test(
           fetchedAt: checkedAt,
         }));
         refreshed.manifest.sourceCheckedAt = checkedAt;
+        refreshed.manifest.rosterVerifiedAt = checkedAt;
         refreshed.manifest.expiresAt = new Date(
           Date.parse(checkedAt) + 86_400_000,
         ).toISOString();

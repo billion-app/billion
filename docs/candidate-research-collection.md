@@ -141,3 +141,19 @@ node scripts/verify-candidate-research.mjs --name "Fiona Ma" --office lt-governo
 ```
 
 Use `--base-url` only when deliberately verifying another deployment. Local screenshots with collected data demonstrate rendering, while this check establishes public availability. Neither substitutes for independent content and source review of the exact revisions.
+
+## California roster storage
+
+The roster store accepts and returns the complete immutable roster, including exact source text and image bytes. Its private `archive-refs-v1` JSONB representation stores repeated current source bodies in the existing content-addressed research artifacts. It retains source metadata, races, identity crosswalks, renewal proofs and historical contact evidence at their existing SQL paths. Public catalog queries read that metadata without loading or hydrating the full source bundle.
+
+`saveCaliforniaRoster` writes and verifies the required immutable archives inside the same transaction before inserting the stored manifest or changing the current pointer. `getCaliforniaRoster` resolves references, verifies artifact kind, content address, text hash and available binary hash, then parses the original domain schema. Missing or corrupt archives fail closed. Legacy inline rows remain readable, and saving an existing snapshot ID preserves its first stored document. This representation does not create a new snapshot identity, renew source timestamps, or change sealed candidate revisions.
+
+The stored manifest is limited to 4 MiB of serialized JSON and each referenced archive to 6 MiB. These are admission limits based on the November fixture, not a database memory guarantee. No migration or new archive table is needed. The isolated fixture test requires an explicitly selected disposable database and an unchanged full roster file:
+
+```sh
+CANDIDATE_RESEARCH_TEST_DATABASE_URL=postgresql://roster_test:roster_test@127.0.0.1:55464/roster_storage_test \
+CALIFORNIA_STORAGE_FIXTURE_PATH=/absolute/path/to/approved-full-roster.json \
+pnpm --filter @acme/api exec tsx --test --test-concurrency=1 src/lib/california-roster-storage.integration.test.ts
+```
+
+The test checks exact hydration, public and contact SQL projections, legacy reads, archive corruption, transactional rollback and immutable-ID reuse. It makes no source or model requests and removes its test records. Apply committed migrations to that isolated database before running it.
