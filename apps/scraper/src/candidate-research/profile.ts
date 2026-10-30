@@ -7,18 +7,29 @@ import { money } from "./sources.js";
 /** The public FEC summary remains useful when the itemized API is unavailable. */
 export function profileFinance(
   source: ResearchSource,
-  candidate: { fecId: string; fecName: string },
+  candidate: {
+    fecId: string;
+    fecName: string;
+    district?: string;
+    cycle?: number;
+  },
   citations: CandidateBrief["evidence"],
 ) {
   const text = source.text;
+  const district = String(Number(candidate.district ?? "17"));
+  const cycle = candidate.cycle ?? 2026;
+  const url = new URL(source.url);
   if (
+    url.protocol !== "https:" ||
+    url.hostname !== "www.fec.gov" ||
+    url.pathname !== `/data/candidate/${candidate.fecId}/` ||
     !text.includes(candidate.fecName) ||
     !text.includes(`ID: ${candidate.fecId}`) ||
     !text.includes("Candidate for House") ||
-    !text.includes("California - 17") ||
-    new URL(source.url).searchParams.get("cycle") !== "2026"
+    !new RegExp(`California\\s*-\\s*0?${district}(?!\\d)`).test(text) ||
+    url.searchParams.get("cycle") !== String(cycle)
   )
-    throw new Error("Public FEC profile does not match the pilot identity");
+    throw new Error("Public FEC profile does not match the selected identity");
   const section = text.split("Data is included from these committees:")[1];
   const committeeText = section?.split("Total raised")[0];
   const committees = [
@@ -30,7 +41,11 @@ export function profileFinance(
     /Coverage dates: (\d{2})\/(\d{2})\/(\d{4}) to (\d{2})\/(\d{2})\/(\d{4})/.exec(
       section,
     );
-  if (!dates || dates[3] !== "2025" || dates[6] !== "2026")
+  if (
+    !dates ||
+    ![cycle - 1, cycle].includes(Number(dates[3])) ||
+    ![cycle - 1, cycle].includes(Number(dates[6]))
+  )
     throw new Error(
       "Public FEC coverage is missing or outside the selected cycle",
     );
@@ -58,7 +73,7 @@ export function profileFinance(
       "FEC campaign financial summary",
       quote,
       "primary_record",
-      `2026 election; ${dates[0]}`,
+      `${cycle} election; ${dates[0]}`,
     ),
   );
   citations.push(
@@ -68,7 +83,7 @@ export function profileFinance(
       "FEC contribution refunds",
       refundQuote,
       "primary_record",
-      `2026 election; ${dates[0]}`,
+      `${cycle} election; ${dates[0]}`,
     ),
   );
   return campaignFinanceSchema.parse({

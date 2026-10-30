@@ -1,4 +1,5 @@
 import {
+  activeResearchPolicy,
   failResearchRefresh,
   saveResearchCollection,
 } from "@acme/api/lib/candidate-research-store";
@@ -17,6 +18,15 @@ const logger = createLogger("candidate-research");
 export const candidateResearch: Scraper = {
   ...candidateResearchConfig,
   async scrape(options) {
+    const policy = await activeResearchPolicy();
+    if (
+      policy.approved &&
+      policy.version === "ca-california-candidate-research-2026-10-30-v2" &&
+      policy.automation
+    ) {
+      logger.info("Expanded California research policy owns pilot refreshes");
+      return;
+    }
     const maxItems =
       options?.maxItems ??
       Number(process.env.CANDIDATE_RESEARCH_MAX_ITEMS ?? 1);

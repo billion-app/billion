@@ -1,0 +1,1 @@
+ALTER TABLE "california_race_work" ADD COLUMN "review_epoch" integer DEFAULT 0 NOT NULL;

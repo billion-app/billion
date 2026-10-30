@@ -5,6 +5,13 @@ import { candidateResearchSchema } from "./candidate-research";
 
 const text = z.string().trim().min(1).max(4000);
 const date = z.iso.datetime();
+export const candidateEvidenceAttributionSchema = z.object({
+  status: z.enum(["unresolved", "official_candidate_statement"]),
+  context: z.object({
+    excerpt: z.string().trim().min(1).max(12000),
+    locator: text,
+  }),
+});
 export const candidateBriefIdentitySchema = z.object({
   candidateId: text,
   contestId: text,
@@ -46,6 +53,7 @@ export const candidateBriefSchema = z
           contentHash: z.string().regex(/^[a-f0-9]{64}$/),
           excerpt: text,
           origin: z.enum(["candidate", "primary_record", "reporting"]),
+          attribution: candidateEvidenceAttributionSchema.optional(),
         }),
       )
       .max(100),
@@ -90,6 +98,18 @@ export const candidateBriefSchema = z
     const evidence = new Map(brief.evidence.map((e) => [e.id, e]));
     if (evidence.size !== brief.evidence.length)
       ctx.addIssue({ code: "custom", message: "Duplicate evidence IDs" });
+    for (const source of brief.evidence) {
+      if (
+        source.attribution &&
+        (source.origin !== "candidate" ||
+          !source.attribution.context.excerpt.includes(source.excerpt))
+      )
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "Published attribution must preserve candidate-publisher provenance and full passage context",
+        });
+    }
     const ids = new Set<string>();
     for (const section of brief.sections) {
       if (!section.claims.length && !section.missingEvidence)
@@ -125,8 +145,18 @@ export const candidateBriefSchema = z
     }
     if (brief.research) {
       const claims = brief.sections.flatMap((section) => section.claims);
-      if (!claims.some((claim) => claim.id === brief.research?.headlineClaimId))
-        ctx.addIssue({ code: "custom", message: "Unknown headline claim" });
+      if (brief.research.headlineClaimId !== undefined) {
+        if (
+          !claims.some((claim) => claim.id === brief.research?.headlineClaimId)
+        )
+          ctx.addIssue({ code: "custom", message: "Unknown headline claim" });
+      } else if (claims.length) {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "Finance-only research cannot omit a prose headline when claims are present",
+        });
+      }
       const promises = new Set<string>();
       for (const promise of brief.research.promises) {
         if (

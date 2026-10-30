@@ -102,6 +102,22 @@
     "./lib/california-polling": {
       "types": "./dist/lib/california-polling.d.ts",
       "default": "./src/lib/california-polling.ts"
+    },
+    "./lib/california-roster-store": {
+      "types": "./dist/lib/california-roster-store.d.ts",
+      "default": "./src/lib/california-roster-store.ts"
+    },
+    "./lib/candidate-research-service": {
+      "types": "./dist/lib/candidate-research-service.d.ts",
+      "default": "./src/lib/candidate-research-service.ts"
+    },
+    "./lib/california-public-roster": {
+      "types": "./dist/lib/california-public-roster.d.ts",
+      "default": "./src/lib/california-public-roster.ts"
+    },
+    "./lib/california-catalog-status": {
+      "types": "./dist/lib/california-catalog-status.d.ts",
+      "default": "./src/lib/california-catalog-status.ts"
     }
   },
   "license": "MIT",

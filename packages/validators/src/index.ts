@@ -17,6 +17,8 @@ export * from "./measure-relationships";
 export * from "./budget-context";
 export * from "./candidate-research";
 export * from "./candidate-research-collection";
+export * from "./california-candidate-roster";
+export * from "./candidate-evidence-dossier";
 export * from "./proposition-context";
 export * from "./trillion";
 export * from "./official-title";

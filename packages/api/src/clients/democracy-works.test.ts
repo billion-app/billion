@@ -93,10 +93,18 @@ void test("DW address lookup maps cited candidates/measures without inventing no
     result.contests?.[0]?.candidates?.map((c) => c.ballotStatus),
     ["onBallot", "withdrewStillOnBallot"],
   );
+  assert.deepEqual(result.contests[0].providerIdentity, {
+    provider: "democracy_works",
+    contestId: "contest-test",
+  });
+  assert.deepEqual(result.contests[0].candidates[0]?.providerIdentity, {
+    provider: "democracy_works",
+    candidateId: "person-0",
+  });
   assert.equal(result.contests[1]?.referendumText, "Synthetic question");
   assert.equal(result.contests[0].sources?.[0]?.official, false);
   assert.equal(
-    result.contests[0].candidates[0]?.citations?.[0]?.sourceName,
+    result.contests[0].candidates[0].citations?.[0]?.sourceName,
     "Democracy Works / Ballotpedia",
   );
   assert.equal(result.provider?.coverage, "partial");

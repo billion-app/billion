@@ -14,6 +14,7 @@ import { z } from "zod/v4";
 
 import type {
   BillBriefRecord,
+  CaliforniaRosterSnapshot,
   CandidateBrief,
   CandidateRaceManifest,
   CandidateResearchCollectionDocument,
@@ -1425,7 +1426,7 @@ export const CandidateBriefRevision = pgTable(
     document: t.jsonb().$type<CandidateBrief>().notNull(),
     createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
   }),
-);
+).enableRLS();
 /** Append-only review/withdrawal audit events. No public mutation procedure. */
 export const CandidateBriefReviewEvent = pgTable(
   "candidate_brief_review_event",
@@ -1439,9 +1440,10 @@ export const CandidateBriefReviewEvent = pgTable(
     action: t.text().notNull(),
     policyVersion: t.text().notNull(),
     reason: t.text().notNull(),
+    attestation: t.jsonb().$type<unknown>(),
     createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
   }),
-);
+).enableRLS();
 
 /** A bounded, source-checked race snapshot. Revocation removes the whole race. */
 export const CandidateRaceRelease = pgTable("candidate_race_release", (t) => ({
@@ -1449,7 +1451,7 @@ export const CandidateRaceRelease = pgTable("candidate_race_release", (t) => ({
   document: t.jsonb().$type<CandidateRaceManifest>().notNull(),
   revokedReason: t.text(),
   createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
-}));
+})).enableRLS();
 
 /** Complete source snapshots and draft revisions. Access is restricted to editors. */
 export const CandidateResearchCollection = pgTable(
@@ -1469,7 +1471,7 @@ export const CandidateResearchCollection = pgTable(
       table.createdAt,
     ),
   ],
-);
+).enableRLS();
 
 /** Provisioned by a trusted operator; users cannot grant themselves access. */
 export const CandidateResearchEditor = pgTable(
@@ -1480,7 +1482,7 @@ export const CandidateResearchEditor = pgTable(
     grantedBy: t.text().notNull(),
     createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
   }),
-);
+).enableRLS();
 
 /** Explicit human policy decisions. An empty table leaves publication closed. */
 export const CandidateResearchPolicy = pgTable(
@@ -1489,10 +1491,11 @@ export const CandidateResearchPolicy = pgTable(
     version: t.text().primaryKey(),
     approvedBy: t.text().notNull(),
     statement: t.text().notNull(),
+    automation: t.jsonb().$type<unknown>(),
     revokedAt: t.timestamp({ withTimezone: true }),
     createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
   }),
-);
+).enableRLS();
 
 /** Retrieved source material, never generated explanation. Server-only research library. */
 export const ResearchDocument = pgTable(
@@ -1521,3 +1524,56 @@ export const ResearchCache = pgTable("research_cache", (t) => ({
   value: t.jsonb().notNull().$type<unknown>(),
   expiresAt: t.timestamp({ withTimezone: true }).notNull(),
 })).enableRLS();
+
+export const CaliforniaRoster = pgTable(
+  "california_roster",
+  (t) => ({
+    id: t.text().primaryKey(),
+    electionDate: t.text().notNull(),
+    document: t.jsonb().$type<CaliforniaRosterSnapshot>().notNull(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+  (table) => [
+    index("california_roster_election_idx").on(
+      table.electionDate,
+      table.createdAt,
+    ),
+  ],
+).enableRLS();
+
+export const CaliforniaRaceWork = pgTable(
+  "california_race_work",
+  (t) => ({
+    key: t.text().primaryKey(),
+    snapshotId: t
+      .text()
+      .notNull()
+      .references(() => CaliforniaRoster.id),
+    raceKey: t.text().notNull(),
+    rosterDigest: t.text().notNull(),
+    policyVersion: t.text().notNull(),
+    researchVersion: t.text().notNull(),
+    owner: t.text(),
+    generation: t.integer().notNull().default(0),
+    reviewEpoch: t.integer().notNull().default(0),
+    status: t.text().notNull().default("pending"),
+    leaseUntil: t.timestamp({ withTimezone: true }),
+    checkpoint: t.jsonb().$type<unknown>(),
+    updatedAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+  (table) => [
+    index("california_work_snapshot_idx").on(table.snapshotId, table.status),
+  ],
+).enableRLS();
+
+export const CaliforniaResearchArtifact = pgTable(
+  "california_research_artifact",
+  (t) => ({
+    key: t.text().primaryKey(),
+    kind: t.text().notNull(),
+    raceKey: t.text().notNull(),
+    candidateId: t.text(),
+    document: t.jsonb().$type<unknown>().notNull(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+).enableRLS();

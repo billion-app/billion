@@ -64,7 +64,7 @@ void test(
         candidateId: pilotKey,
         contestId: pilotKey,
         jurisdiction: `fixture:${pilotKey}`,
-        electionDate: "2026-11-03",
+        electionDate: "2090-11-03",
       };
       const revisionId = randomUUID();
       return candidateResearchCollectionSchema.parse({
@@ -236,7 +236,16 @@ void test(
       await t.test(
         "unchanged source refresh preserves the release URL and approved revision",
         async () => {
-          const result = await saveResearchCollection(fixture(), db);
+          const observed = fixture();
+          observed.sources = observed.sources.map((source) => ({
+            ...source,
+            byteHash: createHash("sha256")
+              .update(
+                `raw response metadata changed while extracted text stayed the same: ${source.id}`,
+              )
+              .digest("hex"),
+          }));
+          const result = await saveResearchCollection(observed, db);
           assert.equal(result.changed, false);
           const race = await reader.race({ releaseId });
           assert.equal(race?.manifest.id, releaseId);

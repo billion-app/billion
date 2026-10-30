@@ -2452,6 +2452,12 @@ export const pageStrings = {
       es: "La explicación de Billion asistida por IA es independiente del registro oficial que aparece abajo.",
       zh: "Billion 的 AI 辅助解释与下方官方记录相互区分。",
     },
+  "Billion’s AI-assisted explanation is separate from the source material below.":
+    {
+      en: "Billion’s AI-assisted explanation is separate from the source material below.",
+      es: "La explicación de Billion asistida por IA es distinta del material de las fuentes que aparece abajo.",
+      zh: "Billion 的 AI 辅助解释与下方来源材料相互区分。",
+    },
   "Reviewed by {value1}": {
     en: "Reviewed by {value1}",
     es: "Revisado por {value1}",
@@ -4592,7 +4598,7 @@ export const pageStrings = {
   },
   "Candidate statement": {
     en: "Candidate statement",
-    es: "Declaración del candidato",
+    es: "Declaración de candidatura",
     zh: "候选人声明",
   },
   "Reviewed analysis isn’t available for this race.": {

@@ -7,6 +7,10 @@ export const candidateResearchConfig = {
     "CA SOS certified rosters and candidate statements; office authorities; jurisdiction-specific campaign finance",
   environment: {
     required: ["POSTGRES_URL"],
-    optional: ["FEC_API_KEY", "CANDIDATE_RESEARCH_MAX_ITEMS"],
+    optional: [
+      "FEC_API_KEY",
+      "CANDIDATE_RESEARCH_MAX_ITEMS",
+      "CANDIDATE_RESEARCH_REVIEW_MODEL",
+    ],
   },
 } as const satisfies ScraperEnvContract;

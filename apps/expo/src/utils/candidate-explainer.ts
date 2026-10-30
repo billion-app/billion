@@ -71,6 +71,7 @@ export function findGuideCandidate<
 
 export interface BallotCandidateDetail {
   name: string;
+  providerIdentity?: { provider: "democracy_works"; candidateId: string };
   party?: string;
   statement?: string;
   biography?: string;
@@ -139,6 +140,20 @@ export function parseBallotCandidate(
       : undefined;
     return {
       name: candidate.name,
+      providerIdentity: (() => {
+        const raw = candidate.providerIdentity;
+        if (!raw || typeof raw !== "object") return undefined;
+        const provider = raw as Record<string, unknown>;
+        return provider.provider === "democracy_works" &&
+          typeof provider.candidateId === "string" &&
+          provider.candidateId.length > 0 &&
+          provider.candidateId.length <= 200
+          ? {
+              provider: "democracy_works" as const,
+              candidateId: provider.candidateId,
+            }
+          : undefined;
+      })(),
       party: optionalText("party", 100),
       statement: optionalText("statement", 30_000),
       biography: optionalText("biography", 30_000),
@@ -161,4 +176,22 @@ export function candidateBackgroundReady(
   guidePending: boolean,
 ): boolean {
   return !lookupGuide || !guidePending;
+}
+
+export function isJudicialResearchContext(context: {
+  officeFamily?: string;
+  release?: { office: string; members: readonly unknown[] };
+  ballotOffice?: string;
+}): boolean {
+  if (context.officeFamily !== undefined)
+    return context.officeFamily === "judicial_retention";
+  const judicialOffice = /\b(court|judicial|judge|justice)\b/i;
+  const isJudicialOffice = (office: string) =>
+    judicialOffice.test(office) && !/\bclerk\b/i.test(office);
+  if (
+    context.release?.members.length === 1 &&
+    isJudicialOffice(context.release.office)
+  )
+    return true;
+  return !!context.ballotOffice && isJudicialOffice(context.ballotOffice);
 }

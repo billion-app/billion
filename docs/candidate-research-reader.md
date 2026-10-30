@@ -49,6 +49,18 @@ influence. Unavailable amounts remain unavailable rather than becoming zero.
 
 ## Published data path
 
+The California [author and compiler](../apps/scraper/src/candidate-research/california-ai.ts)
+separate cited research from document coverage. The private author response contains
+claims and terms; trusted code fills each chapter's `missingEvidence` field from
+the compiled document and immutable collection gaps. These disclosures describe
+what the brief presents, without asserting that unseen archives lack an answer.
+Original collection notes remain in the review packet. Candidate-source roles
+bound prose citations; roster and finance evidence cannot become filler claims.
+A finance-only brief can contain no prose or headline while retaining reconciled
+financial records. It still requires a real author invocation and independent
+review of the final compiled bytes, including every disclosure. Old responses
+cannot be adapted or reattested under a new compiler version.
+
 The optional `research` fields extend the existing
 [candidate brief schema](../packages/validators/src/candidate-brief.ts) without
 changing old revision digests. Promise details and finance use the
@@ -122,3 +134,25 @@ revisions and fresh independent approvals; old approvals cannot carry over.
 
 [Evidence and run instructions](evidence/443-native/README.md) distinguish native
 and web captures from fixtures, integration checks, and remaining human gates.
+
+To verify final California state-certified and San José coverage, use an approved
+renewed snapshot and its independently fetched source audit and companion archive.
+This command reads the public API; it does not generate or publish research.
+
+```sh
+node scripts/verify-california-research.mjs \
+  --base-url https://www.billion-news.app \
+  --expected-roster /absolute/path/to/approved-renewed-487-snapshot.json \
+  --policy-version ca-california-candidate-research-2026-10-30-v2 \
+  --source-audit /tmp/california-final487-http-audit.json \
+  --fresh-source-archive /tmp/california-final487-http-fresh-sources.json \
+  --out /tmp/california-public-final487-verification.json
+```
+
+Final-scope verification requires both source files. The snapshot's observed
+source text, raw hashes and retrieval timestamps must match them. Only the two
+independently acknowledged source-specific authority projections can reconcile
+those exact audit differences. Other failures, missing sources, stale or future
+retrieval times, and substantive changes fail verification. Preserve the original
+audit, including its failures. Run a new independent audit and companion fetch
+when the evidence ages; an earlier pass does not renew source freshness.
