@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import type { db } from "@acme/db/client";
 import { and, eq, inArray, sql } from "@acme/db";
 import {
   CandidateBriefReviewEvent,
@@ -8,7 +9,6 @@ import {
 } from "@acme/db/schema";
 import { candidateRaceManifestSchema } from "@acme/validators";
 
-import type { createTRPCContext } from "../trpc";
 import type { CatalogPublishedRace } from "./california-catalog";
 import {
   getPublicCaliforniaRoster,
@@ -17,7 +17,7 @@ import {
 import { getCurrentCaliforniaRosterId } from "./california-roster-store";
 import { readCandidateRace } from "./candidate-race-release";
 
-type Database = Awaited<ReturnType<typeof createTRPCContext>>["db"];
+type Database = typeof db;
 export interface CatalogPolicy {
   approved: boolean;
   version: string;
