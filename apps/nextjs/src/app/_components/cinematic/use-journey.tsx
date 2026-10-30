@@ -17,6 +17,7 @@ interface JourneyValue {
   progressRef: RefObject<number>;
   overlayProgress: number;
   reducedMotion: boolean;
+  stageCovered: boolean;
   webgl: boolean | null;
   focusTopic: PersonalTopicId | null;
   setFocusTopic: (id: PersonalTopicId | null) => void;
@@ -49,6 +50,7 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
   const progressRef = useRef(0);
   const [overlayProgress, setOverlayProgress] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [stageCovered, setStageCovered] = useState(false);
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [focusTopic, setFocusTopic] = useState<PersonalTopicId | null>(null);
   const [focusEntity, setFocusEntity] = useState<string | null>(null);
@@ -91,33 +93,71 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
       touchMultiplier: 1.05,
     });
 
-    const onScroll = ({ progress }: { progress: number }) => {
-      progressRef.current = progress;
+    const journey = document.getElementById("cinematic-journey");
+    const header = document.querySelector<HTMLElement>(
+      ".cinematic-site-header",
+    );
+    const updateProgress = () => {
+      setStageCovered(
+        journey !== null &&
+          journey.offsetHeight - lenis.scroll <=
+            (header?.offsetHeight ?? 0) + 1,
+      );
+      const distance = journey
+        ? journey.offsetHeight - window.innerHeight
+        : lenis.limit;
+      progressRef.current = Math.min(
+        1,
+        Math.max(0, lenis.scroll / Math.max(1, distance)),
+      );
     };
-    lenis.on("scroll", onScroll);
+    lenis.on("scroll", updateProgress);
 
     const onResize = () => {
-      const progress = progressRef.current;
       lenis.resize();
-      lenis.scrollTo(progress * lenis.limit, { immediate: true });
+      updateProgress();
     };
     window.addEventListener("resize", onResize);
 
+    const scrollToHash = (hash: string, immediate = false) => {
+      const destination = document.getElementById(hash.slice(1) || "overview");
+      if (!destination) return;
+      lenis.scrollTo(destination, {
+        duration: 0.9,
+        immediate,
+        onComplete: () => destination.focus({ preventScroll: true }),
+      });
+    };
+
     const onClick = (event: MouseEvent) => {
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
       const target = event.target;
       if (!(target instanceof Element)) return;
       const link = target.closest("a[href^='#']");
       if (!(link instanceof HTMLAnchorElement)) return;
       const href = link.getAttribute("href");
       if (!href || href.length < 2) return;
+      if (!document.getElementById(href.slice(1))) return;
       event.preventDefault();
-      lenis.scrollTo(href, { offset: 0, duration: 1.4 });
+      if (window.location.hash !== href)
+        window.history.pushState(null, "", href);
+      scrollToHash(href);
     };
     document.addEventListener("click", onClick, true);
+    const onHashChange = () => scrollToHash(window.location.hash);
+    window.addEventListener("hashchange", onHashChange);
 
     if (window.location.hash) {
       requestAnimationFrame(() => {
-        lenis.scrollTo(window.location.hash, { offset: 0, immediate: true });
+        lenis.resize();
+        scrollToHash(window.location.hash, true);
       });
     }
 
@@ -138,9 +178,10 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelAnimationFrame(frame);
-      lenis.off("scroll", onScroll);
+      lenis.off("scroll", updateProgress);
       window.removeEventListener("resize", onResize);
       document.removeEventListener("click", onClick, true);
+      window.removeEventListener("hashchange", onHashChange);
       lenis.destroy();
     };
   }, [reducedMotion]);
@@ -150,6 +191,7 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
       progressRef,
       overlayProgress,
       reducedMotion,
+      stageCovered,
       webgl,
       focusTopic,
       setFocusTopic,
@@ -161,6 +203,7 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
     [
       overlayProgress,
       reducedMotion,
+      stageCovered,
       webgl,
       focusTopic,
       focusEntity,

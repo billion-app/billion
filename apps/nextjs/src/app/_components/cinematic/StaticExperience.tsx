@@ -1,32 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import posthog from "posthog-js";
 
 import { APP_STORE_URL } from "~/app/_lib/app-store";
 import { WaitlistForm } from "../waitlist-form";
 import { BILL_NODES, COMPLICATED_BEATS, PERSONAL_TOPICS } from "./journey";
-import { BillionMark, SectionRule } from "./marks";
+import { SectionRule } from "./marks";
+import { TeamSection } from "./TeamSection";
 
 export function StaticExperience() {
   const surface = "reduced-motion";
   return (
-    <main className="cinematic-static">
-      <nav className="cinematic-static-nav" aria-label="Main">
-        <span className="cinematic-nav-brand">
-          <BillionMark size={28} />
-          Billion
-        </span>
-        <a
-          href={APP_STORE_URL}
-          className="cinematic-pill cinematic-pill-nav"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Download
-        </a>
-      </nav>
+    <main id="overview" tabIndex={-1} className="cinematic-static">
       <header className="cinematic-static-hero">
         <h1>Know what government is doing.</h1>
         <p className="cinematic-dek cinematic-dek-left">
@@ -115,12 +101,8 @@ export function StaticExperience() {
         <div className="cinematic-finale-form">
           <WaitlistForm formLocation={surface} />
         </div>
-        <footer>
-          <Link href="/support">Support</Link>
-          <Link href="/terms">Terms</Link>
-          <Link href="/privacy">Privacy</Link>
-        </footer>
       </section>
+      <TeamSection />
     </main>
   );
 }
