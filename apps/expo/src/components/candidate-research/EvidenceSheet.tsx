@@ -96,7 +96,7 @@ export function EvidenceSheet({
               accessibilityRole="header"
               style={[largeText ? s.label : s.heading, { flex: 1 }]}
             >
-              {largeText ? tx("Source") : selection.title}
+              {tx("Evidence & context")}
             </Text>
             <Pressable
               ref={done}
@@ -108,11 +108,7 @@ export function EvidenceSheet({
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={styles.body}>
-            {largeText && (
-              <Text accessibilityRole="header" style={s.heading}>
-                {selection.title}
-              </Text>
-            )}
+            <Text style={s.body}>{selection.title}</Text>
             {sources.length > 1 && (
               <Segments
                 options={sources.map((_, i) => ({
