@@ -284,7 +284,9 @@ export function candidateFinanceSemanticProjection(
   finance: CandidateEvidenceDossier["finance"],
 ) {
   if (!finance) return finance;
-  const { updatedAt: _observedAt, ...content } = finance;
+  // JSONB may reorder keys; compare schema-normalized semantic values.
+  const { updatedAt: _observedAt, ...content } =
+    campaignFinanceSchema.parse(finance);
   return content;
 }
 export function candidateDossierSemanticProjection(

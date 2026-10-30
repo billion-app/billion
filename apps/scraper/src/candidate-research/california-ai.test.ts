@@ -1224,6 +1224,22 @@ test("finance-only quality requires actual identity-reconciled amounts and retur
       compiled.brief.sections.flatMap((section) => section.claims).length,
       0,
     );
+    const reverseKeys = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(reverseKeys);
+      if (value && typeof value === "object")
+        return Object.fromEntries(
+          Object.entries(value)
+            .reverse()
+            .map(([key, item]) => [key, reverseKeys(item)]),
+        );
+      return value;
+    };
+    const jsonbBrief = reverseKeys(compiled.brief) as typeof compiled.brief;
+    assert.deepEqual(deriveCandidateResearchQuality(jsonbBrief, packet), {
+      basis: "reconciled_finance",
+      claimIds: [],
+      evidenceIds: ["finance"],
+    });
     assert.deepEqual(deriveCandidateResearchQuality(compiled.brief, packet), {
       basis: "reconciled_finance",
       claimIds: [],

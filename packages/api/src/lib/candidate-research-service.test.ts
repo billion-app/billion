@@ -1050,6 +1050,17 @@ void test(
           })
         ).releaseId,
       );
+      assert.equal(
+        (
+          await publishResearchCollection({
+            collectionId: saved.collectionId,
+            actorId: "fixture-service",
+            workLease: lease,
+          })
+        ).releaseId,
+        required(releaseIds[0]),
+        "Publishing the identical approved collection twice retains its release ID after JSONB round-trip",
+      );
       const lateLegacy = structuredClone(document);
       delete lateLegacy.candidateArtifacts;
       delete lateLegacy.researchVersion;
