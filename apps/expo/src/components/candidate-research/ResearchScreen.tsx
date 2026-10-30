@@ -275,7 +275,7 @@ export function ResearchScreen({
                         meta={tx("candidate.count", {
                           count: item.candidateCount,
                         })}
-                        accessibilityLabel={`${tx("Explore this race")}: ${item.office}, ${item.jurisdiction}`}
+                        accessibilityLabel={`${tx("Explore this race")}: ${item.office}, ${item.jurisdiction}, ${electionLabel(item.electionDate, appLocale)}, ${tx("candidate.count", { count: item.candidateCount })}`}
                         onPress={() =>
                           router.push({
                             pathname: "/candidate-research",
