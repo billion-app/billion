@@ -139,6 +139,8 @@ async function fixture() {
       const line = snapshot.source.text
         .split(/\r?\n/)
         .find((s) => s.includes(`|${member.sourceCandidateId}|`))!;
+      const recordSourceId = `candidate-record:${member.sourceCandidateId}`;
+      const record = `Synthetic test record: ${member.name} served on the fixture student-access oversight committee in 2024.`;
       return buildCaliforniaDossier({
         identity: member.identity,
         name: member.name,
@@ -157,6 +159,15 @@ async function fixture() {
             contentHash: snapshot.source.textHash,
             fetchedAt: now,
           },
+          {
+            id: recordSourceId,
+            url: `https://fixture.example.gov/record/${encodeURIComponent(member.candidateId)}`,
+            publisher: "Synthetic candidate record fixture",
+            format: "text",
+            text: record,
+            contentHash: hash(record),
+            fetchedAt: now,
+          },
         ],
         evidence: [
           {
@@ -168,12 +179,26 @@ async function fixture() {
             role: "roster",
             identityQualification: "official_roster",
           },
+          {
+            id: "candidate-record",
+            sourceId: recordSourceId,
+            excerpt: record,
+            locator: "Synthetic candidate-specific record",
+            origin: "primary_record",
+            role: "candidate_record",
+            identityQualification: "exact_election_office",
+          },
         ],
         gaps: [],
       });
     },
     author: async ({ dossier }) => {
       stats.authors++;
+      const candidateEvidence = dossier.evidence.find(
+        (evidence) =>
+          evidence.role === "candidate_record" ||
+          evidence.role === "candidate_statement",
+      );
       const brief = candidateBriefSchema.parse({
         schemaVersion: 1,
         identity: dossier.identity,
@@ -212,8 +237,31 @@ async function fixture() {
         ].map((topic) => ({
           topic,
           missingEvidence:
-            "No additional candidate-specific evidence was located in the checked sources.",
-          claims: [],
+            candidateEvidence &&
+            topic ===
+              (candidateEvidence.role === "candidate_statement"
+                ? "priorities"
+                : "record")
+              ? null
+              : "No additional candidate-specific evidence was located in the checked sources.",
+          claims:
+            candidateEvidence &&
+            topic ===
+              (candidateEvidence.role === "candidate_statement"
+                ? "priorities"
+                : "record")
+              ? [
+                  {
+                    id: "candidate-claim",
+                    kind:
+                      candidateEvidence.origin === "candidate"
+                        ? "promise"
+                        : "fact",
+                    text: candidateEvidence.excerpt,
+                    evidenceIds: [candidateEvidence.id],
+                  },
+                ]
+              : [],
         })),
         correction: null,
       });
@@ -1120,4 +1168,97 @@ test("permanently changed cited pages recover in the new review epoch without re
   assert.equal(epoch, 1);
   assert.equal(f.stats.failures, 1);
   assert.equal(live, true);
+});
+
+test("all-gap author drafts remain private and pending without reviewing or withdrawing healthy coverage", async () => {
+  const f = await fixture();
+  f.snapshot.races.splice(1);
+  const race = f.snapshot.races[0]!;
+  const releaseId = randomUUID();
+  const checkedAt = "2026-10-29T23:00:00.000Z";
+  f.rows.set(race.raceKey, {
+    raceKey: race.raceKey,
+    status: "complete",
+    checkpoint: { releaseId, sourceCheckedAt: checkedAt },
+  });
+  f.deps.readPublishedCoverage = async () => ({
+    snapshotId: f.snapshot.id,
+    races: [
+      {
+        contestId: race.contestId,
+        jurisdiction: race.jurisdiction,
+        electionDate: race.electionDate,
+        releaseId,
+        sourceCheckedAt: checkedAt,
+        policyVersion: "policy",
+        members: race.members.map((member) => ({
+          candidateId: member.candidateId,
+          revisionId: randomUUID(),
+          collectionId: null,
+          author: null,
+          reviewer: null,
+        })),
+      },
+    ],
+  });
+  const author = f.deps.author;
+  f.deps.author = async (input) => {
+    const output = await author(input);
+    const brief = {
+      ...output.brief,
+      sections: output.brief.sections.map((section) => ({
+        ...section,
+        claims: [],
+        missingEvidence:
+          "The checked sources did not support a candidate-specific account.",
+      })),
+    };
+    return {
+      brief,
+      attestation: {
+        ...output.attestation,
+        revisionDigest: evidenceDigest(brief),
+      },
+    };
+  };
+  let collections = 0;
+  f.deps.saveCollection = async (document) => {
+    collections++;
+    return { collectionId: document.manifest.id, changed: true };
+  };
+  const input = {
+    snapshotId: f.snapshot.id,
+    policyVersion: "policy",
+    bounds: { ...bounds, maxRaces: 1 },
+  };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = await reconcile(input, f.deps);
+    assert.equal(result.outcomes[0]!.status, "pending");
+    assert.equal(result.completed, 0);
+    assert.equal(result.blocked, 0);
+    assert.equal(result.remaining, 1);
+    assert.equal(result.usage.modelCalls, attempt === 0 ? 1 : 0);
+  }
+  assert.equal(f.stats.authors, 1);
+  assert.equal(f.stats.reviews, 0);
+  assert.equal(f.stats.releases, 0);
+  assert.equal(f.stats.failures, 0);
+  assert.equal(collections, 0);
+  assert.equal(
+    [...f.artifacts.keys()].filter((key) => key.startsWith("author:")).length,
+    1,
+  );
+  assert.equal(
+    [...f.artifacts.keys()].some((key) => key.startsWith("dispatch:review:")),
+    false,
+  );
+  const checkpoint = f.rows.get(race.raceKey)!
+    .checkpoint as CaliforniaWorkCheckpoint;
+  assert.equal(checkpoint.releaseId, releaseId);
+  assert.ok(
+    checkpoint.candidateProvenance?.[race.members[0]!.candidateId]?.author,
+  );
+  const current = await coverage({ snapshotId: f.snapshot.id }, f.deps);
+  assert.equal(current.published.races, 1);
+  assert.equal(current.published.candidates, race.members.length);
 });

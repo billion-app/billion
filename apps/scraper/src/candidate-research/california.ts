@@ -15,6 +15,7 @@ import {
   authorityRenewalProjectionSchema,
   candidateModelAttestationSchema,
   candidateResearchCollectionSchema,
+  hasSubstantiveCandidateResearch,
   researchSourceSchema,
 } from "@acme/validators";
 
@@ -1191,6 +1192,10 @@ export async function reconcile(
           revisionId: authored.brief.revisionId,
           author: authored.attestation,
         });
+        if (!hasSubstantiveCandidateResearch(authored.brief, dossier))
+          throw new PendingCandidateResearchGap(
+            "The checked sources do not yet support a publishable account of this candidate's priorities, record, or campaign finances.",
+          );
         const reviewKey = `review:${evidenceDigest([authored.attestation.revisionDigest, dossier.dossierDigest, input.policyVersion, californiaReviewerPromptVersion, deps.reviewerConfigurationKey ?? deps.modelConfigurationKey ?? "fixture", lease.reviewEpoch])}`;
         let reviewed = (await deps.artifact(reviewKey)) as Awaited<
           ReturnType<typeof reviewCaliforniaBrief>
@@ -1400,7 +1405,10 @@ export async function reconcile(
       const reason =
         error instanceof Error ? error.message : "Unknown research failure";
       const status =
-        error instanceof CaliforniaBudgetReached ? "pending" : "blocked";
+        error instanceof CaliforniaBudgetReached ||
+        error instanceof PendingCandidateResearchGap
+          ? "pending"
+          : "blocked";
       if (
         error instanceof RequiredCaliforniaSourceFailure ||
         error instanceof CaliforniaCitedSourceFailure
@@ -1567,3 +1575,4 @@ export async function coverage(
 export const californiaResearch = { plan, reconcile, coverage };
 
 class RequiredCaliforniaSourceFailure extends Error {}
+class PendingCandidateResearchGap extends Error {}

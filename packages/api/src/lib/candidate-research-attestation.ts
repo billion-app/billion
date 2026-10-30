@@ -4,6 +4,7 @@ import type { CandidateBrief } from "@acme/validators";
 import {
   candidateBriefSchema,
   candidateModelAttestationSchema,
+  candidateResearchQualitySchema,
 } from "@acme/validators";
 
 import { briefDigest } from "./candidate-brief-publication";
@@ -19,6 +20,8 @@ export type ResearchAutomationPolicy = z.infer<
 >;
 export const researchReviewAttestationSchema = z.object({
   collectionId: z.uuid().optional(),
+  // Derived by the trusted service after validating the immutable dossier.
+  quality: candidateResearchQualitySchema.optional(),
   author: candidateModelAttestationSchema,
   reviewer: candidateModelAttestationSchema,
   verdict: z.enum(["approve", "reject"]),
@@ -43,6 +46,7 @@ export function validResearchAttestation(input: {
     dossierDigest: string;
     sourceSetDigest: string;
     authorRunId: string;
+    quality?: z.infer<typeof candidateResearchQualitySchema>;
   };
   now: string;
 }): boolean {
@@ -50,7 +54,48 @@ export function validResearchAttestation(input: {
   if (!parsedBrief.success) return false;
   const parsed = researchReviewAttestationSchema.safeParse(input.value);
   if (!parsed.success) return false;
-  const { author, reviewer, verdict, findings } = parsed.data;
+  const { author, reviewer, verdict, findings, quality } = parsed.data;
+  const expectedQuality = candidateResearchQualitySchema.safeParse(
+    input.dossier.quality,
+  );
+  if (
+    !quality ||
+    !expectedQuality.success ||
+    JSON.stringify(quality) !== JSON.stringify(expectedQuality.data)
+  )
+    return false;
+  const claims = input.brief.sections.flatMap((section) => section.claims);
+  if (
+    quality.evidenceIds.some(
+      (id) => !input.brief.evidence.some((e) => e.id === id),
+    ) ||
+    quality.claimIds.some(
+      (id) =>
+        !claims.some(
+          (claim) =>
+            claim.id === id &&
+            claim.evidenceIds.some((e) => quality.evidenceIds.includes(e)),
+        ) ||
+        !findings.some(
+          (finding) => finding.claimId === id && finding.supported,
+        ),
+    )
+  )
+    return false;
+  if (quality.basis !== "reconciled_finance") {
+    const topic =
+      quality.basis === "candidate_record" ? "record" : "priorities";
+    const section = input.brief.sections.find((entry) => entry.topic === topic);
+    if (
+      !quality.claimIds.length ||
+      !quality.evidenceIds.length ||
+      quality.claimIds.some(
+        (id) => !section?.claims.some((claim) => claim.id === id),
+      )
+    )
+      return false;
+  } else if (!input.brief.research?.finance || !quality.evidenceIds.length)
+    return false;
   const now = Date.parse(input.now);
   const revisionDigest = briefDigest(input.brief);
   if (

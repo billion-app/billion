@@ -188,7 +188,9 @@ export function validateCaliforniaDossier(
       throw new Error("Typed finance needs qualified primary finance evidence");
   }
   const hasCandidateResearch = dossier.evidence.some((entry) =>
-    ["candidate_statement", "candidate_record"].includes(entry.role),
+    ["candidate_statement", "candidate_record", "campaign_material"].includes(
+      entry.role,
+    ),
   );
   if (
     dossier.classification !==
@@ -220,7 +222,9 @@ export function buildCaliforniaDossier(
     candidateDossierSourceProjection(input.sources),
   );
   const classification = input.evidence.some((entry) =>
-    ["candidate_statement", "candidate_record"].includes(entry.role),
+    ["candidate_statement", "candidate_record", "campaign_material"].includes(
+      entry.role,
+    ),
   )
     ? ("supported" as const)
     : ("evidence_gap" as const);
@@ -286,23 +290,6 @@ export function validateBriefAgainstDossier(
     )
       throw new Error("Finance must cite qualified finance records");
   }
-  if (
-    dossier.classification === "supported" &&
-    !brief.sections.some((section) =>
-      section.claims.some((claim) =>
-        claim.evidenceIds.some((id) =>
-          dossier.evidence.some(
-            (entry) =>
-              entry.id === id &&
-              ["candidate_statement", "candidate_record"].includes(entry.role),
-          ),
-        ),
-      ),
-    )
-  )
-    throw new Error(
-      "Supported research must present a claim from candidate-specific evidence",
-    );
   for (const claim of brief.sections.flatMap((section) => section.claims)) {
     if (
       claim.kind === "disputed" &&
@@ -329,7 +316,9 @@ export function validateBriefAgainstDossier(
       evidence.excerpt !== selected.excerpt ||
       evidence.contentHash !== source.contentHash ||
       evidence.url !== source.url ||
-      evidence.origin !== selected.origin
+      evidence.origin !== selected.origin ||
+      JSON.stringify(evidence.attribution ?? null) !==
+        JSON.stringify(selected.attribution ?? null)
     )
       throw new Error("Brief evidence differs from immutable dossier");
   }

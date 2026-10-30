@@ -190,6 +190,19 @@ export const candidateResearchSchema = z
     "Missing finance needs an explanation",
   );
 
+export const candidateResearchQualitySchema = z.object({
+  basis: z.enum([
+    "candidate_record",
+    "candidate_priorities",
+    "reconciled_finance",
+  ]),
+  claimIds: z.array(text).max(180),
+  evidenceIds: z.array(text).min(1).max(100),
+});
+export type CandidateResearchQuality = z.infer<
+  typeof candidateResearchQualitySchema
+>;
+
 export const candidateRaceManifestSchema = z
   .object({
     id: z.uuid(),
@@ -213,6 +226,7 @@ export const candidateRaceManifestSchema = z
           dossierDigest: z.string().regex(/^[a-f0-9]{64}$/),
           sourceSetDigest: z.string().regex(/^[a-f0-9]{64}$/),
           authorRunId: z.uuid(),
+          quality: candidateResearchQualitySchema.optional(),
         }),
       )
       .optional(),

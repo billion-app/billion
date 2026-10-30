@@ -14,10 +14,12 @@ import {
   campaignFinanceSchema,
   candidateDossierSemanticProjection,
   candidateDossierSourceProjection,
+  candidateEvidenceAttributionSchema,
   candidateEvidenceDossierSchema,
   candidateFinanceSemanticProjection,
   candidateModelAttestationSchema,
   candidateRaceManifestSchema,
+  deriveCandidateResearchQuality,
 } from "@acme/validators";
 
 import type {
@@ -103,7 +105,7 @@ export async function recordResearchAiReview(
   },
   database: ResearchDatabase = db,
 ) {
-  const attestation = researchReviewAttestationSchema.parse({
+  let attestation = researchReviewAttestationSchema.parse({
     ...researchReviewAttestationSchema.parse(input.attestation),
     collectionId: input.collectionId,
   });
@@ -195,6 +197,16 @@ export async function recordResearchAiReview(
               e.id === entry.id &&
               e.origin === entry.origin &&
               e.excerpt === entry.excerpt &&
+              JSON.stringify(
+                candidateEvidenceAttributionSchema
+                  .optional()
+                  .parse(entry.attribution),
+              ) ===
+                JSON.stringify(
+                  candidateEvidenceAttributionSchema
+                    .optional()
+                    .parse(e.attribution),
+                ) &&
               dossier.sources.some(
                 (s) =>
                   s.id === e.sourceId &&
@@ -210,6 +222,15 @@ export async function recordResearchAiReview(
       throw new Error(
         "Dossier evidence does not support this exact brief and current roster",
       );
+    const quality = deriveCandidateResearchQuality(brief, dossier);
+    if (attestation.verdict === "approve" && !quality)
+      throw new Error(
+        "Candidate research requires substantive Record, Priorities or reconciled finance evidence",
+      );
+    attestation = researchReviewAttestationSchema.parse({
+      ...attestation,
+      quality: quality ?? undefined,
+    });
     const author = candidateModelAttestationSchema.parse(artifact.author);
     if (JSON.stringify(author) !== JSON.stringify(attestation.author))
       throw new Error(
@@ -222,7 +243,11 @@ export async function recordResearchAiReview(
         brief,
         policyVersion: policy.version,
         automation,
-        dossier: { ...artifact, authorRunId: author.runId },
+        dossier: {
+          ...artifact,
+          authorRunId: author.runId,
+          quality: quality ?? undefined,
+        },
         now: now.toISOString(),
       })
     )
@@ -307,14 +332,30 @@ async function publishInTransaction(
       "Service actor, research version and current roster are required",
     );
   const reviewedDossiers = Object.fromEntries(
-    (row.document.candidateArtifacts ?? []).map((a) => [
-      a.candidateId,
-      {
-        dossierDigest: a.dossierDigest,
-        sourceSetDigest: a.sourceSetDigest,
-        authorRunId: candidateModelAttestationSchema.parse(a.author).runId,
-      },
-    ]),
+    (row.document.candidateArtifacts ?? []).map((a) => {
+      const brief = row.document.briefs.find(
+        (entry) => entry.identity.candidateId === a.candidateId,
+      );
+      const quality =
+        brief &&
+        deriveCandidateResearchQuality(
+          brief,
+          candidateEvidenceDossierSchema.parse(a.dossier),
+        );
+      if (!quality)
+        throw new Error(
+          "Candidate research requires substantive Record, Priorities or reconciled finance evidence",
+        );
+      return [
+        a.candidateId,
+        {
+          dossierDigest: a.dossierDigest,
+          sourceSetDigest: a.sourceSetDigest,
+          authorRunId: candidateModelAttestationSchema.parse(a.author).runId,
+          quality,
+        },
+      ];
+    }),
   );
   const manifest: CandidateRaceManifest = {
     ...row.document.manifest,

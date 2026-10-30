@@ -13,7 +13,10 @@ import {
   reviewCaliforniaBrief,
 } from "./california-ai.js";
 import { buildCaliforniaDossier } from "./california-dossier.js";
-import { fixtureDossier } from "./california-dossier.test.js";
+import {
+  fixtureCampaignMaterialDossier,
+  fixtureDossier,
+} from "./california-dossier.test.js";
 
 function point(text = "Morgan Lee proposes funding public libraries.") {
   return { title: "Stated goal", text, evidenceIds: ["platform"] };
@@ -120,7 +123,7 @@ test("nested promises compile stable links and separate exact reviewer attestati
   assert.notEqual(a.attestation.runId, r.attestation.runId);
   assert.notEqual(a.attestation.actorId, r.attestation.actorId);
   assert.equal(a.attestation.revisionDigest, r.attestation.revisionDigest);
-  assert.equal(a.attestation.promptVersion, "california-author-v9");
+  assert.equal(a.attestation.promptVersion, "california-author-v10");
   assert.equal(r.attestation.actualModel, "actual-fixture-model");
   assert.equal(calls[1]!.excludedConfiguredModel, "fixture:author");
 });
@@ -430,21 +433,17 @@ test("a broad promise without implementation details stays attributed without in
   assert.equal(a.brief.research!.headlineClaimId, "priorities-1");
 });
 
-test("supported packets cannot compile only generic roster claims", async () => {
+test("generic roster-only output remains private and fails the shared substantive research gate", async () => {
+  const { hasSubstantiveCandidateResearch } = await import("@acme/validators");
   const output = authorFixture();
   output.priorities.claims[0]!.evidenceIds = ["roster"];
   const { deps } = dependencies([output]);
-  await assert.rejects(
-    authorCaliforniaBrief(
-      { dossier: fixtureDossier(), policyVersion: "p1" },
-      deps,
-    ),
-    (error: unknown) =>
-      error instanceof CaliforniaModelInvocationError &&
-      !!error.diagnostic.validationProblems?.some((problem) =>
-        problem.includes("candidate-specific evidence"),
-      ),
+  const dossier = fixtureDossier();
+  const authored = await authorCaliforniaBrief(
+    { dossier, policyVersion: "p1" },
+    deps,
   );
+  assert.equal(hasSubstantiveCandidateResearch(authored.brief, dossier), false);
 });
 
 test("California author and Astra reviewer request strict JSON with independent reasoning settings", async (t) => {
@@ -789,7 +788,7 @@ test("unchanged typed finance refresh preserves the exact approved brief timesta
   );
 });
 
-test("v9 author contract preserves temporal attribution and bounds negative claims to collected passages", async () => {
+test("v10 author contract preserves temporal attribution and bounds negative claims to collected passages", async () => {
   const output = authorFixture();
   output.record = {
     missingEvidence:
@@ -801,7 +800,7 @@ test("v9 author contract preserves temporal attribution and bounds negative clai
     { dossier: fixtureDossier(), policyVersion: "p1" },
     deps,
   );
-  assert.equal(a.attestation.promptVersion, "california-author-v9");
+  assert.equal(a.attestation.promptVersion, "california-author-v10");
   assert.ok(calls[0]!.system.includes("Never re-label a past accomplishment"));
   assert.ok(
     calls[0]!.system.includes(
@@ -942,8 +941,8 @@ test("author and reviewer contracts require reader language, distinct chapters a
     },
     deps,
   );
-  assert.equal(a.attestation.promptVersion, "california-author-v9");
-  assert.equal(r.attestation.promptVersion, "california-review-v2");
+  assert.equal(a.attestation.promptVersion, "california-author-v10");
+  assert.equal(r.attestation.promptVersion, "california-review-v3");
   assert.ok(
     calls[0]!.system.includes(
       "not fresh or citable substantive campaign evidence",
@@ -974,5 +973,215 @@ test("author and reviewer contracts require reader language, distinct chapters a
   );
   assert.ok(
     calls[1]!.system.includes("honest source-limited gaps are preferable"),
+  );
+});
+
+test("both model packets retain full speaker context and trusted compilation preserves public attribution", async () => {
+  const dossier = fixtureCampaignMaterialDossier();
+  const output = {
+    ...authorFixture(),
+    priorities: {
+      missingEvidence:
+        "The campaign-published passage attributes the pledge to another speaker; the checked material does not establish a candidate promise.",
+      claims: [],
+    },
+  };
+  const { deps, calls } = dependencies([
+    output,
+    { verdict: "approve", findings: [] },
+  ]);
+  const a = await authorCaliforniaBrief({ dossier, policyVersion: "p1" }, deps);
+  const r = await reviewCaliforniaBrief(
+    {
+      brief: a.brief,
+      dossier,
+      policyVersion: "p1",
+      authorAttestation: a.attestation,
+    },
+    deps,
+  );
+  assert.equal(r.verdict, "approve");
+  const { hasSubstantiveCandidateResearch } = await import("@acme/validators");
+  assert.equal(hasSubstantiveCandidateResearch(a.brief, dossier), false);
+  assert.equal(a.brief.research, undefined);
+  const context = dossier.evidence[1]!.attribution!.context.excerpt;
+  assert.ok(context.length > 600);
+  for (const call of calls) {
+    const packet = JSON.parse(call.prompt);
+    assert.equal(
+      packet.dossier.evidence[1].attribution.context.excerpt,
+      context,
+    );
+    assert.ok(
+      packet.dossier.sources[0].contextWindows.some((window: any) =>
+        window.text.includes(context),
+      ),
+    );
+  }
+  assert.deepEqual(
+    a.brief.evidence[1]!.attribution,
+    dossier.evidence[1]!.attribution,
+  );
+  const stripped = structuredClone(a.brief);
+  delete stripped.evidence[1]!.attribution;
+  const { validateBriefAgainstDossier } =
+    await import("./california-dossier.js");
+  assert.throws(
+    () => validateBriefAgainstDossier(stripped, dossier),
+    /immutable dossier/,
+  );
+  const truncated = structuredClone(a.brief);
+  truncated.evidence[1]!.attribution!.context.excerpt =
+    truncated.evidence[1]!.excerpt;
+  assert.throws(
+    () => validateBriefAgainstDossier(truncated, dossier),
+    /immutable dossier/,
+  );
+});
+
+test("quality certificates name exact Record or Priorities claims and exclude unsupported chapters", async () => {
+  const { deriveCandidateResearchQuality } = await import("@acme/validators");
+  const dossier = fixtureDossier();
+  const { deps } = dependencies([authorFixture()]);
+  const a = await authorCaliforniaBrief({ dossier, policyVersion: "p1" }, deps);
+  assert.deepEqual(deriveCandidateResearchQuality(a.brief, dossier), {
+    basis: "candidate_priorities",
+    claimIds: ["priorities-1"],
+    evidenceIds: ["platform"],
+  });
+  const moved = structuredClone(a.brief);
+  moved.sections.find((section) => section.topic === "effects")!.claims =
+    moved.sections[0]!.claims;
+  moved.sections[0]!.claims = [];
+  assert.equal(deriveCandidateResearchQuality(moved, dossier), null);
+  moved.sections.find((section) => section.topic === "record")!.claims =
+    moved.sections.find((section) => section.topic === "effects")!.claims;
+  assert.equal(
+    deriveCandidateResearchQuality(moved, dossier)?.basis,
+    "candidate_record",
+  );
+});
+
+test("finance-only quality requires actual identity-reconciled amounts and returns their exact evidence IDs", async () => {
+  const { createHash } = await import("node:crypto");
+  const { deriveCandidateResearchQuality } = await import("@acme/validators");
+  const input = dossierInput();
+  input.officeKind = "federal_legislative";
+  input.officeFamily = "us_house";
+  input.identity.jurisdiction = "ocd-division/country:us/state:ca/cd:1";
+  const text = JSON.stringify(
+    {
+      results: [
+        {
+          candidate_id: "H0CA01001",
+          name: "LEE, MORGAN",
+          office: "H",
+          state: "CA",
+          district: "01",
+          cycles: [2026],
+          election_years: [2026],
+          total_receipts: 100,
+        },
+      ],
+    },
+    null,
+    2,
+  );
+  const contentHash = createHash("sha256").update(text).digest("hex");
+  input.sources.push({
+    id: "fec",
+    url: "https://api.open.fec.gov/v1/candidates/search/",
+    publisher: "FEC fixture",
+    format: "json",
+    text,
+    contentHash,
+    fetchedAt: input.createdAt,
+  });
+  input.evidence.push({
+    id: "finance",
+    sourceId: "fec",
+    excerpt: '"total_receipts": 100',
+    locator: "Processed receipts fixture",
+    origin: "primary_record",
+    role: "finance",
+    identityQualification: "exact_election_office",
+  });
+  input.financeIdentityProof = {
+    candidateId: "H0CA01001",
+    name: "LEE, MORGAN",
+    office: "H",
+    state: "CA",
+    district: "1",
+    cycle: 2026,
+    sourceId: "fec",
+    sourceHash: contentHash,
+  };
+  input.finance = {
+    committeeId: "C00000001",
+    committeeName: "Fixture committee",
+    periodStart: "2025-01-01",
+    periodEnd: "2026-09-30",
+    currency: "USD",
+    coverage: "partial",
+    coverageNote: "Fixture processed record",
+    updatedAt: input.createdAt,
+    filingEvidenceIds: ["finance"],
+    receipts: {
+      totalCents: 10000,
+      breakdown: {
+        individuals: 10000,
+        committees: 0,
+        self_contributions: 0,
+        candidate_loans: 0,
+        transfers: 0,
+        other: 0,
+      },
+      refundsCents: null,
+    },
+    donors: [],
+    donorCoverage: "unavailable",
+    outsideSpending: null,
+  };
+  const output = {
+    ...authorFixture(),
+    priorities: {
+      missingEvidence: null,
+      claims: [
+        {
+          kind: "fact",
+          text: "The official roster lists Morgan Lee.",
+          evidenceIds: ["roster"],
+        },
+      ],
+    },
+  };
+  const dossier = buildCaliforniaDossier(input);
+  const { deps } = dependencies([output]);
+  const a = await authorCaliforniaBrief({ dossier, policyVersion: "p1" }, deps);
+  assert.deepEqual(deriveCandidateResearchQuality(a.brief, dossier), {
+    basis: "reconciled_finance",
+    claimIds: [],
+    evidenceIds: ["finance"],
+  });
+  assert.equal(
+    deriveCandidateResearchQuality(a.brief, {
+      ...dossier,
+      financeIdentityProof: undefined,
+    }),
+    null,
+  );
+  assert.equal(
+    deriveCandidateResearchQuality(
+      {
+        ...a.brief,
+        research: {
+          ...a.brief.research!,
+          finance: null,
+          financeGap: "No verified financial data.",
+        },
+      },
+      dossier,
+    ),
+    null,
   );
 });

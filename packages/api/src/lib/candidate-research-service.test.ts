@@ -20,7 +20,8 @@ function required<T>(value: T | undefined): T {
 
 function fixture(key: string = randomUUID()) {
   const now = new Date(Date.now() - 1000).toISOString();
-  const text = "A synthetic public record identifies this candidate.";
+  const text =
+    "A synthetic public record shows Fixture candidate chaired the library committee.";
   const hash = createHash("sha256").update(text).digest("hex");
   const identity = {
     candidateId: key,
@@ -148,7 +149,13 @@ void test("AI approval requires exact candidate claims, source dossier, policy a
     configuredModel: "review-config",
     actualModel: "review-actual",
   };
+  const quality = {
+    basis: "candidate_record" as const,
+    claimIds: ["record-claim"],
+    evidenceIds: ["record"],
+  };
   const value = {
+    quality,
     author,
     reviewer,
     verdict: "approve",
@@ -174,10 +181,35 @@ void test("AI approval requires exact candidate claims, source dossier, policy a
       dossierDigest: author.dossierDigest,
       sourceSetDigest: author.sourceSetDigest,
       authorRunId: author.runId,
+      quality,
     },
     now: new Date().toISOString(),
   };
   assert.equal(validResearchAttestation(input), true);
+  assert.equal(
+    validResearchAttestation({
+      ...input,
+      value: { ...value, quality: undefined },
+    }),
+    false,
+  );
+  assert.equal(
+    validResearchAttestation({
+      ...input,
+      value: { ...value, quality: { ...quality, claimIds: ["unrelated"] } },
+    }),
+    false,
+  );
+  assert.equal(
+    validResearchAttestation({
+      ...input,
+      value: {
+        ...value,
+        quality: { ...quality, basis: "candidate_priorities" },
+      },
+    }),
+    false,
+  );
   const collectionId = randomUUID();
   const publishedInput = {
     manifest: {
@@ -222,6 +254,33 @@ void test("AI approval requires exact candidate claims, source dossier, policy a
     },
   };
   assert.ok(readCandidateRace(publishedInput));
+  assert.equal(
+    readCandidateRace({
+      ...publishedInput,
+      manifest: {
+        ...publishedInput.manifest,
+        reviewedDossiers: {
+          [brief.identity.candidateId]: {
+            ...input.dossier,
+            quality: undefined,
+          },
+        },
+      },
+    }),
+    null,
+  );
+  assert.equal(
+    readCandidateRace({
+      ...publishedInput,
+      events: [
+        {
+          ...required(publishedInput.events[0]),
+          attestation: { ...value, collectionId, quality: undefined },
+        },
+      ],
+    }),
+    null,
+  );
   assert.equal(
     readCandidateRace({ ...publishedInput, currentRoster: undefined }),
     null,
@@ -718,6 +777,49 @@ void test(
     document.manifest.currentHashes[
       evidenceHashKey(brief.identity, "finance")
     ] = source.contentHash;
+    const selectedCampaignExcerpt = "I will build homes.";
+    const attribution = {
+      status: "unresolved" as const,
+      context: {
+        excerpt: "Alex Neighbor says: I will build homes.",
+        locator: "Alex endorsement paragraph",
+      },
+    };
+    const campaignText =
+      "Fixture candidate's campaign publishes endorsements.\nAlex Neighbor says: I will build homes.\nJordan Other says: I will build homes.";
+    const campaignSource = {
+      id: "campaign-published",
+      url: "https://campaign.example/endorsements",
+      publisher: "Synthetic candidate campaign",
+      format: "html" as const,
+      text: campaignText,
+      contentHash: createHash("sha256").update(campaignText).digest("hex"),
+      fetchedAt: source.fetchedAt,
+    };
+    document.sources.push(campaignSource);
+    brief.evidence.push({
+      id: "campaign-passage",
+      url: campaignSource.url,
+      publisher: campaignSource.publisher,
+      locator: "Endorsement excerpt",
+      retrievedAt: campaignSource.fetchedAt,
+      documentDate: null,
+      contentHash: campaignSource.contentHash,
+      excerpt: selectedCampaignExcerpt,
+      origin: "candidate",
+      attribution,
+    });
+    required(
+      brief.sections.find((section) => section.topic === "unknowns"),
+    ).claims.push({
+      id: "campaign-context-claim",
+      kind: "analysis",
+      text: "This campaign-published excerpt has unresolved speaker attribution.",
+      evidenceIds: ["campaign-passage"],
+    });
+    document.manifest.currentHashes[
+      evidenceHashKey(brief.identity, "campaign-passage")
+    ] = campaignSource.contentHash;
     document.rosterSnapshotId = snapshotId;
     document.rosterDigest = rosterDigest;
     document.researchVersion = researchVersion;
@@ -740,8 +842,8 @@ void test(
           excerpt: source.text,
           locator: "Fixture",
           origin: "primary_record",
-          role: "roster",
-          identityQualification: "official_roster",
+          role: "candidate_record",
+          identityQualification: "exact_election_office",
         },
         {
           id: "finance",
@@ -752,9 +854,19 @@ void test(
           role: "finance",
           identityQualification: "exact_election_office",
         },
+        {
+          id: "campaign-passage",
+          sourceId: campaignSource.id,
+          excerpt: selectedCampaignExcerpt,
+          locator: "Endorsement excerpt",
+          origin: "candidate",
+          role: "campaign_material",
+          identityQualification: "exact_election_office",
+          attribution,
+        },
       ],
       gaps: [],
-      classification: "evidence_gap",
+      classification: "supported",
       sourceSetDigest: hash(candidateDossierSourceProjection(document.sources)),
       dossierDigest: "0".repeat(64),
     });
@@ -794,6 +906,12 @@ void test(
           claimId: "record-claim",
           supported: true,
           reason: "Exact primary record excerpt.",
+        },
+        {
+          claimId: "campaign-context-claim",
+          supported: true,
+          reason:
+            "The archived campaign paragraph has explicit unresolved attribution metadata.",
         },
       ],
     };
@@ -856,7 +974,8 @@ void test(
       countyCoverage: [],
     });
     const collectionIds: string[] = [],
-      releaseIds: string[] = [];
+      releaseIds: string[] = [],
+      revisionIds = [brief.revisionId];
     let lease:
       | { key: string; owner: string; generation: number; reviewEpoch: number }
       | undefined;
@@ -1297,15 +1416,197 @@ void test(
         saveResearchCollection(changedSource, db, { workLease: lease }),
         /same hash|Official roster/,
       );
+      const attributionEdits = [
+        { label: "stripped", value: undefined },
+        {
+          label: "truncated",
+          value: {
+            ...attribution,
+            context: {
+              ...attribution.context,
+              excerpt: selectedCampaignExcerpt,
+            },
+          },
+        },
+        {
+          label: "another candidate context",
+          value: {
+            ...attribution,
+            context: {
+              excerpt: "Jordan Other says: I will build homes.",
+              locator: "Jordan endorsement paragraph",
+            },
+          },
+        },
+        {
+          label: "unverified official attribution",
+          value: {
+            ...attribution,
+            status: "official_candidate_statement" as const,
+          },
+        },
+      ];
+      for (const edit of attributionEdits) {
+        const changed = structuredClone(observedDocument),
+          changedBrief = required(changed.briefs[0]);
+        changedBrief.revisionId = randomUUID();
+        changedBrief.authorId = `changed-author:${randomUUID()}`;
+        revisionIds.push(changedBrief.revisionId);
+        required(
+          changedBrief.evidence.find(
+            (entry) => entry.id === "campaign-passage",
+          ),
+        ).attribution = edit.value;
+        required(changed.manifest.members[0]).revisionId =
+          changedBrief.revisionId;
+        const changedAuthor = {
+          ...author,
+          actorId: changedBrief.authorId,
+          runId: randomUUID(),
+          revisionDigest: briefDigest(changedBrief),
+        };
+        required(changed.candidateArtifacts?.[0]).author = changedAuthor;
+        const changedSaved = await saveResearchCollection(changed, db, {
+          workLease: lease,
+        });
+        collectionIds.push(changedSaved.collectionId);
+        await assert.rejects(
+          recordResearchAiReview({
+            collectionId: changedSaved.collectionId,
+            revisionId: changedBrief.revisionId,
+            attestation: {
+              ...attestation,
+              author: changedAuthor,
+              reviewer: {
+                ...reviewer,
+                actorId: `changed-reviewer:${randomUUID()}`,
+                runId: randomUUID(),
+                revisionDigest: briefDigest(changedBrief),
+              },
+            },
+            workLease: lease,
+          }),
+          /Dossier evidence does not support/,
+          `Campaign attribution ${edit.label} cannot replace the selected immutable metadata`,
+        );
+      }
+      const gapOnly = structuredClone(observedDocument),
+        gapBrief = required(gapOnly.briefs[0]);
+      gapBrief.revisionId = randomUUID();
+      gapBrief.authorId = `gap-author:${randomUUID()}`;
+      revisionIds.push(gapBrief.revisionId);
+      required(gapOnly.manifest.members[0]).revisionId = gapBrief.revisionId;
+      const recordSection = required(
+        gapBrief.sections.find((section) => section.topic === "record"),
+      );
+      required(
+        gapBrief.sections.find((section) => section.topic === "unknowns"),
+      ).claims.push(...recordSection.claims);
+      recordSection.claims = [];
+      const gapAuthor = {
+        ...author,
+        actorId: gapBrief.authorId,
+        runId: randomUUID(),
+        revisionDigest: briefDigest(gapBrief),
+      };
+      required(gapOnly.candidateArtifacts?.[0]).author = gapAuthor;
+      const gapSaved = await saveResearchCollection(gapOnly, db, {
+        workLease: lease,
+      });
+      collectionIds.push(gapSaved.collectionId);
+      await assert.rejects(
+        recordResearchAiReview({
+          collectionId: gapSaved.collectionId,
+          revisionId: gapBrief.revisionId,
+          workLease: lease,
+          attestation: {
+            ...attestation,
+            author: gapAuthor,
+            reviewer: {
+              ...reviewer,
+              runId: randomUUID(),
+              revisionDigest: briefDigest(gapBrief),
+            },
+          },
+        }),
+        /requires substantive/,
+      );
+      await assert.rejects(
+        publishResearchCollection({
+          collectionId: gapSaved.collectionId,
+          actorId: "fixture-service",
+          workLease: lease,
+        }),
+        /requires substantive/,
+      );
+      const forgedContext = structuredClone(observedDocument),
+        forgedBrief = required(forgedContext.briefs[0]);
+      forgedBrief.revisionId = randomUUID();
+      forgedBrief.authorId = `forged-context-author:${randomUUID()}`;
+      revisionIds.push(forgedBrief.revisionId);
+      required(forgedContext.manifest.members[0]).revisionId =
+        forgedBrief.revisionId;
+      const forgedAttribution = {
+        ...attribution,
+        context: {
+          excerpt: "Invented Speaker says: I will build homes.",
+          locator: "Invented paragraph",
+        },
+      };
+      required(
+        forgedBrief.evidence.find((entry) => entry.id === "campaign-passage"),
+      ).attribution = forgedAttribution;
+      const forgedDossier = candidateEvidenceDossierSchema.parse(
+        required(forgedContext.candidateArtifacts?.[0]).dossier,
+      );
+      required(
+        forgedDossier.evidence.find((entry) => entry.id === "campaign-passage"),
+      ).attribution = forgedAttribution;
+      forgedDossier.dossierDigest = hash(
+        candidateDossierSemanticProjection(forgedDossier),
+      );
+      const forgedAuthor = {
+        ...author,
+        actorId: forgedBrief.authorId,
+        runId: randomUUID(),
+        revisionDigest: briefDigest(forgedBrief),
+        dossierDigest: forgedDossier.dossierDigest,
+      };
+      const forgedArtifact = required(forgedContext.candidateArtifacts?.[0]);
+      forgedArtifact.dossier = forgedDossier;
+      forgedArtifact.dossierDigest = forgedDossier.dossierDigest;
+      forgedArtifact.author = forgedAuthor;
+      const forgedSaved = await saveResearchCollection(forgedContext, db, {
+        workLease: lease,
+      });
+      collectionIds.push(forgedSaved.collectionId);
+      await assert.rejects(
+        recordResearchAiReview({
+          collectionId: forgedSaved.collectionId,
+          revisionId: forgedBrief.revisionId,
+          attestation: {
+            ...attestation,
+            author: forgedAuthor,
+            reviewer: {
+              ...reviewer,
+              runId: randomUUID(),
+              revisionDigest: briefDigest(forgedBrief),
+              dossierDigest: forgedDossier.dossierDigest,
+            },
+          },
+          workLease: lease,
+        }),
+        /Speaker context must be a full exact archived passage/,
+      );
     } finally {
       if (releaseIds.length)
         await db.delete(Release).where(inArray(Release.id, releaseIds));
-      await db.delete(Event).where(eq(Event.revisionId, brief.revisionId));
+      await db.delete(Event).where(inArray(Event.revisionId, revisionIds));
       if (collectionIds.length)
         await db
           .delete(Collection)
           .where(inArray(Collection.id, collectionIds));
-      await db.delete(Revision).where(eq(Revision.id, brief.revisionId));
+      await db.delete(Revision).where(inArray(Revision.id, revisionIds));
       await db.delete(Work).where(eq(Work.snapshotId, snapshotId));
       await db
         .delete(Work)
@@ -1413,8 +1714,8 @@ void test(
             excerpt: source.text,
             locator: "Fixture record",
             origin: "primary_record",
-            role: "roster",
-            identityQualification: "official_roster",
+            role: "candidate_record",
+            identityQualification: "exact_election_office",
           },
         ],
         gaps: [],

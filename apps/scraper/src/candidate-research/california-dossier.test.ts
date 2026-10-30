@@ -460,3 +460,126 @@ void test("historical contact proofs bind only exact identity and freshly retrie
     /archived source exactly/,
   );
 });
+
+export function fixtureCampaignMaterialDossier() {
+  const {
+    schemaVersion: _v,
+    classification: _c,
+    sourceSetDigest: _s,
+    dossierDigest: _d,
+    ...input
+  } = fixtureDossier();
+  const quote = "I will fund every classroom and build a new school.";
+  const context = `Statement by Principal Garcia\n${"Context about the principal and the school's teaching program. ".repeat(14)}\n${quote}`;
+  input.sources[0]!.text += "\n" + context;
+  input.sources[0]!.contentHash = createHash("sha256")
+    .update(input.sources[0]!.text)
+    .digest("hex");
+  input.evidence[1] = {
+    ...input.evidence[1]!,
+    excerpt: quote,
+    role: "campaign_material",
+    attribution: {
+      status: "unresolved",
+      context: {
+        excerpt: context,
+        locator:
+          "Campaign page, complete Statement by Principal Garcia section",
+      },
+    },
+  };
+  return buildCaliforniaDossier(input);
+}
+
+test("campaign publisher ownership leaves speaker unresolved and preserves the whole archived context", () => {
+  const dossier = fixtureCampaignMaterialDossier();
+  assert.equal(dossier.evidence[1]!.role, "campaign_material");
+  assert.equal(dossier.evidence[1]!.attribution!.status, "unresolved");
+  const {
+    schemaVersion: _v,
+    classification: _c,
+    sourceSetDigest: _s,
+    dossierDigest: _d,
+    ...input
+  } = dossier;
+  assert.throws(
+    () =>
+      buildCaliforniaDossier({
+        ...input,
+        evidence: input.evidence.map((entry) =>
+          entry.id === "platform"
+            ? { ...entry, attribution: undefined }
+            : entry,
+        ),
+      }),
+    /unresolved speaker attribution/,
+  );
+  assert.throws(
+    () =>
+      buildCaliforniaDossier({
+        ...input,
+        evidence: input.evidence.map((entry) =>
+          entry.id === "platform"
+            ? {
+                ...entry,
+                attribution: {
+                  ...entry.attribution!,
+                  status: "official_candidate_statement",
+                },
+              }
+            : entry,
+        ),
+      }),
+    /unresolved speaker attribution|official submission channel/,
+  );
+  assert.throws(
+    () =>
+      buildCaliforniaDossier({
+        ...input,
+        evidence: input.evidence.map((entry) =>
+          entry.id === "platform"
+            ? {
+                ...entry,
+                attribution: {
+                  ...entry.attribution!,
+                  context: {
+                    ...entry.attribution!.context,
+                    excerpt: "Invented source context",
+                  },
+                },
+              }
+            : entry,
+        ),
+      }),
+    /exact archived passage/,
+  );
+});
+
+test("official candidate-statement status requires its known official submission channel", () => {
+  const dossier = fixtureCampaignMaterialDossier();
+  const {
+    schemaVersion: _v,
+    classification: _c,
+    sourceSetDigest: _s,
+    dossierDigest: _d,
+    ...input
+  } = dossier;
+  input.evidence[1] = {
+    ...input.evidence[1]!,
+    role: "candidate_statement",
+    attribution: {
+      ...input.evidence[1]!.attribution!,
+      status: "official_candidate_statement",
+    },
+  };
+  assert.throws(
+    () => buildCaliforniaDossier(input),
+    /verified official submission channel/,
+  );
+  input.sources[0]!.url =
+    "https://voterguide.sos.ca.gov/candidates/governor-candidate-statements.htm";
+  assert.equal(
+    buildCaliforniaDossier(input).evidence[1]!.attribution!.status,
+    "official_candidate_statement",
+  );
+});
