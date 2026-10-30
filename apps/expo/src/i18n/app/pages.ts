@@ -4592,7 +4592,7 @@ export const pageStrings = {
   },
   "Candidate statement": {
     en: "Candidate statement",
-    es: "Declaración del candidato",
+    es: "Declaración de candidatura",
     zh: "候选人声明",
   },
   "Reviewed analysis isn’t available for this race.": {

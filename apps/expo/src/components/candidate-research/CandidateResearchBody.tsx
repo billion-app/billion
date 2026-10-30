@@ -6,6 +6,7 @@ import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { CandidateDisclosure } from "~/components/ballot-evidence/CandidateDisclosure";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { Brief } from "./Brief";
+import { researchEvidenceAttribution } from "./evidence-attribution";
 import { Finance } from "./Finance";
 import { financeFilingSource } from "./finance-source";
 import { Action, EvidenceAction, Panel, s, Segments } from "./ResearchUI";
@@ -95,18 +96,22 @@ export function CandidateResearchBody({
             brief.evidence.map((evidence) => (
               <Panel key={evidence.id}>
                 <Text style={s.eyebrow}>
-                  {evidence.origin === "candidate"
-                    ? tx("CANDIDATE SOURCE")
-                    : evidence.origin === "primary_record"
-                      ? tx("ORIGINAL RECORD")
-                      : tx("INDEPENDENT REPORTING")}
+                  {tx(researchEvidenceAttribution(evidence).label)}
                 </Text>
                 <Text style={s.heading}>
                   {evidence.title ?? evidence.publisher}
                 </Text>
                 <Text style={s.muted}>
-                  {evidence.publisher} · {evidence.locator}
+                  {tx("Published by {publisher}", {
+                    publisher: evidence.publisher,
+                  })}{" "}
+                  · {evidence.locator}
                 </Text>
+                {researchEvidenceAttribution(evidence).unresolved ? (
+                  <Text style={s.muted}>
+                    {tx("Speaker or author not established")}
+                  </Text>
+                ) : null}
                 <EvidenceAction
                   ids={[evidence.id]}
                   title={evidence.title ?? evidence.publisher}

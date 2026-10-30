@@ -8,6 +8,7 @@ import { CandidateDisclosure } from "~/components/ballot-evidence/CandidateDiscl
 import { Icon } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { hair, DigestPalette as P } from "~/styles";
+import { researchEvidenceAttribution } from "./evidence-attribution";
 import {
   Action,
   Emphasis,
@@ -191,18 +192,28 @@ export function Brief({
       {!judicial &&
         brief.research &&
         brief.evidence.some((e) => e.origin === "candidate") && (
-          <CandidateDisclosure title={tx("Values in their own words")}>
+          <CandidateDisclosure title={tx("Statements and campaign material")}>
             {brief.evidence
               .filter((e) => e.origin === "candidate")
               .map((e) => (
                 <View key={e.id} style={s.point}>
-                  <Text selectable style={s.body}>
-                    {e.excerpt}
+                  <Text style={s.eyebrow}>
+                    {tx(researchEvidenceAttribution(e).label)}
                   </Text>
+                  <Text style={s.label}>{e.title ?? e.publisher}</Text>
+                  <Text style={s.muted}>
+                    {tx("Published by {publisher}", { publisher: e.publisher })}{" "}
+                    · {e.locator}
+                  </Text>
+                  {researchEvidenceAttribution(e).unresolved ? (
+                    <Text style={s.muted}>
+                      {tx("Speaker or author not established")}
+                    </Text>
+                  ) : null}
                   <EvidenceAction
                     ids={[e.id]}
                     title={e.title ?? e.publisher}
-                    label={tx("Campaign source")}
+                    label={tx("Read source passage")}
                     open={open}
                   />
                 </View>
@@ -225,9 +236,7 @@ export function Brief({
           )
             return null;
           const title = {
-            priorities: tx(
-              judicial ? "Judicial background" : "Values in their own words",
-            ),
+            priorities: tx(judicial ? "Judicial background" : "Priorities"),
             mechanisms: tx(
               judicial ? "Court authority" : "How plans could work",
             ),
@@ -318,7 +327,7 @@ export function PromiseDetail({
           }
           title={tx("Campaign promise")}
           label={
-            repeatsPromise ? tx("Proposal sources") : tx("Campaign source")
+            repeatsPromise ? tx("Proposal sources") : tx("Read source passage")
           }
           open={open}
         />

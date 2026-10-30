@@ -16,6 +16,7 @@ import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { fontEditorial, hair, DigestPalette as P, planes } from "~/styles";
+import { researchEvidenceAttribution } from "./evidence-attribution";
 import { focusControl, s, Segments } from "./ResearchUI";
 
 export interface EvidenceSelection {
@@ -45,6 +46,7 @@ export function EvidenceSheet({
     evidence.filter((e) => e.id === id),
   );
   const source = sources[Number(index)];
+  const attribution = source ? researchEvidenceAttribution(source) : undefined;
   const dismiss = () => {
     onClose();
     requestAnimationFrame(() => selection.restoreFocus?.());
@@ -124,18 +126,38 @@ export function EvidenceSheet({
             {source ? (
               <>
                 <Text style={s.eyebrow}>
-                  {source.origin === "candidate"
-                    ? tx("CANDIDATE'S OWN WORDS")
-                    : source.origin === "primary_record"
-                      ? tx("ORIGINAL RECORD")
-                      : tx("INDEPENDENT REPORTING")}
+                  {attribution ? tx(attribution.label) : ""}
                   {fictional ? ` · ${tx("FICTIONAL")}` : ""}
                 </Text>
                 <Text accessibilityRole="header" style={s.heading}>
                   {source.title ?? source.publisher}
                 </Text>
                 <Text style={s.muted}>
-                  {source.publisher} · {source.locator}
+                  {tx("Published by {publisher}", {
+                    publisher: source.publisher,
+                  })}{" "}
+                  · {source.locator}
+                </Text>
+                {attribution?.unresolved ? (
+                  <Text style={s.label}>
+                    {tx("Speaker or author not established")}
+                  </Text>
+                ) : null}
+                {attribution?.context ? (
+                  <View style={s.point}>
+                    <Text accessibilityRole="header" style={s.label}>
+                      {tx("Attribution context")}
+                    </Text>
+                    <Text style={s.muted}>{attribution.context.locator}</Text>
+                    <View style={styles.quote}>
+                      <Text selectable style={styles.quoteText}>
+                        {attribution.context.excerpt}
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+                <Text accessibilityRole="header" style={s.label}>
+                  {tx("Source passage")}
                 </Text>
                 <View style={styles.quote}>
                   <Text selectable style={styles.quoteText}>

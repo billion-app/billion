@@ -2,6 +2,51 @@
 import type { Catalog } from "./types";
 
 export const electionStrings = {
+  "Statements and campaign material": {
+    en: "Statements and campaign material",
+    es: "Declaraciones y material de campaña",
+    zh: "候选人声明与竞选材料",
+  },
+  "Source passage": {
+    en: "Source passage",
+    es: "Pasaje de la fuente",
+    zh: "来源原文",
+  },
+  "Attribution context": {
+    en: "Attribution context",
+    es: "Contexto de atribución",
+    zh: "归属上下文",
+  },
+  "Published by {publisher}": {
+    en: "Published by {publisher}",
+    es: "Publicado por {publisher}",
+    zh: "发布方：{publisher}",
+  },
+  "Speaker or author not established": {
+    en: "Speaker or author not established",
+    es: "No se ha determinado quién habla o escribe",
+    zh: "尚未确定发言者或作者",
+  },
+  Reporting: {
+    en: "Reporting",
+    es: "Información periodística",
+    zh: "新闻报道",
+  },
+  "Original record": {
+    en: "Original record",
+    es: "Registro original",
+    zh: "原始记录",
+  },
+  "Candidate-related material": {
+    en: "Candidate-related material",
+    es: "Material sobre la candidatura",
+    zh: "候选人相关材料",
+  },
+  "Campaign publication": {
+    en: "Campaign publication",
+    es: "Publicación de campaña",
+    zh: "竞选团队发布的材料",
+  },
   "Judicial background": {
     en: "Judicial background",
     es: "Trayectoria judicial",
