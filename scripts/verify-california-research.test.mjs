@@ -3,9 +3,14 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
+  authorityProjectionDigest,
+  authorityRenewalErrors,
   checkRace,
+  clarityIdentityErrors,
   expectedRoster,
   finalScopeErrors,
+  sourceArchiveErrors,
+  sourceAuditErrors,
   walkCatalog,
 } from "./verify-california-research.mjs";
 
@@ -328,5 +333,324 @@ test("verified labels cannot hide missing, pending, tampered, or unmapped local 
     const snapshot = completeSanJoseFixture();
     mutate(snapshot);
     assert.ok(finalScopeErrors(expectedRoster(snapshot)).length > 0);
+  }
+});
+
+const cdeProjection = "cde-item-48870daecfe14c6ab376f6a673491914-telemetry-v1";
+const cdeUrl =
+  "https://www.arcgis.com/sharing/rest/content/items/48870daecfe14c6ab376f6a673491914?f=json";
+const mvlaProjection = "mvla-trustee-authority-seven-asset-versions-v1";
+const mvlaUrl = "https://www.mvla.net/trustee-area-election-information";
+
+test("CDE renewal removes only the two top-level integer telemetry fields", () => {
+  const item = {
+    id: "48870daecfe14c6ab376f6a673491914",
+    lastViewed: 1,
+    numViews: 2,
+    title: "District geometry",
+    owner: "Official",
+    modified: 42,
+    service: { url: "https://example.gov/map", numViews: 3 },
+    extent: [
+      [1, 2],
+      [3, 4],
+    ],
+  };
+  const project = (value) =>
+    authorityProjectionDigest(cdeProjection, cdeUrl, JSON.stringify(value));
+  assert.equal(
+    project(item),
+    project({ ...item, lastViewed: 20, numViews: 30 }),
+  );
+  for (const mutation of [
+    { ...item, title: "Different boundaries" },
+    { ...item, owner: "Other" },
+    { ...item, modified: 43 },
+    { ...item, service: { ...item.service, numViews: 4 } },
+    { ...item, unknownNewField: true },
+    {
+      ...item,
+      extent: [
+        [1, 2],
+        [3, 5],
+      ],
+    },
+  ])
+    assert.notEqual(project(item), project(mutation));
+  for (const text of [
+    JSON.stringify(item).replace('"numViews":2', '"numViews":2,"numViews":3'),
+    JSON.stringify(item).replace(
+      '"title":"District geometry"',
+      '"title":"District geometry","\\u0074itle":"duplicate"',
+    ),
+    JSON.stringify(item).replace('"modified":42', '"modified":1e999'),
+    JSON.stringify({ ...item, numViews: -1 }),
+    JSON.stringify({ ...item, lastViewed: 1.5 }),
+    JSON.stringify({ ...item, id: "different" }),
+  ])
+    assert.throws(() => authorityProjectionDigest(cdeProjection, cdeUrl, text));
+  assert.throws(
+    () =>
+      authorityProjectionDigest(
+        cdeProjection,
+        "https://example.gov/other-item",
+        JSON.stringify(item),
+      ),
+    /Unapproved/,
+  );
+});
+
+test("MVLA renewal preserves all text except seven exact synchronized asset timestamp slots", () => {
+  const tags = [
+    '<script src="/js/slick-a11y.js?v=',
+    '<link rel="stylesheet" type="text/css" href="/css/main-sass.css?v=',
+    '<script src="/js/classes/ColorContrast.js?v=',
+    '<script src="/js/stack_items.js?v=',
+    '<script type="module" src="/js/components.js?v=',
+    '<script src="/js/general.js?v=',
+    '<script src="/js/deviceDetector.js?v=',
+  ];
+  const html = (version) =>
+    '<h1>Adopted C1</h1><a href="C1.pdf">Map</a>\n' +
+    tags.map((tag) => tag + version + '">').join("\n");
+  const project = (text) =>
+    authorityProjectionDigest(mvlaProjection, mvlaUrl, text);
+  const original = html("20261030182853");
+  assert.equal(project(original), project(html("20261030194310")));
+  for (const changed of [
+    original + " ",
+    original.replace("C1.pdf", "C2.pdf"),
+    original.replace("Adopted C1", "Proposed C1"),
+  ])
+    assert.notEqual(project(original), project(changed));
+  for (const changed of [
+    original.replace("/js/general.js", "/js/new.js"),
+    original.replace("20261030182853", "20261030194310"),
+    html("20260230182853"),
+    html("20261030182899"),
+    original + tags[0] + '20261030182853">',
+  ])
+    assert.throws(() => project(changed));
+});
+
+test("authority renewal cannot authorize arbitrary projectors or self-declared digest approvals", () => {
+  assert.match(
+    authorityRenewalErrors(
+      { sourceRenewalProjections: [{ projectionId: "ignore-all-html" }] },
+      [],
+      "scope",
+    ).join(" "),
+    /Unapproved/,
+  );
+  assert.match(
+    authorityRenewalErrors(
+      {
+        sourceRenewalProjections: [
+          {
+            projectionId: cdeProjection,
+            url: cdeUrl,
+            reviewedContentHash: "arbitrary",
+          },
+        ],
+      },
+      [],
+      "scope",
+    ).join(" "),
+    /Unapproved authority reviewedContentHash/,
+  );
+  assert.match(
+    authorityRenewalErrors(
+      { sourceProjectionProofs: [{ projectionId: cdeProjection }] },
+      [],
+      "scope",
+    ).join(" "),
+    /no approved projection/,
+  );
+});
+
+test("current local source freshness is bound to actual successful bounded HTTP observations", () => {
+  const fetchedAt = "2026-10-30T20:15:15.486Z";
+  const source = {
+    id: "official-map",
+    url: "https://example.gov/map.pdf",
+    contentHash: "extracted-text-hash",
+    byteHash: "binary-map-hash",
+    fetchedAt,
+  };
+  const roster = { additionalSources: [source] };
+  const audit = {
+    schemaVersion: 1,
+    startedAt: "2026-10-30T20:15:00Z",
+    completedAt: "2026-10-30T20:16:00Z",
+    observedBodyBytes: 100,
+    maxSharedBodyBytes: 1000,
+    sources: [
+      {
+        id: source.id,
+        url: source.url,
+        status: "PASS",
+        bodyBytes: 100,
+        startedAt: "2026-10-30T20:15:01Z",
+        completedAt: fetchedAt,
+        actual: {
+          url: source.url,
+          textHash: source.contentHash,
+          byteHash: source.byteHash,
+          fetchedAt,
+        },
+      },
+    ],
+    networkRequests: [{ sourceId: source.id, status: 200 }],
+  };
+  const now = Date.parse("2026-10-30T20:20:00Z");
+  assert.deepEqual(sourceAuditErrors(roster, audit, now), []);
+  for (const mutate of [
+    (value) => {
+      value.sources[0].actual.byteHash = "changed binary";
+    },
+    (value) => {
+      value.sources[0].actual.textHash = "changed extraction";
+    },
+    (value) => {
+      value.sources[0].actual.fetchedAt = "2026-10-30T20:15:16Z";
+    },
+    (value) => {
+      value.sources[0].status = "FAIL";
+    },
+    (value) => {
+      value.networkRequests[0].status = 403;
+    },
+    (value) => {
+      value.observedBodyBytes = 1001;
+    },
+    (value) => {
+      value.sources.push(value.sources[0]);
+    },
+  ]) {
+    const changed = structuredClone(audit);
+    mutate(changed);
+    assert.ok(sourceAuditErrors(roster, changed, now).length);
+  }
+  assert.ok(sourceAuditErrors(roster, audit, now + 86_400_000).length);
+  assert.ok(sourceAuditErrors(roster, null, now).length);
+});
+
+test("HTTP audit companion archive must preserve actual current source bodies and raw hashes", () => {
+  const text = "Actual official source text";
+  const source = {
+    id: "official",
+    url: "https://example.gov/official",
+    publisher: "Official",
+    format: "text",
+    text,
+    contentHash: createHash("sha256").update(text).digest("hex"),
+    byteHash: "actual-raw-hash",
+    fetchedAt: "2026-10-30T20:15:00Z",
+  };
+  const roster = { additionalSources: [source] };
+  assert.deepEqual(sourceArchiveErrors(roster, { sources: [source] }), []);
+  for (const mutate of [
+    (archive) => {
+      archive.sources[0].text = "Changed text";
+    },
+    (archive) => {
+      archive.sources[0].byteHash = "Changed binary";
+    },
+    (archive) => {
+      archive.sources[0].fetchedAt = "2026-10-30T21:00:00Z";
+    },
+    (archive) => {
+      archive.sources = [];
+    },
+    (archive) => {
+      archive.sources.push(archive.sources[0]);
+    },
+  ]) {
+    const archive = { sources: [structuredClone(source)] };
+    mutate(archive);
+    assert.ok(sourceArchiveErrors(roster, archive).length);
+  }
+  assert.ok(sourceArchiveErrors(roster, null).length);
+});
+
+test("local canonical candidate IDs are independently derived from official XML keys", () => {
+  const root =
+    "https://results.enr.clarityelections.com/CA/Santa_Clara/127570/";
+  const contestId = "ca-scc-clarity:2026-11-03:127570:28";
+  const identity = {
+    candidateId: `${contestId}:choice:48`,
+    contestId,
+    electionDate: "2026-11-03",
+    jurisdiction: "San Jose",
+  };
+  const roster = {
+    electionDate: "2026-11-03",
+    localPrimary: {
+      definitionURL: `${root}382435/json/en/summary.json`,
+      settingsURL: `${root}382435/json/en/electionsettings.json`,
+      currentVersionURL: `${root}current_ver.txt`,
+      identityCrosswalk: {
+        members: [
+          {
+            sourceContestId: "3170",
+            name: "Candidate",
+            clarityContestKey: "28",
+            clarityChoiceIndex: 0,
+            status: "on_ballot",
+          },
+        ],
+      },
+    },
+    additionalSources: [
+      { url: `${root}current_ver.txt`, text: "382435" },
+      {
+        url: `${root}382435/json/en/summary.json`,
+        text: JSON.stringify([{ K: "28", CH: ["Candidate", "Other"] }]),
+      },
+      {
+        url: `${root}382435/reports/detailwithoutvotetypesxml.zip`,
+        text: '<Contest key="28"><Choice key="48"></Choice><Choice key="49"></Choice></Contest>',
+      },
+    ],
+    races: [
+      {
+        officeFamily: "local",
+        sourceContestId: "3170",
+        contestId,
+        jurisdiction: "San Jose",
+        members: [
+          {
+            identity,
+            candidateId: identity.candidateId,
+            sourceCandidateId: "48",
+            name: "Candidate",
+            ballotStatus: "on_ballot",
+          },
+        ],
+      },
+    ],
+  };
+  assert.deepEqual(clarityIdentityErrors(roster), []);
+  for (const mutate of [
+    (value) => {
+      value.races[0].members[0].identity.candidateId = `${contestId}:choice:999`;
+    },
+    (value) => {
+      value.races[0].members[0].sourceCandidateId = "49";
+    },
+    (value) => {
+      value.localPrimary.identityCrosswalk.members[0].clarityChoiceIndex = 1;
+    },
+    (value) => {
+      value.races[0].members[0].ballotStatus = "qualified_write_in";
+    },
+    (value) => {
+      value.additionalSources[2].text =
+        '<Contest key="28"><Choice key="48"></Choice><Choice key="48"></Choice></Contest>';
+    },
+  ]) {
+    const changed = structuredClone(roster);
+    mutate(changed);
+    assert.ok(clarityIdentityErrors(changed).length);
   }
 });

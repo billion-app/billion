@@ -92,6 +92,579 @@ const canonical = (value) => {
   return JSON.stringify(value);
 };
 
+const renewalReceipt = {
+  receiptHash:
+    "9b23400c34796de76dbe25140c356e508e3ecd0ae1617c31116df1ecc3c6f519",
+  scopeDigest:
+    "a04b0dc8a476fb06ed52d9aace451f6564fdaa476a672e751595fcd47c9562b7",
+  reviewedSourceBundleHash:
+    "f3277611713e1c281d2604dc7cb2349e67551d1149343a5edac16309f1205aea",
+  actorId: "ai:gpt-6-astra:san-jose-full-scope-review:2026-10-30",
+};
+const authorityProjections = {
+  "cde-item-48870daecfe14c6ab376f6a673491914-telemetry-v1": {
+    url: "https://www.arcgis.com/sharing/rest/content/items/48870daecfe14c6ab376f6a673491914?f=json",
+    reviewedContentHash:
+      "4f8e7401cfb9cbf37b8fc7754df24f358d5e344884a9fca0d19f300a161adccd",
+    canonicalDigest:
+      "720348bff7cd6b05bf80f187822ccf406d659566dfa28d548d05f7812489d2fc",
+  },
+  "mvla-trustee-authority-seven-asset-versions-v1": {
+    url: "https://www.mvla.net/trustee-area-election-information",
+    reviewedContentHash:
+      "e949457045f72afdaa13a78513de14dd7c9e80e99088d79c8e0c3cf5d056a79f",
+    canonicalDigest:
+      "23e6295294ed84717528e916f9ce5f69ddd4ae22f43adfa27d734ccbd80ee2ff",
+  },
+};
+const assetTags = [
+  '<script src="/js/slick-a11y.js?v=',
+  '<link rel="stylesheet" type="text/css" href="/css/main-sass.css?v=',
+  '<script src="/js/classes/ColorContrast.js?v=',
+  '<script src="/js/stack_items.js?v=',
+  '<script type="module" src="/js/components.js?v=',
+  '<script src="/js/general.js?v=',
+  '<script src="/js/deviceDetector.js?v=',
+];
+function strictJson(text) {
+  let offset = 0;
+  const whitespace = () => {
+    while (/[ \t\r\n]/.test(text[offset] ?? "") && offset < text.length)
+      offset++;
+  };
+  const string = () => {
+    assert.equal(text[offset++], '"', "Expected JSON string");
+    const start = offset - 1;
+    while (offset < text.length) {
+      const char = text[offset++];
+      if (char === "\\") offset++;
+      else if (char === '"') return JSON.parse(text.slice(start, offset));
+    }
+    throw new Error("Unterminated JSON string");
+  };
+  const value = (depth = 0) => {
+    assert.ok(depth <= 100, "JSON nesting exceeds bound");
+    whitespace();
+    if (text[offset] === '"') return string();
+    if (text[offset] === "{") {
+      offset++;
+      const result = Object.create(null),
+        keys = new Set();
+      whitespace();
+      if (text[offset] === "}") {
+        offset++;
+        return result;
+      }
+      while (true) {
+        whitespace();
+        const name = string();
+        assert.ok(!keys.has(name), `Duplicate JSON key ${name}`);
+        keys.add(name);
+        whitespace();
+        assert.equal(text[offset++], ":", "Expected JSON colon");
+        result[name] = value(depth + 1);
+        whitespace();
+        const separator = text[offset++];
+        if (separator === "}") return result;
+        assert.equal(separator, ",", "Expected JSON object separator");
+      }
+    }
+    if (text[offset] === "[") {
+      offset++;
+      const result = [];
+      whitespace();
+      if (text[offset] === "]") {
+        offset++;
+        return result;
+      }
+      while (true) {
+        result.push(value(depth + 1));
+        whitespace();
+        const separator = text[offset++];
+        if (separator === "]") return result;
+        assert.equal(separator, ",", "Expected JSON array separator");
+      }
+    }
+    const token =
+      /^(?:true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/.exec(
+        text.slice(offset),
+      )?.[0];
+    assert.ok(token, "Invalid JSON value");
+    offset += token.length;
+    const result = JSON.parse(token);
+    assert.ok(
+      typeof result !== "number" || Number.isFinite(result),
+      "Nonfinite JSON number",
+    );
+    return result;
+  };
+  const result = value();
+  whitespace();
+  assert.equal(offset, text.length, "Trailing JSON content");
+  return result;
+}
+
+export function authorityProjectionDigest(projectionId, url, text) {
+  const approved = Object.hasOwn(authorityProjections, projectionId)
+    ? authorityProjections[projectionId]
+    : undefined;
+  assert.ok(
+    approved && approved.url === url,
+    "Unapproved authority URL or projector",
+  );
+  if (projectionId.startsWith("cde-item-")) {
+    const item = strictJson(text);
+    assert.equal(
+      item?.id,
+      "48870daecfe14c6ab376f6a673491914",
+      "Different CDE item identity",
+    );
+    for (const field of ["lastViewed", "numViews"]) {
+      assert.ok(
+        Number.isSafeInteger(item[field]) && item[field] >= 0,
+        `Invalid CDE ${field}`,
+      );
+      delete item[field];
+    }
+    return hash(canonical(item));
+  }
+  let projected = text,
+    version;
+  for (const tag of assetTags) {
+    assert.equal(
+      projected.split(tag).length,
+      2,
+      "Missing or duplicate approved asset tag",
+    );
+    const start = projected.indexOf(tag) + tag.length;
+    const timestamp = projected.slice(start, start + 14);
+    assert.match(timestamp, /^\d{14}$/, "Invalid asset version timestamp");
+    assert.equal(
+      projected.slice(start + 14, start + 16),
+      '">',
+      "Changed asset tag suffix",
+    );
+    const iso = `${timestamp.slice(0, 4)}-${timestamp.slice(4, 6)}-${timestamp.slice(6, 8)}T${timestamp.slice(8, 10)}:${timestamp.slice(10, 12)}:${timestamp.slice(12, 14)}.000Z`;
+    assert.ok(
+      Number.isFinite(Date.parse(iso)) && new Date(iso).toISOString() === iso,
+      "Invalid asset version calendar date",
+    );
+    if (version)
+      assert.equal(timestamp, version, "Inconsistent asset versions");
+    version = timestamp;
+    projected =
+      projected.slice(0, start) +
+      "[CACHE_VERSION]" +
+      projected.slice(start + 14);
+  }
+  return hash(projected);
+}
+
+export function authorityRenewalErrors(
+  primary,
+  currentSources,
+  scopeDigest,
+  now = Date.now(),
+) {
+  const errors = [],
+    projections = primary?.sourceRenewalProjections ?? [],
+    proofs = primary?.sourceProjectionProofs ?? [];
+  const seen = new Set();
+  for (const projection of projections) {
+    try {
+      const approved = Object.hasOwn(
+        authorityProjections,
+        projection.projectionId,
+      )
+        ? authorityProjections[projection.projectionId]
+        : undefined;
+      assert.ok(approved, "Unapproved authority projection");
+      assert.ok(
+        !seen.has(projection.projectionId),
+        "Duplicate authority projection",
+      );
+      seen.add(projection.projectionId);
+      for (const field of ["url", "reviewedContentHash", "canonicalDigest"])
+        assert.equal(
+          projection[field],
+          approved[field],
+          `Unapproved authority ${field}`,
+        );
+      assert.equal(
+        projection.reviewedRawHash,
+        approved.reviewedContentHash,
+        "Wrong reviewed raw archive",
+      );
+      assert.equal(projection.format, "text");
+      assert.ok(nonempty(projection.publisher), "Missing authority publisher");
+      for (const [field, value] of Object.entries(renewalReceipt))
+        assert.equal(
+          projection.approval?.[field],
+          value,
+          `Unapproved authority review ${field}`,
+        );
+      assert.equal(
+        scopeDigest,
+        renewalReceipt.scopeDigest,
+        "Authority renewal belongs to a different reviewed census",
+      );
+      assert.equal(
+        Date.parse(projection.approval.reviewedAt),
+        Date.parse("2026-10-30T20:18:50.276Z"),
+        "Authority approval date differs from the acknowledged receipt",
+      );
+      assert.ok(
+        Date.parse(projection.approval.reviewedAt) <= now,
+        "Future authority approval date",
+      );
+      const original = projection.reviewedSource;
+      assert.ok(
+        original &&
+          original.url === projection.url &&
+          original.publisher === projection.publisher &&
+          original.format === projection.format,
+        "Reviewed authority source identity mismatch",
+      );
+      assert.equal(
+        hash(original.text),
+        projection.reviewedContentHash,
+        "Reviewed authority archive hash mismatch",
+      );
+      assert.equal(
+        authorityProjectionDigest(
+          projection.projectionId,
+          original.url,
+          original.text,
+        ),
+        approved.canonicalDigest,
+        "Reviewed authority projection mismatch",
+      );
+      const matches = currentSources.filter(
+        (source) => source.url === projection.url,
+      );
+      assert.equal(
+        matches.length,
+        1,
+        "Current authority archive is missing or duplicated",
+      );
+      const current = matches[0];
+      assert.equal(
+        current.publisher,
+        projection.publisher,
+        "Current authority publisher mismatch",
+      );
+      assert.equal(
+        current.format,
+        projection.format,
+        "Current authority format mismatch",
+      );
+      assert.equal(
+        hash(current.text),
+        current.contentHash,
+        "Current authority content hash mismatch",
+      );
+      assert.equal(
+        current.byteHash,
+        current.contentHash,
+        "Current authority raw hash mismatch",
+      );
+      assert.equal(
+        authorityProjectionDigest(
+          projection.projectionId,
+          current.url,
+          current.text,
+        ),
+        approved.canonicalDigest,
+        "Current authority contains unapproved changes",
+      );
+      const proofMatches = proofs.filter(
+        (proof) => proof.projectionId === projection.projectionId,
+      );
+      assert.equal(
+        proofMatches.length,
+        1,
+        "Missing or duplicate authority renewal proof",
+      );
+      const proof = proofMatches[0];
+      for (const field of [
+        "projectionId",
+        "url",
+        "publisher",
+        "format",
+        "reviewedContentHash",
+        "reviewedRawHash",
+        "canonicalDigest",
+      ])
+        assert.equal(
+          proof[field],
+          projection[field],
+          `Authority proof ${field} mismatch`,
+        );
+      assert.equal(
+        proof.observedContentHash,
+        current.contentHash,
+        "Authority proof observed content mismatch",
+      );
+      assert.equal(
+        proof.observedRawHash,
+        current.byteHash,
+        "Authority proof observed raw bytes mismatch",
+      );
+      assert.equal(
+        proof.approvalReceiptHash,
+        renewalReceipt.receiptHash,
+        "Authority proof receipt mismatch",
+      );
+      assert.equal(
+        proof.checkedAt,
+        current.fetchedAt,
+        "Authority proof is not bound to the actual fetch timestamp",
+      );
+      const checked = Date.parse(proof.checkedAt),
+        fetched = Date.parse(current.fetchedAt);
+      assert.ok(
+        fetched <= checked && checked <= now && now - fetched <= 86_400_000,
+        "Authority renewal is stale or future dated",
+      );
+    } catch (error) {
+      errors.push(`${projection.projectionId}: ${error.message}`);
+    }
+  }
+  if (
+    proofs.some(
+      (proof) =>
+        !projections.some(
+          (projection) => projection.projectionId === proof.projectionId,
+        ),
+    )
+  )
+    errors.push("Authority renewal proof has no approved projection");
+  return errors;
+}
+
+export function sourceArchiveErrors(roster, archive) {
+  if (!Array.isArray(archive?.sources))
+    return [
+      "--fresh-source-archive must contain the HTTP audit companion sources archive",
+    ];
+  const errors = [];
+  for (const source of roster.additionalSources ?? []) {
+    const matches = archive.sources.filter(
+      (observed) => observed.id === source.id && observed.url === source.url,
+    );
+    if (matches.length !== 1) {
+      errors.push(
+        `Current source lacks a unique companion archive ${source.url}`,
+      );
+      continue;
+    }
+    const observed = matches[0];
+    if (
+      typeof observed.text !== "string" ||
+      hash(observed.text) !== observed.contentHash ||
+      observed.contentHash !== source.contentHash ||
+      observed.text !== source.text ||
+      observed.byteHash !== source.byteHash ||
+      observed.fetchedAt !== source.fetchedAt ||
+      observed.publisher !== source.publisher ||
+      observed.format !== source.format
+    )
+      errors.push(
+        `Current snapshot differs from independently captured source archive ${source.url}`,
+      );
+  }
+  return errors;
+}
+
+export function sourceAuditErrors(roster, audit, now = Date.now()) {
+  const errors = [];
+  if (
+    !audit ||
+    audit.schemaVersion !== 1 ||
+    !Array.isArray(audit.sources) ||
+    !Array.isArray(audit.networkRequests)
+  )
+    return [
+      "A bounded independently captured --source-audit is required for current local proof freshness",
+    ];
+  if (
+    !(
+      Date.parse(audit.startedAt) <= Date.parse(audit.completedAt) &&
+      Date.parse(audit.completedAt) <= now
+    )
+  )
+    errors.push("HTTP audit timing is invalid or future dated");
+  if (
+    !(
+      audit.observedBodyBytes > 0 &&
+      audit.observedBodyBytes <= audit.maxSharedBodyBytes
+    )
+  )
+    errors.push("HTTP audit did not establish its byte bound");
+  const projections = roster.localPrimary?.sourceRenewalProjections ?? [];
+  const projectedURLs = new Set(
+    projections.map((projection) => projection.url),
+  );
+  for (const record of audit.sources)
+    if (record.status !== "PASS" && !projectedURLs.has(record.url))
+      errors.push(`Unapproved HTTP audit failure ${record.url}`);
+  errors.push(
+    ...authorityRenewalErrors(
+      roster.localPrimary,
+      roster.additionalSources ?? [],
+      roster.localCrosswalk?.review?.digest,
+      now,
+    ),
+  );
+  for (const source of roster.additionalSources ?? []) {
+    const matches = audit.sources.filter(
+      (record) => record.id === source.id && record.url === source.url,
+    );
+    if (matches.length !== 1) {
+      errors.push(
+        `Current source lacks a unique HTTP observation ${source.url}`,
+      );
+      continue;
+    }
+    const record = matches[0],
+      actual = record.actual;
+    if (
+      !actual ||
+      actual.textHash !== source.contentHash ||
+      (source.byteHash && actual.byteHash !== source.byteHash) ||
+      actual.fetchedAt !== source.fetchedAt ||
+      actual.url !== source.url
+    )
+      errors.push(
+        `Current archive differs from observed HTTP response ${source.url}`,
+      );
+    if (
+      !(record.bodyBytes > 0) ||
+      !audit.networkRequests.some(
+        (request) => request.sourceId === source.id && request.status === 200,
+      )
+    )
+      errors.push(
+        `Current source lacks successful observed HTTP bytes ${source.url}`,
+      );
+    const fetched = Date.parse(source.fetchedAt);
+    if (
+      !(
+        Date.parse(record.startedAt) <= fetched &&
+        fetched <= Date.parse(record.completedAt) &&
+        Date.parse(audit.startedAt) <= fetched &&
+        fetched <= Date.parse(audit.completedAt) &&
+        fetched <= now &&
+        now - fetched <= 86_400_000
+      )
+    )
+      errors.push(
+        `Current source observation is stale or has invalid timing ${source.url}`,
+      );
+  }
+  return errors;
+}
+
+export function clarityIdentityErrors(roster) {
+  const primary = roster.localPrimary;
+  if (!primary) return [];
+  try {
+    const sources = roster.additionalSources ?? [];
+    const definition = sources.find(
+      (source) => source.url === primary.definitionURL,
+    );
+    const rows = strictJson(definition.text);
+    assert.ok(Array.isArray(rows), "Clarity definition is not a contest array");
+    const version = sources
+      .find((source) => source.url === primary.currentVersionURL)
+      ?.text.trim();
+    assert.match(version ?? "", /^\d{6}$/, "Invalid current Clarity version");
+    const root =
+      "https://results.enr.clarityelections.com/CA/Santa_Clara/127570/";
+    assert.equal(
+      primary.definitionURL,
+      `${root}${version}/json/en/summary.json`,
+      "Clarity definition is not current",
+    );
+    assert.equal(
+      primary.settingsURL,
+      `${root}${version}/json/en/electionsettings.json`,
+      "Clarity settings are not current",
+    );
+    const xml = sources.find(
+      (source) =>
+        source.url ===
+        `${root}${version}/reports/detailwithoutvotetypesxml.zip`,
+    )?.text;
+    assert.ok(
+      typeof xml === "string",
+      "Current official Clarity identity XML is absent",
+    );
+    const contests = new Map();
+    for (const match of xml.matchAll(
+      /<Contest\b([^>]*)>([\s\S]*?)<\/Contest>/g,
+    )) {
+      const contestKey = /(?:^|\s)key="(\d+)"/.exec(match[1])?.[1];
+      assert.ok(
+        contestKey && !contests.has(contestKey),
+        "Duplicate or absent official XML contest key",
+      );
+      const choices = [...match[2].matchAll(/<Choice\b([^>]*)>/g)].map(
+        (choice) => /(?:^|\s)key="(\d+)"/.exec(choice[1])?.[1],
+      );
+      assert.ok(
+        choices.every(Boolean) && new Set(choices).size === choices.length,
+        "Duplicate or absent official XML choice key",
+      );
+      contests.set(contestKey, choices);
+    }
+    const errors = [];
+    for (const race of (roster.races ?? []).filter(
+      (race) => race.officeFamily === "local",
+    )) {
+      for (const member of race.members) {
+        const mappings = primary.identityCrosswalk.members.filter(
+          (mapping) =>
+            mapping.sourceContestId === race.sourceContestId &&
+            mapping.name === member.name,
+        );
+        if (mappings.length !== 1) {
+          errors.push(
+            `Local member has no unique reviewed mapping ${member.identity.candidateId}`,
+          );
+          continue;
+        }
+        const mapping = mappings[0],
+          row = rows.find((row) => row.K === mapping.clarityContestKey),
+          choices = contests.get(mapping.clarityContestKey);
+        const officialKey = choices?.[mapping.clarityChoiceIndex];
+        const contestId = `ca-scc-clarity:${roster.electionDate}:127570:${mapping.clarityContestKey}`;
+        if (
+          !row ||
+          row.CH?.[mapping.clarityChoiceIndex] !== member.name ||
+          choices?.length !== row.CH?.length ||
+          !officialKey ||
+          race.contestId !== contestId ||
+          member.sourceCandidateId !== officialKey ||
+          member.identity.contestId !== contestId ||
+          member.identity.candidateId !==
+            `${contestId}:choice:${officialKey}` ||
+          member.candidateId !== member.identity.candidateId ||
+          member.identity.jurisdiction !== race.jurisdiction ||
+          member.identity.electionDate !== roster.electionDate ||
+          member.ballotStatus !== mapping.status
+        )
+          errors.push(
+            `Local member differs from exact official XML identity ${member.identity.candidateId}`,
+          );
+      }
+    }
+    return errors;
+  } catch (error) {
+    return [`Official local identity verification failed: ${error.message}`];
+  }
+}
+
 export function finalScopeErrors(roster, now = Date.now()) {
   const errors = [];
   const coverage = roster.localCoverage;
@@ -147,6 +720,7 @@ export function finalScopeErrors(roster, now = Date.now()) {
   const sources = [
     ...(roster.additionalSources ?? []),
     ...(roster.historicalSources ?? []),
+    ...(roster.localPrimary?.reviewedSources ?? []),
   ];
   const archived = (proof) =>
     validUrl(proof?.url) &&
@@ -154,6 +728,7 @@ export function finalScopeErrors(roster, now = Date.now()) {
       (source) =>
         source.url === proof.url &&
         source.contentHash === proof.contentHash &&
+        (!proof.byteHash || source.byteHash === proof.byteHash) &&
         typeof source.text === "string" &&
         hash(source.text) === proof.contentHash,
     );
@@ -186,6 +761,29 @@ export function finalScopeErrors(roster, now = Date.now()) {
       errors.push(
         `Scope contest ${entry.sourceContestId} lacks archived territorial proof`,
       );
+    if (roster.localPrimary) {
+      for (const proof of entry.proofs ?? []) {
+        if (proof.role === "historical_qualification") continue;
+        const current = (roster.additionalSources ?? []).find(
+          (source) => source.url === proof.url,
+        );
+        const exact =
+          current?.contentHash === proof.contentHash &&
+          (!proof.byteHash || current.byteHash === proof.byteHash);
+        const projected = (
+          roster.localPrimary.sourceRenewalProjections ?? []
+        ).some(
+          (projection) =>
+            projection.url === proof.url &&
+            projection.reviewedContentHash === proof.contentHash &&
+            !proof.byteHash,
+        );
+        if (!exact && !projected)
+          errors.push(
+            `Territorial proof has no current exact or approved projected source ${proof.url}`,
+          );
+      }
+    }
     if (entry.status === "include") {
       const matching = races.filter(
         (race) =>
@@ -220,6 +818,51 @@ export function finalScopeErrors(roster, now = Date.now()) {
   }
   if (roster.localPrimary) {
     const primary = roster.localPrimary;
+    const currentSources = roster.additionalSources ?? [];
+    errors.push(...clarityIdentityErrors(roster));
+    errors.push(
+      ...authorityRenewalErrors(
+        primary,
+        currentSources,
+        crosswalk?.review?.digest,
+        now,
+      ),
+    );
+    for (const source of currentSources) {
+      if (
+        !(
+          Date.parse(source.fetchedAt) <= now &&
+          now - Date.parse(source.fetchedAt) <= 86_400_000
+        )
+      )
+        errors.push(
+          `Current local proof is stale or future dated ${source.url}`,
+        );
+      if (
+        typeof source.text !== "string" ||
+        hash(source.text) !== source.contentHash
+      )
+        errors.push(`Current local proof archive hash mismatch ${source.url}`);
+    }
+    for (const original of primary.reviewedSources ?? []) {
+      if (
+        (primary.sourceRenewalProjections ?? []).some(
+          (projection) => projection.url === original.url,
+        )
+      )
+        continue;
+      const current = currentSources.find(
+        (source) => source.url === original.url,
+      );
+      if (
+        !current ||
+        current.contentHash !== original.contentHash ||
+        (original.byteHash && current.byteHash !== original.byteHash)
+      )
+        errors.push(
+          `Local source changed without an independently replayed approval ${original.url}`,
+        );
+    }
     const identities = primary.identityCrosswalk;
     if (
       primary.kind !== "scc_clarity" ||
@@ -244,7 +887,15 @@ export function finalScopeErrors(roster, now = Date.now()) {
       !settings ||
       ![definition, version, settings].every(archived) ||
       identities?.definitionHash !== definition?.contentHash ||
-      crosswalk?.rosterSourceHash !== definition?.contentHash
+      (crosswalk?.rosterSourceHash !== definition?.contentHash &&
+        !sources.some(
+          (source) =>
+            source.format === "pdf" &&
+            source.contentHash === crosswalk?.rosterSourceHash &&
+            /^https:\/\/files\.santaclaracounty\.gov\//.test(source.url) &&
+            typeof source.text === "string" &&
+            hash(source.text) === source.contentHash,
+        ))
     )
       errors.push(
         "Local current primary source archives and identity crosswalk disagree",
@@ -577,6 +1228,8 @@ async function main() {
     options: {
       "base-url": { type: "string", default: "https://www.billion-news.app" },
       "expected-roster": { type: "string" },
+      "source-audit": { type: "string" },
+      "fresh-source-archive": { type: "string" },
       "state-only": { type: "boolean", default: false },
       "policy-version": { type: "string" },
       out: { type: "string" },
@@ -609,6 +1262,14 @@ async function main() {
   const errors = [],
     resolutions = [],
     races = [];
+  const auditBytes = values["source-audit"]
+    ? await readFile(values["source-audit"], "utf8")
+    : null;
+  const sourceAudit = auditBytes ? JSON.parse(auditBytes) : null;
+  const archiveBytes = values["fresh-source-archive"]
+    ? await readFile(values["fresh-source-archive"], "utf8")
+    : null;
+  const freshArchive = archiveBytes ? JSON.parse(archiveBytes) : null;
   const result = {
     checkedAt: new Date().toISOString(),
     api: base.origin,
@@ -619,6 +1280,12 @@ async function main() {
       path: values["expected-roster"],
       sourceUrl: roster.sourceUrl,
       scope: roster.scope,
+      sourceAudit: auditBytes
+        ? { path: values["source-audit"], sha256: hash(auditBytes) }
+        : null,
+      freshSourceArchive: archiveBytes
+        ? { path: values["fresh-source-archive"], sha256: hash(archiveBytes) }
+        : null,
     },
     errors,
     missing: [],
@@ -640,8 +1307,15 @@ async function main() {
     errors.push(
       `Expected 388 state-certified candidates; roster has ${stateCount}`,
     );
-  if (!values["state-only"])
+  if (!values["state-only"]) {
     errors.push(...finalScopeErrors(roster, Date.parse(result.checkedAt)));
+    if (roster.localPrimary) {
+      errors.push(
+        ...sourceAuditErrors(roster, sourceAudit, Date.parse(result.checkedAt)),
+      );
+      errors.push(...sourceArchiveErrors(roster, freshArchive));
+    }
+  }
   result.localScope = {
     coverage: roster.localCoverage ?? null,
     crosswalkReview: roster.localCrosswalk?.review ?? null,
