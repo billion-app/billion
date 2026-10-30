@@ -1,3 +1,23 @@
+import type { CandidateBrief } from "@acme/validators";
+
+export function financeFilingSource(
+  evidence: readonly Pick<
+    CandidateBrief["evidence"][number],
+    "origin" | "url" | "title" | "publisher"
+  >[],
+) {
+  const source = evidence.find(
+    (item) =>
+      item.origin === "primary_record" &&
+      ["https://powersearch.sos.ca.gov/", "https://www.fec.gov/data/"].includes(
+        item.url,
+      ),
+  );
+  return source
+    ? { label: source.title ?? source.publisher, url: source.url }
+    : undefined;
+}
+
 /** Resource routing only; never identifies a candidate's committee or donor. */
 export function financeResearchSource(state?: string, office?: string) {
   const normalized = (office ?? "").toLowerCase().replace(/\./g, "").trim();

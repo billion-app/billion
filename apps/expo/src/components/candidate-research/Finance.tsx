@@ -9,6 +9,7 @@ import {
 } from "@acme/validators";
 
 import type { EvidenceOpener } from "./ResearchUI";
+import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { CandidateDisclosure } from "~/components/ballot-evidence/CandidateDisclosure";
 import { Icon } from "~/components/ui";
@@ -57,12 +58,14 @@ function Interest({ area }: { area: keyof typeof interestLabels | "unknown" }) {
 export function Finance({
   finance,
   gap,
+  filingSource,
   donorId,
   onDonor,
   open,
 }: {
   finance: CampaignFinance | null;
   gap: string | null;
+  filingSource?: { label: string; url: string };
   donorId?: string;
   onDonor: (id: string) => void;
   open: EvidenceOpener;
@@ -83,6 +86,13 @@ export function Finance({
         <Text style={s.muted}>
           {tx("No reported amount here means unknown, not $0.")}
         </Text>
+        {filingSource && (
+          <SourceLink
+            label={filingSource.label}
+            url={filingSource.url}
+            prominence="primary"
+          />
+        )}
       </Panel>
     );
   const donor = finance.donors.find((d) => d.id === donorId);

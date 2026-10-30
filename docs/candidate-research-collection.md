@@ -1,6 +1,6 @@
 # Collecting and reviewing candidate research
 
-The first source adapter covers **California's 17th Congressional District, November 3, 2026**. It collects every candidate on that certified roster: Ro Khanna and Ritesh Tandon. This is a bounded research pilot, not an address-to-ballot lookup or nationwide coverage.
+The source adapters cover two complete California races for November 3, 2026. The default CA-17 House collection contains Ro Khanna and Ritesh Tandon. The Lieutenant Governor collection contains Fiona Ma and Gloria Romero. Each collection checks every candidate against the certified roster. These are bounded research pilots, not an address-to-ballot lookup or statewide coverage of every race.
 
 ## Source to reader
 
@@ -23,7 +23,21 @@ Verify the selected database host and database name first; root `.env.local` can
 pnpm --filter @acme/scraper start candidate-research --max-items 1 --concurrency 1
 ```
 
-`FEC_API_KEY` is optional. The API uses it in a header, never source URLs. Without it, the bounded request uses FEC's demo key and may fall back to the public summary. Requests fail promptly on rate limits rather than waiting for a long Retry-After period. The source registry and supervisor job contain this adapter; other election and statement scrapers retain their existing behavior.
+To collect the complete Lieutenant Governor race instead, select its explicit target:
+
+```sh
+pnpm --filter @acme/scraper start candidate-research --target ca-lieutenant-governor-2026 --max-items 1 --concurrency 1
+```
+
+The statewide collector retains the certified PDF, official candidate identifiers, candidate statements, government office-history records, office responsibilities, and the California Secretary of State's campaign-finance search guidance. It checks specific pledges against each candidate's own statement. Its finance view links to California filings and explicitly marks financial totals, donor identities and outside spending unavailable. The federal FEC adapter does not apply to statewide candidates. A changed roster or selected pledge stops collection for review.
+
+The following command retrieves the same statewide sources and validates a draft without connecting to a database. Keep its output outside version control:
+
+```sh
+pnpm --filter @acme/scraper exec tsx src/candidate-research/statewide-entry.ts /tmp/lieutenant-governor-draft.json
+```
+
+`FEC_API_KEY` is optional for the CA-17 collection. The API uses it in a header, never source URLs. Without it, the bounded request uses FEC's demo key and may fall back to the public summary. Requests fail promptly on rate limits rather than waiting for a long Retry-After period. The source registry and supervisor jobs contain both adapters; other election and statement scrapers retain their existing behavior.
 
 ## Authenticated editorial workflow
 
@@ -62,4 +76,25 @@ CANDIDATE_RESEARCH_TEST_DATABASE_URL=postgresql://localhost:55443/billion_candid
 pnpm --filter @acme/scraper exec tsx --test src/candidate-research/sources.test.ts
 ```
 
+To verify a freshly collected Lieutenant Governor draft through persistence, authenticated test review, publication, guide resolution and withdrawal, use a migrated disposable local database whose name starts with `billion_candidate_` and ends with `_test`. `CANDIDATE_RESEARCH_GUIDE_FILE` accepts a current official-guide payload or its tRPC response. Test policy and reviewer identities remain local and do not approve production publication:
+
+```sh
+CANDIDATE_RESEARCH_TEST_DATABASE_URL=postgresql://localhost:55443/billion_candidate_realdata_test \
+CANDIDATE_RESEARCH_COLLECTION_FILE=/tmp/lieutenant-governor-draft.json \
+CANDIDATE_RESEARCH_GUIDE_FILE=/tmp/california-guide.json \
+pnpm --filter @acme/api exec tsx --test src/lib/guide-candidate-research.integration.test.ts
+```
+
+Run publication integration files with `--test-concurrency=1` when sharing one local database. They change the database's active publication policy and cannot run concurrently against that shared state.
+
 The integration command only accepts an explicitly local database whose name starts with `billion_candidate_`. It creates and removes synthetic test records; it does not approve the real pilot. Real editorial approval, production deployment and physical-device accessibility acceptance must be recorded separately. This adapter does not collect a comprehensive voting history, every campaign promise, or state/local campaign-finance systems.
+
+## Verify public coverage before calling a release complete
+
+After production editorial review and publication, verify the actual public API for a real candidate. The script requires a released candidate, a current complete-race snapshot, sourced research, a promise, and catalog discovery. It fails for unavailable research and does not publish or generate anything:
+
+```sh
+node scripts/verify-candidate-research.mjs --name "Fiona Ma" --office lt-governor --out /tmp/fiona-public-verification.json
+```
+
+Use `--base-url` only when deliberately verifying another deployment. Local screenshots with collected data demonstrate rendering, while this check establishes public availability. Neither substitutes for human review of the exact revisions.

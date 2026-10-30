@@ -156,7 +156,7 @@ function CandidateRow({
       ]
         .filter(Boolean)
         .join(", ")}
-      accessibilityHint={tx("Opens the candidate's research page")}
+      accessibilityHint={tx("Opens the candidate page")}
       activeOpacity={0.8}
       onPress={() =>
         router.push(guideCandidateRoute(candidate.name, candidate.officeSlug))

@@ -19,6 +19,11 @@ import {
   localizeCandidateCatalog,
   localizeCandidateRace,
 } from "../lib/candidate-translation";
+import { getCaliforniaGuide } from "../lib/civic";
+import {
+  guideResearchOfficeIds,
+  resolveGuideCandidateResearch,
+} from "../lib/guide-candidate-research";
 import { publicProcedure } from "../trpc";
 
 interface Policy {
@@ -106,6 +111,29 @@ async function readReleases(
 /** Dependency is server-owned; no request parameter or environment flag can approve policy. */
 export function createCandidateBriefsRouter(policyInput: PolicyInput) {
   return {
+    forGuideCandidate: publicProcedure
+      .input(
+        z.object({
+          name: z.string().trim().min(1).max(200),
+          officeSlug: z.enum(
+            Object.keys(guideResearchOfficeIds) as [
+              keyof typeof guideResearchOfficeIds,
+              ...(keyof typeof guideResearchOfficeIds)[],
+            ],
+          ),
+          language: z.enum(["en", "es", "zh"]).default("en"),
+        }),
+      )
+      .query(async ({ ctx, input }) => {
+        const guide = await getCaliforniaGuide();
+        const { races } = await readReleases(ctx.db, policyInput);
+        const resolution = resolveGuideCandidateResearch(guide, races, input);
+        if (resolution.status !== "published") return resolution;
+        return {
+          ...resolution,
+          race: await localizeCandidateRace(resolution.race, input.language),
+        };
+      }),
     listRaces: publicProcedure
       .input(
         z

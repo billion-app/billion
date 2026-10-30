@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -8,6 +9,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import type { EvidenceSelection } from "~/components/candidate-research/EvidenceSheet";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotReadingText } from "~/components/ballot-evidence/BallotReadingCard";
 import {
@@ -20,12 +22,15 @@ import {
 } from "~/components/ballot-evidence/CandidateDisclosure";
 import { CandidatePortrait } from "~/components/ballot/CandidatePortrait";
 import { GuideVoteDetails } from "~/components/ballot/GuideVoteResult";
+import { CandidateResearchBody } from "~/components/candidate-research/CandidateResearchBody";
 import {
   CandidateMoneyChapter,
   CandidateResearchCard,
   CandidateResearchPrompt,
   CandidateStatementChapter,
 } from "~/components/candidate-research/CandidateResearchCards";
+import { EvidenceSheet } from "~/components/candidate-research/EvidenceSheet";
+import { CardTranslationNotice } from "~/components/CardTranslationNotice";
 import { OfficeRole } from "~/components/office-role/OfficeRole";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader } from "~/components/ui";
@@ -93,6 +98,7 @@ export default function CandidateDetailScreen() {
     levels?: string;
     candidate?: string;
     briefPreview?: string;
+    tab?: string;
   }>();
   const fromBallot = parseBallotCandidate(params.candidate, params.name);
   const office = params.office ? statewideOfficeSlug(params.office) : undefined;
@@ -135,6 +141,69 @@ export default function CandidateDetailScreen() {
             photoUrl: undefined,
           }
         : undefined));
+  const canLoadResearch =
+    !!guide &&
+    !!office &&
+    !query.isError &&
+    (fromBallot
+      ? lookupGuide
+      : (!params.state || params.state === "CA") &&
+        (!params.electionDate || params.electionDate === ELECTION_DATE) &&
+        (!params.districtId ||
+          params.districtId === "ocd-division/country:us/state:ca"));
+  const researchQuery = useQuery({
+    ...trpc.candidateBriefs.forGuideCandidate.queryOptions({
+      name: guide?.name ?? "",
+      officeSlug: office ?? "governor",
+      language: uiLanguage,
+    }),
+    enabled: canLoadResearch,
+    staleTime: 0,
+    refetchInterval: (query) =>
+      query.state.data?.status === "published" &&
+      query.state.data.race.translationState === "pending"
+        ? 3_000
+        : 30_000,
+  });
+  const [now, setNow] = useState(() => Date.now());
+  const [selection, setSelection] = useState<
+    (EvidenceSelection & { revisionId: string }) | null
+  >(null);
+  const expiresAt =
+    researchQuery.data?.status === "published"
+      ? researchQuery.data.race.manifest.expiresAt
+      : undefined;
+  useEffect(() => {
+    if (!expiresAt) return;
+    const timer = setTimeout(
+      () => setNow(Date.now()),
+      Math.max(0, Date.parse(expiresAt) - Date.now()) + 1,
+    );
+    return () => clearTimeout(timer);
+  }, [expiresAt]);
+  const research =
+    canLoadResearch &&
+    !researchQuery.isError &&
+    researchQuery.data?.status === "published" &&
+    Date.parse(researchQuery.data.race.manifest.expiresAt) >
+      Math.max(now, researchQuery.dataUpdatedAt)
+      ? researchQuery.data
+      : null;
+  const researchedCandidate = research?.race.manifest.members.find(
+    (member) => member.candidateId === research.identity.candidateId,
+  );
+  const brief = research?.race.briefs.find(
+    (item) => item.identity.candidateId === research.identity.candidateId,
+  );
+  const researchTab =
+    params.tab === "money" || params.tab === "sources" ? params.tab : "brief";
+  const openResearch = (next: Record<string, string>, promise = false) => {
+    if (!research) return;
+    router.push({
+      pathname: promise ? "/candidate-promise" : "/candidate-research",
+      params: { race: research.releaseId, ...next },
+    });
+  };
   const statementCitation = fromBallot?.citations?.find(
     (item) => item.field === "statement",
   );
@@ -351,12 +420,21 @@ export default function CandidateDetailScreen() {
                     ? tx("Withdrawn; name remains on the ballot")
                     : fromBallot?.ballotStatus === "onBallot"
                       ? tx("Listed on your ballot")
-                      : guide
-                        ? tx("Statement guide · not a complete candidate list")
-                        : tx("Ballot status unavailable")}
+                      : researchedCandidate
+                        ? tx(
+                            researchedCandidate.ballotStatus ===
+                              "withdrawn_on_ballot"
+                              ? "Withdrawn; name remains on the ballot"
+                              : "Listed in the official candidate roster",
+                          )
+                        : guide
+                          ? tx(
+                              "Statement guide · not a complete candidate list",
+                            )
+                          : tx("Ballot status unavailable")}
                 </Text>
               </View>
-              {guide && office && (
+              {guide && office && !brief && (
                 <GuideVoteDetails
                   electionDate={ELECTION_DATE}
                   candidateKey={`${office}:${guide.name}`}
@@ -364,259 +442,337 @@ export default function CandidateDetailScreen() {
               )}
             </View>
 
-            <View style={s.researchIntro}>
-              <Text accessibilityRole="header" style={s.sectionTitle}>
-                {tx("Research this candidate")}
-              </Text>
-              <Text style={s.lede}>
-                {tx(
-                  "Follow the sources, compare records, and look for what’s missing. These are starting points for exploring this candidate.",
-                )}
-              </Text>
-              {!previewBrief && (
+            {research && brief ? (
+              <>
+                <CardTranslationNotice
+                  items={[research.race]}
+                  isError={researchQuery.isError}
+                  onRetry={() => void researchQuery.refetch()}
+                />
                 <Text style={s.muted}>
-                  {tx(
-                    "Independent research has not been published for this race.",
-                  )}
+                  {tx("Reviewed {value1}", {
+                    value1: new Date(
+                      research.race.reviewedAt,
+                    ).toLocaleDateString(appLocale, { timeZone: "UTC" }),
+                  })}
                 </Text>
-              )}
-            </View>
-
-            <CandidateResearchCard
-              title={tx("Promises & priorities")}
-              question={tx("What do they want to change?")}
-              icon="quote"
-              available={!!candidate.statement}
-              availability={
-                candidate.statement
-                  ? tx("Candidate statement available")
-                  : tx("Statement not supplied")
-              }
-            >
-              {candidate.statement ? (
-                <CandidateStatementChapter
-                  attribution={
-                    usingGuideStatement
-                      ? tx(
-                          "Supplied by the candidate. California does not check these claims for accuracy.",
-                        )
-                      : tx(
-                          "Supplied by a ballot provider. Claims have not been independently checked by Billion.",
-                        )
+                <CandidateResearchBody
+                  key={brief.revisionId}
+                  brief={brief}
+                  reviewedAt={research.race.reviewedAt}
+                  tab={researchTab}
+                  onTab={(tab) => router.setParams({ tab })}
+                  onDonor={(donor) =>
+                    openResearch({
+                      person: research.identity.candidateId,
+                      tab: "money",
+                      donor,
+                    })
                   }
-                  sourceLabel={statementSourceLabel}
-                  sourceUrl={sourceUrl}
+                  onPromise={(promise) =>
+                    openResearch(
+                      { person: research.identity.candidateId, promise },
+                      true,
+                    )
+                  }
+                  onCompare={() => openResearch({ view: "compare" })}
+                  open={(ids, title, restoreFocus) =>
+                    setSelection({
+                      ids,
+                      title,
+                      restoreFocus,
+                      revisionId: brief.revisionId,
+                    })
+                  }
                 />
-              ) : (
-                <Text style={s.muted}>
-                  {tx(
-                    "A candidate statement has not been supplied here. Check the official guide for available statements.",
-                  )}
-                </Text>
-              )}
-              {previewBrief && (
-                <CandidateIndependentBrief
-                  brief={previewBrief}
-                  reviewedAt={new Date(
-                    "2026-10-02T12:00:00Z",
-                  ).toLocaleDateString(appLocale)}
-                  topics={[
-                    "priorities",
-                    "mechanisms",
-                    "effects",
-                    "tradeoffs",
-                    "unknowns",
-                  ]}
-                />
-              )}
-              {!candidate.statement && (
-                <CandidateResearchPrompt
-                  questions={[
-                    tx("What specific change do they say they want?"),
-                    tx(
-                      "Do they name a timeline, a cost, or who else must agree?",
-                    ),
-                    tx(
-                      "Which claims have no linked document or outside record behind them?",
-                    ),
-                  ]}
-                />
-              )}
-              {!sourceUrl && (
-                <SourceLink
-                  label={tx("Find your official voter guide")}
-                  url={electionOfficeUrl}
-                  prominence="primary"
-                />
-              )}
-            </CandidateResearchCard>
-
-            <CandidateResearchCard
-              title={tx("Background & record")}
-              question={tx("What have they done before?")}
-              icon="doc"
-              available={!!publicBiography || !!previewBrief}
-              availability={
-                publicBiography
-                  ? tx("Source-provided biography available")
-                  : backgroundQuery.isPending
-                    ? tx("Checking public biographies")
-                    : previewBrief
-                      ? tx("Preview research notes available")
-                      : tx("Background not supplied")
-              }
-            >
-              {publicBiography ? (
-                <View style={{ gap: 12 }}>
-                  <Text style={s.muted}>
-                    {tx(
-                      "{value1} biography · not an independent assessment or a record of votes",
-                      { value1: publicBiography.sourceName },
-                    )}
-                  </Text>
-                  <BallotReadingText text={publicBiography.biography} />
-                  <SourceLink
-                    prominence="primary"
-                    label={tx("Biography · {value1}", {
-                      value1: publicBiography.sourceName,
-                    })}
-                    url={publicBiography.sourceUrl}
+              </>
+            ) : (
+              <>
+                {canLoadResearch && researchQuery.isPending ? (
+                  <ActivityIndicator
+                    accessibilityLabel={tx("Loading candidate research")}
+                    color={P.spark}
                   />
-                </View>
-              ) : null}
-              {backgroundQuery.isPending && !publicBiography ? (
-                <ActivityIndicator color={P.spark} />
-              ) : null}
-
-              {previewBrief && (
-                <CandidateIndependentBrief
-                  brief={previewBrief}
-                  reviewedAt={new Date(
-                    "2026-10-02T12:00:00Z",
-                  ).toLocaleDateString(appLocale)}
-                  topics={["record"]}
-                />
-              )}
-              {!publicBiography &&
-                !backgroundQuery.isPending &&
-                !previewBrief && (
-                  <Text style={s.muted}>
-                    {tx(
-                      "Background records have not been supplied here. Missing information is not a judgment of this candidate.",
-                    )}
-                  </Text>
-                )}
-              <CandidateResearchPrompt
-                questions={[
-                  tx(
-                    "Which roles have they held, and who documented that work?",
-                  ),
-                  tx(
-                    "If they served in public office, where are the meeting minutes or recorded votes?",
-                  ),
-                  tx(
-                    "Who wrote each source, and when was it published or retrieved?",
-                  ),
-                ]}
-              />
-              <SourceLink
-                label={tx(
-                  "Find the election office and official candidate list",
-                )}
-                url={electionOfficeUrl}
-                prominence="primary"
-              />
-            </CandidateResearchCard>
-
-            <CandidateResearchCard
-              title={tx("Campaign funding")}
-              question={tx(
-                "Who contributes, and who spends outside the campaign?",
-              )}
-              icon="book"
-              available={false}
-              availability={tx("Donor records not connected")}
-            >
-              <CandidateMoneyChapter
-                state={guide ? "CA" : params.state}
-                office={guide?.officeName ?? params.office}
-              />
-            </CandidateResearchCard>
-
-            <CandidateResearchCard
-              title={tx("Office powers & limits")}
-              question={tx("Can this job deliver the promise?")}
-              icon="info"
-              available={officeGuideAvailable}
-              availability={
-                officeGuideAvailable
-                  ? tx("Office guide available")
-                  : tx("Office guide not supplied")
-              }
-            >
-              {(!guide?.officeDuties?.length ||
-                resolveOfficeRole(
-                  {
-                    office: guide.officeName,
-                    state: "CA",
-                    districtId: "ocd-division/country:us/state:ca",
-                  },
-                  uiLanguage,
-                )) && (
-                <OfficeRole
-                  office={guide?.officeName ?? params.office}
-                  state={guide ? "CA" : params.state}
-                  districtId={
-                    guide
-                      ? "ocd-division/country:us/state:ca"
-                      : params.districtId
-                  }
-                />
-              )}
-
-              {!!guide?.officeDuties?.length && (
-                <CandidateDisclosure
-                  title={tx("Official office responsibilities")}
-                  summary={guide.officeDuties[0]}
-                >
-                  {guide.officeDuties.slice(1).map((duty, index) => (
-                    <Text key={index} style={s.body}>
-                      {duty}
+                ) : canLoadResearch && researchQuery.isError ? (
+                  <Card style={s.panel}>
+                    <Text style={s.heading}>
+                      {tx("Research couldn’t load")}
                     </Text>
-                  ))}
-                  <SourceLink
-                    label={tx("California official voter guide")}
-                    url={guide.sourceUrl}
+                    <Text style={s.body}>{tx("Please try again.")}</Text>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      onPress={() => void researchQuery.refetch()}
+                      style={[s.action, s.retryAction]}
+                    >
+                      <Text style={[s.actionText, { color: colors.white }]}>
+                        {tx("Try again")}
+                      </Text>
+                    </TouchableOpacity>
+                  </Card>
+                ) : null}
+                <View style={s.researchIntro}>
+                  <Text accessibilityRole="header" style={s.sectionTitle}>
+                    {tx("Research this candidate")}
+                  </Text>
+                  <Text style={s.lede}>
+                    {tx(
+                      "Follow the sources, compare records, and look for what’s missing. These are starting points for exploring this candidate.",
+                    )}
+                  </Text>
+                  {!previewBrief &&
+                    (!canLoadResearch ||
+                      (!researchQuery.isPending && !researchQuery.isError)) && (
+                      <Text style={s.muted}>
+                        {tx(
+                          "Reviewed research is not available for this candidate yet.",
+                        )}
+                      </Text>
+                    )}
+                </View>
+
+                <CandidateResearchCard
+                  title={tx("Promises & priorities")}
+                  question={tx("What do they want to change?")}
+                  icon="quote"
+                  available={!!candidate.statement}
+                  availability={
+                    candidate.statement
+                      ? tx("Candidate statement available")
+                      : tx("Statement not supplied")
+                  }
+                >
+                  {candidate.statement ? (
+                    <CandidateStatementChapter
+                      attribution={
+                        usingGuideStatement
+                          ? tx(
+                              "Supplied by the candidate. California does not check these claims for accuracy.",
+                            )
+                          : tx(
+                              "Supplied by a ballot provider. Claims have not been independently checked by Billion.",
+                            )
+                      }
+                      sourceLabel={statementSourceLabel}
+                      sourceUrl={sourceUrl}
+                    />
+                  ) : (
+                    <Text style={s.muted}>
+                      {tx(
+                        "A candidate statement has not been supplied here. Check the official guide for available statements.",
+                      )}
+                    </Text>
+                  )}
+                  {previewBrief && (
+                    <CandidateIndependentBrief
+                      brief={previewBrief}
+                      reviewedAt={new Date(
+                        "2026-10-02T12:00:00Z",
+                      ).toLocaleDateString(appLocale)}
+                      topics={[
+                        "priorities",
+                        "mechanisms",
+                        "effects",
+                        "tradeoffs",
+                        "unknowns",
+                      ]}
+                    />
+                  )}
+                  {!candidate.statement && (
+                    <CandidateResearchPrompt
+                      questions={[
+                        tx("What specific change do they say they want?"),
+                        tx(
+                          "Do they name a timeline, a cost, or who else must agree?",
+                        ),
+                        tx(
+                          "Which claims have no linked document or outside record behind them?",
+                        ),
+                      ]}
+                    />
+                  )}
+                  {!sourceUrl && (
+                    <SourceLink
+                      label={tx("Find your official voter guide")}
+                      url={electionOfficeUrl}
+                      prominence="primary"
+                    />
+                  )}
+                </CandidateResearchCard>
+
+                <CandidateResearchCard
+                  title={tx("Background & record")}
+                  question={tx("What have they done before?")}
+                  icon="doc"
+                  available={!!publicBiography || !!previewBrief}
+                  availability={
+                    publicBiography
+                      ? tx("Source-provided biography available")
+                      : backgroundQuery.isPending
+                        ? tx("Checking public biographies")
+                        : previewBrief
+                          ? tx("Preview research notes available")
+                          : tx("Background not supplied")
+                  }
+                >
+                  {publicBiography ? (
+                    <View style={{ gap: 12 }}>
+                      <Text style={s.muted}>
+                        {tx(
+                          "{value1} biography · not an independent assessment or a record of votes",
+                          { value1: publicBiography.sourceName },
+                        )}
+                      </Text>
+                      <BallotReadingText text={publicBiography.biography} />
+                      <SourceLink
+                        prominence="primary"
+                        label={tx("Biography · {value1}", {
+                          value1: publicBiography.sourceName,
+                        })}
+                        url={publicBiography.sourceUrl}
+                      />
+                    </View>
+                  ) : null}
+                  {backgroundQuery.isPending && !publicBiography ? (
+                    <ActivityIndicator color={P.spark} />
+                  ) : null}
+
+                  {previewBrief && (
+                    <CandidateIndependentBrief
+                      brief={previewBrief}
+                      reviewedAt={new Date(
+                        "2026-10-02T12:00:00Z",
+                      ).toLocaleDateString(appLocale)}
+                      topics={["record"]}
+                    />
+                  )}
+                  {!publicBiography &&
+                    !backgroundQuery.isPending &&
+                    !previewBrief && (
+                      <Text style={s.muted}>
+                        {tx(
+                          "Background records have not been supplied here. Missing information is not a judgment of this candidate.",
+                        )}
+                      </Text>
+                    )}
+                  <CandidateResearchPrompt
+                    questions={[
+                      tx(
+                        "Which roles have they held, and who documented that work?",
+                      ),
+                      tx(
+                        "If they served in public office, where are the meeting minutes or recorded votes?",
+                      ),
+                      tx(
+                        "Who wrote each source, and when was it published or retrieved?",
+                      ),
+                    ]}
                   />
-                </CandidateDisclosure>
-              )}
+                  <SourceLink
+                    label={tx(
+                      "Find the election office and official candidate list",
+                    )}
+                    url={electionOfficeUrl}
+                    prominence="primary"
+                  />
+                </CandidateResearchCard>
 
-              <CandidateResearchPrompt
-                questions={[
-                  tx("Which decisions actually belong to this office?"),
-                  tx(
-                    "Who controls the budget, and whose approval does a proposal need?",
-                  ),
-                  tx("How would the candidate act within those limits?"),
-                ]}
-              />
-              <SourceLink
-                label={tx("Find your election office")}
-                url={electionOfficeUrl}
-                prominence="primary"
-              />
-            </CandidateResearchCard>
+                <CandidateResearchCard
+                  title={tx("Campaign funding")}
+                  question={tx(
+                    "Who contributes, and who spends outside the campaign?",
+                  )}
+                  icon="book"
+                  available={false}
+                  availability={tx("Donor records not connected")}
+                >
+                  <CandidateMoneyChapter
+                    state={guide ? "CA" : params.state}
+                    office={guide?.officeName ?? params.office}
+                  />
+                </CandidateResearchCard>
 
-            {!previewBrief && (
-              <CandidateDisclosure title={tx("About this research")}>
-                <CandidateCoverage
-                  hasStatement={!!candidate.statement}
-                  officeUrl={electionOfficeUrl}
-                />
-              </CandidateDisclosure>
+                <CandidateResearchCard
+                  title={tx("Office powers & limits")}
+                  question={tx("Can this job deliver the promise?")}
+                  icon="info"
+                  available={officeGuideAvailable}
+                  availability={
+                    officeGuideAvailable
+                      ? tx("Office guide available")
+                      : tx("Office guide not supplied")
+                  }
+                >
+                  {(!guide?.officeDuties?.length ||
+                    resolveOfficeRole(
+                      {
+                        office: guide.officeName,
+                        state: "CA",
+                        districtId: "ocd-division/country:us/state:ca",
+                      },
+                      uiLanguage,
+                    )) && (
+                    <OfficeRole
+                      office={guide?.officeName ?? params.office}
+                      state={guide ? "CA" : params.state}
+                      districtId={
+                        guide
+                          ? "ocd-division/country:us/state:ca"
+                          : params.districtId
+                      }
+                    />
+                  )}
+
+                  {!!guide?.officeDuties?.length && (
+                    <CandidateDisclosure
+                      title={tx("Official office responsibilities")}
+                      summary={guide.officeDuties[0]}
+                    >
+                      {guide.officeDuties.slice(1).map((duty, index) => (
+                        <Text key={index} style={s.body}>
+                          {duty}
+                        </Text>
+                      ))}
+                      <SourceLink
+                        label={tx("California official voter guide")}
+                        url={guide.sourceUrl}
+                      />
+                    </CandidateDisclosure>
+                  )}
+
+                  <CandidateResearchPrompt
+                    questions={[
+                      tx("Which decisions actually belong to this office?"),
+                      tx(
+                        "Who controls the budget, and whose approval does a proposal need?",
+                      ),
+                      tx("How would the candidate act within those limits?"),
+                    ]}
+                  />
+                  <SourceLink
+                    label={tx("Find your election office")}
+                    url={electionOfficeUrl}
+                    prominence="primary"
+                  />
+                </CandidateResearchCard>
+
+                {!previewBrief && (
+                  <CandidateDisclosure title={tx("About this research")}>
+                    <CandidateCoverage
+                      hasStatement={!!candidate.statement}
+                      officeUrl={electionOfficeUrl}
+                    />
+                  </CandidateDisclosure>
+                )}
+              </>
             )}
 
             <View style={s.footer}>
+              {brief && guide && office ? (
+                <GuideVoteDetails
+                  electionDate={ELECTION_DATE}
+                  candidateKey={`${office}:${guide.name}`}
+                />
+              ) : null}
               <CandidateDisclosure title={tx("Sources & updates")}>
                 {sourceUrl ? (
                   <SourceLink
@@ -686,6 +842,15 @@ export default function CandidateDetailScreen() {
           </>
         ) : null}
       </ScrollView>
+      {selection && selection.revisionId === brief?.revisionId ? (
+        <EvidenceSheet
+          key={`${brief.revisionId}-${selection.title}`}
+          selection={selection}
+          evidence={brief.evidence}
+          onClose={() => setSelection(null)}
+          fictional={false}
+        />
+      ) : null}
     </View>
   );
 }
