@@ -30,6 +30,7 @@ import {
 } from "./bill-visual";
 import { Icon } from "./Icon";
 import { readerColumns, readerScalePosition } from "./reader-geometry";
+import { readerLegalContext } from "./reader-legal-context";
 import {
   ReaderDisclosureIcon,
   readerLayout,
@@ -77,15 +78,18 @@ export function BillFactFigure({
   onViewSource,
   changes = [],
   legalStatus = "proposed",
+  sourceStatus,
   onInspect,
 }: {
   figure: NonNullable<ReturnType<typeof getBillFactFigure>>;
   onViewSource?: (quote: BriefQuote) => void;
   changes?: BillBriefData["changes"];
   legalStatus?: BillBriefData["legalStatus"];
+  sourceStatus?: string;
   onInspect?: (y: number) => void;
 }) {
   const { t } = useLanguage();
+  const context = readerLegalContext(legalStatus, sourceStatus);
   const { fontScale, width } = useWindowDimensions();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [moreFiguresOpen, setMoreFiguresOpen] = useState(false);
@@ -527,9 +531,11 @@ export function BillFactFigure({
               <Text style={s.comparison}>
                 <Text style={s.comparisonLabel}>
                   {t(
-                    legalStatus === "enacted"
-                      ? "readerUi.metricBeforeLaw"
-                      : "readerUi.metricToday",
+                    context.closed
+                      ? "readerUi.beforeProposal"
+                      : context.enacted
+                        ? "readerUi.metricBeforeLaw"
+                        : "readerUi.metricToday",
                   )}{" "}
                 </Text>
                 {selectedComparison}
@@ -619,9 +625,11 @@ export function BillFactFigure({
                       >
                         <Text style={s.comparisonLabel}>
                           {t(
-                            legalStatus === "enacted"
-                              ? "readerUi.metricBeforeLaw"
-                              : "readerUi.metricToday",
+                            context.closed
+                              ? "readerUi.beforeProposal"
+                              : context.enacted
+                                ? "readerUi.metricBeforeLaw"
+                                : "readerUi.metricToday",
                           )}{" "}
                         </Text>
                         {comparison}

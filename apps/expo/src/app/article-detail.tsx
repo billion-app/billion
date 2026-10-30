@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import Markdown from "@ronradtke/react-native-markdown-display";
 import { useQuery } from "@tanstack/react-query";
 
@@ -629,7 +628,6 @@ function ArticleDetail({ articleId }: { articleId: string | undefined }) {
 
   return (
     <View style={s.screen}>
-      <StatusBar style="light" />
       <NavHeader
         compact
         tone="reader"
@@ -956,23 +954,23 @@ function ArticleDetail({ articleId }: { articleId: string | undefined }) {
             )}
 
             {mode === "source" && sourceUrl && (
-              <PrimaryButton
-                label={
-                  content.type === "court_case"
+              <TouchableOpacity
+                onPress={handleOpenOriginal}
+                accessibilityRole="link"
+                style={s.originalAction}
+                testID="article-open-original"
+              >
+                <Icon name="external" size={18} color={R.text} />
+                <Text style={s.originalActionText}>
+                  {content.type === "court_case"
                     ? independentCourtSource
                       ? tr("readerUi.openArchive")
                       : tr("readerUi.openCourt")
                     : officialUrl
                       ? tr("readerUi.openFederal")
-                      : tr("readerUi.openOriginal")
-                }
-                icon="external"
-                onPress={handleOpenOriginal}
-                style={{
-                  marginBottom: 18,
-                  backgroundColor: R.accent,
-                }}
-              />
+                      : tr("readerUi.openOriginal")}
+                </Text>
+              </TouchableOpacity>
             )}
 
             <View
@@ -1446,6 +1444,15 @@ function createArticleStyles() {
       lineHeight: 22,
     },
     chevFlip: { transform: [{ rotate: "180deg" }] },
+    originalAction: {
+      minHeight: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 8,
+      marginBottom: 18,
+    },
+    originalActionText: { ...T.action, color: R.text, flexShrink: 1 },
     sourcePanel: {
       backgroundColor: ink,
       borderTopWidth: 1,

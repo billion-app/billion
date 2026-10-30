@@ -30,11 +30,13 @@ export function BillChangeExplorer({
   onViewSource,
   showFirstTitle = false,
   testIDPrefix = "overview",
+  presentation = "story",
 }: {
   data: BillBriefData;
   onViewSource?: (quote: BriefQuote) => void;
   showFirstTitle?: boolean;
   testIDPrefix?: string;
+  presentation?: "story" | "comparison";
 }) {
   const { t } = useLanguage();
   const insets = useSafeAreaInsets();
@@ -70,7 +72,7 @@ export function BillChangeExplorer({
           sourceStatus={data.sourceStatus}
           sourceLabel={data.sourceLabel}
           terms={data.terms}
-          presentation="story"
+          presentation={presentation}
           showScenario={false}
           onViewSource={onViewSource}
           testIDPrefix={testIDPrefix}

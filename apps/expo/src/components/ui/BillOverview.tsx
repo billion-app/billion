@@ -191,6 +191,7 @@ export function BillOverview({
                 onViewSource={onViewSource}
                 changes={data.changes}
                 legalStatus={data.legalStatus}
+                sourceStatus={data.sourceStatus}
                 onInspect={
                   onJump
                     ? (y) =>

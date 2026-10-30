@@ -682,6 +682,7 @@ export function BillBrief({
       <BillChangeExplorer
         data={data}
         showFirstTitle
+        presentation="comparison"
         testIDPrefix="brief"
         onViewSource={onViewSource}
       />
@@ -692,6 +693,7 @@ export function BillBrief({
           onViewSource={onViewSource}
           changes={data.changes}
           legalStatus={data.legalStatus}
+          sourceStatus={data.sourceStatus}
         />
       ) : null}
 

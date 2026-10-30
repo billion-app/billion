@@ -131,11 +131,13 @@ into more depth.
 
 ### 3. Verify quotes and research links (deterministic)
 
-Every `quote.text` is checked against the **whole** source document, not just
+Every `quote.text`, including an optional answer-specific `changes[].reader.quote`, is checked against the **whole** source document, not just
 the window the model saw. Matching normalizes away formatting — casing, smart
 quotes, em dashes, hyphenation across line breaks, and the erratic whitespace
 of scraped legislative text — while staying strict about words, so a dropped or
 reordered word still fails.
+
+A question may offer Source only when its own `reader.quote` directly supports the answer. It never inherits a provision quote merely about the same topic. An uncertainty or absence claim may have no such passage; omit the quote in that case. Matching establishes that the quoted words occur in the record, not that they prove the generated interpretation. Translation preserves these quotations and locators.
 
 Unverified quotes are **stripped, and the surrounding claim is kept**. A brief
 may end up saying less than the model wrote, but it never puts words in a
