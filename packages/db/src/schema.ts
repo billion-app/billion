@@ -1555,6 +1555,7 @@ export const CaliforniaRaceWork = pgTable(
     researchVersion: t.text().notNull(),
     owner: t.text(),
     generation: t.integer().notNull().default(0),
+    reviewEpoch: t.integer().notNull().default(0),
     status: t.text().notNull().default("pending"),
     leaseUntil: t.timestamp({ withTimezone: true }),
     checkpoint: t.jsonb().$type<unknown>(),

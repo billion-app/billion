@@ -29,6 +29,7 @@ import {
   activeResearchPolicy,
   invalidateRace,
   lockPilot,
+  requireFreshResearchReview,
 } from "../lib/candidate-research-store";
 import { protectedProcedure } from "../trpc";
 
@@ -173,6 +174,7 @@ export const candidateResearchEditorialRouter = {
           document.manifest,
           "Editorial correction awaits independent approval",
         );
+        await requireFreshResearchReview(tx, row.pilotKey);
         const id = randomUUID();
         await tx.insert(CandidateResearchCollection).values({
           id,
@@ -226,8 +228,10 @@ export const candidateResearchEditorialRouter = {
           policyVersion: input.policyVersion,
           reason: input.reason,
         });
-        if (input.action === "withdraw")
+        if (input.action === "withdraw") {
           await invalidateRace(tx, row.document.manifest, input.reason);
+          await requireFreshResearchReview(tx, row.pilotKey);
+        }
         return { revisionDigest: briefDigest(brief) };
       }),
     ),

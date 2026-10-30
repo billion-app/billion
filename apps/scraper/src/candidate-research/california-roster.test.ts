@@ -416,3 +416,23 @@ test("reviewed territorial crosswalk is snapshot-bound and refresh fails when a 
     /digest mismatch/,
   );
 });
+
+test("decodes all certified minor-party affiliations and rejects unknown codes", () => {
+  const roster = decodeCaliforniaRoster(input);
+  const members = roster.races.flatMap((r) => r.members);
+  for (const [name, party] of [
+    ["Mark Rendon", "Green"],
+    ["Victor Hernandez", "Green"],
+    ["Kevin Akin", "Peace and Freedom"],
+    ["William Brown Jr.", "Libertarian"],
+  ])
+    assert.equal(members.find((m) => m.name === name)?.party, party);
+  const raw = new TextDecoder("windows-1252")
+    .decode(bytes)
+    .replace("||02|Steve Hilton|", "||99|Steve Hilton|");
+  assert.throws(
+    () =>
+      decodeCaliforniaRoster({ ...input, bytes: Buffer.from(raw, "latin1") }),
+    /Unknown SOS candidate party code/,
+  );
+});

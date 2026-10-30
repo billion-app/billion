@@ -419,6 +419,7 @@ export async function invalidateCaliforniaResearchState(
       .update(CaliforniaRaceWork)
       .set({
         generation: sql`${CaliforniaRaceWork.generation}+1`,
+        reviewEpoch: sql`${CaliforniaRaceWork.reviewEpoch}+1`,
         owner: null,
         leaseUntil: null,
         status: "blocked",

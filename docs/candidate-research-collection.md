@@ -1,6 +1,45 @@
 # Collecting and reviewing candidate research
 
-The source adapters cover two complete California races for November 3, 2026. The default CA-17 House collection contains Ro Khanna and Ritesh Tandon. The Lieutenant Governor collection contains Fiona Ma and Gloria Romero. Each collection checks every candidate against the certified roster. These are bounded research pilots, not an address-to-ballot lookup or statewide coverage of every race.
+The original source adapters cover two complete California races for November 3, 2026. The default CA-17 House collection contains Ro Khanna and Ritesh Tandon. The Lieutenant Governor collection contains Fiona Ma and Gloria Romero. Each collection checks every candidate against the certified roster. These collectors retain refresh ownership until the broader research policy is prepared and adopted. Public availability still depends on current sources and exact reviews.
+
+## Authoritative California catalog
+
+The [California roster adapter](../apps/scraper/src/candidate-research/california-roster.ts) decodes the Secretary of State's Windows-1252 candidate feed and checks membership against the certified candidate document. An immutable snapshot supplies the catalog denominator and each race's complete membership. The November 3 state-certified population contains 388 candidates in 228 races, including 64 judicial retention candidates and four uncontested Assembly races. Propositions are excluded. This source does not enumerate all county, city, school and special-district candidates. The snapshot retains a 58-county coverage ledger so that unenumerated local races stay visible.
+
+The public catalog pages candidates from this snapshot, including candidates whose research is unavailable. Search and office filters apply to the full snapshot before pagination. Candidate detail resolves a canonical election, contest, jurisdiction and candidate identity. A catalog listing establishes ballot identity, not reviewed research. Research remains unavailable until the entire race passes the existing publication gate. Reader requests never start generation.
+
+The requested local extension is San José. Its county roster adapter checks the full Santa Clara County qualified-candidate document, excludes off-ballot contests, and adds qualified write-ins with a distinct status. A reviewed territorial crosswalk selects whole contests serving San José from official jurisdiction evidence. It records source hashes, the selection method, each included, excluded or unresolved contest, and the actual reviewer. Crosswalk explanations are application mapping evidence, not quotations from an election official. A combined snapshot retains incomplete local scope until the unresolved territorial entries have been investigated. Unenumerated counties elsewhere do not block the requested San José scope.
+
+## Bounded statewide reconciliation
+
+The [California worker](../apps/scraper/src/candidate-research/california.ts) exposes `plan`, `reconcile` and `coverage`. Planning retrieves official sources and validates a snapshot. Persistence requires `--apply`. Reconciliation requires an immutable snapshot, explicit policy and write authorization. Verify the selected database host before applying a plan or running reconciliation.
+
+```sh
+pnpm --filter @acme/scraper california-research plan
+pnpm --filter @acme/scraper california-research plan --apply
+pnpm --filter @acme/scraper california-research coverage --snapshot SNAPSHOT_ID
+pnpm --filter @acme/scraper california-research reconcile --snapshot SNAPSHOT_ID \
+  --policy ca-california-candidate-research-2026-10-30-v2 --apply \
+  --max-races 1 --max-candidates 2 --max-source-requests 100 \
+  --max-source-bytes 100000000 --max-model-calls 4 \
+  --max-input-tokens 200000 --concurrency 1
+```
+
+To create the combined scope, provide the reviewed local source manifest with `plan --san-jose-manifest /path/to/manifest.json --apply`. It identifies the official county roster, write-in roster, archived jurisdiction proof sources and reviewed crosswalk. A later refresh retrieves those dependencies again and verifies their hashes before reusing the mapping. Replacing a combined snapshot with state-only scope requires the explicit `--state-scope-only` flag. Do not silently drop local candidates when a county source is unavailable.
+
+Each candidate gets a source-bound evidence dossier. Candidate-specific sources and quoted passages stay separate from generated analysis. Missing evidence has an explicit reason. Retrieval failures do not establish that a candidate lacks a position. Judicial retention research describes the court and retention decision without manufacturing campaign promises. California state and local candidates do not receive federal campaign-finance records.
+
+Author and reviewer calls use the existing structured provider factory. A separate reviewer receives the exact revision and archived evidence. Stored attestations identify each actual invocation, configured and returned model, source and revision digests, prompt version and available usage. A rejected, malformed, stale or self-authored review cannot publish. Separate calls within one model family establish separate invocation contexts, not cross-family review diversity.
+
+Set `CANDIDATE_RESEARCH_REVIEW_MODEL` to select a different model on the configured Responses endpoint for review. The active policy must allow the actual author and reviewer models. Without this setting, review selects the next configured structured model when one exists. Financial values and reader emphasis arrays come from trusted code. The model supplies source-backed prose and evidence selections, while the writer compiles claim and promise IDs from its nested output.
+
+Durable race leases and exact-input artifacts support bounded retries after a crash. Reconciliation prioritizes published races due for refresh. Unchanged, freshly retrieved sources can renew an existing release without another generation call. Changed sources require successor revisions and fresh review. The research library's seven-day query cache does not renew the publication gate's 24-hour freshness requirement. Subscription model cost is unknown when the provider supplies no price; call and token bounds still apply.
+
+The supervisor registers a bounded reconciliation every 30 minutes. The worker requires the selected policy's explicit automation authorization before model work or publication. Deploying code does not adopt that policy or prove the full roster fits the freshness interval. The original pilot jobs retain their races until an explicit ownership transition. Broader policy activation must prepare and re-review replacements for existing live races and cut over atomically. See the [publication policy](candidate-brief-publication.md).
+
+The default source cap is 100 MB. The certified SOS PDF alone is approximately 14.8 MB, and the reviewed San José proof package adds roughly 39 MB before candidate pages. A 50 MB cap cannot admit that shared work. Measure actual request bytes and the complete refresh cycle before treating the 30-minute schedule as sufficient for every race's 24-hour freshness window.
+
+For the one-time policy transition, a trusted operator can pass `reconcile --prepare-policy /path/to/future-policy.json` with the matching `--policy`, `--apply` and explicit bounds. The policy document records `approved: true`, the future `version`, actual `approvedBy`, authorization `statement`, and `automation` model/service constraints. Preparation saves exact reviewed collections without activating the policy or publishing. It preserves a prior release only when its cited dependencies have just been verified unchanged. Pass all prepared replacement collection IDs to the internal `adoptResearchPolicy` transaction after reviewing the actual artifacts. Once the expanded policy is active, scheduled reconciliation owns the pilot races and the legacy collectors stop replacing them.
 
 ## Source to reader
 

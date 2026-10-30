@@ -1,0 +1,9149 @@
+[
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "Governor",
+    "K": "1",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Steve Hilton",
+      "Xavier Becerra"
+    ],
+    "CHAggId": null,
+    "P": [
+      "REP",
+      "DEM"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "Lieutenant Governor",
+    "K": "2",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Gloria Romero",
+      "Fiona Ma"
+    ],
+    "CHAggId": null,
+    "P": [
+      "REP",
+      "DEM"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "Secretary of State",
+    "K": "3",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Donald P. (Don) Wagner",
+      "Shirley N. Weber"
+    ],
+    "CHAggId": null,
+    "P": [
+      "REP",
+      "DEM"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "Controller",
+    "K": "4",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Malia M. Cohen",
+      "Herb W Morgan"
+    ],
+    "CHAggId": null,
+    "P": [
+      "DEM",
+      "REP"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "Treasurer",
+    "K": "5",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Jennifer Hawks",
+      "Eleni Kounalakis"
+    ],
+    "CHAggId": null,
+    "P": [
+      "REP",
+      "DEM"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "Attorney General",
+    "K": "6",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Rob Bonta",
+      "Michael E. Gates"
+    ],
+    "CHAggId": null,
+    "P": [
+      "DEM",
+      "REP"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "Insurance Commissioner",
+    "K": "7",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Jane Kim",
+      "Ben Allen"
+    ],
+    "CHAggId": null,
+    "P": [
+      "DEM",
+      "DEM"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "Member, State Board of Equalization, District 2",
+    "K": "8",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "John Pimentel",
+      "Sally J. Lieber"
+    ],
+    "CHAggId": null,
+    "P": [
+      "DEM",
+      "DEM"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "US Representative, District 16",
+    "K": "9",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 242,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Sam Liccardo",
+      "Peter Sundin Soulé"
+    ],
+    "CHAggId": null,
+    "P": [
+      "DEM",
+      "REP"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "US Representative, District 17",
+    "K": "10",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 218,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Ro Khanna",
+      "Ritesh Tandon"
+    ],
+    "CHAggId": null,
+    "P": [
+      "DEM",
+      "REP"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "US Representative, District 18",
+    "K": "11",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 134,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Zoe Lofgren",
+      "Shane Lewis"
+    ],
+    "CHAggId": null,
+    "P": [
+      "DEM",
+      "REP"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "US Representative, District 19",
+    "K": "12",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 114,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Jimmy Panetta",
+      "Peter Coe Verbica"
+    ],
+    "CHAggId": null,
+    "P": [
+      "DEM",
+      "REP"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "State Senator, District 10",
+    "K": "13",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 166,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Linda R. Price",
+      "Scott Sakakihara"
+    ],
+    "CHAggId": null,
+    "P": [
+      "REP",
+      "DEM"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "Member of the State Assembly, District 23",
+    "K": "14",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 128,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "David G. Johnson",
+      "Marc Berman"
+    ],
+    "CHAggId": null,
+    "P": [
+      "REP",
+      "DEM"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "Member of the State Assembly, District 24",
+    "K": "15",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 71,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Alex Lee",
+      "Max Hsia"
+    ],
+    "CHAggId": null,
+    "P": [
+      "DEM",
+      "REP"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "Member of the State Assembly, District 25",
+    "K": "16",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 169,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Ash Kalra",
+      "Himat Singh Bainiwal"
+    ],
+    "CHAggId": null,
+    "P": [
+      "DEM",
+      "REP"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "Member of the State Assembly, District 26",
+    "K": "17",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 151,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Patrick Ahrens",
+      "Tim Gorsulowsky"
+    ],
+    "CHAggId": null,
+    "P": [
+      "DEM",
+      "REP"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "Member of the State Assembly, District 28",
+    "K": "18",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 162,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Gail Pellerin",
+      "Carol Pefley"
+    ],
+    "CHAggId": null,
+    "P": [
+      "DEM",
+      "REP"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "Member of the State Assembly, District 29",
+    "K": "19",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 27,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Dennis P. Sanchez",
+      "Robert Rivas"
+    ],
+    "CHAggId": null,
+    "P": [
+      "REP",
+      "DEM"
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_1",
+    "CAT": "State and Federal",
+    "C": "State Superintendent of Public Instruction",
+    "K": "27",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Sonja Shaw",
+      "Richard Barrera",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_2",
+    "CAT": "Judicial",
+    "C": "Associate Justice of Supreme Court JOSHUA GROBAN",
+    "K": "21",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_2",
+    "CAT": "Judicial",
+    "C": "Associate Justice of Supreme Court KELLI M. EVANS",
+    "K": "20",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_2",
+    "CAT": "Judicial",
+    "C": "Associate Justice, Court of Appeal Sixth Appellate District CHARLES E. WILSON II",
+    "K": "22",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_2",
+    "CAT": "Judicial",
+    "C": "Associate Justice, Court of Appeal Sixth Appellate District FREDERICK S. CHUNG",
+    "K": "23",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_2",
+    "CAT": "Judicial",
+    "C": "Associate Justice, Court of Appeal Sixth Appellate District CHARLES F. ADAMS",
+    "K": "26",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_2",
+    "CAT": "Judicial",
+    "C": "Associate Justice, Court of Appeal Sixth Appellate District ALLISON MARSTON DANNER",
+    "K": "25",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_2",
+    "CAT": "Judicial",
+    "C": "Associate Justice, Court of Appeal Sixth Appellate District DANIEL H. BROMBERG",
+    "K": "24",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Campbell Council, District 3",
+    "K": "68",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 4,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Joseph ''Joe'' Brenner",
+      "Dan Furtado",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Campbell Council, District 4",
+    "K": "69",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 3,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Joseph I. Guardado",
+      "Davis Stuart Fields",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Campbell Council, District 5",
+    "K": "70",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 4,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Daraius R. Sorabji",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Cupertino Council",
+    "K": "71",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 3,
+    "TP": 24,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Tracy Kosolcharoen",
+      "Gopal Kumarappan",
+      "J.Z. Wang",
+      "Seema Sharma Lindskog",
+      "Santosh Rao",
+      "Mark Fantozzi",
+      "J.R. Fruen",
+      "John Tang",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Gilroy Council, District 4",
+    "K": "72",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 2,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Diana Sanchez Bentz",
+      "Fred Tovar",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Gilroy Council, District 5",
+    "K": "73",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 3,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Tom Cline",
+      "Joseph Garcia",
+      "Christina Tovar",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Gilroy Council, District 6",
+    "K": "74",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 3,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Rebeca G. Armendáriz",
+      "Brad Starks",
+      "Elizabeth Bracco",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Los Altos Council, D2",
+    "K": "75",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 2,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Lynette Lee Eng",
+      "Anky van Deursen",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Los Altos Council, D4",
+    "K": "76",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 3,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Larry Lang",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "Town of Los Altos Hills Council",
+    "K": "77",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 2,
+    "TP": 6,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Indu Kadambi",
+      "Jim Waschura",
+      "Jasmeen Pombra",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "Town of Los Gatos Council",
+    "K": "78",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 3,
+    "TP": 15,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Heidi Owens",
+      "Rob Stump",
+      "Jeff Suzuki",
+      "Mary Badame",
+      "Steve Raspe",
+      "Rob Moore",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "Mayor, City of Milpitas",
+    "K": "79",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 14,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Hon Lien",
+      "Santosh Sahoo",
+      "Carmen Montano",
+      "Voltaire S. Montemayor",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Milpitas Council",
+    "K": "80",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 2,
+    "TP": 14,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Seema Kanani",
+      "Bill Chuan",
+      "Jennie Ha Phan",
+      "Dipak Awasthi",
+      "Garry Barbadillo",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "Mayor, City of Morgan Hill",
+    "K": "81",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 17,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Kristopher L. Clayton",
+      "Deborah M. Africa",
+      "Mark Turner",
+      "Write-in",
+      "Jacob Montoya"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Morgan Hill Council, District B",
+    "K": "82",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 5,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Steven Hayes",
+      "Yvonne Martinez Beltran",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Morgan Hill Council, District D",
+    "K": "83",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 4,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Dolores Alvarado",
+      "Marilyn Librers",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Mountain View Council",
+    "K": "84",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 3,
+    "TP": 17,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "James Kuszmaul",
+      "Robert Cox",
+      "Erik Poicon",
+      "Silja Paymer",
+      "Samuel Ali",
+      "Alex Amoroso",
+      "Paul Donahue",
+      "IdaRose Sylvester",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Palo Alto Council",
+    "K": "85",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 3,
+    "TP": 22,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Brian Hamachek",
+      "Bryna Chang",
+      "Ed Lauing",
+      "Yu ''Yudy'' Deng",
+      "Raymond L. Goins",
+      "Gary Gechlik",
+      "Vicki Veenker",
+      "Henry Etzkowitz",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of San José Council, District 5",
+    "K": "86",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 40,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Nora Campos",
+      "Peter Ortiz",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of San José Council, District 7",
+    "K": "87",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 24,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Van Le",
+      "Bien Doan",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of San José Council, District 9",
+    "K": "88",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 33,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Gordon Chester",
+      "Genny Altwer",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "Mayor, City of Santa Clara",
+    "K": "89",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 37,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Karen Hardy",
+      "David Kertes",
+      "Kathy Watanabe",
+      "Mike Wiltberger",
+      "Kevin Park",
+      "Armando ''Gary'' Ferraris",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Santa Clara Council, District 2",
+    "K": "90",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 7,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Kimberley Williams",
+      "Yvonne Inciarte",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Santa Clara Council, District 3",
+    "K": "91",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 5,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Eric Crutchlow",
+      "Kyle Madej",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Saratoga Council",
+    "K": "92",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 3,
+    "TP": 17,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Glenn K. Hendricks",
+      "Ping Li",
+      "Bill Dalton",
+      "Jeri Bromley",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Sunnyvale Council, District 1",
+    "K": "93",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 10,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Linda Sell",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Sunnyvale Council, District 3",
+    "K": "94",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 8,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Murali Srinivasan",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "City of Sunnyvale Council, District 5",
+    "K": "95",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 7,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Richard Mehlinger",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "Santa Clara Valley Water, District 1",
+    "K": "96",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 151,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "John L. Varela",
+      "Jimmy Forbis",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "Santa Clara Valley Water, District 6",
+    "K": "97",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 82,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Phuong Tran Nguyen",
+      "Milan Balinton",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "Santa Clara Valley Water, District 7",
+    "K": "98",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 120,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Pete Dailey",
+      "Rebecca Eisenberg",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "Cupertino Sanitary District",
+    "K": "99",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 2,
+    "TP": 27,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Patrick Shupui Kwok",
+      "Gilbert Wong",
+      "Taghi Saadati",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_3",
+    "CAT": "Local",
+    "C": "Midpeninsula Regional Open Space District, Ward 1",
+    "K": "100",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 68,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Craig Gleason",
+      "Tina Marie To",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Santa Clara County BOE, Trustee Area 7",
+    "K": "28",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 113,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Raeena S. Lari",
+      "Karla Dominguez Vega",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Foothill-De Anza CCD, Trustee Area 4",
+    "K": "29",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 33,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "William ''Bill'' Wilson",
+      "Liangfang ''Liang'' Chao",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Gavilan Joint CCD, Trustee Area 3",
+    "K": "30",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 20,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Gabriel Gutierrez",
+      "Shahida S. Merchant",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "San José-Evergreen CCD, Trustee Area 2",
+    "K": "31",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 47,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Scott Hung Pham",
+      "Karen Martinez",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "West Valley-Mission CCD, Trustee Area 3",
+    "K": "32",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 23,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Anne J. Kepner",
+      "Colin Lee Elliott Glaves",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "West Valley-Mission CCD, Trustee Area 7",
+    "K": "33",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 34,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Doug Robb",
+      "Susan Oster Fish",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Yosemite CCD, Trustee Area 4",
+    "K": "34",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 2,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Jenny Nicolau",
+      "Ryan Segoviano",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Gilroy Unified SD, Trustee Area 3",
+    "K": "35",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 4,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Daniel Harney",
+      "Michelle Nelson",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Gilroy Unified SD, Trustee Area 4",
+    "K": "36",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 3,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Jane Stevens",
+      "Trevor Scott Van Laar",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Milpitas Unified SD",
+    "K": "37",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 3,
+    "TP": 18,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Franchesca Lacanlale",
+      "Chris Norwood",
+      "Anuradha Sankaran",
+      "Kelly Yip-Chuan",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Morgan Hill Unified SD, Trustee Area 1",
+    "K": "38",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 8,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Nancy Altman-Palm",
+      "Jason Amezcua",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Morgan Hill Unified SD, Trustee Area 2",
+    "K": "39",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 9,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "John T. Horner",
+      "Gabriela ''Gabby'' Winter",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Morgan Hill Unified SD, Trustee Area 3",
+    "K": "40",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 7,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Art Cohen",
+      "Sarah Northrup Gadus",
+      "Cesar Gamboa",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Morgan Hill Unified SD, Trustee Area 4",
+    "K": "41",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 5,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Glen R. Webb",
+      "Claudia Ortiz",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Palo Alto Unified SD",
+    "K": "42",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 2,
+    "TP": 22,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Linda Henigin",
+      "Avery Wang",
+      "John Craig",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "San José Unified SD, Trustee Area 2",
+    "K": "43",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 21,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Tomara Hall",
+      "Carson Dance",
+      "Jose Magana",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "San José Unified SD, Trustee Area 4",
+    "K": "44",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 21,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Mary J. Grunthaner",
+      "Michael Melillo",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Santa Clara Unified SD, Trustee Area 1",
+    "K": "45",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 6,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Jim Canova",
+      "Kamal Yassin",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "East Side Union HSD, TA 1, Short Term",
+    "K": "46",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 33,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Mer Curry Nuñez",
+      "Paul Pham",
+      "Patricia Martínez-Roach",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "East Side Union HSD, TA 4",
+    "K": "47",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 33,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Mahbub Khan",
+      "Lorena Chavez",
+      "Tony Lam",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Fremont Union HSD, TA 3",
+    "K": "48",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 33,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Rosa Kim",
+      "Jason Lin",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Fremont Union HSD, TA 4",
+    "K": "49",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 16,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Naomi Nakano-Matsumoto",
+      "Ilanit Eliaz",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Los Gatos-Saratoga Union HSD, TA 2",
+    "K": "50",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 18,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Ishaan Prasad",
+      "Sangeeta Balachandran Mallik",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Mountain View-Los Altos Union HSD, TA 3",
+    "K": "51",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 4,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Thida Cornes",
+      "Sanjay Dave",
+      "Catherine Vonnegut",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Alum Rock Union SD, TA 3",
+    "K": "52",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 9,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Delia Oseguera",
+      "Andrés Quintero",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Alum Rock Union SD, TA 5",
+    "K": "53",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 22,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Manisha Kand",
+      "Línda Lo Chávez",
+      "Jenny Ludwig",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Berryessa Union SD",
+    "K": "54",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 3,
+    "TP": 30,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Jamal Khan",
+      "Jaria Jaug",
+      "Thelma B. Boac",
+      "Shanna Brewer",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Cambrian SD",
+    "K": "55",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 3,
+    "TP": 13,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Carol Presunka",
+      "Debora Bodenheimer",
+      "Harmony ″Jay″ McMillin",
+      "Sergio Martínez",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Campbell Union SD, TA 4",
+    "K": "56",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 8,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Mohit Vora",
+      "Chris Miller",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Campbell Union SD, TA 5",
+    "K": "57",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 10,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Sam Krow-Lucal",
+      "Vartika Chandra",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Evergreen SD",
+    "K": "58",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 3,
+    "TP": 30,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Monte Wright",
+      "Mary Hiền Pollett",
+      "Thong Quang La",
+      "Corinna Diener",
+      "Johnny Ray Reyna",
+      "Magaly Fernández",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Franklin-McKinley SD",
+    "K": "59",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 3,
+    "TP": 21,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Marc Cooper",
+      "Steven Sanchez",
+      "Gilbert Borrayo",
+      "Rudy J. Rodriguez",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Los Altos SD",
+    "K": "60",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 3,
+    "TP": 20,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "David Poll",
+      "Bryan Harvey Johnson",
+      "Vaishali ''Shali'' Sirkay",
+      "Brandon Stroy",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Mountain View Whisman SD",
+    "K": "61",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 2,
+    "TP": 19,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Devon Conley",
+      "William Lambert",
+      "Sundar Subbarayan",
+      "Quintin Riis",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Oak Grove SD, Trustee Area 2",
+    "K": "62",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 6,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Victor A. Ramirez",
+      "Diego Martinez",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Oak Grove SD, Trustee Area 3",
+    "K": "63",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 7,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Kaushik C. Joglekar",
+      "Sophie Freestone",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Oak Grove SD, Trustee Area 5",
+    "K": "64",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 10,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Pradeep Kumar",
+      "Paul Chun",
+      "Casino Fajardo",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Orchard SD",
+    "K": "65",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 3,
+    "TP": 7,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Katherine Kasolas-Jacobson",
+      "Lyseria Evelyn Phillips",
+      "Renee Lo",
+      "Molly Eslao",
+      "Jeff Tang",
+      "Write-in",
+      "Hina Patel"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Saratoga Union SD",
+    "K": "66",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 3,
+    "TP": 20,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Eric Cao",
+      "Farnoush Drexel",
+      "Catalina Rupert",
+      "Anna Goldberg",
+      "Vidya R. Vineet",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_4",
+    "CAT": "School",
+    "C": "Sunnyvale SD, Trustee Area 3",
+    "K": "67",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 1,
+    "TP": 10,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "Rommy Kushner",
+      "Michelle Maginot",
+      "Write-in"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_5",
+    "CAT": "Propositions",
+    "C": "State Proposition 1 - The Veterans and Affordable Housing Bond Act of 2026",
+    "K": "101",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_5",
+    "CAT": "Propositions",
+    "C": "State Proposition 2 - Save for California's Future Act",
+    "K": "102",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_5",
+    "CAT": "Propositions",
+    "C": "State Proposition 3 - Provides Permanent Funding for Schools and Healthcare by Extending Existing Tax on High Incomes",
+    "K": "103",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_5",
+    "CAT": "Propositions",
+    "C": "State Proposition 4 - Political Reform Act of 1974, Public Campaign Financing: California Fair Elections Act of 2026",
+    "K": "104",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_5",
+    "CAT": "Propositions",
+    "C": "State Proposition 5 - Elections: Recall of State Officers",
+    "K": "105",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_5",
+    "CAT": "Propositions",
+    "C": "State Proposition 37 - Creates Loan Program for Middle-Income Buyers of Qualified New Homes",
+    "K": "106",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_5",
+    "CAT": "Propositions",
+    "C": "State Proposition 38 - Authorizes Bonds for Immunology Research",
+    "K": "107",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_5",
+    "CAT": "Propositions",
+    "C": "State Proposition 39 - Establishes Additional Voter Identification and Citizenship Verification Requirements",
+    "K": "108",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_5",
+    "CAT": "Propositions",
+    "C": "State Proposition 40 - Imposes One-Time Tax on Certain Individuals and Trusts",
+    "K": "109",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_5",
+    "CAT": "Propositions",
+    "C": "State Proposition 41 - New State Special Taxes: Requires Audits of Programs Funded and Prohibits Exclusions from Existing Vot...",
+    "K": "110",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_5",
+    "CAT": "Propositions",
+    "C": "State Proposition 42 - Prohibits New State Personal Property Taxes and Certain Retroactive State Taxes",
+    "K": "111",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_5",
+    "CAT": "Propositions",
+    "C": "State Proposition 43 - Local Taxes: Limitation",
+    "K": "112",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_5",
+    "CAT": "Propositions",
+    "C": "State Proposition 44 - Requires Community Health Clinics Spend 90% of Revenue on Program Services",
+    "K": "113",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_5",
+    "CAT": "Propositions",
+    "C": "State Proposition 45 - Modifies Environmental Review for Certain Projects",
+    "K": "114",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure RTM - Public Transit Revenue Measure District (PTRMD), Regional Transit Measure",
+    "K": "115",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 708,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure A - City of Morgan Hill, Elected City Treasurer to an Appointive Position",
+    "K": "116",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 17,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure B - City of Gilroy, Transient Occupancy Tax",
+    "K": "117",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 18,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure C - City of Santa Clara, Public Works Charter Amendment",
+    "K": "118",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 37,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure D - City of Los Altos, Citizen-Sponsored Initiative, Los Altos Downtown Parking Plaza Ordinance",
+    "K": "119",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 14,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure E - City of Mountain View, Charter Amendment, Modernize and Clarify Its Provisions",
+    "K": "120",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 17,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure F - City of Mountain View, Transient Occupancy Tax",
+    "K": "121",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 17,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure G - City of Sunnyvale, Charter Amendment, Public Works Contracts",
+    "K": "122",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 49,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure H - City of Sunnyvale, City Manager Settlement Authority",
+    "K": "123",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 49,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure I - City of Sunnyvale, Charter Amendment, Elections to Fill Council Vacancies",
+    "K": "124",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 49,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure J - City of Palo Alto, Transactions and Use Tax",
+    "K": "125",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 22,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure K - City of Milpitas, Business Tax Modernization",
+    "K": "126",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 14,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure L - City of Cupertino, General Plan Amendment",
+    "K": "127",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 24,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure M - Gilroy Unified School District, School Bond",
+    "K": "128",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 26,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure N - Los Gatos-Saratoga Union High School District, School Bond",
+    "K": "129",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 42,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure O - Alum Rock Union School District, Parcel Tax",
+    "K": "130",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 49,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure P - Alum Rock Union School District, School Bond",
+    "K": "131",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 49,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure Q - Cambrian School District, Parcel Tax",
+    "K": "132",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 13,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure R - Orchard School District, Parcel Tax",
+    "K": "133",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 7,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  },
+  {
+    "CATKEY": "C_6",
+    "CAT": "Measures",
+    "C": "Measure S - El Camino Healthcare District, Limit Number of Terms for Directors",
+    "K": "134",
+    "AggID": null,
+    "regvoters": 0,
+    "BCxContest": 0,
+    "VF": 0,
+    "TP": 73,
+    "PR": 0,
+    "TV": 0,
+    "BC": 0,
+    "RC": 0,
+    "RO": 0,
+    "CH": [
+      "YES",
+      "NO"
+    ],
+    "CHAggId": null,
+    "P": [
+      "",
+      ""
+    ],
+    "PCT": [
+      0,
+      0
+    ],
+    "V": [
+      0,
+      0
+    ],
+    "RCVRoundVGain": null,
+    "RCVRoundPCTGain": null,
+    "T": [
+      0
+    ],
+    "RCVExhaustedBallots": null,
+    "RCVBallotsCast": null,
+    "RCVOverVotes": null,
+    "W": [
+      0,
+      0
+    ],
+    "CRC": [
+      0,
+      0
+    ],
+    "CRO": [
+      0,
+      0
+    ],
+    "IsCumulative": null,
+    "CumulativeVotes": null,
+    "CumulativeChoices": null,
+    "CumulativePercentages": null,
+    "IsContestNoChoice": 0,
+    "IsRCV": false,
+    "RCVAwaitingResults": false,
+    "RCVRounds": 0
+  }
+]

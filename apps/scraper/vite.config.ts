@@ -25,6 +25,9 @@ export default defineConfig({
     rollupOptions: {
       external: externalizeRuntimeDependency,
       input: {
+        "california-research": fileURLToPath(
+          new URL("./src/california-research-entry.ts", import.meta.url),
+        ),
         main: fileURLToPath(new URL("./src/main.ts", import.meta.url)),
         "retroactive-briefs": fileURLToPath(
           new URL("./src/retroactive-briefs.ts", import.meta.url),

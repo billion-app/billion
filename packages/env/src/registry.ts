@@ -550,6 +550,16 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "CANDIDATE_RESEARCH_REVIEW_MODEL",
+    description:
+      "Optional Responses endpoint model for independent candidate content review. It must be allowed by the active research policy. Unset uses the next configured structured model.",
+    group: "AI",
+    secret: false,
+    example: "gpt-6-astra",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
     key: "SCRAPER_FALLBACK_REASONING_EFFORT",
     description:
       "Reasoning effort sent to the fallback endpoint; models differ in which values they accept.",

@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
 
-import { and, desc, eq, inArray, sql } from "@acme/db";
+import { and, eq, inArray, sql } from "@acme/db";
 import {
-  CaliforniaRoster,
   CandidateBriefReviewEvent,
   CandidateBriefRevision,
   CandidateRaceRelease,
@@ -11,7 +10,11 @@ import { candidateRaceManifestSchema } from "@acme/validators";
 
 import type { createTRPCContext } from "../trpc";
 import type { CatalogPublishedRace } from "./california-catalog";
-import { getCaliforniaRoster } from "./california-roster-store";
+import {
+  getPublicCaliforniaRoster,
+  getPublicCaliforniaRosterMetadata,
+} from "./california-public-roster";
+import { getCurrentCaliforniaRosterId } from "./california-roster-store";
 import { readCandidateRace } from "./candidate-race-release";
 
 type Database = Awaited<ReturnType<typeof createTRPCContext>>["db"];
@@ -81,26 +84,20 @@ export async function validateCatalogStatuses<T>(input: {
 const statusCache = new CatalogStatusCache();
 const rosterCache = new Map<
   string,
-  NonNullable<Awaited<ReturnType<typeof getCaliforniaRoster>>>
+  NonNullable<Awaited<ReturnType<typeof getPublicCaliforniaRoster>>>
 >();
 async function catalogRoster(
   tx: Pick<Database, "select">,
   electionDate: string,
 ) {
-  const [row] = await tx
-    .select({
-      id: CaliforniaRoster.id,
-      fingerprint: sql<string>`md5(${CaliforniaRoster.document}::text)`,
-    })
-    .from(CaliforniaRoster)
-    .where(eq(CaliforniaRoster.electionDate, electionDate))
-    .orderBy(desc(CaliforniaRoster.createdAt), desc(CaliforniaRoster.id))
-    .limit(1);
+  const id = await getCurrentCaliforniaRosterId(tx, electionDate);
+  if (!id) return null;
+  const row = await getPublicCaliforniaRosterMetadata(tx, id);
   if (!row) return null;
   const key = `${row.id}:${row.fingerprint}`;
   const cached = rosterCache.get(key);
   if (cached) return cached;
-  const snapshot = await getCaliforniaRoster(tx, row.id);
+  const snapshot = await getPublicCaliforniaRoster(tx, row.id);
   if (snapshot) {
     rosterCache.set(key, snapshot);
     while (rosterCache.size > 4) {

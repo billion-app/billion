@@ -232,6 +232,13 @@
       "when": 1793387052927,
       "tag": "0032_short_vulture",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793389908751,
+      "tag": "0033_supreme_miss_america",
+      "breakpoints": true
     }
   ]
 }

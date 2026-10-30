@@ -5,6 +5,12 @@ import { researchSourceSchema } from "./candidate-research-collection";
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const text = z.string().min(1);
+export const californiaSourceProofRefSchema = z.object({
+  url: z.url(),
+  contentHash: hash,
+  byteHash: hash.optional(),
+  role: z.enum(["required_fresh", "historical_qualification"]).optional(),
+});
 export const californiaOfficeFamilySchema = z.enum([
   "statewide",
   "board_of_equalization",
@@ -14,6 +20,17 @@ export const californiaOfficeFamilySchema = z.enum([
   "judicial_retention",
   "local",
 ]);
+export const clarityRosterDerivationSchema = z.object({
+  algorithmVersion: z.literal("scc-clarity-semantic-v1"),
+  fromSnapshotId: hash,
+  reviewedDefinitionHash: hash,
+  observedDefinitionHash: hash,
+  semanticDigest: hash,
+  checkedAt: z.iso.datetime(),
+});
+export type ClarityRosterDerivation = z.infer<
+  typeof clarityRosterDerivationSchema
+>;
 export const californiaRaceTargetSchema = z.object({
   raceKey: text,
   contestId: text,
@@ -41,7 +58,9 @@ export const californiaRaceTargetSchema = z.object({
         reviewedAt: z.iso.datetime(),
         method: text,
         reason: text,
-        proofs: z.array(z.object({ url: z.url(), contentHash: hash })).min(1),
+        proofs: z.array(californiaSourceProofRefSchema).min(1),
+        observedProofs: z.array(californiaSourceProofRefSchema).optional(),
+        derivation: clarityRosterDerivationSchema.optional(),
       }),
     ])
     .optional(),
@@ -90,7 +109,7 @@ export const sanJoseScopeCrosswalkSchema = z.object({
         jurisdiction: text.optional(),
         jurisdictionLabel: text.optional(),
         district: text.nullable().optional(),
-        proofs: z.array(z.object({ url: z.url(), contentHash: hash })).min(1),
+        proofs: z.array(californiaSourceProofRefSchema).min(1),
       }),
     )
     .length(129),
@@ -101,6 +120,34 @@ export const sanJoseScopeCrosswalkSchema = z.object({
   }),
 });
 export type SanJoseScopeCrosswalk = z.infer<typeof sanJoseScopeCrosswalkSchema>;
+
+export const clarityCandidateCrosswalkSchema = z.object({
+  schemaVersion: z.literal(1),
+  electionDate: z.literal("2026-11-03"),
+  definitionHash: hash,
+  members: z
+    .array(
+      z.object({
+        sourceContestId: text,
+        sourceOrdinal: text,
+        clarityContestKey: text,
+        clarityChoiceIndex: z.number().int().nonnegative(),
+        name: text,
+        status: z.enum(["on_ballot", "qualified_write_in"]),
+        officialCandidateId: text.optional(),
+      }),
+    )
+    .min(1)
+    .max(1000),
+  review: z.object({
+    digest: hash,
+    actorId: text,
+    reviewedAt: z.iso.datetime(),
+  }),
+});
+export type ClarityCandidateCrosswalk = z.infer<
+  typeof clarityCandidateCrosswalkSchema
+>;
 
 export const californiaRosterSnapshotSchema = z.object({
   schemaVersion: z.literal(1),
@@ -136,6 +183,18 @@ export const californiaRosterSnapshotSchema = z.object({
   races: z.array(californiaRaceTargetSchema).min(1),
   additionalSources: z.array(researchSourceSchema).max(200).optional(),
   localCrosswalk: sanJoseScopeCrosswalkSchema.optional(),
+  localPrimary: z
+    .object({
+      kind: z.literal("scc_clarity"),
+      definitionURL: z.url(),
+      settingsURL: z.url(),
+      currentVersionURL: z.url(),
+      identityCrosswalk: clarityCandidateCrosswalkSchema,
+      reviewedSources: z.array(researchSourceSchema).max(200).optional(),
+      derivation: clarityRosterDerivationSchema.optional(),
+    })
+    .optional(),
+  historicalSources: z.array(researchSourceSchema).max(20).optional(),
   excludedContests: z.array(
     z.object({ sourceContestId: text, reason: z.literal("proposition") }),
   ),

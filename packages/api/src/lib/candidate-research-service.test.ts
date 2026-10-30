@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import test from "node:test";
 
-import { candidateResearchCollectionSchema } from "@acme/validators";
+import {
+  campaignFinanceSchema,
+  candidateDossierSemanticProjection,
+  candidateDossierSourceProjection,
+  candidateResearchCollectionSchema,
+} from "@acme/validators";
 
 import { briefDigest, evidenceHashKey } from "./candidate-brief-publication";
 import { readCandidateRace } from "./candidate-race-release";
@@ -13,7 +18,7 @@ function required<T>(value: T | undefined): T {
   return value;
 }
 
-function fixture(key = randomUUID()) {
+function fixture(key: string = randomUUID()) {
   const now = new Date(Date.now() - 1000).toISOString();
   const text = "A synthetic public record identifies this candidate.";
   const hash = createHash("sha256").update(text).digest("hex");
@@ -521,7 +526,7 @@ void test(
     collection.rosterSnapshotId = snapshotId;
     collection.rosterDigest = "c".repeat(64);
     collection.candidateArtifacts = [];
-    const lease = { key, owner: "old-owner", generation: 1 };
+    const lease = { key, owner: "old-owner", generation: 1, reviewEpoch: 0 };
     let collectionId: string | undefined;
     try {
       await db.insert(Roster).values({
@@ -562,7 +567,7 @@ void test(
       await db.transaction((tx) =>
         assertResearchWorkLease(
           tx,
-          { key, owner: "new-owner", generation: 2 },
+          { key, owner: "new-owner", generation: 2, reviewEpoch: 0 },
           collection,
         ),
       );
@@ -574,8 +579,16 @@ void test(
         collection.pilotKey,
         "Current source request failed under a successor configuration",
         db,
-        { workLease: { key, owner: "new-owner", generation: 2 } },
+        {
+          workLease: { key, owner: "new-owner", generation: 2, reviewEpoch: 0 },
+        },
       );
+      const [requiredFailure] = await db
+        .select()
+        .from(Work)
+        .where(eq(Work.key, key));
+      assert.ok(requiredFailure);
+      assert.equal(requiredFailure.reviewEpoch, 1);
       await assert.rejects(
         failResearchRefresh(collection.pilotKey, "Stale worker failed", db, {
           workLease: lease,
@@ -638,6 +651,21 @@ void test(
     const document = fixture();
     const brief = required(document.briefs[0]);
     const source = required(document.sources[0]);
+    const imageBytes = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aS9kAAAAASUVORK5CYII=",
+      "base64",
+    );
+    document.sources.push({
+      id: "image-proof",
+      url: "https://example.org/fixture.png",
+      publisher: "Fixture",
+      format: "image",
+      text: "",
+      contentHash: createHash("sha256").update("").digest("hex"),
+      byteHash: createHash("sha256").update(imageBytes).digest("hex"),
+      binaryBase64: imageBytes.toString("base64"),
+      fetchedAt: source.fetchedAt,
+    });
     const version = `ai-${randomUUID()}`;
     document.manifest.electionDate = "2097-11-03";
     brief.identity.electionDate = "2097-11-03";
@@ -653,6 +681,42 @@ void test(
       model: "author-model",
       promptVersion: "v1",
     };
+    const finance = campaignFinanceSchema.parse({
+      committeeId: "C00000001",
+      committeeName: "Synthetic finance committee",
+      periodStart: "2096-01-01",
+      periodEnd: "2096-12-31",
+      currency: "USD",
+      coverage: "partial",
+      coverageNote: "Synthetic typed finance fixture",
+      updatedAt: brief.createdAt,
+      filingEvidenceIds: ["finance"],
+      receipts: {
+        totalCents: 100,
+        breakdown: {
+          individuals: 100,
+          committees: 0,
+          self_contributions: 0,
+          candidate_loans: 0,
+          transfers: 0,
+          other: 0,
+        },
+        refundsCents: null,
+      },
+      donors: [],
+      donorCoverage: "unavailable",
+      outsideSpending: null,
+    });
+    brief.research = {
+      headlineClaimId: "record-claim",
+      promises: [],
+      finance,
+      financeGap: null,
+    };
+    brief.evidence.push({ ...required(brief.evidence[0]), id: "finance" });
+    document.manifest.currentHashes[
+      evidenceHashKey(brief.identity, "finance")
+    ] = source.contentHash;
     document.rosterSnapshotId = snapshotId;
     document.rosterDigest = rosterDigest;
     document.researchVersion = researchVersion;
@@ -661,12 +725,13 @@ void test(
       schemaVersion: 1,
       identity: brief.identity,
       name: "Fixture candidate",
-      officeFamily: "local",
-      officeKind: "local",
+      officeFamily: "us_house",
+      officeKind: "federal_legislative",
       rosterDigest,
       researchVersion,
       createdAt: brief.createdAt,
-      sources: [source],
+      finance,
+      sources: document.sources,
       evidence: [
         {
           id: "record",
@@ -677,27 +742,22 @@ void test(
           role: "roster",
           identityQualification: "official_roster",
         },
+        {
+          id: "finance",
+          sourceId: "record",
+          excerpt: source.text,
+          locator: "Synthetic filing",
+          origin: "primary_record",
+          role: "finance",
+          identityQualification: "exact_election_office",
+        },
       ],
       gaps: [],
       classification: "evidence_gap",
-      sourceSetDigest: hash([
-        {
-          id: source.id,
-          url: source.url,
-          publisher: source.publisher,
-          format: source.format,
-          contentHash: source.contentHash,
-        },
-      ]),
+      sourceSetDigest: hash(candidateDossierSourceProjection(document.sources)),
       dossierDigest: "0".repeat(64),
     });
-    const {
-      dossierDigest: _digest,
-      createdAt: _created,
-      sources: _sources,
-      ...semantic
-    } = dossier;
-    dossier.dossierDigest = hash(semantic);
+    dossier.dossierDigest = hash(candidateDossierSemanticProjection(dossier));
     const author = {
       role: "author",
       actorId: brief.authorId,
@@ -773,7 +833,7 @@ void test(
           jurisdictionLabel: "Fixture",
           electionDate: brief.identity.electionDate,
           sourceContestId: "fixture",
-          officeFamily: "local",
+          officeFamily: "us_house",
           office: "Mayor",
           district: null,
           kind: "election",
@@ -796,7 +856,9 @@ void test(
     });
     const collectionIds: string[] = [],
       releaseIds: string[] = [];
-    let lease: { key: string; owner: string; generation: number } | undefined;
+    let lease:
+      | { key: string; owner: string; generation: number; reviewEpoch: number }
+      | undefined;
     try {
       await adoptResearchPolicy({
         policy: {
@@ -833,12 +895,13 @@ void test(
         key: claim.key,
         owner: claim.owner,
         generation: claim.generation,
+        reviewEpoch: claim.reviewEpoch,
       };
       const saved = await saveResearchCollection(document, db, {
         workLease: lease,
       });
       collectionIds.push(saved.collectionId);
-      await recordResearchAiReview({
+      const initialReview = await recordResearchAiReview({
         collectionId: saved.collectionId,
         revisionId: brief.revisionId,
         attestation,
@@ -852,6 +915,120 @@ void test(
             workLease: lease,
           })
         ).releaseId,
+      );
+      const expiredCheckedAt = new Date(Date.now() - 25 * 60 * 60 * 1000);
+      const [initialRelease] = await db
+        .select()
+        .from(Release)
+        .where(eq(Release.id, required(releaseIds[0])));
+      assert.ok(initialRelease);
+      const expiredManifest = {
+        ...initialRelease.document,
+        sourceCheckedAt: expiredCheckedAt.toISOString(),
+        expiresAt: new Date(
+          expiredCheckedAt.getTime() + 86_400_000,
+        ).toISOString(),
+      };
+      await db
+        .update(Collection)
+        .set({ checkedAt: expiredCheckedAt })
+        .where(eq(Collection.id, saved.collectionId));
+      await db
+        .update(Release)
+        .set({ document: expiredManifest })
+        .where(eq(Release.id, initialRelease.id));
+      const observedDocument = structuredClone(document);
+      const observationTime = new Date().toISOString();
+      const observedDossier = candidateEvidenceDossierSchema.parse({
+        ...dossier,
+        createdAt: observationTime,
+        finance: { ...finance, updatedAt: observationTime },
+        sources: dossier.sources.map((entry) => ({
+          ...entry,
+          fetchedAt: observationTime,
+          ...(entry.format !== "image"
+            ? {
+                byteHash: createHash("sha256")
+                  .update("changed raw text response metadata")
+                  .digest("hex"),
+              }
+            : {}),
+        })),
+      });
+      assert.equal(
+        hash(candidateDossierSemanticProjection(observedDossier)),
+        dossier.dossierDigest,
+      );
+      assert.equal(
+        hash(candidateDossierSourceProjection(observedDossier.sources)),
+        dossier.sourceSetDigest,
+      );
+      required(observedDocument.candidateArtifacts?.[0]).dossier =
+        observedDossier;
+      observedDocument.sources = observedDocument.sources.map((entry) => ({
+        ...entry,
+        fetchedAt: observationTime,
+        ...(entry.format !== "image"
+          ? {
+              byteHash: createHash("sha256")
+                .update("changed raw text response metadata")
+                .digest("hex"),
+            }
+          : {}),
+      }));
+      observedDocument.manifest.sourceCheckedAt = observationTime;
+      observedDocument.manifest.expiresAt = new Date(
+        Date.parse(observationTime) + 86_400_000,
+      ).toISOString();
+      const unchanged = await saveResearchCollection(observedDocument, db, {
+        workLease: lease,
+      });
+      assert.equal(unchanged.changed, false);
+      assert.equal(unchanged.collectionId, saved.collectionId);
+      const [renewedRelease] = await db
+        .select()
+        .from(Release)
+        .where(eq(Release.id, initialRelease.id));
+      assert.ok(renewedRelease);
+      assert.equal(renewedRelease.document.sourceCheckedAt, observationTime);
+      assert.equal(
+        renewedRelease.document.expiresAt,
+        new Date(Date.parse(observationTime) + 86_400_000).toISOString(),
+      );
+      await db
+        .update(Release)
+        .set({ document: expiredManifest })
+        .where(eq(Release.id, initialRelease.id));
+
+      const reusedReview = await recordResearchAiReview({
+        collectionId: unchanged.collectionId,
+        revisionId: brief.revisionId,
+        attestation,
+        workLease: lease,
+      });
+      assert.equal(reusedReview.eventId, initialReview.eventId);
+      assert.equal(
+        (
+          await publishResearchCollection({
+            collectionId: unchanged.collectionId,
+            actorId: "fixture-service",
+            workLease: lease,
+          })
+        ).releaseId,
+        required(releaseIds[0]),
+      );
+      const [idempotentlyRenewed] = await db
+        .select()
+        .from(Release)
+        .where(eq(Release.id, initialRelease.id));
+      assert.ok(idempotentlyRenewed);
+      assert.equal(
+        idempotentlyRenewed.document.sourceCheckedAt,
+        observationTime,
+      );
+      assert.equal(
+        idempotentlyRenewed.document.expiresAt,
+        new Date(Date.parse(observationTime) + 86_400_000).toISOString(),
       );
       const [storedRelease] = await db
         .select()
@@ -985,8 +1162,9 @@ void test(
         key: resumed.key,
         owner: resumed.owner,
         generation: resumed.generation,
+        reviewEpoch: resumed.reviewEpoch,
       };
-      const recovered = await saveResearchCollection(document, db, {
+      const recovered = await saveResearchCollection(observedDocument, db, {
         workLease: lease,
       });
       collectionIds.push(recovered.collectionId);
@@ -1025,6 +1203,99 @@ void test(
           })
         ).releaseId,
       );
+      const changedFinance = structuredClone(observedDocument);
+      const changedDossier = candidateEvidenceDossierSchema.parse(
+        required(changedFinance.candidateArtifacts?.[0]).dossier,
+      );
+      assert.ok(changedDossier.finance?.receipts);
+      changedDossier.finance.receipts.totalCents = 200;
+      changedDossier.finance.receipts.breakdown.individuals = 200;
+      changedDossier.dossierDigest = hash(
+        candidateDossierSemanticProjection(changedDossier),
+      );
+      const changedArtifact = required(changedFinance.candidateArtifacts?.[0]);
+      changedArtifact.dossier = changedDossier;
+      changedArtifact.dossierDigest = changedDossier.dossierDigest;
+      const changedSaved = await saveResearchCollection(changedFinance, db, {
+        workLease: lease,
+      });
+      collectionIds.push(changedSaved.collectionId);
+      await assert.rejects(
+        recordResearchAiReview({
+          collectionId: changedSaved.collectionId,
+          revisionId: brief.revisionId,
+          attestation: {
+            ...attestation,
+            reviewer: { ...reviewer, runId: randomUUID() },
+          },
+          workLease: lease,
+        }),
+        /Dossier evidence does not support/,
+      );
+      const changedImage = structuredClone(observedDocument);
+      const imageArchive = required(
+        changedImage.sources.find((entry) => entry.format === "image"),
+      );
+      const changedBytes = Buffer.concat([imageBytes, Buffer.from([0])]);
+      imageArchive.binaryBase64 = changedBytes.toString("base64");
+      imageArchive.byteHash = createHash("sha256")
+        .update(changedBytes)
+        .digest("hex");
+      const imageDossier = candidateEvidenceDossierSchema.parse(
+        required(changedImage.candidateArtifacts?.[0]).dossier,
+      );
+      imageDossier.sources = changedImage.sources;
+      imageDossier.sourceSetDigest = hash(
+        candidateDossierSourceProjection(imageDossier.sources),
+      );
+      imageDossier.dossierDigest = hash(
+        candidateDossierSemanticProjection(imageDossier),
+      );
+      const imageArtifact = required(changedImage.candidateArtifacts?.[0]);
+      imageArtifact.dossier = imageDossier;
+      imageArtifact.dossierDigest = imageDossier.dossierDigest;
+      imageArtifact.sourceSetDigest = imageDossier.sourceSetDigest;
+      const imageChanged = await saveResearchCollection(changedImage, db, {
+        workLease: lease,
+      });
+      collectionIds.push(imageChanged.collectionId);
+      assert.equal(imageChanged.changed, true);
+      await assert.rejects(
+        recordResearchAiReview({
+          collectionId: imageChanged.collectionId,
+          revisionId: brief.revisionId,
+          attestation: {
+            ...attestation,
+            reviewer: { ...reviewer, runId: randomUUID() },
+          },
+          workLease: lease,
+        }),
+        /Independent review is not bound/,
+      );
+      const changedSource = structuredClone(observedDocument);
+      const changedArchive = required(changedSource.sources[0]);
+      changedArchive.text += " Changed filing amount.";
+      changedArchive.contentHash = createHash("sha256")
+        .update(changedArchive.text)
+        .digest("hex");
+      const hashDossier = candidateEvidenceDossierSchema.parse(
+        required(changedSource.candidateArtifacts?.[0]).dossier,
+      );
+      hashDossier.sources = [changedArchive];
+      hashDossier.sourceSetDigest = hash(
+        candidateDossierSourceProjection(hashDossier.sources),
+      );
+      hashDossier.dossierDigest = hash(
+        candidateDossierSemanticProjection(hashDossier),
+      );
+      const hashArtifact = required(changedSource.candidateArtifacts?.[0]);
+      hashArtifact.dossier = hashDossier;
+      hashArtifact.dossierDigest = hashDossier.dossierDigest;
+      hashArtifact.sourceSetDigest = hashDossier.sourceSetDigest;
+      await assert.rejects(
+        saveResearchCollection(changedSource, db, { workLease: lease }),
+        /same hash|Official roster/,
+      );
     } finally {
       if (releaseIds.length)
         await db.delete(Release).where(inArray(Release.id, releaseIds));
@@ -1041,6 +1312,334 @@ void test(
       await db.delete(Roster).where(eq(Roster.id, snapshotId));
       await db.delete(Roster).where(eq(Roster.id, successorSnapshotId));
       await db.delete(Policy).where(eq(Policy.version, version));
+    }
+  },
+);
+
+void test(
+  "automated policy cutover requires prepared replacements for every currently public race",
+  { skip: !process.env.CANDIDATE_RESEARCH_TEST_DATABASE_URL },
+  async () => {
+    const url = required(process.env.CANDIDATE_RESEARCH_TEST_DATABASE_URL);
+    const target = new URL(url);
+    assert.ok(
+      ["localhost", "127.0.0.1"].includes(target.hostname) &&
+        target.pathname.endsWith("_test"),
+    );
+    process.env.POSTGRES_URL = url;
+    const { db } = await import("@acme/db/client");
+    const { eq, inArray } = await import("@acme/db");
+    const {
+      CaliforniaRoster: Roster,
+      CaliforniaRaceWork: Work,
+      CandidateBriefRevision: Revision,
+      CandidateBriefReviewEvent: Event,
+      CandidateResearchCollection: Collection,
+      CandidateRaceRelease: Release,
+      CandidateResearchPolicy: Policy,
+    } = await import("@acme/db/schema");
+    const { candidateEvidenceDossierSchema, californiaRosterSnapshotSchema } =
+      await import("@acme/validators");
+    const {
+      saveCaliforniaRoster,
+      beginCaliforniaSourceCheck,
+      claimCaliforniaRaceWork,
+    } = await import("./california-roster-store");
+    const {
+      saveResearchCollection,
+      activeResearchPolicy,
+      resolveCurrentResearchRoster,
+    } = await import("./candidate-research-store");
+    const {
+      adoptResearchPolicy,
+      recordResearchAiReview,
+      publishResearchCollection,
+    } = await import("./candidate-research-service");
+    const hash = (value: unknown) =>
+      createHash("sha256").update(JSON.stringify(value)).digest("hex");
+    const snapshotId = hash(randomUUID()),
+      electionDate = "2095-11-03",
+      researchVersion = "auto-policy-fixture-v1";
+    const v1 = `auto-v1-${randomUUID()}`,
+      v2 = `auto-v2-${randomUUID()}`;
+    const automation = {
+      serviceActorId: "policy-fixture-service",
+      allowedAuthorModels: ["author-model"],
+      allowedReviewerModels: ["review-model"],
+      researchVersion,
+    };
+    const policy = (version: string) => ({
+      version,
+      approvedBy: "fixture-owner",
+      statement:
+        "This synthetic automation policy authorizes independent fixture model reviews and service publication only inside the disposable local test database.",
+      automation,
+    });
+    function prepared(key: string, version: string) {
+      const document = fixture(key),
+        brief = required(document.briefs[0]),
+        source = required(document.sources[0]),
+        runId = randomUUID();
+      brief.identity.electionDate = electionDate;
+      brief.authorId = `fixture-author:${runId}`;
+      brief.authorship = {
+        kind: "generated",
+        model: "author-model",
+        promptVersion: "v1",
+      };
+      document.manifest.electionDate = electionDate;
+      document.manifest.policyVersion = version;
+      document.manifest.currentHashes = {
+        [evidenceHashKey(brief.identity, "record")]: source.contentHash,
+      };
+      document.researchVersion = researchVersion;
+      document.rosterSnapshotId = snapshotId;
+      document.rosterDigest = hash(key);
+      const dossier = candidateEvidenceDossierSchema.parse({
+        schemaVersion: 1,
+        identity: brief.identity,
+        name: "Fixture candidate",
+        officeFamily: "local",
+        officeKind: "local",
+        rosterDigest: document.rosterDigest,
+        researchVersion,
+        createdAt: brief.createdAt,
+        sources: document.sources,
+        evidence: [
+          {
+            id: "record",
+            sourceId: source.id,
+            excerpt: source.text,
+            locator: "Fixture record",
+            origin: "primary_record",
+            role: "roster",
+            identityQualification: "official_roster",
+          },
+        ],
+        gaps: [],
+        classification: "evidence_gap",
+        sourceSetDigest: hash(
+          candidateDossierSourceProjection(document.sources),
+        ),
+        dossierDigest: "0".repeat(64),
+      });
+      dossier.dossierDigest = hash(candidateDossierSemanticProjection(dossier));
+      const author = {
+        role: "author",
+        actorId: brief.authorId,
+        runId,
+        configuredModel: "author-model",
+        actualModel: "author-model",
+        provider: "fixture",
+        requestId: null,
+        promptVersion: "v1",
+        policyVersion: version,
+        sourceSetDigest: dossier.sourceSetDigest,
+        dossierDigest: dossier.dossierDigest,
+        revisionDigest: briefDigest(brief),
+        startedAt: brief.createdAt,
+        completedAt: brief.createdAt,
+        usage: { inputTokens: 1, outputTokens: 1 },
+        costUsd: null,
+      };
+      const reviewer = {
+        ...author,
+        role: "reviewer",
+        actorId: `fixture-reviewer:${randomUUID()}`,
+        runId: randomUUID(),
+        configuredModel: "review-model",
+        actualModel: "review-model",
+      };
+      document.candidateArtifacts = [
+        {
+          candidateId: brief.identity.candidateId,
+          dossierDigest: dossier.dossierDigest,
+          sourceSetDigest: dossier.sourceSetDigest,
+          author,
+          dossier,
+        },
+      ];
+      return {
+        document,
+        attestation: {
+          author,
+          reviewer,
+          verdict: "approve",
+          findings: [
+            {
+              claimId: "record-claim",
+              supported: true,
+              reason: "Synthetic archived quote supports this fixture.",
+            },
+          ],
+        },
+      };
+    }
+    const old = [prepared(randomUUID(), v1), prepared(randomUUID(), v1)];
+    const next = old.map((entry) => prepared(entry.document.pilotKey, v2));
+    const source = required(required(old[0]).document.sources[0]);
+    const snapshot = californiaRosterSnapshotSchema.parse({
+      schemaVersion: 1,
+      id: snapshotId,
+      electionDate,
+      scope: "ca_sos_certified",
+      scopeLabel: "Synthetic policy fixture",
+      source: {
+        url: source.url,
+        byteHash: source.contentHash,
+        textHash: source.contentHash,
+        fetchedAt: source.fetchedAt,
+        encoding: "windows-1252",
+        text: source.text,
+      },
+      certification: {
+        url: source.url,
+        textHash: source.contentHash,
+        fetchedAt: source.fetchedAt,
+        text: source.text,
+      },
+      races: old.map(({ document }) => {
+        const brief = required(document.briefs[0]);
+        return {
+          raceKey: document.pilotKey,
+          contestId: brief.identity.contestId,
+          jurisdiction: brief.identity.jurisdiction,
+          jurisdictionLabel: "Fixture",
+          electionDate,
+          sourceContestId: document.pilotKey,
+          officeFamily: "local",
+          office: "Mayor",
+          district: null,
+          kind: "election",
+          rosterDigest: document.rosterDigest,
+          members: [
+            {
+              identity: brief.identity,
+              candidateId: brief.identity.candidateId,
+              name: "Fixture candidate",
+              sourceCandidateId: brief.identity.candidateId,
+              partyCode: "",
+              party: null,
+              ballotStatus: "on_ballot",
+            },
+          ],
+        };
+      }),
+      excludedContests: [],
+      countyCoverage: [],
+    });
+    const collectionIds: string[] = [],
+      releaseIds: string[] = [],
+      preparedIds: string[] = [];
+    const revisionIds = [...old, ...next].map(
+      (entry) => required(entry.document.briefs[0]).revisionId,
+    );
+    try {
+      await saveCaliforniaRoster(db, snapshot);
+      const epoch = await beginCaliforniaSourceCheck(db, electionDate);
+      assert.ok(epoch);
+      await adoptResearchPolicy({ policy: policy(v1), collectionIds: [] });
+      for (const entry of [...old, ...next]) {
+        const { document, attestation } = entry,
+          brief = required(document.briefs[0]);
+        const claim = await claimCaliforniaRaceWork(db, {
+          snapshotId,
+          raceKey: document.pilotKey,
+          rosterDigest: required(document.rosterDigest),
+          policyVersion: document.manifest.policyVersion,
+          researchVersion,
+          owner: randomUUID(),
+          expectedSourceEpoch: epoch,
+        });
+        assert.ok(claim);
+        const lease = {
+          key: claim.key,
+          owner: claim.owner,
+          generation: claim.generation,
+          reviewEpoch: claim.reviewEpoch,
+        };
+        const isStaged = document.manifest.policyVersion === v2;
+        const saved = await saveResearchCollection(document, db, {
+          workLease: lease,
+          ...(isStaged ? { stagedPolicyVersion: v2 } : {}),
+        });
+        collectionIds.push(saved.collectionId);
+        await recordResearchAiReview({
+          collectionId: saved.collectionId,
+          revisionId: brief.revisionId,
+          attestation,
+          workLease: lease,
+          ...(isStaged
+            ? { policy: { approved: true as const, version: v2, automation } }
+            : {}),
+        });
+        if (isStaged) preparedIds.push(saved.collectionId);
+        else
+          releaseIds.push(
+            (
+              await publishResearchCollection({
+                collectionId: saved.collectionId,
+                actorId: automation.serviceActorId,
+                workLease: lease,
+              })
+            ).releaseId,
+          );
+      }
+      await assert.rejects(
+        adoptResearchPolicy({ policy: policy(v2), collectionIds: [] }),
+        /every currently public race/,
+      );
+      await assert.rejects(
+        adoptResearchPolicy({
+          policy: policy(v2),
+          collectionIds: [required(preparedIds[0])],
+        }),
+        /every currently public race/,
+      );
+      assert.equal((await activeResearchPolicy()).version, v1);
+      const adopted = await adoptResearchPolicy({
+        policy: policy(v2),
+        collectionIds: preparedIds,
+      });
+      releaseIds.push(...adopted.releaseIds);
+      assert.equal(adopted.releaseIds.length, 2);
+      assert.equal((await activeResearchPolicy()).version, v2);
+      for (const id of adopted.releaseIds) {
+        const [row] = await db.select().from(Release).where(eq(Release.id, id));
+        assert.ok(row);
+        const ids = row.document.members.map((m) => m.revisionId);
+        const revisions = await db
+          .select()
+          .from(Revision)
+          .where(inArray(Revision.id, ids));
+        const events = await db
+          .select()
+          .from(Event)
+          .where(inArray(Event.revisionId, ids));
+        assert.ok(
+          readCandidateRace({
+            manifest: row.document,
+            revokedReason: row.revokedReason,
+            revisions,
+            events,
+            policy: await activeResearchPolicy(),
+            now: new Date().toISOString(),
+            currentRoster: await resolveCurrentResearchRoster(db, row.document),
+          }),
+        );
+      }
+    } finally {
+      if (releaseIds.length)
+        await db.delete(Release).where(inArray(Release.id, releaseIds));
+      await db.delete(Event).where(inArray(Event.revisionId, revisionIds));
+      if (collectionIds.length)
+        await db
+          .delete(Collection)
+          .where(inArray(Collection.id, collectionIds));
+      await db.delete(Revision).where(inArray(Revision.id, revisionIds));
+      await db.delete(Work).where(eq(Work.snapshotId, snapshotId));
+      await db.delete(Roster).where(eq(Roster.id, snapshotId));
+      await db.delete(Policy).where(inArray(Policy.version, [v1, v2]));
     }
   },
 );

@@ -11,7 +11,11 @@ import {
   CandidateResearchPolicy,
 } from "@acme/db/schema";
 import {
+  campaignFinanceSchema,
+  candidateDossierSemanticProjection,
+  candidateDossierSourceProjection,
   candidateEvidenceDossierSchema,
+  candidateFinanceSemanticProjection,
   candidateModelAttestationSchema,
   candidateRaceManifestSchema,
 } from "@acme/validators";
@@ -21,7 +25,6 @@ import type {
   ResearchTransaction,
   ResearchWorkLease,
 } from "./candidate-research-store";
-import { getLatestCaliforniaRoster } from "./california-roster-store";
 import { briefDigest, briefIdentityKey } from "./candidate-brief-publication";
 import { readCandidateRace } from "./candidate-race-release";
 import {
@@ -36,6 +39,7 @@ import {
   lockResearchElection,
   lockResearchRace,
   researchSourceDigest,
+  resolveCurrentResearchRoster,
 } from "./candidate-research-store";
 
 export async function currentResearchCollection(
@@ -81,27 +85,12 @@ async function currentRoster(
 ) {
   if (!document.rosterSnapshotId) return undefined;
   await lockPilot(tx, `roster:${document.manifest.electionDate}`);
-  const snapshot = await getLatestCaliforniaRoster(
-    tx,
-    document.manifest.electionDate,
-  );
-  if (snapshot?.id !== document.rosterSnapshotId)
+  const roster = await resolveCurrentResearchRoster(tx, document.manifest);
+  if (roster?.snapshotId !== document.rosterSnapshotId)
     throw new Error("Roster snapshot was superseded");
-  const race = snapshot.races.find(
-    (r) =>
-      r.contestId === document.manifest.contestId &&
-      r.jurisdiction === document.manifest.jurisdiction,
-  );
-  if (!race || race.rosterDigest !== document.rosterDigest)
+  if (roster.rosterDigest !== document.rosterDigest)
     throw new Error("Race roster changed");
-  return {
-    snapshotId: snapshot.id,
-    rosterDigest: race.rosterDigest,
-    candidateIds: race.members.map((m) => m.candidateId),
-    contestId: race.contestId,
-    electionDate: race.electionDate,
-    jurisdiction: race.jurisdiction,
-  };
+  return roster;
 }
 export async function recordResearchAiReview(
   input: {
@@ -145,7 +134,11 @@ export async function recordResearchAiReview(
               archived.id === source.id &&
               archived.url === source.url &&
               archived.contentHash === source.contentHash &&
-              archived.text === source.text,
+              archived.text === source.text &&
+              archived.format === source.format &&
+              (source.format !== "image" ||
+                (archived.byteHash === source.byteHash &&
+                  archived.binaryBase64 === source.binaryBase64)),
           ),
       )
     )
@@ -154,28 +147,24 @@ export async function recordResearchAiReview(
       );
     const hash = (value: unknown) =>
       createHash("sha256").update(JSON.stringify(value)).digest("hex");
-    const {
-      dossierDigest: expected,
-      createdAt: _created,
-      sources: _sources,
-      ...semantic
-    } = dossier;
     if (
-      hash(semantic) !== expected ||
-      hash(
-        dossier.sources
-          .map(({ id, url, publisher, format, contentHash }) => ({
-            id,
-            url,
-            publisher,
-            format,
-            contentHash,
-          }))
-          .sort((a, b) => a.id.localeCompare(b.id)),
-      ) !== dossier.sourceSetDigest
+      hash(candidateDossierSemanticProjection(dossier)) !==
+        dossier.dossierDigest ||
+      hash(candidateDossierSourceProjection(dossier.sources)) !==
+        dossier.sourceSetDigest
     )
       throw new Error("Author dossier digest is invalid");
     if (
+      JSON.stringify(
+        candidateFinanceSemanticProjection(
+          brief.research?.finance
+            ? campaignFinanceSchema.parse(brief.research.finance)
+            : null,
+        ),
+      ) !==
+        JSON.stringify(
+          candidateFinanceSemanticProjection(dossier.finance ?? null),
+        ) ||
       dossier.rosterDigest !== row.document.rosterDigest ||
       dossier.researchVersion !== row.document.researchVersion ||
       dossier.evidence.some((entry) => {
@@ -254,21 +243,16 @@ export async function recordResearchAiReview(
       throw new Error(
         "A superseded collection's reviewer invocation cannot approve a new source generation",
       );
-    const [prior] = await tx
-      .select()
-      .from(CandidateBriefReviewEvent)
-      .where(
-        and(
-          eq(CandidateBriefReviewEvent.revisionId, brief.revisionId),
-          eq(CandidateBriefReviewEvent.actorId, attestation.reviewer.actorId),
-          eq(CandidateBriefReviewEvent.policyVersion, policy.version),
-        ),
+    const prior = reused.find((event) => {
+      const parsed = researchReviewAttestationSchema.safeParse(
+        event.attestation,
       );
-    if (
-      prior?.attestation &&
-      JSON.stringify(prior.attestation) === JSON.stringify(attestation)
-    )
-      return { eventId: prior.id };
+      return (
+        parsed.success &&
+        JSON.stringify(parsed.data) === JSON.stringify(attestation)
+      );
+    });
+    if (prior) return { eventId: prior.id };
     const eventId = randomUUID();
     await tx.insert(CandidateBriefReviewEvent).values({
       id: eventId,
@@ -379,8 +363,13 @@ async function publishInTransaction(
     existing.document.sourceDigest === manifest.sourceDigest &&
     JSON.stringify(existing.document.members) ===
       JSON.stringify(manifest.members)
-  )
+  ) {
+    await tx
+      .update(CandidateRaceRelease)
+      .set({ document: { ...manifest, id: existing.id } })
+      .where(eq(CandidateRaceRelease.id, existing.id));
     return { releaseId: existing.id };
+  }
   await tx
     .insert(CandidateRaceRelease)
     .values({ id: manifest.id, document: manifest });
@@ -475,7 +464,7 @@ export async function adoptResearchPolicy(
   return database.transaction(async (tx) => {
     await lockPilot(tx, "policy");
     const priorPolicy = await activeResearchPolicy(tx);
-    const releases = await tx
+    let releases = await tx
       .selectDistinctOn([
         sql`${CandidateRaceRelease.document}->>'jurisdiction'`,
         sql`${CandidateRaceRelease.document}->>'electionDate'`,
@@ -489,6 +478,20 @@ export async function adoptResearchPolicy(
         desc(CandidateRaceRelease.createdAt),
         desc(CandidateRaceRelease.id),
       );
+    for (const electionDate of [
+      ...new Set(releases.map((r) => r.document.electionDate)),
+    ].sort())
+      await lockResearchElection(tx, electionDate);
+    if (releases.length)
+      releases = await tx
+        .select()
+        .from(CandidateRaceRelease)
+        .where(
+          inArray(
+            CandidateRaceRelease.id,
+            releases.map((r) => r.id),
+          ),
+        );
     const currentlyLive: CandidateRaceManifest[] = [];
     for (const release of releases) {
       const ids = release.document.members.map((m) => m.revisionId);
@@ -508,6 +511,10 @@ export async function adoptResearchPolicy(
           events,
           policy: priorPolicy,
           now: new Date().toISOString(),
+          currentRoster: await resolveCurrentResearchRoster(
+            tx,
+            release.document,
+          ),
         })
       )
         currentlyLive.push(release.document);

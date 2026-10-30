@@ -216,6 +216,7 @@ void test(
         kind: "required_roster_source_failure",
       });
       assert.equal(failed.generation, after.generation + 1);
+      assert.equal(failed.reviewEpoch, after.reviewEpoch + 1);
       assert.equal(failed.owner, null);
       assert.equal(failed.leaseUntil, null);
       await assert.rejects(
@@ -231,13 +232,31 @@ void test(
       const fresh = await beginCaliforniaSourceCheck(db, snapshot.electionDate);
       assert.ok(fresh);
       assert.ok(fresh.generation > sourceEpoch.generation);
+      const freshWork = await claimCaliforniaRaceWork(db, {
+        ...base,
+        expectedSourceEpoch: fresh,
+        owner: "fresh-fetch",
+      });
+      assert.ok(freshWork);
+      assert.equal(freshWork.reviewEpoch, failed.reviewEpoch);
       assert.ok(
-        await claimCaliforniaRaceWork(db, {
-          ...base,
-          expectedSourceEpoch: fresh,
-          owner: "fresh-fetch",
+        await saveCaliforniaRaceCheckpoint(db, {
+          key: freshWork.key,
+          owner: freshWork.owner,
+          generation: freshWork.generation,
+          status: "blocked",
+          checkpoint: { reason: "Provider dispatch outcome uncertain" },
+          now: new Date(Date.parse(timestamp) + 1),
         }),
       );
+      const providerRetry = await claimCaliforniaRaceWork(db, {
+        ...base,
+        expectedSourceEpoch: fresh,
+        owner: "provider-retry",
+      });
+      assert.ok(providerRetry);
+      assert.equal(providerRetry.reviewEpoch, freshWork.reviewEpoch);
+
       const [original] = await db
         .select()
         .from(CaliforniaRoster)

@@ -1,9 +1,10 @@
 import type {
   CaliforniaOfficeFamily,
-  CaliforniaRosterSnapshot,
   CandidateBriefIdentity,
   CandidateRaceManifest,
 } from "@acme/validators";
+
+import type { PublicCaliforniaRoster } from "./california-public-roster";
 
 export interface CatalogPublishedRace {
   manifest: Pick<
@@ -74,7 +75,7 @@ export function candidateInPublishedRace<T extends CatalogPublishedRace>(
   );
 }
 export function rosterPublishedRaces<T extends CatalogPublishedRace>(
-  snapshot: CaliforniaRosterSnapshot,
+  snapshot: PublicCaliforniaRoster,
   races: readonly T[],
 ) {
   return races.filter(({ manifest }) => {
@@ -95,7 +96,7 @@ export function rosterPublishedRaces<T extends CatalogPublishedRace>(
   });
 }
 export function resolveRosterCandidate(
-  snapshot: CaliforniaRosterSnapshot | null,
+  snapshot: PublicCaliforniaRoster | null,
   input: {
     electionDate: string;
     name: string;
@@ -119,7 +120,7 @@ export function resolveRosterCandidate(
   return members.length === 1 ? (members[0]?.identity ?? null) : null;
 }
 export function californiaCandidateCatalog(
-  snapshot: CaliforniaRosterSnapshot | null,
+  snapshot: PublicCaliforniaRoster | null,
   races: readonly CatalogPublishedRace[],
   input: CaliforniaCatalogInput,
 ) {
@@ -225,7 +226,7 @@ export function californiaCandidateCatalog(
 }
 
 export function rosterCandidateMetadata(
-  snapshot: CaliforniaRosterSnapshot | null,
+  snapshot: PublicCaliforniaRoster | null,
   identity: CandidateBriefIdentity,
 ) {
   const target = snapshot?.races.find(

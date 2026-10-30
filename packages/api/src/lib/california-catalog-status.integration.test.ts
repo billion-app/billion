@@ -29,14 +29,20 @@ void test(
     const { eq, inArray } = await import("@acme/db");
     const {
       CaliforniaRoster,
+      CaliforniaRaceWork,
       CandidateBriefRevision,
       CandidateBriefReviewEvent,
       CandidateRaceRelease,
     } = await import("@acme/db/schema");
+    const { saveCaliforniaRoster } = await import("./california-roster-store");
+    const { getPublicCaliforniaRoster, getPublicCaliforniaRosterMetadata } =
+      await import("./california-public-roster");
+    const privateArchive = "PRIVATE_ROSTER_ARCHIVE_SENTINEL".repeat(150000);
     const electionDate = "2099-11-03",
       namespace = randomUUID(),
       jurisdiction = `fixture:${namespace}`;
     const policy = { approved: true, version: `cache-${namespace}` };
+    const snapshotId = createHash("sha256").update(namespace).digest("hex");
     const fixtureNow = Date.now();
     const checked = new Date(fixtureNow - 7200000).toISOString();
     const reviewed = new Date(fixtureNow - 3600000);
@@ -83,6 +89,8 @@ void test(
         office: "Fixture office",
         rosterSourceUrl: "https://example.org/roster",
         rosterHash: "a".repeat(64),
+        rosterSnapshotId: snapshotId,
+        rosterDigest: "d".repeat(64),
         rosterVerifiedAt: checked,
         rosterVerifiedBy: "fixture",
         members: briefs.map((brief) => ({
@@ -101,7 +109,7 @@ void test(
     });
     const snapshot = californiaRosterSnapshotSchema.parse({
       schemaVersion: 1,
-      id: createHash("sha256").update(namespace).digest("hex"),
+      id: snapshotId,
       electionDate,
       scope: "ca_sos_certified",
       scopeLabel: "Synthetic cache integration roster",
@@ -111,14 +119,36 @@ void test(
         textHash: "b".repeat(64),
         fetchedAt: checked,
         encoding: "windows-1252",
-        text: "Synthetic roster source",
+        text: privateArchive,
       },
       certification: {
         url: "https://example.org/certified",
         textHash: "c".repeat(64),
         fetchedAt: checked,
-        text: "Synthetic certified roster",
+        text: privateArchive,
       },
+      additionalSources: [
+        {
+          id: "private-current-proof",
+          url: "https://example.org/private-current-proof",
+          publisher: "Synthetic private archive",
+          format: "text",
+          text: privateArchive,
+          contentHash: "a".repeat(64),
+          fetchedAt: checked,
+        },
+      ],
+      historicalSources: [
+        {
+          id: "private-reviewed-proof",
+          url: "https://example.org/private-reviewed-proof",
+          publisher: "Synthetic private archive",
+          format: "text",
+          text: privateArchive,
+          contentHash: "a".repeat(64),
+          fetchedAt: checked,
+        },
+      ],
       excludedContests: [],
       countyCoverage: [],
       races: fixtures.map(({ manifest, briefs }, index) => ({
@@ -152,34 +182,101 @@ void test(
     );
     const releaseIds = fixtures.map((value) => value.manifest.id);
     let fullSelections = 0;
+    let privateRosterSelections = 0;
+    function trace<T extends Pick<typeof db, "select">>(database: T): T {
+      return new Proxy(database, {
+        get(target, property, receiver) {
+          if (property !== "select")
+            return Reflect.get(target, property, receiver) as unknown;
+          return (
+            fields: Parameters<typeof database.select>[0] | undefined,
+          ) => {
+            if (fields !== undefined) {
+              if (
+                Object.values(fields).some(
+                  (value) => value === CaliforniaRoster.document,
+                )
+              )
+                privateRosterSelections++;
+              return database.select(fields);
+            }
+            fullSelections++;
+            const builder = database.select();
+            return new Proxy(builder, {
+              get(target, property, receiver) {
+                if (property !== "from")
+                  return Reflect.get(target, property, receiver) as unknown;
+                return (...args: unknown[]) => {
+                  if (args[0] === CaliforniaRoster) privateRosterSelections++;
+                  return Reflect.apply(
+                    builder.from.bind(builder),
+                    undefined,
+                    args,
+                  ) as unknown;
+                };
+              },
+            });
+          };
+        },
+      });
+    }
     const measured: Pick<typeof db, "transaction"> = {
       transaction: (run, config) =>
-        db.transaction(
-          (tx) =>
-            run(
-              new Proxy(tx, {
-                get(target, property, receiver) {
-                  if (property !== "select")
-                    return Reflect.get(target, property, receiver) as unknown;
-                  return (
-                    fields: Parameters<typeof tx.select>[0] | undefined,
-                  ) => {
-                    if (fields === undefined) {
-                      fullSelections++;
-                      return tx.select();
-                    }
-                    return tx.select(fields);
-                  };
-                },
-              }),
-            ),
-          config,
-        ),
+        db.transaction((tx) => run(trace(tx)), config),
     };
+    const measuredReader = new Proxy(trace(db), {
+      get(target, property, receiver) {
+        if (property === "transaction") return measured.transaction;
+        return Reflect.get(target, property, receiver) as unknown;
+      },
+    });
     try {
+      await saveCaliforniaRoster(db, snapshot);
+      const publicRoster = await getPublicCaliforniaRoster(
+        measuredReader,
+        snapshot.id,
+      );
+      const publicBytes = Buffer.byteLength(JSON.stringify(publicRoster));
+      assert.ok(publicBytes < 1000000);
+      assert.equal(
+        JSON.stringify(publicRoster).includes(
+          "PRIVATE_ROSTER_ARCHIVE_SENTINEL",
+        ),
+        false,
+      );
+      const before = await getPublicCaliforniaRosterMetadata(
+        measuredReader,
+        snapshot.id,
+      );
+      const changedPrivate = {
+        ...snapshot,
+        source: {
+          ...snapshot.source,
+          text: `${privateArchive} changed private archive`,
+        },
+      };
       await db
-        .insert(CaliforniaRoster)
-        .values({ id: snapshot.id, electionDate, document: snapshot });
+        .update(CaliforniaRoster)
+        .set({ document: changedPrivate })
+        .where(eq(CaliforniaRoster.id, snapshot.id));
+      const after = await getPublicCaliforniaRosterMetadata(
+        measuredReader,
+        snapshot.id,
+      );
+      assert.equal(
+        after?.fingerprint,
+        before?.fingerprint,
+        "private archive changes must not enter the metadata fingerprint",
+      );
+      assert.equal(privateRosterSelections, 0);
+      t.diagnostic(
+        JSON.stringify({
+          privateArchiveBytes: Buffer.byteLength(
+            JSON.stringify(changedPrivate),
+          ),
+          publicRosterProjectionBytes: publicBytes,
+        }),
+      );
       await db.insert(CandidateBriefRevision).values(
         fixtures.flatMap((value) =>
           value.briefs.map((brief) => ({
@@ -225,7 +322,7 @@ void test(
         for (const item of page.items) seen.add(item.identity.candidateId);
         if (pages === 0) {
           coldFullSelections = fullSelections;
-          assert.equal(coldFullSelections, 4);
+          assert.equal(coldFullSelections, 3);
         } else
           assert.equal(
             fullSelections,
@@ -245,6 +342,58 @@ void test(
           coldFullSelections,
           warmFullSelections: fullSelections,
         }),
+      );
+      const { createTRPCRouter } = await import("../trpc");
+      const { createCandidateBriefsRouter } =
+        await import("../router/candidate-briefs");
+      const reader = createTRPCRouter(
+        createCandidateBriefsRouter(policy),
+      ).createCaller({
+        db: measuredReader,
+        session: null,
+        authApi: {},
+      } as never);
+      const last = fixtures.at(-1);
+      assert.ok(last);
+      const lastBrief = last.briefs[0];
+      assert.ok(lastBrief);
+      assert.equal(
+        (await reader.forCandidate({ identity: lastBrief.identity })).status,
+        "published",
+      );
+      await db
+        .delete(CaliforniaRaceWork)
+        .where(eq(CaliforniaRaceWork.key, `source-epoch:${electionDate}`));
+      await db
+        .delete(CaliforniaRoster)
+        .where(eq(CaliforniaRoster.id, snapshot.id));
+      const missing = await readCaliforniaCatalogStatuses(
+        measured,
+        policy,
+        electionDate,
+      );
+      assert.equal(missing.snapshot, null);
+      assert.deepEqual(
+        missing.races,
+        [],
+        "warm cached statuses require a currently available authoritative roster",
+      );
+      assert.equal(
+        (await reader.forCandidate({ identity: lastBrief.identity })).status,
+        "unavailable",
+      );
+      const missingCatalog = await reader.catalog({ electionDate, limit: 20 });
+      assert.equal(missingCatalog.coverage.publishedCandidates, 0);
+      assert.deepEqual(missingCatalog.items, []);
+      const missingBrief = await reader.get(lastBrief.identity);
+      assert.equal(missingBrief.status, "unavailable");
+      assert.equal(missingBrief.brief, null);
+      assert.equal(await reader.race({ releaseId: last.manifest.id }), null);
+      await saveCaliforniaRoster(db, snapshot);
+      assert.equal(
+        (await readCaliforniaCatalogStatuses(measured, policy, electionDate))
+          .races.length,
+        228,
       );
       const first = fixtures[0];
       assert.ok(first);
@@ -341,20 +490,34 @@ void test(
         id: createHash("sha256").update(`${namespace}:successor`).digest("hex"),
         races: snapshot.races.slice(0, 4),
       };
-      await db.insert(CaliforniaRoster).values({
-        id: changedSnapshot.id,
-        electionDate,
-        document: changedSnapshot,
-        createdAt: new Date(Date.now() + 1000),
-      });
+      await saveCaliforniaRoster(db, changedSnapshot);
       assert.equal(
         (await readCaliforniaCatalogStatuses(measured, policy, electionDate))
           .races.length,
         0,
       );
-      await db
-        .delete(CaliforniaRoster)
-        .where(eq(CaliforniaRoster.id, changedSnapshot.id));
+      await saveCaliforniaRoster(db, snapshot);
+      const restored = await readCaliforniaCatalogStatuses(
+        measured,
+        policy,
+        electionDate,
+      );
+      assert.equal(restored.snapshot?.id, snapshot.id);
+      assert.equal(
+        restored.races.length,
+        0,
+        "historical A must become current without resurrecting releases revoked by the intervening cutover",
+      );
+      const persisted = await db
+        .select({ id: CaliforniaRoster.id })
+        .from(CaliforniaRoster)
+        .where(inArray(CaliforniaRoster.id, [snapshot.id, changedSnapshot.id]));
+      assert.equal(persisted.length, 2);
+      assert.equal(
+        privateRosterSelections,
+        0,
+        "no public cold, warm or direct reader may select the private roster document",
+      );
     } finally {
       await db
         .delete(CandidateRaceRelease)
@@ -365,6 +528,9 @@ void test(
       await db
         .delete(CandidateBriefRevision)
         .where(inArray(CandidateBriefRevision.id, revisionIds));
+      await db
+        .delete(CaliforniaRaceWork)
+        .where(eq(CaliforniaRaceWork.key, `source-epoch:${electionDate}`));
       await db
         .delete(CaliforniaRoster)
         .where(inArray(CaliforniaRoster.id, [snapshot.id, successorId]));

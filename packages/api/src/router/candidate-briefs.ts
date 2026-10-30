@@ -23,7 +23,7 @@ import {
   rosterCandidateMetadata,
 } from "../lib/california-catalog";
 import { readCaliforniaCatalogStatuses } from "../lib/california-catalog-status";
-import { getLatestCaliforniaRoster } from "../lib/california-roster-store";
+import { getLatestPublicCaliforniaRoster } from "../lib/california-public-roster";
 import { readCandidateRace } from "../lib/candidate-race-release";
 import { activeResearchPolicy } from "../lib/candidate-research-store";
 import {
@@ -129,7 +129,7 @@ async function readReleases(
             async (electionDate) =>
               [
                 electionDate,
-                await getLatestCaliforniaRoster(tx, electionDate),
+                await getLatestPublicCaliforniaRoster(tx, electionDate),
               ] as const,
           ),
         ),
@@ -209,7 +209,7 @@ export function createCandidateBriefsRouter(policyInput: PolicyInput) {
         }),
       )
       .query(async ({ ctx, input }) => {
-        const snapshot = await getLatestCaliforniaRoster(
+        const snapshot = await getLatestPublicCaliforniaRoster(
           ctx.db,
           input.identity.electionDate,
         );
@@ -253,7 +253,7 @@ export function createCandidateBriefsRouter(policyInput: PolicyInput) {
         }),
       )
       .query(async ({ ctx, input }) => {
-        const snapshot = await getLatestCaliforniaRoster(
+        const snapshot = await getLatestPublicCaliforniaRoster(
           ctx.db,
           input.electionDate,
         );

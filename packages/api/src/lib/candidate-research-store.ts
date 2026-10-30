@@ -17,6 +17,7 @@ import {
   candidateResearchTemplateVersion,
 } from "@acme/validators";
 
+import { getLatestPublicCaliforniaRoster } from "./california-public-roster";
 import { invalidateCaliforniaResearchState } from "./california-roster-store";
 import { briefDigest, briefIdentityKey } from "./candidate-brief-publication";
 import {
@@ -49,6 +50,7 @@ export interface ResearchWorkLease {
   key: string;
   owner: string;
   generation: number;
+  reviewEpoch: number;
 }
 export async function assertResearchWorkLease(
   tx: ResearchTransaction,
@@ -69,6 +71,7 @@ export async function assertResearchWorkLease(
   if (
     work?.owner !== lease.owner ||
     work.generation !== lease.generation ||
+    work.reviewEpoch !== lease.reviewEpoch ||
     !work.leaseUntil ||
     work.leaseUntil.getTime() <= Date.now() ||
     work.raceKey !== document.pilotKey ||
@@ -79,6 +82,42 @@ export async function assertResearchWorkLease(
         work.researchVersion !== document.researchVersion))
   )
     throw new Error("Research work lease expired or was superseded");
+}
+export async function resolveCurrentResearchRoster(
+  database: Pick<ResearchDatabase, "select">,
+  manifest: CandidateResearchCollectionDocument["manifest"],
+) {
+  const snapshot = await getLatestPublicCaliforniaRoster(
+    database,
+    manifest.electionDate,
+  );
+  const race = snapshot?.races.find(
+    (r) =>
+      r.contestId === manifest.contestId &&
+      r.jurisdiction === manifest.jurisdiction,
+  );
+  return snapshot && race
+    ? {
+        snapshotId: snapshot.id,
+        rosterDigest: race.rosterDigest,
+        candidateIds: race.members.map((m) => m.candidateId),
+        contestId: race.contestId,
+        electionDate: race.electionDate,
+        jurisdiction: race.jurisdiction,
+      }
+    : undefined;
+}
+export async function requireFreshResearchReview(
+  tx: ResearchTransaction,
+  pilotKey: string,
+) {
+  await tx
+    .update(CaliforniaRaceWork)
+    .set({
+      reviewEpoch: sql`${CaliforniaRaceWork.reviewEpoch}+1`,
+      updatedAt: new Date(),
+    })
+    .where(eq(CaliforniaRaceWork.raceKey, pilotKey));
 }
 export function invalidateRace(
   tx: ResearchTransaction,
@@ -115,10 +154,21 @@ export async function activeResearchPolicy(
 export function researchSourceDigest(
   document: CandidateResearchCollectionDocument,
 ) {
+  const modern =
+    document.researchVersion !== undefined ||
+    document.rosterSnapshotId !== undefined ||
+    document.candidateArtifacts !== undefined;
   const semantic: unknown[] = [
     document.researchVersion ?? candidateResearchTemplateVersion,
     document.sources
-      .map((s) => [s.id, s.url, s.publisher, s.format, s.contentHash])
+      .map((s) => [
+        s.id,
+        s.url,
+        s.publisher,
+        s.format,
+        s.contentHash,
+        ...(modern && s.format === "image" && s.byteHash ? [s.byteHash] : []),
+      ])
       .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
     document.problems,
   ];
@@ -156,6 +206,15 @@ export async function saveResearchCollection(
       source.contentHash
     )
       throw new Error("Collected source hash does not match its text");
+    if (
+      source.binaryBase64 &&
+      createHash("sha256")
+        .update(Buffer.from(source.binaryBase64, "base64"))
+        .digest("hex") !== source.byteHash
+    )
+      throw new Error(
+        "Collected source byte hash does not match its binary archive",
+      );
     const age =
       Date.parse(document.manifest.sourceCheckedAt) -
       Date.parse(source.fetchedAt);
@@ -164,6 +223,7 @@ export async function saveResearchCollection(
   }
   const sourceDigest = researchSourceDigest(document);
   return database.transaction(async (tx) => {
+    await lockPilot(tx, "policy");
     await lockResearchElection(tx, document.manifest.electionDate);
     await lockPilot(tx, document.pilotKey);
     await lockResearchRace(tx, document.manifest);
@@ -230,6 +290,7 @@ export async function saveResearchCollection(
             events,
             policy,
             now: checkedAt.toISOString(),
+            currentRoster: await resolveCurrentResearchRoster(tx, manifest),
           })
         )
           await tx
@@ -378,6 +439,7 @@ export async function failResearchRefresh(
     await lockResearchRace(tx, prior.document.manifest);
     await assertResearchWorkLease(tx, options?.workLease, prior.document, true);
     await invalidateRace(tx, prior.document.manifest, reason);
+    await requireFreshResearchReview(tx, prior.pilotKey);
     await tx
       .update(CandidateResearchCollection)
       .set({ failure: reason })

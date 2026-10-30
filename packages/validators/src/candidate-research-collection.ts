@@ -6,15 +6,39 @@ import { candidateRaceManifestSchema } from "./candidate-research";
 export const candidateResearchTemplateVersion = "ca-house-17-v4";
 
 /** Collected source text stays separate from the editable, unpublished explanation. */
-export const researchSourceSchema = z.object({
-  id: z.string().min(1),
-  url: z.url(),
-  publisher: z.string().min(1),
-  format: z.enum(["html", "pdf", "json", "text"]),
-  text: z.string().min(1).max(5_000_000),
-  contentHash: z.string().regex(/^[a-f0-9]{64}$/),
-  fetchedAt: z.iso.datetime(),
-});
+export const researchSourceSchema = z
+  .object({
+    id: z.string().min(1),
+    url: z.url(),
+    publisher: z.string().min(1),
+    format: z.enum(["html", "pdf", "json", "text", "image"]),
+    text: z.string().max(5_000_000),
+    binaryBase64: z
+      .string()
+      .max(6_666_668)
+      .regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/)
+      .optional(),
+    contentHash: z.string().regex(/^[a-f0-9]{64}$/),
+    byteHash: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
+    fetchedAt: z.iso.datetime(),
+  })
+  .superRefine((source, context) => {
+    if (source.format === "image") {
+      if (source.text !== "" || !source.byteHash || !source.binaryBase64)
+        context.addIssue({
+          code: "custom",
+          message:
+            "Image sources require empty text, actual binary archive and raw byte hash",
+        });
+    } else if (source.text.length === 0)
+      context.addIssue({
+        code: "custom",
+        message: "Textual sources require original text",
+      });
+  });
 export const candidateResearchCollectionSchema = z
   .object({
     pilotKey: z.string().min(1).max(200),

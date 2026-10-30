@@ -17,13 +17,38 @@ export const candidateEvidenceDossierSchema = z.object({
     "state_executive",
     "state_board",
     "judicial_retention",
+    "judicial_election",
     "local",
   ]),
   rosterDigest: digest,
   researchVersion: text,
   createdAt: z.iso.datetime(),
   finance: campaignFinanceSchema.nullable().optional(),
+  financeIdentityProof: z
+    .object({
+      candidateId: z.string().regex(/^H[A-Z0-9]{8}$/),
+      name: text,
+      office: z.literal("H"),
+      state: z.literal("CA"),
+      district: z.string().regex(/^\d{1,2}$/),
+      cycle: z.number().int(),
+      sourceId: text,
+      sourceHash: digest,
+    })
+    .optional(),
   sources: z.array(researchSourceSchema).min(1).max(40),
+  sourceLinks: z
+    .array(
+      z.object({
+        fromSourceId: text,
+        toSourceId: text,
+        url: z.url(),
+        anchorText: text,
+        relation: z.enum(["official_contact", "same_origin_campaign"]),
+      }),
+    )
+    .max(20)
+    .optional(),
   evidence: z
     .array(
       z.object({
@@ -104,3 +129,41 @@ export const candidateModelAttestationSchema = z.object({
 export type CandidateModelAttestation = z.infer<
   typeof candidateModelAttestationSchema
 >;
+
+export function candidateFinanceSemanticProjection(
+  finance: CandidateEvidenceDossier["finance"],
+) {
+  if (!finance) return finance;
+  const { updatedAt: _observedAt, ...content } = finance;
+  return content;
+}
+export function candidateDossierSemanticProjection(
+  dossier: CandidateEvidenceDossier,
+) {
+  const {
+    dossierDigest: _digest,
+    createdAt: _createdAt,
+    sources: _sources,
+    ...semantic
+  } = dossier;
+  return {
+    ...semantic,
+    ...(semantic.finance
+      ? { finance: candidateFinanceSemanticProjection(semantic.finance) }
+      : {}),
+  };
+}
+export function candidateDossierSourceProjection(
+  sources: CandidateEvidenceDossier["sources"],
+) {
+  return sources
+    .map(({ id, url, publisher, format, contentHash, byteHash }) => ({
+      id,
+      url,
+      publisher,
+      format,
+      contentHash,
+      ...(format === "image" && byteHash ? { byteHash } : {}),
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}

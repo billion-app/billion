@@ -120,7 +120,9 @@ const countySources: Record<string, string> = {
 const parties: Record<string, string> = {
   "01": "Democratic",
   "02": "Republican",
+  "04": "Green",
   "05": "Libertarian",
+  "08": "Peace and Freedom",
   "13": "Non-Partisan",
   "14": "No Party Preference",
   "15": "Non-Partisan",
@@ -280,6 +282,7 @@ export function decodeCaliforniaRoster(input: {
     const config = offices[code.slice(0, 2)];
     if (!config || !/^\d+$/.test(row[4]!) || !row[10] || !row[6])
       throw new Error("Unknown or incomplete candidate-bearing contest");
+    if (!parties[row[9]!]) throw new Error("Unknown SOS candidate party code");
     const contestId = `ca-sos:${electionDate}:${code}`;
     const candidateId = `${contestId}:${row[4]}`;
     if (seen.has(candidateId))
@@ -330,7 +333,7 @@ export function decodeCaliforniaRoster(input: {
       name: row[10],
       sourceCandidateId: row[4]!,
       partyCode: row[9]!,
-      party: parties[row[9]!] ?? null,
+      party: parties[row[9]!]!,
       ballotStatus: "on_ballot",
     });
     races.set(code, race);
@@ -748,6 +751,22 @@ function checkedSanJoseCrosswalk(
   )
     throw new Error("San José crosswalk must account for every county contest");
   for (const entry of crosswalk.entries) {
+    for (const ref of entry.proofs) {
+      const original = [source, ...proofSources].find(
+        (original) =>
+          original.url === ref.url && original.contentHash === ref.contentHash,
+      );
+      if (
+        original?.format === "image" &&
+        (!ref.byteHash ||
+          !original.binaryBase64 ||
+          hash(Buffer.from(original.binaryBase64, "base64")) !== ref.byteHash)
+      )
+        throw new Error(
+          "Image territorial proof requires exact archived raw bytes",
+        );
+    }
+
     const contest = contests.find(
       (c) => c.sourceContestId === entry.sourceContestId,
     )!;
@@ -767,6 +786,7 @@ function checkedSanJoseCrosswalk(
           (p) =>
             p.url === ref.url &&
             p.contentHash === ref.contentHash &&
+            (!ref.byteHash || p.byteHash === ref.byteHash) &&
             hash(p.text) === p.contentHash,
         )
       )
@@ -854,6 +874,37 @@ export async function refreshReviewedSanJoseRoster(
   if (!current.localCrosswalk)
     throw new Error("San José snapshot lacks a reviewed crosswalk");
   const prior = current.additionalSources ?? [];
+  if (current.localPrimary?.kind === "scc_clarity") {
+    const versionArchive = prior.find(
+      (source) => source.url === current.localPrimary!.currentVersionURL,
+    );
+    if (!versionArchive)
+      throw new Error("Clarity current version archive incomplete");
+    const currentVersion = await fetchSource(
+      versionArchive.id,
+      versionArchive.url,
+      versionArchive.publisher,
+      versionArchive.format,
+    );
+    const version = currentVersion.text.trim();
+    if (!/^\d{6}$/.test(version))
+      throw new Error("Invalid current Clarity report version");
+    const fresh: ResearchSource[] = [currentVersion];
+    for (const source of prior.filter(
+      (source) => source.url !== versionArchive.url,
+    )) {
+      const url = source.url.replace(
+        /^(https:\/\/results\.enr\.clarityelections\.com\/CA\/Santa_Clara\/127570\/)\d{6}(\/)/,
+        `$1${version}$2`,
+      );
+      fresh.push(
+        await fetchSource(source.id, url, source.publisher, source.format),
+      );
+    }
+    const { renewReviewedClaritySanJoseRoster } =
+      await import("./california-clarity.js");
+    return renewReviewedClaritySanJoseRoster(current, freshState, fresh);
+  }
   const county =
     prior.find((s) => s.id === "san-jose-qualified-roster") ??
     prior.find((s) =>
