@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 
-import type { db } from "@acme/db/client";
 import type {
   CaliforniaRosterSnapshot,
   CandidateResearchCollectionDocument,
 } from "@acme/validators";
 import { and, desc, eq, gt, inArray, isNull, lte, ne, or, sql } from "@acme/db";
+import { db } from "@acme/db/client";
 import {
   CaliforniaRaceWork,
   CaliforniaResearchArtifact,
@@ -303,6 +303,65 @@ export async function listCaliforniaRaceWork(
         ne(CaliforniaRaceWork.raceKey, "__source_epoch__"),
       ),
     );
+}
+export async function claimCaliforniaModelDispatch(
+  input: {
+    key: string;
+    raceKey: string;
+    candidateId?: string;
+    document: unknown;
+    workLease: {
+      key: string;
+      owner: string;
+      generation: number;
+      reviewEpoch: number;
+    };
+  },
+  database: Pick<typeof db, "transaction"> = db,
+): Promise<boolean> {
+  if (!input.key.trim() || !input.raceKey.trim())
+    throw new Error("Model dispatch requires an immutable key and race");
+  return database.transaction(async (tx) => {
+    const [selected] = await tx
+      .select({ electionDate: CaliforniaRoster.electionDate })
+      .from(CaliforniaRaceWork)
+      .innerJoin(
+        CaliforniaRoster,
+        eq(CaliforniaRoster.id, CaliforniaRaceWork.snapshotId),
+      )
+      .where(eq(CaliforniaRaceWork.key, input.workLease.key));
+    if (!selected) return false;
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${`candidate-research:election:${selected.electionDate}`}))`,
+    );
+    const [work] = await tx
+      .select()
+      .from(CaliforniaRaceWork)
+      .where(eq(CaliforniaRaceWork.key, input.workLease.key))
+      .for("update");
+    if (
+      work?.owner !== input.workLease.owner ||
+      work.status !== "running" ||
+      work.generation !== input.workLease.generation ||
+      work.reviewEpoch !== input.workLease.reviewEpoch ||
+      work.raceKey !== input.raceKey ||
+      !work.leaseUntil ||
+      work.leaseUntil.getTime() <= Date.now()
+    )
+      return false;
+    const inserted = await tx
+      .insert(CaliforniaResearchArtifact)
+      .values({
+        key: input.key,
+        kind: "model_dispatch",
+        raceKey: input.raceKey,
+        candidateId: input.candidateId,
+        document: input.document,
+      })
+      .onConflictDoNothing()
+      .returning({ key: CaliforniaResearchArtifact.key });
+    return inserted.length === 1;
+  });
 }
 export async function getCaliforniaResearchArtifact(
   database: Reader,

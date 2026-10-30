@@ -117,6 +117,11 @@ async function fixture() {
       return true;
     },
     artifact: async (key) => artifacts.get(key) ?? null,
+    reserveDispatch: async (input) => {
+      if (artifacts.has(input.key)) return false;
+      artifacts.set(input.key, input.document);
+      return true;
+    },
     saveArtifact: async (input) => {
       if (!artifacts.has(input.key)) artifacts.set(input.key, input.document);
       return artifacts.get(input.key);
@@ -651,3 +656,70 @@ test("observed cited source changes withdraw before any model work", async () =>
   assert.equal(f.stats.authors, 0);
   assert.equal(f.stats.reviews, 0);
 });
+
+for (const role of ["author", "review"] as const) {
+  test(`atomic ${role} dispatch admits only the replacement lease after the first owner pauses`, async () => {
+    const f = await fixture();
+    f.snapshot.races.splice(1);
+    let generation = 0;
+    let pauseReached!: () => void;
+    let replacementClaimed!: () => void;
+    const paused = new Promise<void>((resolve) => {
+      pauseReached = resolve;
+    });
+    const replaced = new Promise<void>((resolve) => {
+      replacementClaimed = resolve;
+    });
+    const claim = f.deps.claim;
+    f.deps.claim = async (input) => {
+      const lease = { ...(await claim(input))!, generation: ++generation };
+      if (generation === 2) replacementClaimed();
+      return lease;
+    };
+    const reserve = f.deps.reserveDispatch;
+    f.deps.reserveDispatch = async (input) => {
+      if (
+        input.key.startsWith(`dispatch:${role}:`) &&
+        input.workLease.generation === 1
+      ) {
+        pauseReached();
+        await replaced;
+      }
+      if (input.workLease.generation !== generation) return false;
+      return reserve(input);
+    };
+    let calls = 0;
+    if (role === "author")
+      f.deps.author = async () => {
+        calls++;
+        throw Error("uncertain author outcome");
+      };
+    else
+      f.deps.review = async () => {
+        calls++;
+        throw Error("uncertain reviewer outcome");
+      };
+    const input = {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds: { ...bounds, maxRaces: 1 },
+    };
+    const expired = reconcile(input, f.deps);
+    await paused;
+    const replacement = reconcile(input, f.deps);
+    const results = await Promise.all([expired, replacement]);
+    assert.equal(generation, 2);
+    assert.equal(calls, 1);
+    assert.equal(
+      [...f.artifacts.keys()].filter((key) =>
+        key.startsWith(`dispatch:${role}:`),
+      ).length,
+      1,
+    );
+    assert.equal(
+      results.reduce((total, result) => total + result.usage.modelCalls, 0),
+      role === "author" ? 1 : 2,
+    );
+    assert.equal(f.stats.failures, 0);
+  });
+}

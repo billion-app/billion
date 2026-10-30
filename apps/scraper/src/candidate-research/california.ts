@@ -159,6 +159,13 @@ export interface CaliforniaDependencies {
     value: CaliforniaWorkCheckpoint,
   ): Promise<boolean>;
   artifact(key: string): Promise<unknown | null>;
+  reserveDispatch(input: {
+    key: string;
+    raceKey: string;
+    candidateId?: string;
+    document: unknown;
+    workLease: Lease;
+  }): Promise<boolean>;
   saveArtifact(input: {
     key: string;
     kind: string;
@@ -449,6 +456,7 @@ async function dependencies(
         checkpoint: value,
       }),
     artifact: (key) => store.getCaliforniaResearchArtifact(db, key),
+    reserveDispatch: (input) => store.claimCaliforniaModelDispatch(input, db),
     saveArtifact: (input) => store.saveCaliforniaResearchArtifact(db, input),
     investigate: async (input, budget) => {
       let supplementalSources: ResearchSource[] | undefined;
@@ -956,8 +964,7 @@ export async function reconcile(
       usage.inputTokenReservations + estimate > input.bounds.maxInputTokens
     )
       throw new CaliforniaBudgetReached("model calls or input tokens");
-    usage.modelCalls++;
-    usage.inputTokenReservations += estimate;
+    return estimate;
   };
   for (const race of races) {
     if (
@@ -1070,18 +1077,20 @@ export async function reconcile(
           ReturnType<typeof authorCaliforniaBrief>
         > | null;
         if (!authored) {
-          if (await deps.artifact(`dispatch:${authorKey}`))
-            throw new Error(
-              "An author invocation has an uncertain outcome; reconcile its persisted reservation before retrying",
-            );
-          modelBudget(dossier);
-          await deps.saveArtifact({
+          const reservation = modelBudget(dossier);
+          const reserved = await deps.reserveDispatch({
             key: `dispatch:${authorKey}`,
-            kind: "model_dispatch",
             raceKey: race.raceKey,
             candidateId: member.candidateId,
             document: { startedAt: deps.now(), costUsd: null },
+            workLease: lease,
           });
+          if (!reserved)
+            throw new Error(
+              "Author dispatch is already reserved or its race lease expired; no invocation was made",
+            );
+          usage.modelCalls++;
+          usage.inputTokenReservations += reservation;
           dispatchedModelKey = authorKey;
           authored = await deps.author({
             dossier,
@@ -1116,18 +1125,20 @@ export async function reconcile(
           ReturnType<typeof reviewCaliforniaBrief>
         > | null;
         if (!reviewed) {
-          if (await deps.artifact(`dispatch:${reviewKey}`))
-            throw new Error(
-              "A reviewer invocation has an uncertain outcome; reconcile its persisted reservation before retrying",
-            );
-          modelBudget(dossier, authored.brief);
-          await deps.saveArtifact({
+          const reservation = modelBudget(dossier, authored.brief);
+          const reserved = await deps.reserveDispatch({
             key: `dispatch:${reviewKey}`,
-            kind: "model_dispatch",
             raceKey: race.raceKey,
             candidateId: member.candidateId,
             document: { startedAt: deps.now(), costUsd: null },
+            workLease: lease,
           });
+          if (!reserved)
+            throw new Error(
+              "Reviewer dispatch is already reserved or its race lease expired; no invocation was made",
+            );
+          usage.modelCalls++;
+          usage.inputTokenReservations += reservation;
           dispatchedModelKey = reviewKey;
           reviewed = await deps.review({
             brief: authored.brief,
