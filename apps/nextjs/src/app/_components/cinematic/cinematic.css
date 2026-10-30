@@ -1451,6 +1451,8 @@ body:has(.cinematic-static) {
 
 .cinematic-section-link {
   display: inline-flex;
+  justify-content: center;
+  min-width: 44px;
   align-items: center;
   min-height: 44px;
   color: #f4efe6;
@@ -1645,6 +1647,10 @@ body:has(.cinematic-static) {
 .cinematic-site-nav .cinematic-nav-brand {
   min-height: 44px;
   text-decoration: none;
+}
+
+.cinematic-site-nav .cinematic-pill-nav {
+  min-height: 44px;
 }
 
 .cinematic-site-nav a:focus-visible {
