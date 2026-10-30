@@ -6,6 +6,7 @@ import {
   Image,
   Linking,
   StyleSheet,
+  Switch,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -24,6 +25,7 @@ import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useIdleBallotPreloading } from "~/hooks/useIdleBallotPreloading";
 import { useLanguage } from "~/hooks/useLanguage";
 import { useMeasureTranslation } from "~/hooks/useMeasureTranslation";
+import { usePollVisibility } from "~/hooks/usePollVisibility";
 import { translateAppLabel } from "~/i18n/app-strings";
 import {
   DigestHair,
@@ -96,10 +98,12 @@ function SourceRow({
 
 function CandidateRow({
   candidate,
+  showPolls,
   result,
   status,
 }: {
   candidate: Candidate;
+  showPolls: boolean;
   result?: GuideVote;
   status: "loading" | "pending" | "unavailable" | "reported";
 }) {
@@ -114,7 +118,8 @@ function CandidateRow({
         candidate.name,
         result
           ? resultLabel
-          : tx(
+          : showPolls &&
+            tx(
               status === "loading"
                 ? "Checking polls…"
                 : status === "unavailable"
@@ -165,7 +170,7 @@ function CandidateRow({
         </Text>
         {result ? (
           <GuideVoteResult result={result} status={status} />
-        ) : (
+        ) : showPolls ? (
           <Text style={s.note}>
             {tx(
               status === "loading"
@@ -175,7 +180,7 @@ function CandidateRow({
                   : "No poll available in our sources",
             )}
           </Text>
-        )}
+        ) : null}
       </View>
       <Icon name="chevR" size={18} color={P.primary} />
     </TouchableOpacity>
@@ -184,11 +189,13 @@ function CandidateRow({
 
 function MeasureRow({
   measure: originalMeasure,
+  showPolls,
   standing,
   result,
   status,
 }: {
   measure: Measure;
+  showPolls: boolean;
   standing?: Standing;
   result?: GuideVote;
   status: "loading" | "pending" | "unavailable" | "reported";
@@ -213,11 +220,12 @@ function MeasureRow({
         accessibilityRole="button"
         accessibilityLabel={[
           tx("Proposition {value1}", { value1: measure.number }),
-          standing?.kind === "poll"
+          standing?.kind === "poll" && showPolls
             ? `${tx("Poll")}. ${standing.poll.observation.choices.map((choice) => `${choice.kind === "yes" ? tx("Yes") : choice.kind === "no" ? tx("No") : choice.kind === "undecided" ? tx("Undecided") : choice.label} ${choice.share}%`).join(", ")}`
             : result
               ? resultLabel
-              : tx(
+              : showPolls &&
+                tx(
                   status === "loading"
                     ? "Checking polls…"
                     : status === "unavailable"
@@ -256,7 +264,8 @@ function MeasureRow({
           {translation.state === "unavailable" && (
             <Text style={s.note}>{t("article.translationUnavailable")}</Text>
           )}
-          {standing?.kind !== "poll" &&
+          {(showPolls || result) &&
+            standing?.kind !== "poll" &&
             (result ? (
               <GuideVoteResult result={result} status={status} />
             ) : (
@@ -273,7 +282,7 @@ function MeasureRow({
         </View>
         <Icon name="chevR" size={18} color={P.primary} />
       </TouchableOpacity>
-      {standing?.kind === "poll" && (
+      {showPolls && standing?.kind === "poll" && (
         <GuidePollResult poll={standing.poll} compact />
       )}
     </View>
@@ -305,6 +314,7 @@ export function CaliforniaGuidePreview({
   const router = useRouter();
 
   const [tab, setTab] = useState<GuideTab>("candidates");
+  const { showPolls, setShowPolls } = usePollVisibility();
   const focused = useIsFocused();
   const query = useQuery(
     trpc.civic.getCaliforniaGuide.queryOptions(undefined, { enabled: focused }),
@@ -360,6 +370,7 @@ export function CaliforniaGuidePreview({
         renderItem={({ item }) => (
           <MeasureRow
             measure={item}
+            showPolls={showPolls}
             standing={results?.measures[item.number]}
             result={officialMeasure(results?.measures[item.number])}
             status={resultsStatus}
@@ -402,6 +413,23 @@ export function CaliforniaGuidePreview({
               )}
             </View>
 
+            {guide && (
+              <View style={s.pollToggle}>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={s.actionText}>{tx("Show polls")}</Text>
+                  <Text style={s.pollToggleHint}>
+                    {tx("Polls are hidden until you choose to show them.")}
+                  </Text>
+                </View>
+                <Switch
+                  accessibilityLabel={tx("Show polls")}
+                  value={showPolls}
+                  onValueChange={setShowPolls}
+                  hitSlop={8}
+                  style={{ height: 32, width: 56 }}
+                />
+              </View>
+            )}
             <View style={s.actions}>
               {QUICK_ACTIONS.map((item) => (
                 <TouchableOpacity
@@ -489,7 +517,7 @@ export function CaliforniaGuidePreview({
                 />
                 {tab === "candidates" ? (
                   <View style={s.list}>
-                    {results?.governor.kind === "poll" && (
+                    {showPolls && results?.governor.kind === "poll" && (
                       <View style={s.standingRow}>
                         <GuidePollResult
                           title={tx("Governor poll")}
@@ -523,6 +551,7 @@ export function CaliforniaGuidePreview({
                       <CandidateRow
                         key={`${candidate.officeSlug}:${candidate.name}`}
                         candidate={candidate}
+                        showPolls={showPolls}
                         result={officialCandidate(
                           results?.candidates[
                             `${candidate.officeSlug}:${candidate.name}`
@@ -609,6 +638,18 @@ export function CaliforniaGuidePreview({
 }
 
 const s = StyleSheet.create({
+  pollToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    minHeight: 44,
+  },
+  pollToggleHint: {
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    lineHeight: 19,
+    color: P.inkOnNight,
+  },
   screen: {
     paddingHorizontal: DigestSpace.screenPadX + 4,
     paddingTop: 12,
