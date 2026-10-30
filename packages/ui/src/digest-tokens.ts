@@ -20,6 +20,15 @@ export const planes = {
   paper: "#F4EFE6",
 } as const;
 
+/** Bill-only page rhythm; unrelated screens retain their existing spacing. */
+export const BillReaderSpace = {
+  page: 24,
+  section: 32,
+  block: 24,
+  group: 16,
+  inline: 8,
+} as const;
+
 /** Hairline border tiers. */
 export const hair = {
   1: "rgba(255,255,255,0.06)",
@@ -102,6 +111,22 @@ export const DigestHair = {
   inkMuted: "rgba(22,19,26,0.42)",
   inkHint: "rgba(22,19,26,0.50)",
   inkSecondary: "rgba(22,19,26,0.72)",
+} as const;
+
+/** Article reader roles reuse the existing Digest palette. Keep these aliases
+ * so reader components cannot drift into a separate color scheme.
+ */
+export const BillReaderPalette = {
+  canvas: planes.navy,
+  surface: planes.slate,
+  accent: digest.spark,
+  link: digest.inkOnNight,
+  secondary: digest.spark,
+  reading: digest.inkOnNight,
+  text: digest.inkOnNight,
+  muted: digest.quiet,
+  rule: DigestHair.sectionRule,
+  wash: DigestHair.cardBorder,
 } as const;
 
 /** Content-type color + badge label (bill/exec/court/news/local). */

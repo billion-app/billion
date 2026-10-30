@@ -83,10 +83,10 @@ hideExpoToolsFab();
  * The clock and battery are drawn by iOS in one colour for the whole app —
  * this build has no per-view-controller status bar appearance — so a single
  * owner has to pick it from the route. The digest is night canvas nearly
- * everywhere and wants light glyphs; the article reader is the one cream page
- * and wants dark ones. A screen that switches to a paper surface belongs here.
+ * everywhere, including article loading and recovery, and wants light glyphs.
+ * A future screen that switches to a paper surface belongs here.
  */
-const PAPER_ROUTES = new Set(["/article-detail"]);
+const PAPER_ROUTES = new Set<string>();
 // iOS rounds the moving screens during a push, exposing the navigator beneath.
 const NAVIGATION_THEME = {
   ...DefaultTheme,

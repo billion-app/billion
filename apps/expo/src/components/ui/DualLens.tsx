@@ -13,7 +13,13 @@ import {
 } from "react-native";
 
 import { useLanguage } from "~/hooks/useLanguage";
-import { colors, fontBody, hair, planes } from "~/styles";
+import {
+  colors,
+  fontBody,
+  hair,
+  planes,
+  BillReaderPalette as R,
+} from "~/styles";
 import { Icon } from "./Icon";
 
 export interface LensSource {
@@ -125,7 +131,14 @@ export function LensStrip({
 }
 
 /* ---------- LensPanel ---------- */
-export function LensPanel({ data }: { data: LensData }) {
+export function LensPanel({
+  data,
+  reader = false,
+}: {
+  data: LensData;
+  reader?: boolean;
+}) {
+  const s = reader ? readerStyles : defaultStyles;
   const { t: tr } = useLanguage();
   const sources = data.sources ?? [];
   const labels = sideLabels(data);
@@ -142,7 +155,7 @@ export function LensPanel({ data }: { data: LensData }) {
       </View>
       <View style={s.cols}>
         {(["left", "right"] as const).map((k, i) => {
-          const lensAccent = i === 0 ? "#6DD6C7" : "#F2B56B";
+          const lensAccent = reader ? R.muted : i === 0 ? "#6DD6C7" : "#F2B56B";
           const label = i === 0 ? labels[0] : labels[1];
           return (
             <View
@@ -151,7 +164,8 @@ export function LensPanel({ data }: { data: LensData }) {
                 s.col,
                 {
                   borderLeftColor: lensAccent,
-                  backgroundColor: `${lensAccent}10`,
+                  backgroundColor: reader ? "transparent" : `${lensAccent}10`,
+                  ...(reader ? { borderWidth: 0, borderLeftWidth: 0 } : {}),
                 },
               ]}
             >
@@ -192,7 +206,9 @@ export function LensPanel({ data }: { data: LensData }) {
                             s.example,
                             {
                               borderColor: `${lensAccent}55`,
-                              backgroundColor: `${lensAccent}0D`,
+                              backgroundColor: reader
+                                ? "transparent"
+                                : `${lensAccent}0D`,
                             },
                           ]}
                         >
@@ -246,7 +262,7 @@ export function LensPanel({ data }: { data: LensData }) {
         })}
       </View>
       {sources.length > 0 ? (
-        <SourcesAccordion sources={sources} />
+        <SourcesAccordion sources={sources} reader={reader} />
       ) : (
         <View style={s.footer}>
           <Icon name="info" size={14} color={colors.textSecondary} />
@@ -260,7 +276,14 @@ export function LensPanel({ data }: { data: LensData }) {
 /* ---------- SourcesAccordion ---------- */
 // Sources can run to 20+ items, so keep them collapsed behind a tappable header
 // (count + chevron) and expand on demand.
-function SourcesAccordion({ sources }: { sources: LensSource[] }) {
+function SourcesAccordion({
+  sources,
+  reader = false,
+}: {
+  sources: LensSource[];
+  reader?: boolean;
+}) {
+  const s = reader ? readerStyles : defaultStyles;
   const { t: tr } = useLanguage();
   const [open, setOpen] = useState(false);
   return (
@@ -298,225 +321,241 @@ function SourcesAccordion({ sources }: { sources: LensSource[] }) {
   );
 }
 
-const s = StyleSheet.create({
-  stripWrap: {
-    backgroundColor: planes.surface,
-    borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
-    padding: 14,
-  },
-  stripHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  stripHeadLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flex: 1,
-  },
-  stripLabel: {
-    fontFamily: fontBody.semibold,
-    fontSize: 12.5,
-    color: colors.white,
-    flexShrink: 1,
-  },
-  track: {
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "rgba(138,143,160,0.28)",
-    justifyContent: "center",
-  },
-  node: {
-    position: "absolute",
-    width: 11,
-    height: 11,
-    borderRadius: 999,
-    marginLeft: -5.5,
-    borderWidth: 2,
-    borderColor: planes.navy,
-  },
-  poles: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 8,
-  },
-  pole: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 9.5,
-    letterSpacing: 0.4,
-    color: colors.textSecondary,
-  },
-  panel: {
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderColor: hair[1],
-    borderRadius: 16,
-    padding: 18,
-  },
-  panelHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    marginBottom: 14,
-  },
-  panelIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    backgroundColor: planes.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  panelTitle: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 17,
-    color: colors.white,
-  },
-  panelSub: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  cols: { gap: 10 },
-  col: {
-    borderLeftWidth: 3,
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: hair[1],
-  },
-  colKicker: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 10,
-    letterSpacing: 1,
-    color: colors.textSecondary,
-    marginBottom: 8,
-  },
-  colStance: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 14.5,
-    color: colors.white,
-    marginBottom: 10,
-  },
-  points: { gap: 12 },
-  pointGroup: { gap: 7 },
-  point: { flexDirection: "row", gap: 8 },
-  dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 5,
-    marginTop: 7,
-  },
-  pointText: {
-    flex: 1,
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.82)",
-    lineHeight: 18,
-  },
-  cite: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 10.5,
-    color: colors.civicBlue,
-  },
-  legacyCite: {
-    marginLeft: 13,
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 9.5,
-    letterSpacing: 0.5,
-  },
-  example: {
-    marginLeft: 13,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    borderWidth: 1,
-    borderRadius: 9,
-    padding: 10,
-  },
-  exampleCopy: { flex: 1, gap: 3 },
-  exampleLabel: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 9,
-    letterSpacing: 0.8,
-  },
-  exampleText: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 11.5,
-    lineHeight: 16,
-    color: "rgba(255,255,255,0.76)",
-  },
-  relevance: {
-    marginTop: 6,
-    paddingTop: 7,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.14)",
-    gap: 3,
-  },
-  relevanceLabel: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 8.5,
-    letterSpacing: 0.7,
-  },
-  relevanceText: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 11.5,
-    lineHeight: 16,
-    color: "rgba(255,255,255,0.86)",
-  },
-  footer: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 14 },
-  footerText: {
-    flex: 1,
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 11.5,
-    color: colors.textSecondary,
-  },
-  sources: {
-    marginTop: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: hair[1],
-    gap: 6,
-  },
-  sourcesHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 2,
-  },
-  sourcesLabel: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 10,
-    letterSpacing: 1,
-    color: colors.textSecondary,
-  },
-  sourcesCount: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 10,
-    color: colors.civicBlue,
-  },
-  sourcesSpacer: { flex: 1 },
-  chevFlip: { transform: [{ rotate: "180deg" }] },
-  sourceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 3,
-  },
-  sourceNum: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 11,
-    color: colors.civicBlue,
-    minWidth: 14,
-  },
-  sourceTitle: {
-    flex: 1,
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 12,
-    color: "rgba(255,255,255,0.72)",
-  },
-});
+function createLensStyles(reader = false) {
+  const text = reader ? R.text : colors.white;
+  const muted = reader ? R.muted : colors.textSecondary;
+  const raised = reader ? R.surface : planes.slate;
+  const surface = reader ? R.wash : planes.surface;
+  return StyleSheet.create({
+    stripWrap: {
+      backgroundColor: surface,
+      borderWidth: 1,
+      borderColor: hair[2],
+      borderRadius: 12,
+      padding: 14,
+    },
+    stripHead: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 10,
+    },
+    stripHeadLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flex: 1,
+    },
+    stripLabel: {
+      fontFamily: fontBody.semibold,
+      fontSize: reader ? 15 : 12.5,
+      color: text,
+      flexShrink: 1,
+    },
+    track: {
+      height: 6,
+      borderRadius: 999,
+      backgroundColor: "rgba(138,143,160,0.28)",
+      justifyContent: "center",
+    },
+    node: {
+      position: "absolute",
+      width: 11,
+      height: 11,
+      borderRadius: 999,
+      marginLeft: -5.5,
+      borderWidth: 2,
+      borderColor: planes.navy,
+    },
+    poles: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: 8,
+    },
+    pole: {
+      fontFamily: "AlbertSans-Medium",
+      fontSize: reader ? 15 : 9.5,
+      letterSpacing: 0.4,
+      color: muted,
+    },
+    panel: {
+      backgroundColor: reader ? "transparent" : raised,
+      borderWidth: reader ? 0 : 1,
+      borderColor: hair[1],
+      borderRadius: reader ? 0 : 16,
+      padding: reader ? 0 : 18,
+    },
+    panelHead: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 9,
+      marginBottom: 14,
+    },
+    panelIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 9,
+      backgroundColor: surface,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    panelTitle: {
+      fontFamily: "InriaSerif-Bold",
+      fontSize: 17,
+      color: text,
+    },
+    panelSub: {
+      fontFamily: "AlbertSans-Regular",
+      fontSize: reader ? 15 : 12,
+      color: muted,
+    },
+    cols: { gap: 10 },
+    col: {
+      borderLeftWidth: reader ? 0 : 3,
+      borderRadius: reader ? 0 : 12,
+      padding: reader ? 0 : 14,
+      paddingTop: reader ? 16 : 14,
+      borderTopWidth: 1,
+      borderWidth: reader ? 0 : 1,
+      borderColor: hair[1],
+    },
+    colKicker: {
+      fontFamily: "AlbertSans-Medium",
+      fontSize: reader ? 15 : 10,
+      letterSpacing: 1,
+      color: muted,
+      marginBottom: 8,
+    },
+    colStance: {
+      fontFamily: "InriaSerif-Bold",
+      fontSize: reader ? 15 : 14.5,
+      color: text,
+      marginBottom: 10,
+    },
+    points: { gap: 12 },
+    pointGroup: { gap: 7 },
+    point: { flexDirection: "row", gap: 8 },
+    dot: {
+      width: 5,
+      height: 5,
+      borderRadius: 5,
+      marginTop: 7,
+    },
+    pointText: {
+      flex: 1,
+      fontFamily: "AlbertSans-Regular",
+      fontSize: reader ? 15 : 13,
+      color: reader ? R.text : "rgba(255,255,255,0.82)",
+      lineHeight: reader ? 26 : 18,
+    },
+    cite: {
+      fontFamily: "AlbertSans-Medium",
+      fontSize: reader ? 15 : 10.5,
+      color: reader ? R.link : colors.civicBlue,
+    },
+    legacyCite: {
+      marginLeft: 13,
+      fontFamily: "AlbertSans-Medium",
+      fontSize: reader ? 15 : 9.5,
+      letterSpacing: 0.5,
+    },
+    example: {
+      marginLeft: 13,
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 8,
+      borderWidth: 1,
+      borderRadius: 9,
+      padding: 10,
+    },
+    exampleCopy: { flex: 1, gap: 3 },
+    exampleLabel: {
+      fontFamily: "AlbertSans-Medium",
+      fontSize: reader ? 15 : 9,
+      letterSpacing: 0.8,
+    },
+    exampleText: {
+      fontFamily: "AlbertSans-Regular",
+      fontSize: reader ? 15 : 11.5,
+      lineHeight: reader ? 26 : 16,
+      color: reader ? R.text : "rgba(255,255,255,0.76)",
+    },
+    relevance: {
+      marginTop: 6,
+      paddingTop: 7,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: reader ? R.text : "rgba(255,255,255,0.14)",
+      gap: 3,
+    },
+    relevanceLabel: {
+      fontFamily: "AlbertSans-Medium",
+      fontSize: reader ? 15 : 8.5,
+      letterSpacing: 0.7,
+    },
+    relevanceText: {
+      fontFamily: "AlbertSans-Regular",
+      fontSize: reader ? 15 : 11.5,
+      lineHeight: reader ? 26 : 16,
+      color: reader ? R.text : "rgba(255,255,255,0.86)",
+    },
+    footer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+      marginTop: 14,
+    },
+    footerText: {
+      flex: 1,
+      fontFamily: "AlbertSans-Regular",
+      fontSize: reader ? 15 : 11.5,
+      color: muted,
+    },
+    sources: {
+      marginTop: 16,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: hair[1],
+      gap: 6,
+    },
+    sourcesHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 2,
+    },
+    sourcesLabel: {
+      fontFamily: "AlbertSans-Medium",
+      fontSize: reader ? 15 : 10,
+      letterSpacing: 1,
+      color: muted,
+    },
+    sourcesCount: {
+      fontFamily: "AlbertSans-Medium",
+      fontSize: reader ? 15 : 10,
+      color: reader ? R.link : colors.civicBlue,
+    },
+    sourcesSpacer: { flex: 1 },
+    chevFlip: { transform: [{ rotate: "180deg" }] },
+    sourceRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 3,
+    },
+    sourceNum: {
+      fontFamily: "AlbertSans-Medium",
+      fontSize: reader ? 15 : 11,
+      color: reader ? R.link : colors.civicBlue,
+      minWidth: 14,
+    },
+    sourceTitle: {
+      flex: 1,
+      fontFamily: "AlbertSans-Regular",
+      fontSize: reader ? 15 : 12,
+      color: reader ? R.text : "rgba(255,255,255,0.72)",
+    },
+  });
+}
+const defaultStyles = createLensStyles();
+const readerStyles = createLensStyles(true);
+const s = defaultStyles;
