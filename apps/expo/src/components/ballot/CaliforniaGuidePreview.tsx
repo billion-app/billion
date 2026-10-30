@@ -552,12 +552,14 @@ export function CaliforniaGuidePreview({
                     )}
                     <View style={s.statementsHead}>
                       <Text accessibilityRole="header" style={s.sectionTitle}>
-                        {tx("Official statements {count}", {
+                        {tx("Candidates in the official guide {count}", {
                           count: guide.candidates.length,
                         })}
                       </Text>
                       <Text style={s.note}>
-                        {tx("Statement submitters only, not your full ballot.")}
+                        {tx(
+                          "Statewide candidates listed in California's voter guide. Check your county ballot for all contests.",
+                        )}
                       </Text>
                     </View>
                     <ScrollView

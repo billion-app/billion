@@ -55,15 +55,38 @@ test("primary/general and proposition identity mismatches cannot produce data", 
     null,
   );
 });
-test("no statement remains missing; footer and another candidate never become a statement", () => {
-  assert.deepEqual(
-    parseGuideCandidates(
-      governor,
-      `${GUIDE_BASE}/candidates/governor-candidate-statements.htm`,
-      date,
-    ),
-    [],
+test("official candidates survive without statements; footer and other candidates never become a statement", () => {
+  const candidates = parseGuideCandidates(
+    governor,
+    `${GUIDE_BASE}/candidates/governor-candidate-statements.htm`,
+    date,
   );
+  assert.deepEqual(
+    candidates.map(({ name, party, officeSlug, statement }) => ({
+      name,
+      party,
+      officeSlug,
+      statement,
+    })),
+    [
+      {
+        name: "Xavier Becerra",
+        party: "DEMOCRATIC",
+        officeSlug: "governor",
+        statement: undefined,
+      },
+      {
+        name: "Steve Hilton",
+        party: "REPUBLICAN",
+        officeSlug: "governor",
+        statement: undefined,
+      },
+    ],
+  );
+  assert.ok(
+    candidates.every((candidate) => candidate.officeName === "Governor"),
+  );
+  assert.ok(candidates.every((candidate) => candidate.officeDuties?.length));
   const prose =
     "I will serve the people of California with transparent government and accountable public services.";
   const html = governor.replace("No candidate statement&#46;", prose);
@@ -72,9 +95,11 @@ test("no statement remains missing; footer and another candidate never become a 
     `${GUIDE_BASE}/candidates/governor-candidate-statements.htm`,
     date,
   );
-  assert.equal(parsed.length, 1);
+  assert.equal(parsed.length, 2);
   assert.equal(parsed[0]!.statement, prose);
   assert.equal(parsed[0]!.name, "Xavier Becerra");
+  assert.equal(parsed[1]!.name, "Steve Hilton");
+  assert.equal(parsed[1]!.statement, undefined);
   assert.deepEqual(
     parseGuideCandidates(
       html,
@@ -133,9 +158,9 @@ test("official candidate prose preserves complete statement and excludes contact
   assert.equal(parsed[0]!.officeName, "Lieutenant Governor");
   assert.ok(parsed[0]!.officeDuties?.length);
   assert.equal(parsed[0]!.photoUrl, `${GUIDE_BASE}/img/lt-governor/ma.jpg`);
-  assert.equal(parsed[0]!.statement.length, 1858);
+  assert.equal(parsed[0]!.statement?.length, 1858);
   assert.doesNotMatch(
-    parsed[0]!.statement,
+    parsed[0]!.statement!,
     /Tel:|The views and opinions expressed/,
   );
   assert.equal(parsed[1]!.name, "Gloria Romero");

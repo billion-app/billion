@@ -178,7 +178,7 @@ export function attachIngestedBallotSources(
           nameKey(item.name) === nameKey(candidate.name),
       );
       const statement = matches[0];
-      if (matches.length !== 1 || !statement) continue;
+      if (matches.length !== 1 || !statement?.statement) continue;
       candidate.statement = statement.statement;
       candidate.statementSummary = undefined;
       candidate.statementSummaryIsAiGenerated = undefined;

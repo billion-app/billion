@@ -84,7 +84,7 @@ export const officialGuidePayloadSchema = z.object({
         ]),
         officeName: text.optional(),
         officeDuties: z.array(text).max(10).optional(),
-        statement: text,
+        statement: text.optional(),
         sourceUrl: url,
         photoUrl: url.optional(),
       }),
