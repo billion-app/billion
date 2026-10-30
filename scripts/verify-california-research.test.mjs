@@ -9,6 +9,7 @@ import {
   clarityIdentityErrors,
   expectedRoster,
   finalScopeErrors,
+  publicResearchQualityErrors,
   sourceArchiveErrors,
   sourceAuditErrors,
   walkCatalog,
@@ -653,4 +654,287 @@ test("local canonical candidate IDs are independently derived from official XML 
     mutate(changed);
     assert.ok(clarityIdentityErrors(changed).length);
   }
+});
+
+const qualityPolicy = "ca-california-candidate-research-2026-10-30-v2";
+function financeQualityFixture() {
+  const candidateIdentity = identity("ca-sos:2026-11-03:110000170000:123");
+  const source = {
+    id: "filing",
+    url: "https://api.open.fec.gov/v1/committee/C123/totals/",
+    publisher: "Federal Election Commission",
+    origin: "primary_record",
+    excerpt: "Reported receipts",
+    locator: "2026 committee totals",
+    contentHash: "a".repeat(64),
+    retrievedAt: "2026-10-30T10:00:00Z",
+  };
+  const finance = {
+    committeeId: "C123",
+    committeeName: "Candidate Committee",
+    periodStart: "2025-01-01",
+    periodEnd: "2026-10-01",
+    currency: "USD",
+    coverage: "partial",
+    coverageNote: "Processed filing totals; donor details not collected.",
+    updatedAt: source.retrievedAt,
+    filingEvidenceIds: ["filing"],
+    receipts: {
+      totalCents: 100,
+      breakdown: {
+        individuals: 100,
+        committees: 0,
+        self_contributions: 0,
+        candidate_loans: 0,
+        transfers: 0,
+        other: 0,
+      },
+      refundsCents: null,
+    },
+    donors: [],
+    donorCoverage: "unavailable",
+    outsideSpending: null,
+  };
+  const brief = {
+    identity: candidateIdentity,
+    revisionId: "revision",
+    evidence: [source],
+    research: { promises: [], finance, financeGap: null },
+    sections: [
+      "priorities",
+      "record",
+      "mechanisms",
+      "effects",
+      "tradeoffs",
+      "unknowns",
+    ].map((topic) => ({
+      topic,
+      claims: [],
+      missingEvidence: "No supported prose was established.",
+    })),
+  };
+  const certificate = {
+    basis: "reconciled_finance",
+    claimIds: [],
+    evidenceIds: ["filing"],
+  };
+  const evidenceKey = JSON.stringify([
+    JSON.stringify([
+      candidateIdentity.jurisdiction,
+      candidateIdentity.electionDate,
+      candidateIdentity.contestId,
+      candidateIdentity.candidateId,
+    ]),
+    source.id,
+  ]);
+  const manifest = {
+    id: "release",
+    contestId: candidateIdentity.contestId,
+    jurisdiction: candidateIdentity.jurisdiction,
+    electionDate: candidateIdentity.electionDate,
+    policyVersion: qualityPolicy,
+    rosterSnapshotId: "snapshot",
+    rosterSourceUrl: "https://sos.ca.gov/roster",
+    rosterHash: "b".repeat(64),
+    rosterVerifiedBy: "official",
+    sourceCheckedAt: source.retrievedAt,
+    rosterVerifiedAt: source.retrievedAt,
+    expiresAt: "2026-10-31T10:00:00Z",
+    members: [
+      {
+        candidateId: candidateIdentity.candidateId,
+        revisionId: brief.revisionId,
+      },
+    ],
+    currentHashes: { [evidenceKey]: source.contentHash },
+    reviewedDossiers: {
+      [candidateIdentity.candidateId]: {
+        dossierDigest: "c".repeat(64),
+        sourceSetDigest: "d".repeat(64),
+        authorRunId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        quality: certificate,
+      },
+    },
+  };
+  return {
+    brief,
+    certificate,
+    race: { manifest, briefs: [brief], reviewedAt: "2026-10-30T10:30:00Z" },
+    expected: [{ identity: candidateIdentity, officeFamily: "us_house" }],
+    context: {
+      now: Date.parse("2026-10-30T12:00:00Z"),
+      snapshotId: "snapshot",
+      policyVersion: qualityPolicy,
+    },
+  };
+}
+
+test("v2 publications require an exact service-derived certificate while finance-only content needs no prose headline", () => {
+  const { brief, race, expected, context } = financeQualityFixture();
+  assert.equal(brief.research.headlineClaimId, undefined);
+  assert.deepEqual(checkRace(race, expected, context).briefs[0].errors, []);
+  delete race.manifest.reviewedDossiers[brief.identity.candidateId].quality;
+  assert.match(
+    checkRace(race, expected, context).briefs[0].errors.join(" "),
+    /Missing or invalid service-derived/,
+  );
+});
+
+test("candidate certificates bind qualifying Record or Priorities claims and all declared evidence", () => {
+  const brief = {
+    evidence: [{ id: "candidate-record" }],
+    sections: [
+      {
+        topic: "record",
+        claims: [
+          {
+            id: "service",
+            text: "Served on the city council.",
+            evidenceIds: ["candidate-record"],
+          },
+        ],
+      },
+    ],
+  };
+  const certificate = {
+    basis: "candidate_record",
+    claimIds: ["service"],
+    evidenceIds: ["candidate-record"],
+  };
+  assert.deepEqual(publicResearchQualityErrors(brief, certificate), []);
+  assert.ok(
+    publicResearchQualityErrors(brief, {
+      ...certificate,
+      basis: "candidate_priorities",
+    }).length,
+  );
+  const priorities = structuredClone(brief);
+  priorities.sections[0].topic = "priorities";
+  assert.deepEqual(
+    publicResearchQualityErrors(priorities, {
+      ...certificate,
+      basis: "candidate_priorities",
+    }),
+    [],
+  );
+  assert.ok(
+    publicResearchQualityErrors(brief, {
+      ...certificate,
+      claimIds: ["service", "service"],
+    }).length,
+  );
+  assert.ok(
+    publicResearchQualityErrors(brief, {
+      ...certificate,
+      evidenceIds: ["absent"],
+    }).length,
+  );
+  assert.ok(
+    publicResearchQualityErrors({ ...brief, sections: [] }, certificate).length,
+  );
+  const inventory = {
+    ...brief,
+    sections: [
+      {
+        topic: "mechanisms",
+        claims: [
+          {
+            id: "source",
+            text: "The publisher has a source page.",
+            evidenceIds: ["candidate-record"],
+          },
+        ],
+      },
+    ],
+  };
+  assert.ok(
+    publicResearchQualityErrors(inventory, {
+      ...certificate,
+      claimIds: ["source"],
+    }).length,
+  );
+  assert.ok(
+    publicResearchQualityErrors(
+      {
+        ...brief,
+        sections: [
+          {
+            topic: "record",
+            claims: [],
+            missingEvidence: "No candidate record established.",
+          },
+        ],
+      },
+      certificate,
+    ).length,
+  );
+});
+
+test("reconciled finance certificates reject unsupported empty records and bind exact amounts and references", () => {
+  const { brief, certificate } = financeQualityFixture();
+  assert.deepEqual(publicResearchQualityErrors(brief, certificate), []);
+  for (const mutate of [
+    (value) => {
+      value.research.finance.receipts.totalCents = 200;
+    },
+    (value) => {
+      value.research.finance.receipts = null;
+    },
+    (value) => {
+      value.evidence[0].origin = "reporting";
+    },
+    (value) => {
+      value.research.finance.filingEvidenceIds = ["other"];
+    },
+  ]) {
+    const changed = structuredClone(brief);
+    mutate(changed);
+    assert.ok(publicResearchQualityErrors(changed, certificate).length);
+  }
+  assert.ok(
+    publicResearchQualityErrors(brief, {
+      ...certificate,
+      claimIds: ["invented"],
+    }).length,
+  );
+  const donorsOnly = structuredClone(brief);
+  donorsOnly.research.finance.receipts = null;
+  donorsOnly.research.finance.donorCoverage = "selected";
+  donorsOnly.research.finance.donors = [
+    {
+      id: "donor",
+      name: "Donor",
+      type: "individual",
+      amountCents: 100,
+      evidenceIds: ["filing"],
+      lobbying: null,
+      interests: [],
+      positions: [],
+    },
+  ];
+  assert.deepEqual(publicResearchQualityErrors(donorsOnly, certificate), []);
+  const spendingOnly = structuredClone(brief);
+  spendingOnly.research.finance.receipts = null;
+  spendingOnly.research.finance.outsideSpending = [
+    {
+      id: "spending",
+      spender: "Committee",
+      direction: "support",
+      amountCents: 100,
+      evidenceIds: ["filing"],
+    },
+  ];
+  assert.deepEqual(publicResearchQualityErrors(spendingOnly, certificate), []);
+  const zero = structuredClone(brief);
+  zero.research.finance.receipts.totalCents = 0;
+  zero.research.finance.receipts.breakdown.individuals = 0;
+  assert.equal(zero.research.finance.coverage, "partial");
+  assert.deepEqual(publicResearchQualityErrors(zero, certificate), []);
+  zero.research.finance.coverage = "complete";
+  assert.deepEqual(publicResearchQualityErrors(zero, certificate), []);
+  zero.research.finance.receipts = null;
+  zero.research.finance.outsideSpending = [];
+  assert.deepEqual(publicResearchQualityErrors(zero, certificate), []);
+  zero.research.finance.coverage = "partial";
+  assert.ok(publicResearchQualityErrors(zero, certificate).length);
 });

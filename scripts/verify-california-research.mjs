@@ -1028,6 +1028,158 @@ function references(value, path = "") {
   );
 }
 
+const automatedPolicyVersion = "ca-california-candidate-research-2026-10-30-v2";
+
+export function publicResearchQualityErrors(brief, quality) {
+  const errors = [];
+  const uniqueIds = (ids, allowEmpty = false) =>
+    Array.isArray(ids) &&
+    (allowEmpty || ids.length > 0) &&
+    ids.every(nonempty) &&
+    new Set(ids).size === ids.length;
+  if (
+    !quality ||
+    ![
+      "candidate_record",
+      "candidate_priorities",
+      "reconciled_finance",
+    ].includes(quality.basis) ||
+    !uniqueIds(quality.claimIds, quality.basis === "reconciled_finance") ||
+    !uniqueIds(quality.evidenceIds)
+  )
+    return [
+      "Missing or invalid service-derived substantive research certificate",
+    ];
+  const evidence = new Map(
+    (brief.evidence ?? []).map((source) => [source.id, source]),
+  );
+  for (const id of quality.evidenceIds)
+    if (!evidence.has(id))
+      errors.push(
+        `Quality certificate references absent public evidence ${id}`,
+      );
+  const claims = (brief.sections ?? []).flatMap(
+    (section) => section.claims ?? [],
+  );
+  if (quality.basis !== "reconciled_finance") {
+    const topic =
+      quality.basis === "candidate_record" ? "record" : "priorities";
+    const eligible = (brief.sections ?? [])
+      .filter((section) => section.topic === topic)
+      .flatMap((section) => section.claims ?? []);
+    for (const id of quality.claimIds) {
+      const matches = eligible.filter((claim) => claim.id === id);
+      if (
+        matches.length !== 1 ||
+        claims.filter((claim) => claim.id === id).length !== 1 ||
+        !nonempty(matches[0].text) ||
+        !matches[0].evidenceIds?.some((ref) =>
+          quality.evidenceIds.includes(ref),
+        )
+      )
+        errors.push(
+          `Quality certificate lacks qualifying public ${topic} claim ${id}`,
+        );
+    }
+    for (const id of quality.evidenceIds)
+      if (
+        !eligible.some(
+          (claim) =>
+            quality.claimIds.includes(claim.id) &&
+            claim.evidenceIds?.includes(id),
+        )
+      )
+        errors.push(
+          `Quality evidence is not attached to a qualifying candidate claim ${id}`,
+        );
+    return errors;
+  }
+  const finance = brief.research?.finance;
+  if (!finance)
+    return [...errors, "Reconciled-finance certificate has no public finance"];
+  const cents = (value) => Number.isSafeInteger(value) && value >= 0;
+  const donors = Array.isArray(finance.donors) ? finance.donors : [],
+    outside = finance.outsideSpending;
+  const receipts = finance.receipts;
+  if (
+    receipts &&
+    (!cents(receipts.totalCents) ||
+      !receipts.breakdown ||
+      Object.values(receipts.breakdown).some((amount) => !cents(amount)) ||
+      Object.values(receipts.breakdown).reduce(
+        (sum, amount) => sum + amount,
+        0,
+      ) !== receipts.totalCents)
+  )
+    errors.push("Public finance receipt totals do not reconcile");
+  if (
+    !Array.isArray(finance.donors) ||
+    donors.some((donor) => !cents(donor.amountCents)) ||
+    (outside !== null &&
+      (!Array.isArray(outside) ||
+        outside.some((entry) => !cents(entry.amountCents))))
+  )
+    errors.push("Public finance has invalid substantive amounts");
+  const positive =
+    (receipts && cents(receipts.totalCents) && receipts.totalCents > 0) ||
+    donors.some((donor) => donor.amountCents > 0) ||
+    (Array.isArray(outside) && outside.some((entry) => entry.amountCents > 0));
+  const reportedZero =
+    receipts && cents(receipts.totalCents) && receipts.totalCents === 0;
+  const verifiedOutsideZero =
+    finance.coverage === "complete" &&
+    Array.isArray(outside) &&
+    outside.length === 0;
+  if (!positive && !reportedZero && !verifiedOutsideZero)
+    errors.push(
+      "Finance is an availability gap or unsupported zero rather than substantive research",
+    );
+  if (
+    !nonempty(finance.committeeId) ||
+    !nonempty(finance.committeeName) ||
+    !nonempty(finance.coverageNote) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(finance.periodStart ?? "") ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(finance.periodEnd ?? "") ||
+    !Number.isFinite(Date.parse(finance.periodStart)) ||
+    !Number.isFinite(Date.parse(finance.periodEnd)) ||
+    finance.periodStart > finance.periodEnd ||
+    !["complete", "partial"].includes(finance.coverage) ||
+    !uniqueIds(finance.filingEvidenceIds)
+  )
+    errors.push("Public finance lacks identified filing coverage");
+  const financeIds = [
+    ...new Set([
+      ...(finance.filingEvidenceIds ?? []),
+      ...donors.flatMap((donor) => donor.evidenceIds ?? []),
+      ...(Array.isArray(outside)
+        ? outside.flatMap((entry) => entry.evidenceIds ?? [])
+        : []),
+    ]),
+  ].sort();
+  if (
+    JSON.stringify([...quality.evidenceIds].sort()) !==
+    JSON.stringify(financeIds)
+  )
+    errors.push(
+      "Finance certificate does not match exact public finance evidence",
+    );
+  for (const id of financeIds)
+    if (evidence.get(id)?.origin !== "primary_record")
+      errors.push(`Finance lacks public primary-record evidence ${id}`);
+  const financeClaims = claims
+    .filter((claim) => claim.evidenceIds?.some((id) => financeIds.includes(id)))
+    .map((claim) => claim.id)
+    .sort();
+  if (
+    JSON.stringify([...quality.claimIds].sort()) !==
+    JSON.stringify(financeClaims)
+  )
+    errors.push(
+      "Finance certificate does not match exact public finance claims",
+    );
+  return errors;
+}
+
 export function checkRace(race, expected, { now, snapshotId, policyVersion }) {
   const issues = [],
     briefs = [];
@@ -1131,6 +1283,23 @@ export function checkRace(race, expected, { now, snapshotId, policyVersion }) {
         errors.push(`Unresolved reference ${ref.id} at ${ref.path}`);
     const research = brief.research,
       sections = brief.sections ?? [];
+    const reviewedDossier = manifest.reviewedDossiers?.[identity?.candidateId];
+    const certificate = reviewedDossier?.quality;
+    const requiresQuality = manifest.policyVersion === automatedPolicyVersion;
+    const qualityErrors =
+      requiresQuality || certificate
+        ? publicResearchQualityErrors(brief, certificate)
+        : [];
+    errors.push(...qualityErrors);
+    if (
+      requiresQuality &&
+      (!/^[a-f0-9]{64}$/.test(reviewedDossier?.dossierDigest ?? "") ||
+        !/^[a-f0-9]{64}$/.test(reviewedDossier?.sourceSetDigest ?? "") ||
+        !nonempty(reviewedDossier?.authorRunId))
+    )
+      errors.push("Quality certificate lacks exact reviewed dossier metadata");
+    const financeQualified =
+      certificate?.basis === "reconciled_finance" && qualityErrors.length === 0;
     if (!research || !Array.isArray(research.promises))
       errors.push("Missing structured research");
     if (!sections.length) errors.push("Missing research sections");
@@ -1145,6 +1314,7 @@ export function checkRace(race, expected, { now, snapshotId, policyVersion }) {
     if (!nonRosterSources.length)
       errors.push("Roster-only evidence is not candidate research");
     if (
+      !financeQualified &&
       !substantive.some(
         (claim) =>
           nonempty(claim.text) &&
@@ -1189,7 +1359,8 @@ export function checkRace(race, expected, { now, snapshotId, policyVersion }) {
       identity,
       revisionId: brief.revisionId,
       sourceCount: evidence.length,
-      researchQuality: quality ?? "independent structural checks only",
+      researchQuality:
+        certificate ?? quality ?? "legacy structural checks only",
       finance: research?.finance ? "available" : "explicit gap",
       errors,
     });
