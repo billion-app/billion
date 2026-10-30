@@ -12,9 +12,9 @@ import { NavHeader, SearchInput } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { DigestPalette as P } from "~/styles";
 import { trpc } from "~/utils/api";
-import { Brief, claimLabels, PromiseDetail } from "./Brief";
+import { claimLabels, PromiseDetail } from "./Brief";
+import { CandidateResearchBody } from "./CandidateResearchBody";
 import { EvidenceSheet } from "./EvidenceSheet";
-import { Finance } from "./Finance";
 import { candidateResearchPreview } from "./fixtures";
 import {
   Action,
@@ -104,10 +104,15 @@ export function ResearchScreen({
         ? 3_000
         : false,
   });
+  const expiresAt = query.data?.manifest.expiresAt;
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 10_000);
-    return () => clearInterval(timer);
-  }, []);
+    if (!expiresAt) return;
+    const timer = setTimeout(
+      () => setNow(Date.now()),
+      Math.max(0, Date.parse(expiresAt) - Date.now()) + 1,
+    );
+    return () => clearTimeout(timer);
+  }, [expiresAt]);
   const route = JSON.stringify([
     params.race,
     params.draft,
@@ -121,7 +126,8 @@ export function ResearchScreen({
     fixture ??
     (!query.isError &&
     query.data &&
-    Date.parse(query.data.manifest.expiresAt) > now
+    Date.parse(query.data.manifest.expiresAt) >
+      Math.max(now, query.dataUpdatedAt)
       ? query.data
       : null);
   const member = race?.manifest.members.find(
@@ -163,14 +169,14 @@ export function ResearchScreen({
     else router.replace("/(tabs)/elections");
   };
   const pageTitle = promisePage
-    ? tx("Campaign promise")
+    ? tx("Promise")
     : params.donor
-      ? tx("Donor details")
+      ? tx("Donor")
       : member
         ? tx("Candidate")
         : params.view === "compare"
-          ? tx("Compare the race")
-          : tx("Candidate research");
+          ? tx("Compare")
+          : tx("Candidates");
   return (
     <View style={s.screen}>
       <NavHeader title={pageTitle} tone="dark" onBack={back} />
@@ -544,99 +550,24 @@ export function ResearchScreen({
                 open={open}
               />
             ) : (
-              <>
-                {!params.donor && (
-                  <Segments
-                    options={[
-                      { value: "brief", label: tx("The brief") },
-                      { value: "money", label: tx("Money") },
-                      { value: "sources", label: tx("Sources") },
-                    ]}
-                    value={tab}
-                    onChange={(value) => router.setParams({ tab: value })}
-                  />
-                )}
-                {tab === "money" ? (
-                  <Finance
-                    finance={brief.research?.finance ?? null}
-                    gap={brief.research?.financeGap ?? null}
-                    donorId={params.donor}
-                    onDonor={(donor) =>
-                      navigate({
-                        person: member.candidateId,
-                        tab: "money",
-                        donor,
-                      })
-                    }
-                    open={open}
-                  />
-                ) : tab === "sources" ? (
-                  <>
-                    <Text style={s.muted}>
-                      {params.draft
-                        ? tx("Sources checked")
-                        : fictional
-                          ? tx("Example review")
-                          : tx("Reviewed")}{" "}
-                      {new Date(race.reviewedAt).toLocaleDateString(appLocale, {
-                        timeZone: "UTC",
-                      })}
-                    </Text>
-                    {brief.evidence.length ? (
-                      brief.evidence.map((evidence) => (
-                        <Panel key={evidence.id}>
-                          <Text style={s.eyebrow}>
-                            {evidence.origin === "candidate"
-                              ? tx("CANDIDATE SOURCE")
-                              : evidence.origin === "primary_record"
-                                ? tx("ORIGINAL RECORD")
-                                : tx("INDEPENDENT REPORTING")}
-                          </Text>
-                          <Text style={s.heading}>
-                            {evidence.title ?? evidence.publisher}
-                          </Text>
-                          <Text style={s.muted}>
-                            {evidence.publisher} · {evidence.locator}
-                          </Text>
-                          <EvidenceAction
-                            ids={[evidence.id]}
-                            title={evidence.title ?? evidence.publisher}
-                            label={tx("Read source passage")}
-                            open={open}
-                          />
-                        </Panel>
-                      ))
-                    ) : (
-                      <Panel title={tx("Sources unavailable")}>
-                        <Text style={s.body}>
-                          {tx(
-                            "No reviewed source passages are available for this candidate.",
-                          )}
-                        </Text>
-                      </Panel>
-                    )}
-                    <SourceLink
-                      label={tx("Report a correction")}
-                      url="https://billion-news.app/support"
-                    />
-                  </>
-                ) : (
-                  <Brief
-                    brief={brief}
-                    open={open}
-                    onPromise={(promise) =>
-                      navigate({ person: member.candidateId, promise }, true)
-                    }
-                  />
-                )}
-                {!params.donor && (
-                  <Action
-                    icon="users"
-                    label={tx("Compare the whole race")}
-                    onPress={() => navigate({ view: "compare" })}
-                  />
-                )}
-              </>
+              <CandidateResearchBody
+                brief={brief}
+                reviewedAt={race.reviewedAt}
+                reviewKind={
+                  params.draft ? "draft" : fictional ? "example" : "published"
+                }
+                tab={tab}
+                onTab={(value) => router.setParams({ tab: value })}
+                donorId={params.donor}
+                onDonor={(donor) =>
+                  navigate({ person: member.candidateId, tab: "money", donor })
+                }
+                onPromise={(promise) =>
+                  navigate({ person: member.candidateId, promise }, true)
+                }
+                onCompare={() => navigate({ view: "compare" })}
+                open={open}
+              />
             )}
           </>
         )}
