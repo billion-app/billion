@@ -7,6 +7,7 @@ import type {
   CandidateBrief,
   CandidateEvidenceDossier,
   CandidateModelAttestation,
+  CandidateResearchCollectionDocument,
   ResearchSource,
 } from "@acme/validators";
 import {
@@ -278,6 +279,7 @@ async function fixture() {
     saveCollection: async (document) => ({
       collectionId: document.manifest.id,
       changed: true,
+      checkedAt: document.manifest.sourceCheckedAt,
     }),
     attest: async () => {},
     publish: async () => {
@@ -316,7 +318,11 @@ test("bounded complete races resume with exact model artifact reuse after saving
       fail = false;
       throw new Error("simulated collection interruption");
     }
-    return { collectionId: document.manifest.id, changed: true };
+    return {
+      collectionId: document.manifest.id,
+      changed: true,
+      checkedAt: document.manifest.sourceCheckedAt,
+    };
   };
   const first = await reconcile(
     {
@@ -637,7 +643,11 @@ test("generic collection handoff binds full dossiers without duplicating unrelat
       assert.equal(dossier.identity.candidateId, artifact.candidateId);
     }
     saved = true;
-    return { collectionId: document.manifest.id, changed: true };
+    return {
+      collectionId: document.manifest.id,
+      changed: true,
+      checkedAt: document.manifest.sourceCheckedAt,
+    };
   };
   const result = await reconcile(
     {
@@ -1224,7 +1234,11 @@ test("all-gap author drafts remain private and pending without reviewing or with
   let collections = 0;
   f.deps.saveCollection = async (document) => {
     collections++;
-    return { collectionId: document.manifest.id, changed: true };
+    return {
+      collectionId: document.manifest.id,
+      changed: true,
+      checkedAt: document.manifest.sourceCheckedAt,
+    };
   };
   const input = {
     snapshotId: f.snapshot.id,
@@ -1261,4 +1275,143 @@ test("all-gap author drafts remain private and pending without reviewing or with
   const current = await coverage({ snapshotId: f.snapshot.id }, f.deps);
   assert.equal(current.published.races, 1);
   assert.equal(current.published.candidates, race.members.length);
+});
+
+test("a 23-hour source observation leaves one hour and an unchanged fresh retrieval renews without new model calls", async () => {
+  const f = await fixture();
+  f.snapshot.races.splice(1);
+  const now = f.deps.now();
+  const aged = new Date(Date.parse(now) - 23 * 60 * 60 * 1000).toISOString();
+  let observedAt = aged;
+  const geometry = JSON.stringify({ type: "FeatureCollection", features: [] });
+  f.snapshot.additionalSources = [
+    {
+      id: "required-territory",
+      url: "https://fixture.example.gov/current-boundary.json",
+      publisher: "Synthetic required source",
+      format: "json",
+      text: geometry,
+      contentHash: hash(geometry),
+      fetchedAt: aged,
+    },
+  ];
+  f.snapshot.historicalSources = [
+    {
+      id: "historical-identity",
+      url: "https://fixture.example.gov/archived-filing.pdf",
+      publisher: "Synthetic historical source",
+      format: "pdf",
+      text: "Historical identity bridge only",
+      contentHash: hash("Historical identity bridge only"),
+      fetchedAt: "2020-01-01T00:00:00.000Z",
+    },
+  ];
+  f.deps.fetchRoster = async () => ({
+    ...f.snapshot,
+    additionalSources: f.snapshot.additionalSources!.map((source) => ({
+      ...source,
+      fetchedAt: observedAt,
+    })),
+  });
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (...args) => {
+    const dossier = await investigate(...args);
+    return buildCaliforniaDossier({
+      ...dossier,
+      sources: dossier.sources.map((source) => ({
+        ...source,
+        fetchedAt: source.id.startsWith("candidate-record:")
+          ? observedAt
+          : source.fetchedAt,
+      })),
+    });
+  };
+  const documents: CandidateResearchCollectionDocument[] = [];
+  const collectionId = randomUUID();
+  f.deps.saveCollection = async (document) => {
+    documents.push(document);
+    return {
+      collectionId,
+      changed: documents.length === 1,
+      checkedAt: document.manifest.sourceCheckedAt,
+    };
+  };
+  const input = {
+    snapshotId: f.snapshot.id,
+    policyVersion: "policy",
+    bounds: { ...bounds, maxRaces: 1 },
+  };
+  assert.equal((await reconcile(input, f.deps)).completed, 1);
+  assert.equal(documents[0]!.manifest.rosterVerifiedAt, aged);
+  assert.equal(documents[0]!.manifest.sourceCheckedAt, aged);
+  assert.equal(
+    Date.parse(documents[0]!.manifest.expiresAt) - Date.parse(now),
+    60 * 60 * 1000,
+  );
+  const authored = f.stats.authors,
+    reviewed = f.stats.reviews;
+  observedAt = now;
+  const renewed = await reconcile(input, f.deps);
+  assert.equal(renewed.completed, 1);
+  assert.equal(renewed.usage.modelCalls, 0);
+  assert.equal(f.stats.authors, authored);
+  assert.equal(f.stats.reviews, reviewed);
+  assert.equal(documents[1]!.manifest.rosterVerifiedAt, now);
+  assert.equal(documents[1]!.manifest.sourceCheckedAt, now);
+  assert.equal(
+    Date.parse(documents[1]!.manifest.expiresAt) - Date.parse(now),
+    24 * 60 * 60 * 1000,
+  );
+  assert.equal(
+    documents[1]!.briefs[0]!.revisionId,
+    documents[0]!.briefs[0]!.revisionId,
+  );
+  assert.equal(
+    documents[1]!.briefs[0]!.evidence.find(
+      (evidence) => evidence.id === "candidate-record",
+    )!.retrievedAt,
+    aged,
+  );
+  assert.equal(
+    documents[1]!.sources.find((source) =>
+      source.id.startsWith("candidate-record:"),
+    )!.fetchedAt,
+    now,
+  );
+  assert.equal(
+    (
+      f.rows.get(f.snapshot.races[0]!.raceKey)!
+        .checkpoint as CaliforniaWorkCheckpoint
+    ).sourceCheckedAt,
+    now,
+  );
+});
+
+test("checkpoints use the effective checked time returned by the trusted store", async () => {
+  const f = await fixture();
+  f.snapshot.races.splice(1);
+  const bound = new Date(
+    Date.parse(f.deps.now()) - 4 * 60 * 60 * 1000,
+  ).toISOString();
+  f.deps.saveCollection = async (document) => ({
+    collectionId: document.manifest.id,
+    changed: true,
+    checkedAt: bound,
+  });
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds: { ...bounds, maxRaces: 1 },
+    },
+    f.deps,
+  );
+  assert.equal(result.completed, 1);
+  assert.equal(
+    (
+      f.rows.get(f.snapshot.races[0]!.raceKey)!
+        .checkpoint as CaliforniaWorkCheckpoint
+    ).sourceCheckedAt,
+    bound,
+  );
 });

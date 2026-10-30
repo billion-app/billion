@@ -6,7 +6,10 @@ import {
   candidateBriefIdentitySchema,
   candidateEvidenceAttributionSchema,
 } from "./candidate-brief";
-import { campaignFinanceSchema } from "./candidate-research";
+import {
+  campaignFinanceSchema,
+  hasSubstantiveCampaignFinance,
+} from "./candidate-research";
 import { researchSourceSchema } from "./candidate-research-collection";
 
 const text = z.string().trim().min(1).max(4000);
@@ -443,12 +446,7 @@ export function deriveCandidateResearchQuality(
     )
   )
     return null;
-  const substantive =
-    finance.receipts !== null ||
-    finance.donors.length > 0 ||
-    (finance.outsideSpending !== null &&
-      (finance.outsideSpending.length > 0 || finance.coverage === "complete"));
-  if (!substantive) return null;
+  if (!hasSubstantiveCampaignFinance(finance)) return null;
   const evidenceIds = [...new Set(ids)].sort();
   return {
     basis: "reconciled_finance",

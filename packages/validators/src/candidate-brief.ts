@@ -145,8 +145,18 @@ export const candidateBriefSchema = z
     }
     if (brief.research) {
       const claims = brief.sections.flatMap((section) => section.claims);
-      if (!claims.some((claim) => claim.id === brief.research?.headlineClaimId))
-        ctx.addIssue({ code: "custom", message: "Unknown headline claim" });
+      if (brief.research.headlineClaimId !== undefined) {
+        if (
+          !claims.some((claim) => claim.id === brief.research?.headlineClaimId)
+        )
+          ctx.addIssue({ code: "custom", message: "Unknown headline claim" });
+      } else if (claims.length) {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "Finance-only research cannot omit a prose headline when claims are present",
+        });
+      }
       const promises = new Set<string>();
       for (const promise of brief.research.promises) {
         if (

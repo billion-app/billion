@@ -219,6 +219,17 @@ export function researchSourceDigest(
     ]);
   return createHash("sha256").update(JSON.stringify(semantic)).digest("hex");
 }
+export function researchObservationBound(
+  document: CandidateResearchCollectionDocument,
+): Date {
+  return new Date(
+    Math.min(
+      Date.parse(document.manifest.sourceCheckedAt),
+      Date.parse(document.manifest.rosterVerifiedAt),
+      ...document.sources.map((source) => Date.parse(source.fetchedAt)),
+    ),
+  );
+}
 export async function saveResearchCollection(
   value: unknown,
   database: ResearchDatabase = db,
@@ -240,18 +251,32 @@ export async function saveResearchCollection(
       throw new Error(
         "Collected source byte hash does not match its binary archive",
       );
-    const age =
-      Date.parse(document.manifest.sourceCheckedAt) -
-      Date.parse(source.fetchedAt);
+    const age = Date.now() - Date.parse(source.fetchedAt);
     if (age < 0 || age > 86_400_000)
       throw new Error("Collected source is stale or future dated");
   }
+  if (
+    Date.parse(document.manifest.sourceCheckedAt) > Date.now() ||
+    Date.parse(document.manifest.rosterVerifiedAt) > Date.now()
+  )
+    throw new Error("Collected source or roster observation is future dated");
   const sourceDigest = researchSourceDigest(document);
   return database.transaction(async (tx) => {
     await lockPilot(tx, "policy");
     await lockResearchElection(tx, document.manifest.electionDate);
     await lockPilot(tx, document.pilotKey);
     await lockResearchRace(tx, document.manifest);
+    const policy = await activeResearchPolicy(tx);
+    if (
+      policy.automation != null &&
+      (!document.researchVersion ||
+        !document.rosterSnapshotId ||
+        !document.rosterDigest ||
+        !document.candidateArtifacts)
+    )
+      throw new Error(
+        "Active automation policy does not accept legacy research collections",
+      );
     await assertResearchWorkLease(tx, options?.workLease, document);
     const [prior] = await tx
       .select()
@@ -262,7 +287,7 @@ export async function saveResearchCollection(
         desc(CandidateResearchCollection.id),
       )
       .limit(1);
-    const checkedAt = new Date(document.manifest.sourceCheckedAt);
+    const checkedAt = researchObservationBound(document);
     if (prior?.sourceDigest === sourceDigest && !prior.failure) {
       await tx
         .update(CandidateResearchCollection)
@@ -306,7 +331,6 @@ export async function saveResearchCollection(
           .select()
           .from(CandidateBriefReviewEvent)
           .where(inArray(CandidateBriefReviewEvent.revisionId, ids));
-        const policy = await activeResearchPolicy(tx);
         if (
           readCandidateRace({
             manifest,
@@ -314,7 +338,7 @@ export async function saveResearchCollection(
             revisions,
             events,
             policy,
-            now: checkedAt.toISOString(),
+            now: new Date().toISOString(),
             currentRoster: await resolveCurrentResearchRoster(tx, manifest),
           })
         )
@@ -325,6 +349,7 @@ export async function saveResearchCollection(
       }
       return {
         collectionId: prior.id,
+        checkedAt: checkedAt.toISOString(),
         changed: false,
         candidates: prior.document.briefs.length,
         problems: prior.document.problems,
@@ -335,7 +360,7 @@ export async function saveResearchCollection(
     if (
       options?.stagedPolicyVersion &&
       !document.problems.length &&
-      options.stagedPolicyVersion !== (await activeResearchPolicy(tx)).version
+      options.stagedPolicyVersion !== policy.version
     ) {
       const [release] = await tx
         .select()
@@ -426,6 +451,7 @@ export async function saveResearchCollection(
     });
     return {
       collectionId: id,
+      checkedAt: checkedAt.toISOString(),
       changed: true,
       candidates: document.briefs.length,
       problems: document.problems,

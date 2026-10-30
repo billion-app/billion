@@ -296,6 +296,7 @@ export async function recordResearchAiReview(
       action: attestation.verdict === "approve" ? "approve" : "reject",
       policyVersion: policy.version,
       reason: JSON.stringify(attestation.findings),
+      createdAt: new Date(),
       attestation,
     });
     return { eventId };

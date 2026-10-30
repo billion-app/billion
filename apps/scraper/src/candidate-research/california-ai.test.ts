@@ -123,7 +123,7 @@ test("nested promises compile stable links and separate exact reviewer attestati
   assert.notEqual(a.attestation.runId, r.attestation.runId);
   assert.notEqual(a.attestation.actorId, r.attestation.actorId);
   assert.equal(a.attestation.revisionDigest, r.attestation.revisionDigest);
-  assert.equal(a.attestation.promptVersion, "california-author-v10");
+  assert.equal(a.attestation.promptVersion, "california-author-v11");
   assert.equal(r.attestation.actualModel, "actual-fixture-model");
   assert.equal(calls[1]!.excludedConfiguredModel, "fixture:author");
 });
@@ -788,7 +788,7 @@ test("unchanged typed finance refresh preserves the exact approved brief timesta
   );
 });
 
-test("v10 author contract preserves temporal attribution and bounds negative claims to collected passages", async () => {
+test("v11 author contract preserves temporal attribution and bounds negative claims to collected passages", async () => {
   const output = authorFixture();
   output.record = {
     missingEvidence:
@@ -800,7 +800,7 @@ test("v10 author contract preserves temporal attribution and bounds negative cla
     { dossier: fixtureDossier(), policyVersion: "p1" },
     deps,
   );
-  assert.equal(a.attestation.promptVersion, "california-author-v10");
+  assert.equal(a.attestation.promptVersion, "california-author-v11");
   assert.ok(calls[0]!.system.includes("Never re-label a past accomplishment"));
   assert.ok(
     calls[0]!.system.includes(
@@ -941,8 +941,8 @@ test("author and reviewer contracts require reader language, distinct chapters a
     },
     deps,
   );
-  assert.equal(a.attestation.promptVersion, "california-author-v10");
-  assert.equal(r.attestation.promptVersion, "california-review-v3");
+  assert.equal(a.attestation.promptVersion, "california-author-v11");
+  assert.equal(r.attestation.promptVersion, "california-review-v4");
   assert.ok(
     calls[0]!.system.includes(
       "not fresh or citable substantive campaign evidence",
@@ -1163,6 +1163,108 @@ test("finance-only quality requires actual identity-reconciled amounts and retur
     claimIds: [],
     evidenceIds: ["finance"],
   });
+  const emptyOutput = {
+    ...authorFixture(),
+    priorities: {
+      missingEvidence:
+        "The sources we checked do not establish a candidate proposal.",
+      claims: [],
+    },
+  };
+  for (const finance of [
+    input.finance,
+    {
+      ...input.finance,
+      receipts: null,
+      donorCoverage: "selected" as const,
+      donors: [
+        {
+          id: "donor-1",
+          name: "Recorded donor",
+          type: "individual" as const,
+          amountCents: 10000,
+          evidenceIds: ["finance"],
+          lobbying: null,
+          interests: [],
+          positions: [],
+        },
+      ],
+    },
+    {
+      ...input.finance,
+      receipts: null,
+      outsideSpending: [
+        {
+          id: "outside-1",
+          spender: "Recorded spender",
+          direction: "support" as const,
+          amountCents: 10000,
+          evidenceIds: ["finance"],
+        },
+      ],
+    },
+    {
+      ...input.finance,
+      receipts: null,
+      coverage: "complete" as const,
+      outsideSpending: [],
+    },
+  ]) {
+    const packet = buildCaliforniaDossier({ ...input, finance });
+    const compiled = await authorCaliforniaBrief(
+      { dossier: packet, policyVersion: "p1" },
+      dependencies([emptyOutput]).deps,
+    );
+    assert.deepEqual(compiled.brief.research!.finance, packet.finance);
+    assert.equal(
+      Object.hasOwn(compiled.brief.research!, "headlineClaimId"),
+      false,
+    );
+    assert.equal(
+      compiled.brief.sections.flatMap((section) => section.claims).length,
+      0,
+    );
+    assert.deepEqual(deriveCandidateResearchQuality(compiled.brief, packet), {
+      basis: "reconciled_finance",
+      claimIds: [],
+      evidenceIds: ["finance"],
+    });
+    const { candidateBriefSchema } = await import("@acme/validators");
+    assert.throws(
+      () =>
+        candidateBriefSchema.parse({
+          ...compiled.brief,
+          research: {
+            ...compiled.brief.research,
+            finance: null,
+            financeGap: "Unavailable",
+          },
+        }),
+      /without a headline requires substantive finance/,
+    );
+    assert.throws(
+      () =>
+        candidateBriefSchema.parse({
+          ...compiled.brief,
+          sections: a.brief.sections,
+        }),
+      /Finance-only research cannot omit a prose headline/,
+    );
+  }
+  const noFinanceDossier = buildCaliforniaDossier({
+    ...input,
+    finance: undefined,
+    financeIdentityProof: undefined,
+  });
+  const noFinance = await authorCaliforniaBrief(
+    { dossier: noFinanceDossier, policyVersion: "p1" },
+    dependencies([emptyOutput]).deps,
+  );
+  assert.equal(noFinance.brief.research, undefined);
+  assert.equal(
+    deriveCandidateResearchQuality(noFinance.brief, noFinanceDossier),
+    null,
+  );
   assert.equal(
     deriveCandidateResearchQuality(a.brief, {
       ...dossier,
@@ -1184,4 +1286,107 @@ test("finance-only quality requires actual identity-reconciled amounts and retur
     ),
     null,
   );
+});
+
+test("v4 reviewer contract distinguishes named campaign proposals from another person's pledge", async () => {
+  const { createHash } = await import("node:crypto");
+  const cases = [
+    {
+      context:
+        "Our priorities\nMorgan Lee will support public-library funding. The campaign presents this as Morgan Lee's current proposal.",
+      quote: "Morgan Lee will support public-library funding.",
+      verdict: "approve",
+      supported: true,
+      reason:
+        "The complete context explicitly makes the candidate the proposal's subject; the claim reports it as the campaign's statement, without claiming personal authorship.",
+    },
+    {
+      context:
+        "Statement by a school principal\nI will support public-library funding.",
+      quote: "I will support public-library funding.",
+      verdict: "reject",
+      supported: false,
+      reason:
+        "The heading assigns this pledge to another person. Hosting the quotation does not show candidate adoption.",
+    },
+  ] as const;
+  for (const scenario of cases) {
+    const input = dossierInput();
+    input.sources[0]!.text += "\n" + scenario.context;
+    input.sources[0]!.contentHash = createHash("sha256")
+      .update(input.sources[0]!.text)
+      .digest("hex");
+    input.evidence[1] = {
+      ...input.evidence[1]!,
+      excerpt: scenario.quote,
+      role: "campaign_material",
+      attribution: {
+        status: "unresolved",
+        context: {
+          excerpt: scenario.context,
+          locator: "Full bounded campaign section",
+        },
+      },
+    };
+    const dossier = buildCaliforniaDossier(input);
+    const output = {
+      ...authorFixture(),
+      priorities: {
+        missingEvidence: null,
+        claims: [
+          {
+            kind: "promise",
+            text: "The campaign says Morgan Lee will support public-library funding.",
+            evidenceIds: ["platform"],
+            promiseDetails: null,
+          },
+        ],
+      },
+    };
+    const { deps, calls } = dependencies([
+      output,
+      {
+        verdict: scenario.verdict,
+        findings: [
+          {
+            claimId: "priorities-1",
+            supported: scenario.supported,
+            reason: scenario.reason,
+          },
+        ],
+      },
+    ]);
+    const authored = await authorCaliforniaBrief(
+      { dossier, policyVersion: "p1" },
+      deps,
+    );
+    const reviewed = await reviewCaliforniaBrief(
+      {
+        brief: authored.brief,
+        dossier,
+        policyVersion: "p1",
+        authorAttestation: authored.attestation,
+      },
+      deps,
+    );
+    assert.equal(reviewed.verdict, scenario.verdict);
+    assert.equal(reviewed.attestation.promptVersion, "california-review-v4");
+    assert.ok(
+      calls[1]!.system.includes("collector abstention, not a prohibition"),
+    );
+    assert.ok(
+      calls[1]!.system.includes(
+        "explicitly and unambiguously names the candidate",
+      ),
+    );
+    assert.ok(
+      calls[1]!.system.includes(
+        "quotes another person without explicit candidate adoption",
+      ),
+    );
+    assert.ok(
+      calls[1]!.prompt.includes(JSON.stringify(scenario.context).slice(1, -1)),
+    );
+    assert.equal(authored.brief.evidence[1]!.attribution!.status, "unresolved");
+  }
 });

@@ -143,9 +143,23 @@ export const campaignFinanceSchema = z
         message: "Duplicate outside spending IDs",
       });
   });
+/** Substantive records can stand alone when no sourced prose claim is available. */
+export function hasSubstantiveCampaignFinance(
+  finance: z.infer<typeof campaignFinanceSchema> | null | undefined,
+): boolean {
+  return (
+    !!finance &&
+    (finance.receipts !== null ||
+      finance.donors.length > 0 ||
+      (finance.outsideSpending !== null &&
+        (finance.outsideSpending.length > 0 ||
+          finance.coverage === "complete")))
+  );
+}
+
 export const candidateResearchSchema = z
   .object({
-    headlineClaimId: text,
+    headlineClaimId: text.optional(),
     // Optional so parsing older approved revisions does not change their digest.
     // Definitions are authored and reviewed with the explanation, never inferred by the UI.
     terms: z
@@ -188,6 +202,12 @@ export const candidateResearchSchema = z
   .refine(
     (r) => r.finance !== null || r.financeGap !== null,
     "Missing finance needs an explanation",
+  )
+  .refine(
+    (r) =>
+      r.headlineClaimId !== undefined ||
+      (hasSubstantiveCampaignFinance(r.finance) && r.promises.length === 0),
+    "Research without a headline requires substantive finance and no promise readings",
   );
 
 export const candidateResearchQualitySchema = z.object({

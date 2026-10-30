@@ -257,6 +257,18 @@ void test("AI approval requires exact candidate claims, source dossier, policy a
   assert.equal(
     readCandidateRace({
       ...publishedInput,
+      events: [
+        {
+          ...required(publishedInput.events[0]),
+          createdAt: new Date(Date.parse(input.now) + 1000),
+        },
+      ],
+    }),
+    null,
+  );
+  assert.equal(
+    readCandidateRace({
+      ...publishedInput,
       manifest: {
         ...publishedInput.manifest,
         reviewedDossiers: {
@@ -434,6 +446,7 @@ void test(
             action: "approve",
             policyVersion: version,
             reason: "Synthetic exact-revision review",
+            createdAt: new Date(),
           })),
         );
         releaseIds.push(
@@ -464,6 +477,7 @@ void test(
           action: "approve",
           policyVersion: newVersion,
           reason: "Exact prepared replacement review",
+          createdAt: new Date(),
         });
         const [old] = await db
           .select()
@@ -1036,6 +1050,37 @@ void test(
           })
         ).releaseId,
       );
+      const lateLegacy = structuredClone(document);
+      delete lateLegacy.candidateArtifacts;
+      delete lateLegacy.researchVersion;
+      delete lateLegacy.rosterSnapshotId;
+      delete lateLegacy.rosterDigest;
+      const beforeLateLegacy = await db
+        .select()
+        .from(Collection)
+        .where(eq(Collection.pilotKey, document.pilotKey));
+      const beforeLateRelease = await db
+        .select()
+        .from(Release)
+        .where(eq(Release.id, required(releaseIds[0])));
+      await assert.rejects(
+        saveResearchCollection(lateLegacy, db),
+        /automation policy does not accept legacy/,
+      );
+      assert.deepEqual(
+        await db
+          .select()
+          .from(Collection)
+          .where(eq(Collection.pilotKey, document.pilotKey)),
+        beforeLateLegacy,
+      );
+      assert.deepEqual(
+        await db
+          .select()
+          .from(Release)
+          .where(eq(Release.id, required(releaseIds[0]))),
+        beforeLateRelease,
+      );
       const expiredCheckedAt = new Date(Date.now() - 25 * 60 * 60 * 1000);
       const [initialRelease] = await db
         .select()
@@ -1097,6 +1142,7 @@ void test(
           : {}),
       }));
       observedDocument.manifest.sourceCheckedAt = observationTime;
+      observedDocument.manifest.rosterVerifiedAt = observationTime;
       observedDocument.manifest.expiresAt = new Date(
         Date.parse(observationTime) + 86_400_000,
       ).toISOString();
@@ -1630,7 +1676,7 @@ void test(
     );
     process.env.POSTGRES_URL = url;
     const { db } = await import("@acme/db/client");
-    const { eq, inArray } = await import("@acme/db");
+    const { eq, inArray, sql } = await import("@acme/db");
     const {
       CaliforniaRoster: Roster,
       CaliforniaRaceWork: Work,
@@ -1651,6 +1697,7 @@ void test(
       saveResearchCollection,
       activeResearchPolicy,
       resolveCurrentResearchRoster,
+      lockPilot,
     } = await import("./candidate-research-store");
     const {
       adoptResearchPolicy,
@@ -1899,10 +1946,91 @@ void test(
         /every currently public race/,
       );
       assert.equal((await activeResearchPolicy()).version, v1);
-      const adopted = await adoptResearchPolicy({
-        policy: policy(v2),
-        collectionIds: preparedIds,
+      const lateLegacy = structuredClone(required(old[0]).document);
+      delete lateLegacy.candidateArtifacts;
+      delete lateLegacy.researchVersion;
+      delete lateLegacy.rosterSnapshotId;
+      delete lateLegacy.rosterDigest;
+      const beforeOverlapCollections = await db
+        .select()
+        .from(Collection)
+        .where(
+          inArray(
+            Collection.pilotKey,
+            old.map((entry) => entry.document.pilotKey),
+          ),
+        );
+      let releaseBarrier!: () => void;
+      let signalLocked!: () => void;
+      const locked = new Promise<void>((resolve) => {
+        signalLocked = resolve;
       });
+      const barrier = new Promise<void>((resolve) => {
+        releaseBarrier = resolve;
+      });
+      const blocker = db.transaction(async (tx) => {
+        await lockPilot(tx, "policy");
+        signalLocked();
+        await barrier;
+      });
+      await locked;
+      async function waitForPolicyWaiters(count: number) {
+        const deadline = Date.now() + 5000;
+        while (Date.now() < deadline) {
+          const result = await db.execute(
+            sql`select count(*)::int as count from pg_locks where locktype = 'advisory' and not granted and database = (select oid from pg_database where datname = current_database()) and objid::bigint = (hashtext('candidate-research:policy')::bigint & 4294967295)`,
+          );
+          if (Number(result.rows[0]?.count) >= count) return;
+          await new Promise((resolve) => setTimeout(resolve, 5));
+        }
+        throw new Error(
+          `Expected ${count} queued policy advisory lock waiters`,
+        );
+      }
+      let adoption!: ReturnType<typeof adoptResearchPolicy>;
+      let lateSave!: Promise<unknown>;
+      try {
+        adoption = adoptResearchPolicy({
+          policy: policy(v2),
+          collectionIds: preparedIds,
+        });
+        void adoption.catch(() => undefined);
+        await waitForPolicyWaiters(1);
+        lateSave = saveResearchCollection(lateLegacy, db);
+        void lateSave.catch(() => undefined);
+        await waitForPolicyWaiters(2);
+      } finally {
+        releaseBarrier();
+        await blocker;
+      }
+      const adopted = await adoption;
+      const afterAdoptionReleases = await db
+        .select()
+        .from(Release)
+        .where(inArray(Release.id, adopted.releaseIds));
+      await assert.rejects(
+        lateSave,
+        /automation policy does not accept legacy/,
+      );
+      assert.deepEqual(
+        await db
+          .select()
+          .from(Collection)
+          .where(
+            inArray(
+              Collection.pilotKey,
+              old.map((entry) => entry.document.pilotKey),
+            ),
+          ),
+        beforeOverlapCollections,
+      );
+      assert.deepEqual(
+        await db
+          .select()
+          .from(Release)
+          .where(inArray(Release.id, adopted.releaseIds)),
+        afterAdoptionReleases,
+      );
       releaseIds.push(...adopted.releaseIds);
       assert.equal(adopted.releaseIds.length, 2);
       assert.equal((await activeResearchPolicy()).version, v2);
@@ -1945,3 +2073,135 @@ void test(
     }
   },
 );
+
+void test(
+  "current source observations bound initial and unchanged release expiry",
+  { skip: !process.env.CANDIDATE_RESEARCH_TEST_DATABASE_URL },
+  async () => {
+    const url = required(process.env.CANDIDATE_RESEARCH_TEST_DATABASE_URL);
+    assert.equal(new URL(url).pathname, "/billion_candidate_root_final_test");
+    process.env.POSTGRES_URL = url;
+    const { db } = await import("@acme/db/client");
+    const { eq } = await import("@acme/db");
+    const {
+      CandidateResearchCollection: Collection,
+      CandidateRaceRelease: Release,
+      CandidateResearchPolicy: Policy,
+      CandidateBriefRevision: Revision,
+      CandidateBriefReviewEvent: Event,
+    } = await import("@acme/db/schema");
+    const { saveResearchCollection } =
+      await import("./candidate-research-store");
+    const { publishResearchCollection } =
+      await import("./candidate-research-service");
+    const document = fixture(),
+      brief = required(document.briefs[0]);
+    const version = `freshness-${randomUUID()}`;
+    const agedAt = new Date(Date.now() - 23 * 3600000).toISOString();
+    document.sources.forEach((source) => {
+      source.fetchedAt = agedAt;
+    });
+    let collectionId: string | undefined, releaseId: string | undefined;
+    try {
+      await db.insert(Policy).values({
+        version,
+        approvedBy: "fixture",
+        statement: "Disposable local freshness test policy.",
+      });
+      const saved = await saveResearchCollection(document, db);
+      collectionId = saved.collectionId;
+      const [stored] = await db
+        .select()
+        .from(Collection)
+        .where(eq(Collection.id, collectionId));
+      assert.equal(required(stored).checkedAt.toISOString(), agedAt);
+      await db.insert(Event).values({
+        revisionId: brief.revisionId,
+        actorId: "independent-fixture",
+        action: "approve",
+        policyVersion: version,
+        reason: "Synthetic exact revision review.",
+        createdAt: new Date(),
+      });
+      releaseId = (
+        await publishResearchCollection({ collectionId, actorId: "fixture" })
+      ).releaseId;
+      const [initial] = await db
+        .select()
+        .from(Release)
+        .where(eq(Release.id, releaseId));
+      assert.equal(
+        required(initial).document.expiresAt,
+        new Date(Date.parse(agedAt) + 86400000).toISOString(),
+      );
+      const renewed = structuredClone(document),
+        freshAt = new Date().toISOString();
+      renewed.sources.forEach((source) => {
+        source.fetchedAt = freshAt;
+      });
+      renewed.manifest.sourceCheckedAt = freshAt;
+      renewed.manifest.rosterVerifiedAt = freshAt;
+      const result = await saveResearchCollection(renewed, db);
+      assert.equal(result.collectionId, collectionId);
+      const [current] = await db
+        .select()
+        .from(Collection)
+        .where(eq(Collection.id, collectionId));
+      assert.equal(required(current).checkedAt.toISOString(), freshAt);
+      assert.deepEqual(required(current).document, required(stored).document);
+      const [release] = await db
+        .select()
+        .from(Release)
+        .where(eq(Release.id, releaseId));
+      assert.equal(
+        required(release).document.expiresAt,
+        new Date(Date.parse(freshAt) + 86400000).toISOString(),
+      );
+      assert.equal(result.checkedAt, freshAt);
+      renewed.manifest.rosterVerifiedAt = agedAt;
+      const olderRoster = await saveResearchCollection(renewed, db);
+      assert.equal(olderRoster.checkedAt, agedAt);
+      const [rosterBoundRelease] = await db
+        .select()
+        .from(Release)
+        .where(eq(Release.id, releaseId));
+      assert.equal(
+        required(rosterBoundRelease).document.expiresAt,
+        new Date(Date.parse(agedAt) + 86400000).toISOString(),
+      );
+    } finally {
+      if (releaseId) await db.delete(Release).where(eq(Release.id, releaseId));
+      await db.delete(Event).where(eq(Event.revisionId, brief.revisionId));
+      if (collectionId)
+        await db.delete(Collection).where(eq(Collection.id, collectionId));
+      await db.delete(Revision).where(eq(Revision.id, brief.revisionId));
+      await db.delete(Policy).where(eq(Policy.version, version));
+    }
+  },
+);
+
+void test("observation bound uses current sources and required roster checks, not old brief retrieval dates", async () => {
+  const { researchObservationBound } =
+    await import("./candidate-research-store");
+  const document = fixture();
+  const now = Date.parse(document.manifest.sourceCheckedAt),
+    sourceAt = new Date(now - 23 * 3600000).toISOString();
+  required(document.sources[0]).fetchedAt = sourceAt;
+  assert.equal(researchObservationBound(document).toISOString(), sourceAt);
+  required(document.sources[0]).fetchedAt = document.manifest.sourceCheckedAt;
+  document.manifest.rosterVerifiedAt = new Date(
+    now - 2 * 3600000,
+  ).toISOString();
+  assert.equal(
+    researchObservationBound(document).toISOString(),
+    document.manifest.rosterVerifiedAt,
+  );
+  document.manifest.rosterVerifiedAt = document.manifest.sourceCheckedAt;
+  required(required(document.briefs[0]).evidence[0]).retrievedAt = new Date(
+    now - 90 * 86400000,
+  ).toISOString();
+  assert.equal(
+    researchObservationBound(document).toISOString(),
+    document.manifest.sourceCheckedAt,
+  );
+});

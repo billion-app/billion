@@ -195,7 +195,7 @@ export interface CaliforniaDependencies {
   saveCollection(
     document: CandidateResearchCollectionDocument,
     lease?: Lease,
-  ): Promise<{ collectionId: string; changed: boolean }>;
+  ): Promise<{ collectionId: string; changed: boolean; checkedAt: string }>;
   attest(input: {
     collectionId: string;
     revisionId: string;
@@ -810,6 +810,22 @@ function manifest(
   policyVersion: string,
   now: string,
 ): CandidateResearchCollectionDocument {
+  const rosterVerifiedAt = new Date(
+    Math.min(
+      ...[
+        snapshot.source.fetchedAt,
+        snapshot.certification.fetchedAt,
+        ...(snapshot.additionalSources ?? []).map((source) => source.fetchedAt),
+      ].map((value) => Date.parse(value)),
+    ),
+  ).toISOString();
+  const checkedAt = new Date(
+    Math.min(
+      Date.parse(now),
+      Date.parse(rosterVerifiedAt),
+      ...sources.map((source) => Date.parse(source.fetchedAt)),
+    ),
+  ).toISOString();
   const currentHashes = Object.fromEntries(
     briefs.flatMap((brief) =>
       brief.evidence.map((entry) => [
@@ -832,7 +848,7 @@ function manifest(
       rosterHash: race.sourceProof?.contentHash ?? snapshot.source.textHash,
       rosterSnapshotId: snapshot.id,
       rosterDigest: race.rosterDigest,
-      rosterVerifiedAt: snapshot.source.fetchedAt,
+      rosterVerifiedAt,
       rosterVerifiedBy: "ca-sos-certified-roster-decoder-v1",
       members: race.members.map((member) => ({
         candidateId: member.candidateId,
@@ -844,8 +860,8 @@ function manifest(
         ballotStatus: member.ballotStatus,
       })),
       policyVersion,
-      sourceCheckedAt: now,
-      expiresAt: new Date(Date.parse(now) + 86_400_000).toISOString(),
+      sourceCheckedAt: checkedAt,
+      expiresAt: new Date(Date.parse(checkedAt) + 86_400_000).toISOString(),
       currentHashes,
     },
     briefs,
@@ -1326,7 +1342,7 @@ export async function reconcile(
               lease.reviewEpoch,
             ]),
           ),
-          sourceCheckedAt: document.manifest.sourceCheckedAt,
+          sourceCheckedAt: saved.checkedAt,
           dossierDigests: Object.fromEntries(
             investigated.map((item) => [
               item.dossier.identity.candidateId,
@@ -1359,7 +1375,7 @@ export async function reconcile(
           ]),
         ),
         releaseId: release.releaseId,
-        sourceCheckedAt: document.manifest.sourceCheckedAt,
+        sourceCheckedAt: saved.checkedAt,
         dossierDigests: Object.fromEntries(
           investigated.map((item) => [
             item.dossier.identity.candidateId,
