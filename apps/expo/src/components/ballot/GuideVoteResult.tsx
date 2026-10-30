@@ -6,6 +6,7 @@ import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { Text } from "~/components/Themed";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { usePollVisibility } from "~/hooks/usePollVisibility";
 import { fontBody, DigestPalette as P } from "~/styles";
 import { trpc } from "~/utils/api";
 
@@ -111,6 +112,7 @@ export function GuideVoteDetails({
   candidateKey: string;
 }) {
   const { t } = useAppTranslation();
+  const { showPolls } = usePollVisibility();
   const focused = useIsFocused();
   const query = useQuery(
     trpc.civic.getCaliforniaGuideStandings.queryOptions(undefined, {
@@ -129,7 +131,7 @@ export function GuideVoteDetails({
     <View style={{ gap: 8 }}>
       {result ? (
         <GuideVoteResult result={result} status="reported" />
-      ) : (
+      ) : showPolls ? (
         <Text style={s.label}>
           {t(
             query.isPending
@@ -139,7 +141,7 @@ export function GuideVoteDetails({
                 : "No poll available in our sources",
           )}
         </Text>
-      )}
+      ) : null}
       <SourceLink
         label={t("Official election results")}
         url={result?.sourceUrl ?? "https://electionresults.sos.ca.gov/"}
