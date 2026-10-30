@@ -207,7 +207,8 @@ export default function CandidateDetailScreen() {
   const statementCitation = fromBallot?.citations?.find(
     (item) => item.field === "statement",
   );
-  const usingGuideStatement = !!guide && !fromBallot?.statement?.trim();
+  const usingGuideStatement =
+    !!guide && !!guide.statement?.trim() && !fromBallot?.statement?.trim();
   const sourceUrl = usingGuideStatement
     ? guide.sourceUrl
     : statementCitation?.sourceUrl;
@@ -355,7 +356,7 @@ export default function CandidateDetailScreen() {
             <Text style={s.heading}>{tx("Candidate unavailable")}</Text>
             <Text style={s.body}>
               {tx(
-                "This person is not in the current official statement guide. Return to the guide to choose a candidate.",
+                "This person is not in the current official voter guide. Return to the guide to choose a candidate.",
               )}
             </Text>
           </Card>
@@ -429,7 +430,7 @@ export default function CandidateDetailScreen() {
                           )
                         : guide
                           ? tx(
-                              "Statement guide · not a complete candidate list",
+                              "Official voter guide · check your county ballot",
                             )
                           : tx("Ballot status unavailable")}
                 </Text>
@@ -803,6 +804,12 @@ export default function CandidateDetailScreen() {
                     url={portraitSource}
                   />
                 ) : null}
+                {guide && !usingGuideStatement ? (
+                  <SourceLink
+                    label={tx("Official voter guide")}
+                    url={guide.sourceUrl}
+                  />
+                ) : null}
                 {guide ? (
                   <SourceLink
                     label={tx("About candidate statements")}
@@ -827,7 +834,7 @@ export default function CandidateDetailScreen() {
                 <Text style={s.muted}>
                   {guide
                     ? tx(
-                        "The guide includes only people who submitted statements. It is not a complete roster. Check your county ballot for eligibility, write-in, or withdrawal updates.",
+                        "This guide covers statewide offices. Check your county ballot for all contests, eligibility, write-in, or withdrawal updates.",
                       )
                     : tx(
                         "Check your election office for eligibility, write-in, or withdrawal updates.",

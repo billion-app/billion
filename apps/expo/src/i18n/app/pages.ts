@@ -1133,11 +1133,11 @@ export const pageStrings = {
     es: "Candidato no disponible",
     zh: "候选人不可用",
   },
-  "This person is not in the current official statement guide. Return to the guide to choose a candidate.":
+  "This person is not in the current official voter guide. Return to the guide to choose a candidate.":
     {
-      en: "This person is not in the current official statement guide. Return to the guide to choose a candidate.",
-      es: "Esta persona no está en la guía oficial de declaraciones actual. Vuelve a la guía para elegir un candidato.",
-      zh: "此人不在当前官方声明指南中。请返回指南选择候选人。",
+      en: "This person is not in the current official voter guide. Return to the guide to choose a candidate.",
+      es: "Esta persona no está en la guía oficial del votante actual. Vuelve a la guía para elegir un candidato.",
+      zh: "此人不在当前官方选民指南中。请返回指南选择候选人。",
     },
   "Fictional preview · not published": {
     en: "Fictional preview · not published",
@@ -2137,11 +2137,12 @@ export const pageStrings = {
     es: "Encuentra tu oficina electoral del condado",
     zh: "查找县选举事务办公室",
   },
-  "Statement submitters only, not your full ballot.": {
-    en: "Statement submitters only, not your full ballot.",
-    es: "Solo quienes presentaron declaraciones; no es tu boleta completa.",
-    zh: "仅包含提交声明的人，并非你的完整选票。",
-  },
+  "Statewide candidates listed in California's voter guide. Check your county ballot for all contests.":
+    {
+      en: "Statewide candidates listed in California's voter guide. Check your county ballot for all contests.",
+      es: "Candidatos estatales de la guía del votante de California. Consulta todas las contiendas en la boleta de tu condado.",
+      zh: "加州选民指南中列出的全州候选人。请查看县级选票了解所有选举项目。",
+    },
   "Find my official ballot": {
     en: "Find my official ballot",
     es: "Encontrar mi boleta oficial",
@@ -3685,10 +3686,10 @@ export const pageStrings = {
     es: "Figura en tu boleta",
     zh: "列于你的选票上",
   },
-  "Statement guide · not a complete candidate list": {
-    en: "Statement guide · not a complete candidate list",
-    es: "Guía de declaraciones · No es una lista completa de candidatos",
-    zh: "声明指南 · 并非完整候选人名单",
+  "Official voter guide · check your county ballot": {
+    en: "Official voter guide · check your county ballot",
+    es: "Guía oficial del votante · consulta la boleta de tu condado",
+    zh: "官方选民指南 · 请查看县级选票",
   },
   "Ballot status unavailable": {
     en: "Ballot status unavailable",
@@ -3808,11 +3809,11 @@ export const pageStrings = {
     es: "Retrato · {value1}",
     zh: "肖像 · {value1}",
   },
-  "The guide includes only people who submitted statements. It is not a complete roster. Check your county ballot for eligibility, write-in, or withdrawal updates.":
+  "This guide covers statewide offices. Check your county ballot for all contests, eligibility, write-in, or withdrawal updates.":
     {
-      en: "The guide includes only people who submitted statements. It is not a complete roster. Check your county ballot for eligibility, write-in, or withdrawal updates.",
-      es: "La guía incluye solo a quienes presentaron declaraciones. No es una lista completa. Consulta la boleta de tu condado para ver cambios de elegibilidad, candidaturas por escrito o retiros.",
-      zh: "此指南仅包含提交声明的人，并非完整名单。请查看县级选票，了解资格、手写候选人或退选信息的更新。",
+      en: "This guide covers statewide offices. Check your county ballot for all contests, eligibility, write-in, or withdrawal updates.",
+      es: "Esta guía cubre cargos estatales. Consulta la boleta de tu condado para ver todas las contiendas y cambios de elegibilidad, candidaturas por escrito o retiros.",
+      zh: "此指南涵盖全州职位。请查看县级选票，了解所有选举项目、资格、手写候选人或退选信息的更新。",
     },
   "Check your election office for eligibility, write-in, or withdrawal updates.":
     {
