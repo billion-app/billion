@@ -1211,6 +1211,15 @@ test("finance-only quality requires actual identity-reconciled amounts and retur
     assert.ok(!financialQuestions.includes("research was not performed"));
     assert.ok(!financialQuestions.includes("expected consequences"));
 
+    const beforeReview = JSON.stringify(compiled.brief);
+    const reviewTransport = dependencies([
+      {
+        verdict: "reject",
+        overallReason:
+          "The review fixture identifies a whole-brief financial-source question.",
+        findings: [],
+      },
+    ]);
     const financeReview = await reviewCaliforniaBrief(
       {
         brief: compiled.brief,
@@ -1218,14 +1227,44 @@ test("finance-only quality requires actual identity-reconciled amounts and retur
         policyVersion: "p1",
         authorAttestation: compiled.attestation,
       },
-      dependencies([
-        {
-          verdict: "reject",
-          overallReason:
-            "The review fixture identifies a whole-brief financial-source question.",
-          findings: [],
-        },
-      ]).deps,
+      reviewTransport.deps,
+    );
+    const reviewCall = reviewTransport.calls[0]!;
+    const transported = JSON.parse(reviewCall.prompt);
+    assert.equal(reviewCall.role, "reviewer");
+    assert.equal(
+      reviewCall.excludedConfiguredModel,
+      compiled.attestation.configuredModel,
+    );
+    assert.deepEqual(transported.brief, compiled.brief);
+    assert.deepEqual(transported.brief.research.finance, packet.finance);
+    assert.deepEqual(transported.brief.evidence, compiled.brief.evidence);
+    assert.deepEqual(transported.brief.sections, compiled.brief.sections);
+    assert.equal(
+      transported.revisionDigest,
+      compiled.attestation.revisionDigest,
+    );
+    assert.equal(
+      financeReview.attestation.revisionDigest,
+      compiled.attestation.revisionDigest,
+    );
+    assert.equal(
+      financeReview.attestation.sourceSetDigest,
+      packet.sourceSetDigest,
+    );
+    assert.equal(financeReview.attestation.dossierDigest, packet.dossierDigest);
+    assert.notEqual(
+      financeReview.attestation.runId,
+      compiled.attestation.runId,
+    );
+    assert.equal(JSON.stringify(compiled.brief), beforeReview);
+    assert.ok(
+      transported.dossier.sources.some(
+        (source: { contextWindows: { text: string }[] }) =>
+          source.contextWindows.some((window) =>
+            window.text.includes('"total_receipts": 100'),
+          ),
+      ),
     );
     assert.equal(financeReview.verdict, "reject");
     assert.equal(
@@ -1336,7 +1375,7 @@ test("finance-only quality requires actual identity-reconciled amounts and retur
   );
 });
 
-test("v5 reviewer contract distinguishes named campaign proposals from another person's pledge", async () => {
+test("v6 reviewer contract distinguishes named campaign proposals from another person's pledge", async () => {
   const { createHash } = await import("node:crypto");
   const cases = [
     {
@@ -1421,7 +1460,7 @@ test("v5 reviewer contract distinguishes named campaign proposals from another p
       deps,
     );
     assert.equal(reviewed.verdict, scenario.verdict);
-    assert.equal(reviewed.attestation.promptVersion, "california-review-v5");
+    assert.equal(reviewed.attestation.promptVersion, "california-review-v6");
     assert.ok(
       calls[1]!.system.includes("collector abstention, not a prohibition"),
     );
@@ -1442,7 +1481,7 @@ test("v5 reviewer contract distinguishes named campaign proposals from another p
   }
 });
 
-test("v5 zero-claim reviews require an overall reason and preserve missing-reason diagnostics", async () => {
+test("v6 zero-claim reviews require an overall reason and preserve missing-reason diagnostics", async () => {
   const dossier = fixtureCampaignMaterialDossier();
   const output = {
     ...authorFixture(),
@@ -1517,7 +1556,7 @@ test("legacy authored coverage fails rather than being dropped or repaired", asy
   );
 });
 
-test("v5 reviewer rejects a wrong cited ID even when the full packet contains correct authority elsewhere", async () => {
+test("v6 reviewer rejects a wrong cited ID even when the full packet contains correct authority elsewhere", async () => {
   const { createHash } = await import("node:crypto");
   const input = dossierInput();
   for (const entry of [
@@ -1613,11 +1652,7 @@ test("v5 reviewer rejects a wrong cited ID even when the full packet contains co
   assert.deepEqual(authored.brief.sections[2]!.claims[0]!.evidenceIds, [
     "unrelated",
   ]);
-  assert.ok(
-    calls[1]!.system.includes(
-      "never all collected archives whose text was not supplied",
-    ),
-  );
+  assert.ok(calls[1]!.system.includes("never unread archives"));
 });
 
 function emptyAuthorFixture() {
