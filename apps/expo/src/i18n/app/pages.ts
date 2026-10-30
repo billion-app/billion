@@ -1155,6 +1155,16 @@ export const pageStrings = {
       es: "Consulta las fuentes, compara registros y busca lo que falta. Estos son puntos de partida para investigar a este candidato.",
       zh: "查阅来源、比较记录并留意缺失信息。这里提供了解此候选人的起点。",
     },
+  "Listed in the official candidate roster": {
+    en: "Listed in the official candidate roster",
+    es: "Figura en la lista oficial de candidatos",
+    zh: "列于官方候选人名单",
+  },
+  "Reviewed research is not available for this candidate yet.": {
+    en: "Reviewed research is not available for this candidate yet.",
+    es: "Aún no hay una investigación revisada sobre este candidato.",
+    zh: "目前尚无这位候选人的已审核研究。",
+  },
   "Independent research has not been published for this race.": {
     en: "Independent research has not been published for this race.",
     es: "No se ha publicado investigación independiente para esta contienda.",
@@ -2768,6 +2778,8 @@ export const pageStrings = {
     es: "Toca una palabra subrayada para ver su significado.",
     zh: "点按带下划线的词语查看含义。",
   },
+  Promise: { en: "Promise", es: "Promesa", zh: "承诺" },
+  Donor: { en: "Donor", es: "Donante", zh: "捐款人" },
   "Campaign promise": {
     en: "Campaign promise",
     es: "Promesa de campaña",

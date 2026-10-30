@@ -14,6 +14,10 @@ entry, `/candidate-promise`, with the same race/person and a `promise` claim ID;
 `read=analysis` selects its deeper explanation. Links and reloads retain identity.
 Comparison includes every roster member, including withdrawals and evidence gaps.
 
+The California guide's ordinary candidate-detail route resolves published research on the server. The resolver first requires a unique entry in the current official statement guide, then matches the expected certified office, election date and statewide jurisdiction to a unique released roster member. It returns the canonical candidate identity and release UUID, rather than constructing an identity from a display name. Unknown or ambiguous identities retain the official-source profile.
+
+When that resolution succeeds, candidate detail shows the same Brief, Money and Sources body as the research route beneath the real candidate header. Promise, donor and comparison links retain the released race identity. Loading, request failure and unpublished coverage are separate states. Expiry removes the research locally, and polling rechecks revocation. A statement-source checkmark does not certify the statement's claims.
+
 A recorded action uses a document/timeline treatment. A campaign promise uses a
 separate card. Interpretation is attributed to Billion and labeled AI-assisted
 when appropriate. The promise's short reading explains the proposal, authority,
@@ -71,9 +75,8 @@ reader request. Expo imports API types and calls tRPC, never the database client
 
 ## Collected drafts and publication
 
-The [CA-17 source adapter and authenticated workbench](candidate-research-collection.md)
-now collect a complete certified pilot roster, candidate positions, office powers,
-and reconciled FEC finances. Real data remains a visibly unpublished draft until
+The [source adapters and authenticated workbench](candidate-research-collection.md)
+collect the complete CA-17 House and Lieutenant Governor rosters, candidate positions and office powers. CA-17 includes reconciled FEC finances; the statewide race links to official California filings with an explicit finance gap. Real data remains a visibly unpublished draft until
 independent editorial approval. Source refresh and revocation are implemented;
 the supervisor job must be deployed to run them in production.
 

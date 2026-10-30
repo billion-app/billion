@@ -5,7 +5,11 @@ import {
 
 import type { Scraper } from "../utils/types.js";
 import { collectPilot } from "../candidate-research/collect.js";
-import { pilot } from "../candidate-research/drafts.js";
+import { candidateResearchTarget } from "../candidate-research/statewide-target.js";
+import {
+  collectLieutenantGovernor,
+  lieutenantGovernor,
+} from "../candidate-research/statewide.js";
 import { createLogger } from "../utils/log.js";
 import { candidateResearchConfig } from "./candidate-research.config.js";
 
@@ -18,12 +22,14 @@ export const candidateResearch: Scraper = {
       Number(process.env.CANDIDATE_RESEARCH_MAX_ITEMS ?? 1);
     if (maxItems !== 1)
       throw new Error(
-        "Candidate research requires --max-items 1 (one complete pilot race)",
+        "Candidate research requires --max-items 1 (one complete race)",
       );
-    if (options?.targets?.some((t) => t !== pilot.key))
-      throw new Error("Unknown candidate research pilot");
+    const target = candidateResearchTarget(options?.targets);
     try {
-      const document = await collectPilot();
+      const document =
+        target === lieutenantGovernor.key
+          ? await collectLieutenantGovernor()
+          : await collectPilot();
       const result = await saveResearchCollection(document);
       logger.info(
         `Collected ${result.candidates} real candidates; collection ${result.collectionId}; ${result.changed ? "new draft" : "unchanged sources"}`,
@@ -31,7 +37,7 @@ export const candidateResearch: Scraper = {
       if (result.problems.length) throw new Error(result.problems.join(" "));
     } catch (error) {
       await failResearchRefresh(
-        pilot.key,
+        target,
         "Official source refresh failed; publication withdrawn pending a successful collection and fresh review",
       );
       throw error;
