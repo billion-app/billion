@@ -167,7 +167,7 @@ export function BillChangeExplanation({
               style={s.action}
               onPress={() => {
                 setPanel(null);
-                if (sourceQuote) onViewSource(sourceQuote);
+                onViewSource(sourceQuote);
               }}
               accessibilityRole="button"
               testID={id("source-passage")}

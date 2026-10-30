@@ -1038,7 +1038,7 @@ function ArticleDetail({ articleId }: { articleId: string | undefined }) {
             )}
 
             {/* Legislative stages apply only to bills. Court posture lives in its brief. */}
-            {content.type === "bill" ? (
+            {content.type === "bill" && hasRealActions ? (
               <>
                 <Kicker style={s.timelineKicker}>
                   {tr("article.whereItStands")}
