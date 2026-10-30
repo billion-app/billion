@@ -4,6 +4,7 @@ import { load } from "cheerio";
 import { z } from "zod/v4";
 
 import type {
+  AuthorityRenewalProjection,
   CaliforniaRaceTarget,
   CaliforniaRosterSnapshot,
   ClarityCandidateCrosswalk,
@@ -21,6 +22,7 @@ import {
   parseSantaClaraQualifiedWriteIns,
   sanJoseScopeCrosswalkDigest,
 } from "./california-roster.js";
+import { validateAuthorityRenewalProjection } from "./california-source-projections.js";
 
 const hash = (value: string | Uint8Array) =>
   createHash("sha256").update(value).digest("hex");
@@ -88,6 +90,7 @@ interface ClarityRosterInput {
   scopeCrosswalk: unknown;
   identityCrosswalk: unknown;
   historicalSources?: ResearchSource[];
+  sourceRenewalProjections?: AuthorityRenewalProjection[];
 }
 interface ClarityDerivationContext {
   proof: ClarityRosterDerivation;
@@ -108,6 +111,7 @@ function compileClaritySanJoseRoster(
   state: CaliforniaRosterSnapshot,
   input: ClarityRosterInput,
   derivation?: ClarityDerivationContext,
+  reviewedSourcesOverride?: ResearchSource[],
 ): CaliforniaRosterSnapshot {
   const version = input.currentVersion.text.trim();
   if (
@@ -225,6 +229,35 @@ function compileClaritySanJoseRoster(
         );
     }
   }
+  const projectionContracts = input.sourceRenewalProjections ?? [];
+  if (
+    new Set(projectionContracts.map((contract) => contract.url)).size !==
+    projectionContracts.length
+  )
+    throw new Error("Duplicate authority renewal projection");
+  const projectionResults = projectionContracts.map((contract) => {
+    const observed = sources.find((source) => source.url === contract.url);
+    if (!observed) throw new Error("Projected authority source absent");
+    return validateAuthorityRenewalProjection(
+      contract,
+      observed,
+      review.digest,
+    );
+  });
+  const projectionProofs = projectionResults.map((result) => result.proof);
+  const proofMap = new Map(derivation?.proofMap ?? []);
+  for (const { contract, proof } of projectionResults) {
+    const ref = {
+      url: proof.url,
+      contentHash: proof.observedContentHash,
+      byteHash: proof.observedRawHash,
+    };
+    proofMap.set(`${contract.url}:${contract.reviewedContentHash}:`, ref);
+    proofMap.set(
+      `${contract.url}:${contract.reviewedContentHash}:${contract.reviewedRawHash}`,
+      ref,
+    );
+  }
   const observedMembers = derivation?.members ?? identities.members;
   const keys = new Set<string>();
   const mapped = new Set<string>();
@@ -335,7 +368,7 @@ function compileClaritySanJoseRoster(
           "Image territorial proof must bind its strong byte hash",
         );
       const ref =
-        derivation?.proofMap.get(
+        proofMap.get(
           `${reviewedRef.url}:${reviewedRef.contentHash}:${reviewedRef.byteHash ?? ""}`,
         ) ?? reviewedRef;
       if (
@@ -407,7 +440,14 @@ function compileClaritySanJoseRoster(
         district: entry.district ?? null,
         kind: "election",
         voteFor: row.VF,
-        rosterDigest: hash(JSON.stringify(members)),
+        rosterDigest: hash(
+          JSON.stringify(
+            members.map(({ sourceProof: _observation, ...member }) => ({
+              ...member,
+              name: member.name.replaceAll('""', '"').replaceAll("''", '"'),
+            })),
+          ),
+        ),
         rosterSourceUrl: input.definition.url,
         sourceProof: {
           url: input.definition.url,
@@ -420,17 +460,17 @@ function compileClaritySanJoseRoster(
           method: scope.method,
           reason: entry.reason,
           proofs: entry.proofs,
-          ...(derivation
+          ...(derivation || projectionProofs.length
             ? {
                 observedProofs: entry.proofs
                   .filter((ref) => ref.role !== "historical_qualification")
                   .map(
                     (ref) =>
-                      derivation.proofMap.get(
+                      proofMap.get(
                         `${ref.url}:${ref.contentHash}:${ref.byteHash ?? ""}`,
                       ) ?? ref,
                   ),
-                derivation: derivation.proof,
+                ...(derivation ? { derivation: derivation.proof } : {}),
               }
             : {}),
         },
@@ -443,16 +483,49 @@ function compileClaritySanJoseRoster(
     id: hash(
       canonical({
         stateId: state.id,
-        definitionHash: input.definition.contentHash,
-        scopeReview: review,
-        identityReview,
-        observedSources: sources
-          .map((source) => ({
-            url: source.url,
-            contentHash: source.contentHash,
-          }))
-          .sort((a, b) => a.url.localeCompare(b.url)),
-        derivation: derivation?.proof,
+        scopeReviewDigest: review.digest,
+        identityReviewDigest: identityReview.digest,
+        claritySemanticDigest:
+          derivation?.proof.semanticDigest ??
+          semanticClarityDefinition(
+            input,
+            originalClarityAliases(input, identities),
+          ).digest,
+        sourceIdentities: sources
+          .map((source) => {
+            const logical =
+              source.url === input.definition.url
+                ? "clarity-definition"
+                : source.url === input.settings.url
+                  ? "clarity-settings"
+                  : source.url === input.currentVersion.url
+                    ? "clarity-current-version"
+                    : source.url === xmlSource.url
+                      ? "clarity-xml"
+                      : undefined;
+            if (logical) return { key: logical };
+            const projection = projectionResults.find(
+              (result) => result.contract.url === source.url,
+            );
+            if (projection)
+              return {
+                key: source.url,
+                projectionId: projection.contract.projectionId,
+                canonicalDigest: projection.proof.canonicalDigest,
+                reviewedContentHash: projection.contract.reviewedContentHash,
+              };
+            const strong = scope.entries.some((entry) =>
+              entry.proofs.some(
+                (ref) => ref.url === source.url && ref.byteHash,
+              ),
+            );
+            return {
+              key: source.url,
+              contentHash: source.contentHash,
+              ...(strong ? { byteHash: source.byteHash } : {}),
+            };
+          })
+          .sort((a, b) => a.key.localeCompare(b.key)),
       }),
     ),
     scope: "ca_sos_certified_and_san_jose",
@@ -467,7 +540,19 @@ function compileClaritySanJoseRoster(
       settingsURL: input.settings.url,
       currentVersionURL: input.currentVersion.url,
       identityCrosswalk: identities,
-      reviewedSources: derivation?.reviewedSources ?? sources,
+      reviewedSources:
+        reviewedSourcesOverride ??
+        derivation?.reviewedSources ??
+        sources.map(
+          (source) =>
+            projectionResults.find(
+              (result) => result.contract.url === source.url,
+            )?.contract.reviewedSource ?? source,
+        ),
+      sourceRenewalProjections: projectionResults.map(
+        (result) => result.contract,
+      ),
+      sourceProjectionProofs: projectionProofs,
       derivation: derivation?.proof,
     },
     historicalSources: input.historicalSources,
@@ -883,6 +968,7 @@ export function renewReviewedClaritySanJoseRoster(
     primary.identityCrosswalk,
     current.historicalSources,
   );
+  observed.sourceRenewalProjections = primary.sourceRenewalProjections;
   const aliases = originalClarityAliases(original, primary.identityCrosswalk);
   const reviewedSemantic = semanticClarityDefinition(original, aliases),
     observedSemantic = semanticClarityDefinition(observed, aliases);
@@ -914,7 +1000,17 @@ export function renewReviewedClaritySanJoseRoster(
     const fresh = freshByURL.get(freshURL);
     if (!fresh || hash(fresh.text) !== fresh.contentHash)
       throw new Error("Fresh Clarity or territorial proof archive missing");
+    const projection = primary.sourceRenewalProjections?.find(
+      (projection) => projection.url === reviewed.url,
+    );
+    if (projection)
+      validateAuthorityRenewalProjection(
+        projection,
+        fresh,
+        current.localCrosswalk.review.digest,
+      );
     if (
+      !projection &&
       !reportPath &&
       reviewed.url !== `${root}current_ver.txt` &&
       fresh.contentHash !== reviewed.contentHash
@@ -962,13 +1058,24 @@ export function renewReviewedClaritySanJoseRoster(
   const signature = (sources: ResearchSource[]) =>
     canonical(
       sources
-        .map((source) => ({ url: source.url, contentHash: source.contentHash }))
+        .map((source) => ({
+          url: source.url,
+          contentHash:
+            primary.sourceRenewalProjections?.find(
+              (projection) => projection.url === source.url,
+            )?.canonicalDigest ?? source.contentHash,
+        }))
         .sort((a, b) => a.url.localeCompare(b.url)),
     );
   const unchanged =
     signature(freshSources) === signature(current.additionalSources ?? []);
   if (!primary.derivation && unchanged)
-    return appendReviewedClaritySanJoseRoster(state, observed);
+    return compileClaritySanJoseRoster(
+      state,
+      observed,
+      undefined,
+      reviewedSources,
+    );
   const proof: ClarityRosterDerivation =
     unchanged && primary.derivation
       ? primary.derivation

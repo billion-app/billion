@@ -14,13 +14,20 @@ import {
   candidateEvidenceDossierSchema,
 } from "@acme/validators";
 
-import type { CaliforniaBounds, CaliforniaDependencies } from "./california.js";
+import type {
+  CaliforniaBounds,
+  CaliforniaDependencies,
+  CaliforniaWorkCheckpoint,
+} from "./california.js";
 import { californiaInvocationFailure } from "./california-ai.js";
 import {
   buildCaliforniaDossier,
   evidenceDigest,
 } from "./california-dossier.js";
-import { CaliforniaCitedSourceFailure } from "./california-evidence.js";
+import {
+  CaliforniaCitedSourceFailure,
+  collectCaliforniaEvidence,
+} from "./california-evidence.js";
 import { decodeCaliforniaRoster } from "./california-roster.js";
 import { coverage, plan, reconcile } from "./california.js";
 
@@ -117,6 +124,7 @@ async function fixture() {
       return true;
     },
     artifact: async (key) => artifacts.get(key) ?? null,
+    hasArtifact: async (key) => artifacts.has(key),
     reserveDispatch: async (input) => {
       if (artifacts.has(input.key)) return false;
       artifacts.set(input.key, input.document);
@@ -178,17 +186,22 @@ async function fixture() {
           model: "fixture",
           promptVersion: "fixture",
         },
-        evidence: dossier.evidence.map((e) => ({
-          id: e.id,
-          url: dossier.sources[0]!.url,
-          publisher: "SOS",
-          locator: e.locator,
-          retrievedAt: now,
-          documentDate: null,
-          contentHash: dossier.sources[0]!.contentHash,
-          excerpt: e.excerpt,
-          origin: e.origin,
-        })),
+        evidence: dossier.evidence.map((e) => {
+          const source = dossier.sources.find(
+            (source) => source.id === e.sourceId,
+          )!;
+          return {
+            id: e.id,
+            url: source.url,
+            publisher: source.publisher,
+            locator: e.locator,
+            retrievedAt: source.fetchedAt,
+            documentDate: null,
+            contentHash: source.contentHash,
+            excerpt: e.excerpt,
+            origin: e.origin,
+          };
+        }),
         sections: [
           "priorities",
           "record",
@@ -723,3 +736,388 @@ for (const role of ["author", "review"] as const) {
     assert.equal(f.stats.failures, 0);
   });
 }
+
+test("equivalent compiled CDE asset refreshes preserve the roster and archive only changed bodies", async () => {
+  const f = await fixture();
+  f.snapshot.races.splice(1);
+  const race = f.snapshot.races[0]!;
+  const releaseId = randomUUID();
+  const baseTime = f.deps.now();
+  let observedAt = baseTime,
+    assetVersion = 0,
+    snapshotWrites = 0;
+  const gisText = JSON.stringify({
+    type: "FeatureCollection",
+    features: [
+      {
+        properties: { district: "1" },
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [-121.9, 37.3],
+              [-121.8, 37.3],
+              [-121.8, 37.4],
+              [-121.9, 37.3],
+            ],
+          ],
+        },
+      },
+    ],
+    padding: " ".repeat(20000),
+  });
+  const cde = (version: number) =>
+    `<html><head><script src="/assets/district-profile-${version}.js"></script></head><body><h1>District Profile</h1><p>County: Santa Clara</p><p>District: Fixture Unified School District</p></body></html>`;
+  const observedSource = (
+    id: string,
+    url: string,
+    text: string,
+  ): ResearchSource => ({
+    id,
+    url,
+    publisher: "Fixture authoritative source",
+    format: "text",
+    text,
+    contentHash: hash(text),
+    byteHash: hash(text),
+    fetchedAt: observedAt,
+  });
+  f.snapshot.additionalSources = [
+    observedSource(
+      "cde-profile",
+      "https://www.cde.ca.gov/schooldirectory/details?cdscode=43000000000000",
+      cde(0),
+    ),
+    observedSource(
+      "territory-gis",
+      "https://gis.example.gov/district-boundary.json",
+      gisText,
+    ),
+  ];
+  const immutableOriginal = JSON.stringify(f.snapshot);
+  f.rows.set(race.raceKey, {
+    raceKey: race.raceKey,
+    status: "complete",
+    checkpoint: { releaseId, sourceCheckedAt: baseTime },
+  });
+  f.deps.now = () => observedAt;
+  f.deps.saveSnapshot = async () => {
+    snapshotWrites++;
+  };
+  f.deps.fetchRoster = async () => ({
+    ...structuredClone(f.snapshot),
+    source: { ...f.snapshot.source, fetchedAt: observedAt },
+    certification: { ...f.snapshot.certification, fetchedAt: observedAt },
+    additionalSources: [
+      observedSource(
+        "cde-profile",
+        f.snapshot.additionalSources![0]!.url,
+        cde(assetVersion),
+      ),
+      observedSource(
+        "territory-gis",
+        f.snapshot.additionalSources![1]!.url,
+        gisText,
+      ),
+    ],
+  });
+  f.deps.readPublishedCoverage = async () => ({
+    snapshotId: f.snapshot.id,
+    races: [
+      {
+        contestId: race.contestId,
+        jurisdiction: race.jurisdiction,
+        electionDate: race.electionDate,
+        releaseId,
+        sourceCheckedAt: baseTime,
+        policyVersion: "policy",
+        members: race.members.map((member) => ({
+          candidateId: member.candidateId,
+          revisionId: randomUUID(),
+          collectionId: null,
+          author: null,
+          reviewer: null,
+        })),
+      },
+    ],
+  });
+  const savedBodies: unknown[] = [];
+  const save = f.deps.saveArtifact;
+  f.deps.saveArtifact = async (input) => {
+    if (input.kind === "roster_source_archive")
+      savedBodies.push(input.document);
+    return save(input);
+  };
+  for (const [version, time] of [
+    [1, "2026-10-30T13:00:00.000Z"],
+    [2, "2026-10-30T14:00:00.000Z"],
+  ] as const) {
+    assetVersion = version;
+    observedAt = time;
+    const result = await reconcile(
+      { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+      f.deps,
+    );
+    assert.equal(result.outcomes[0]!.status, "current");
+  }
+  assert.equal(snapshotWrites, 0);
+  assert.equal(JSON.stringify(f.snapshot), immutableOriginal);
+  assert.equal(f.stats.failures, 0);
+  assert.equal(f.stats.authors, 0);
+  const checks = [...f.artifacts.entries()].filter(([key]) =>
+    key.startsWith("roster-check:"),
+  );
+  assert.equal(checks.length, 2);
+  const documents = checks.map(
+    ([, value]) =>
+      value as {
+        checkedAt: string;
+        sources: { archiveKey: string; id: string; fetchedAt: string }[];
+      },
+  );
+  assert.deepEqual(
+    documents.map((value) => value.checkedAt),
+    ["2026-10-30T13:00:00.000Z", "2026-10-30T14:00:00.000Z"],
+  );
+  assert.equal(
+    documents[0]!.sources.find((source) => source.id === "territory-gis")!
+      .archiveKey,
+    documents[1]!.sources.find((source) => source.id === "territory-gis")!
+      .archiveKey,
+  );
+  assert.notEqual(
+    documents[0]!.sources.find((source) => source.id === "cde-profile")!
+      .archiveKey,
+    documents[1]!.sources.find((source) => source.id === "cde-profile")!
+      .archiveKey,
+  );
+  assert.equal(
+    savedBodies.filter((body) => (body as { text: string }).text === gisText)
+      .length,
+    1,
+  );
+  assert.ok(
+    savedBodies.some((body) => (body as { text: string }).text === cde(1)),
+  );
+  assert.ok(
+    savedBodies.some((body) => (body as { text: string }).text === cde(2)),
+  );
+  const publicCoverage = await coverage({ snapshotId: f.snapshot.id }, f.deps);
+  assert.equal(publicCoverage.published.races, 1);
+  assert.equal(publicCoverage.published.candidates, race.members.length);
+});
+
+test("a fresh checkpoint skips only while the exact release remains publicly available", async () => {
+  const f = await fixture();
+  f.snapshot.races.splice(1);
+  const race = f.snapshot.races[0]!;
+  const releaseId = randomUUID();
+  let live = true;
+  f.rows.set(race.raceKey, {
+    raceKey: race.raceKey,
+    status: "complete",
+    checkpoint: { releaseId, sourceCheckedAt: f.deps.now() },
+  });
+  f.deps.readPublishedCoverage = async () => ({
+    snapshotId: f.snapshot.id,
+    races: live
+      ? [
+          {
+            contestId: race.contestId,
+            jurisdiction: race.jurisdiction,
+            electionDate: race.electionDate,
+            releaseId,
+            sourceCheckedAt: f.deps.now(),
+            policyVersion: "policy",
+            members: race.members.map((member) => ({
+              candidateId: member.candidateId,
+              revisionId: randomUUID(),
+              collectionId: null,
+              author: null,
+              reviewer: null,
+            })),
+          },
+        ]
+      : [],
+  });
+  const input = {
+    snapshotId: f.snapshot.id,
+    policyVersion: "policy",
+    bounds: { ...bounds, maxRaces: 1 },
+  };
+  const healthy = await reconcile(input, f.deps);
+  assert.equal(healthy.outcomes[0]!.status, "current");
+  assert.equal(f.stats.investigations, 0);
+  live = false;
+  const claim = f.deps.claim;
+  f.deps.claim = async (input) => ({
+    ...(await claim(input))!,
+    reviewEpoch: 1,
+  });
+  const withdrawn = await reconcile(input, f.deps);
+  assert.notEqual(withdrawn.outcomes[0]!.status, "current");
+  assert.equal(f.stats.investigations, race.members.length);
+});
+
+test("permanently changed cited pages recover in the new review epoch without retrying the old baseline", async () => {
+  const f = await fixture();
+  f.snapshot.races.splice(1);
+  const race = f.snapshot.races[0]!;
+  let clock = f.deps.now(),
+    version = 1,
+    epoch = 0,
+    live = false;
+  let sharedSources = new Map<string, Promise<ResearchSource>>();
+  const previousInputs: (string | null)[] = [];
+  f.deps.now = () => clock;
+  f.deps.fetchRoster = async () => ({
+    ...f.snapshot,
+    source: { ...f.snapshot.source, fetchedAt: clock },
+    certification: { ...f.snapshot.certification, fetchedAt: clock },
+  });
+  const claim = f.deps.claim;
+  f.deps.claim = async (input) => ({
+    ...(await claim(input))!,
+    reviewEpoch: epoch,
+  });
+  const publish = f.deps.publish;
+  f.deps.publish = async (...args) => {
+    live = true;
+    return publish(...args);
+  };
+  f.deps.fail = async () => {
+    f.stats.failures++;
+    epoch++;
+    live = false;
+    const work = f.rows.get(race.raceKey);
+    if (work) f.rows.set(race.raceKey, { ...work, status: "pending" });
+  };
+  const checkpoint = f.deps.checkpoint;
+  f.deps.checkpoint = async (lease, status, value) =>
+    lease.reviewEpoch === epoch ? checkpoint(lease, status, value) : false;
+  f.deps.readPublishedCoverage = async () => {
+    const saved = f.rows.get(race.raceKey)?.checkpoint as
+      | CaliforniaWorkCheckpoint
+      | undefined;
+    return {
+      snapshotId: f.snapshot.id,
+      races:
+        live && saved?.releaseId
+          ? [
+              {
+                contestId: race.contestId,
+                jurisdiction: race.jurisdiction,
+                electionDate: race.electionDate,
+                releaseId: saved.releaseId,
+                sourceCheckedAt: saved.sourceCheckedAt ?? null,
+                policyVersion: "policy",
+                members: race.members.map((member) => {
+                  const provenance =
+                    saved.candidateProvenance?.[member.candidateId];
+                  return {
+                    candidateId: member.candidateId,
+                    revisionId: provenance?.revisionId ?? randomUUID(),
+                    collectionId: saved.collectionId ?? null,
+                    author: provenance?.author ?? null,
+                    reviewer: provenance?.reviewer ?? null,
+                  };
+                }),
+              },
+            ]
+          : [],
+    };
+  };
+  f.deps.investigate = async (input) => {
+    f.stats.investigations++;
+    previousInputs.push(input.previousDossier?.dossierDigest ?? null);
+    return collectCaliforniaEvidence(input, {
+      now: () => clock,
+      sharedSources,
+      budget: { request() {}, bytes() {} },
+      search: async () => ({ sources: [] }),
+      fetch: async (id, url, _publisher, format) => {
+        const text = url.includes("voterguide.sos.ca.gov/candidates/")
+          ? `${race.office} California 2026\n` +
+            race.members
+              .map(
+                (member) =>
+                  `${member.name} ${("I will support public schools through a published budget proposal and expand affordable college programs with measurable progress reports. Version " + version + ". ").repeat(5)}`,
+              )
+              .join("\n")
+          : url.includes("contact-list")
+            ? "Official contact fixture: no campaign website listed for these candidates."
+            : "The Governor signs legislation, directs state departments, and submits budget proposals to the Legislature.";
+        return {
+          id,
+          url,
+          publisher: "Fixture official source",
+          format,
+          text,
+          contentHash: hash(text),
+          fetchedAt: clock,
+        };
+      },
+    });
+  };
+  const input = {
+    snapshotId: f.snapshot.id,
+    policyVersion: "policy",
+    bounds: { ...bounds, maxRaces: 1 },
+  };
+  const initial = await reconcile(input, f.deps);
+  assert.equal(initial.completed, 1, JSON.stringify(initial));
+  assert.equal(f.stats.authors, race.members.length);
+  assert.equal(f.stats.reviews, race.members.length);
+  const original = f.rows.get(race.raceKey)!
+    .checkpoint as CaliforniaWorkCheckpoint;
+  const originalRunIds = Object.values(original.candidateProvenance!).map(
+    (item) => item.reviewer!.runId,
+  );
+  version = 2;
+  clock = "2026-10-31T01:00:00.000Z";
+  sharedSources = new Map();
+  previousInputs.length = 0;
+  const changed = await reconcile(input, f.deps);
+  assert.equal(changed.blocked, 1, JSON.stringify(changed));
+  assert.equal(epoch, 1);
+  assert.equal(live, false);
+  assert.equal(f.stats.failures, 1);
+  assert.equal(f.stats.authors, race.members.length);
+  assert.ok(previousInputs[0]);
+  sharedSources = new Map();
+  previousInputs.length = 0;
+  const recovered = await reconcile(input, f.deps);
+  assert.equal(recovered.completed, 1, JSON.stringify(recovered));
+  assert.deepEqual(
+    previousInputs,
+    race.members.map(() => null),
+  );
+  assert.equal(f.stats.authors, race.members.length * 2);
+  assert.equal(f.stats.reviews, race.members.length * 2);
+  assert.equal(live, true);
+  const current = f.rows.get(race.raceKey)!
+    .checkpoint as CaliforniaWorkCheckpoint;
+  assert.deepEqual(
+    Object.values(current.dossierReviewEpochs!),
+    race.members.map(() => 1),
+  );
+  for (const item of Object.values(current.candidateProvenance!)) {
+    assert.equal(originalRunIds.includes(item.reviewer!.runId), false);
+  }
+  clock = "2026-10-31T14:00:00.000Z";
+  f.deps.authorConfigurationKey = "provider-reconfiguration";
+  let uncertainCalls = 0;
+  f.deps.author = async () => {
+    uncertainCalls++;
+    throw Error("provider transport outcome unknown");
+  };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    sharedSources = new Map();
+    const pending = await reconcile(input, f.deps);
+    assert.equal(pending.blocked, 1);
+  }
+  assert.equal(uncertainCalls, 1);
+  assert.equal(epoch, 1);
+  assert.equal(f.stats.failures, 1);
+  assert.equal(live, true);
+});

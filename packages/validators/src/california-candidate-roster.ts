@@ -149,6 +149,45 @@ export type ClarityCandidateCrosswalk = z.infer<
   typeof clarityCandidateCrosswalkSchema
 >;
 
+export const authorityRenewalProjectionIdSchema = z.enum([
+  "cde-item-48870daecfe14c6ab376f6a673491914-telemetry-v1",
+  "mvla-trustee-authority-seven-asset-versions-v1",
+]);
+export const authorityRenewalProjectionSchema = z.object({
+  projectionId: authorityRenewalProjectionIdSchema,
+  url: z.url(),
+  publisher: text,
+  format: z.literal("text"),
+  reviewedContentHash: hash,
+  reviewedRawHash: hash,
+  canonicalDigest: hash,
+  reviewedSource: researchSourceSchema,
+  approval: z.object({
+    actorId: text,
+    reviewedAt: z.iso.datetime(),
+    receiptHash: hash,
+    scopeDigest: hash,
+    reviewedSourceBundleHash: hash,
+  }),
+});
+export const authorityRenewalProofSchema = z.object({
+  projectionId: authorityRenewalProjectionIdSchema,
+  url: z.url(),
+  publisher: text,
+  format: z.literal("text"),
+  reviewedContentHash: hash,
+  reviewedRawHash: hash,
+  observedContentHash: hash,
+  observedRawHash: hash,
+  canonicalDigest: hash,
+  approvalReceiptHash: hash,
+  checkedAt: z.iso.datetime(),
+});
+export type AuthorityRenewalProjection = z.infer<
+  typeof authorityRenewalProjectionSchema
+>;
+export type AuthorityRenewalProof = z.infer<typeof authorityRenewalProofSchema>;
+
 export const californiaRosterSnapshotSchema = z.object({
   schemaVersion: z.literal(1),
   id: hash,
@@ -175,6 +214,7 @@ export const californiaRosterSnapshotSchema = z.object({
     text,
   }),
   certification: z.object({
+    byteHash: hash.optional(),
     url: z.url(),
     textHash: hash,
     fetchedAt: z.iso.datetime(),
@@ -190,6 +230,14 @@ export const californiaRosterSnapshotSchema = z.object({
       settingsURL: z.url(),
       currentVersionURL: z.url(),
       identityCrosswalk: clarityCandidateCrosswalkSchema,
+      sourceRenewalProjections: z
+        .array(authorityRenewalProjectionSchema)
+        .max(2)
+        .optional(),
+      sourceProjectionProofs: z
+        .array(authorityRenewalProofSchema)
+        .max(2)
+        .optional(),
       reviewedSources: z.array(researchSourceSchema).max(200).optional(),
       derivation: clarityRosterDerivationSchema.optional(),
     })

@@ -122,3 +122,25 @@ revisions and fresh independent approvals; old approvals cannot carry over.
 
 [Evidence and run instructions](evidence/443-native/README.md) distinguish native
 and web captures from fixtures, integration checks, and remaining human gates.
+
+To verify final California state-certified and San José coverage, use an approved
+renewed snapshot and its independently fetched source audit and companion archive.
+This command reads the public API; it does not generate or publish research.
+
+```sh
+node scripts/verify-california-research.mjs \
+  --base-url https://www.billion-news.app \
+  --expected-roster /absolute/path/to/approved-renewed-487-snapshot.json \
+  --policy-version ca-california-candidate-research-2026-10-30-v2 \
+  --source-audit /tmp/california-final487-http-audit.json \
+  --fresh-source-archive /tmp/california-final487-http-fresh-sources.json \
+  --out /tmp/california-public-final487-verification.json
+```
+
+Final-scope verification requires both source files. The snapshot's observed
+source text, raw hashes and retrieval timestamps must match them. Only the two
+independently acknowledged source-specific authority projections can reconcile
+those exact audit differences. Other failures, missing sources, stale or future
+retrieval times, and substantive changes fail verification. Preserve the original
+audit, including its failures. Run a new independent audit and companion fetch
+when the evidence ages; an earlier pass does not renew source freshness.

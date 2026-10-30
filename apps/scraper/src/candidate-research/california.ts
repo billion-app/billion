@@ -12,6 +12,7 @@ import type {
 } from "@acme/validators";
 import { evidenceHashKey } from "@acme/api/lib/candidate-brief-publication";
 import {
+  authorityRenewalProjectionSchema,
   candidateModelAttestationSchema,
   candidateResearchCollectionSchema,
   researchSourceSchema,
@@ -58,6 +59,7 @@ export interface CaliforniaWorkCheckpoint {
   sourceCheckedAt?: string;
   classification?: Record<string, "supported" | "evidence_gap">;
   dossierDigests?: Record<string, string>;
+  dossierReviewEpochs?: Record<string, number>;
   candidateProvenance?: Record<
     string,
     {
@@ -159,6 +161,7 @@ export interface CaliforniaDependencies {
     value: CaliforniaWorkCheckpoint,
   ): Promise<boolean>;
   artifact(key: string): Promise<unknown | null>;
+  hasArtifact(key: string): Promise<boolean>;
   reserveDispatch(input: {
     key: string;
     raceKey: string;
@@ -257,7 +260,7 @@ export async function fetchCaliforniaPlan(
     electionDate,
   });
 }
-async function dependencies(
+export async function createCaliforniaDependencies(
   preparationPolicy?: CaliforniaPreparationPolicy,
 ): Promise<CaliforniaDependencies> {
   const [
@@ -456,6 +459,7 @@ async function dependencies(
         checkpoint: value,
       }),
     artifact: (key) => store.getCaliforniaResearchArtifact(db, key),
+    hasArtifact: (key) => store.hasCaliforniaResearchArtifact(db, key),
     reserveDispatch: (input) => store.claimCaliforniaModelDispatch(input, db),
     saveArtifact: (input) => store.saveCaliforniaResearchArtifact(db, input),
     investigate: async (input, budget) => {
@@ -576,6 +580,81 @@ async function dependencies(
       collection.failResearchRefresh(key, reason, db, { workLease: lease }),
   };
 }
+async function persistRosterObservation(
+  snapshot: CaliforniaRosterSnapshot,
+  deps: Pick<CaliforniaDependencies, "now" | "hasArtifact" | "saveArtifact">,
+  sourceEpoch: { key: string; generation: number } | null,
+) {
+  const sources: ResearchSource[] = [
+    {
+      id: "official-roster",
+      url: snapshot.source.url,
+      publisher: "California Secretary of State",
+      format: "text",
+      text: snapshot.source.text,
+      contentHash: snapshot.source.textHash,
+      byteHash: snapshot.source.byteHash,
+      fetchedAt: snapshot.source.fetchedAt,
+    },
+    {
+      id: "certified-roster",
+      url: snapshot.certification.url,
+      publisher: "California Secretary of State",
+      format: "pdf",
+      text: snapshot.certification.text,
+      contentHash: snapshot.certification.textHash,
+      byteHash: snapshot.certification.byteHash,
+      fetchedAt: snapshot.certification.fetchedAt,
+    },
+    ...(snapshot.additionalSources ?? []),
+  ];
+  const observations = [];
+  for (const source of sources) {
+    const archiveKey = `roster-source:${evidenceDigest([source.format, source.contentHash, source.byteHash ?? null])}`;
+    if (!(await deps.hasArtifact(archiveKey)))
+      await deps.saveArtifact({
+        key: archiveKey,
+        kind: "roster_source_archive",
+        raceKey: "__roster_source__",
+        document: {
+          schemaVersion: 1,
+          format: source.format,
+          text: source.text,
+          contentHash: source.contentHash,
+          ...(source.byteHash ? { byteHash: source.byteHash } : {}),
+          ...(source.binaryBase64 ? { binaryBase64: source.binaryBase64 } : {}),
+        },
+      });
+    observations.push({
+      archiveKey,
+      id: source.id,
+      url: source.url,
+      publisher: source.publisher,
+      format: source.format,
+      contentHash: source.contentHash,
+      byteHash: source.byteHash,
+      fetchedAt: source.fetchedAt,
+      retrievalUrls: source.retrievalUrls,
+    });
+  }
+  const key = `roster-check:${snapshot.id}:${sourceEpoch?.generation ?? "bootstrap"}:${randomUUID()}`;
+  await deps.saveArtifact({
+    key,
+    kind: "roster_check",
+    raceKey: "__roster_check__",
+    document: {
+      schemaVersion: 2,
+      snapshotId: snapshot.id,
+      checkedAt: deps.now(),
+      sourceEpoch,
+      sources: observations,
+      clarityDerivation: snapshot.localPrimary?.derivation,
+      sourceProjectionProofs:
+        snapshot.localPrimary?.sourceProjectionProofs ?? [],
+    },
+  });
+  return key;
+}
 function positiveBounds(bounds: CaliforniaBounds) {
   for (const [key, value] of Object.entries(bounds))
     if (
@@ -607,6 +686,10 @@ const clarityLocalPlanManifest = z.object({
   scopeCrosswalk: z.unknown(),
   identityCrosswalk: z.unknown(),
   historicalSources: z.array(researchSourceSchema).max(8).optional(),
+  sourceRenewalProjections: z
+    .array(authorityRenewalProjectionSchema)
+    .max(2)
+    .optional(),
 });
 const localPlanManifest = z.union([
   pdfLocalPlanManifest,
@@ -623,7 +706,7 @@ export async function plan(
   provided?: CaliforniaDependencies,
 ) {
   const applyDeps = input.apply
-    ? (provided ?? (await dependencies()))
+    ? (provided ?? (await createCaliforniaDependencies()))
     : undefined;
   const sourceEpoch = applyDeps
     ? await applyDeps.beginSourceCheck(input.electionDate)
@@ -673,6 +756,7 @@ export async function plan(
         scopeCrosswalk: manifest.scopeCrosswalk,
         identityCrosswalk: manifest.identityCrosswalk,
         historicalSources: manifest.historicalSources,
+        sourceRenewalProjections: manifest.sourceRenewalProjections,
       });
     } else {
       const source = await get("san-jose-qualified-roster", manifest.roster);
@@ -699,6 +783,7 @@ export async function plan(
         "A combined San José snapshot is active; provide its reviewed local manifest or explicitly select stateScopeOnly before replacing scope",
       );
     await deps.saveSnapshot(snapshot, sourceEpoch ?? undefined);
+    await persistRosterObservation(snapshot, deps, sourceEpoch);
   }
   return {
     snapshotId: snapshot.id,
@@ -779,7 +864,8 @@ export async function reconcile(
   provided?: CaliforniaDependencies,
 ) {
   positiveBounds(input.bounds);
-  const deps = provided ?? (await dependencies(input.preparationPolicy));
+  const deps =
+    provided ?? (await createCaliforniaDependencies(input.preparationPolicy));
   if (
     input.preparationPolicy &&
     (input.preparationPolicy.version !== input.policyVersion ||
@@ -886,35 +972,11 @@ export async function reconcile(
     throw new Error(`Official roster changed; reconcile snapshot ${fresh.id}`);
   }
   snapshot = fresh;
-  const rosterCheckArtifactKey = `roster-check:${snapshot.id}:${sourceEpoch?.generation ?? "bootstrap"}`;
-  await deps.saveArtifact({
-    key: rosterCheckArtifactKey,
-    kind: "roster_check",
-    raceKey: "__roster_check__",
-    document: {
-      snapshotId: snapshot.id,
-      checkedAt: deps.now(),
-      sourceEpoch,
-      sources: [
-        {
-          url: snapshot.source.url,
-          contentHash: snapshot.source.textHash,
-          fetchedAt: snapshot.source.fetchedAt,
-        },
-        {
-          url: snapshot.certification.url,
-          contentHash: snapshot.certification.textHash,
-          fetchedAt: snapshot.certification.fetchedAt,
-        },
-        ...(snapshot.additionalSources ?? []).map((source) => ({
-          url: source.url,
-          contentHash: source.contentHash,
-          byteHash: source.byteHash,
-          fetchedAt: source.fetchedAt,
-        })),
-      ],
-    },
-  });
+  const rosterCheckArtifactKey = await persistRosterObservation(
+    snapshot,
+    deps,
+    sourceEpoch,
+  );
 
   const [work, liveCoverage] = await Promise.all([
     deps.listWork(snapshot.id),
@@ -975,8 +1037,16 @@ export async function reconcile(
       continue;
     }
     const prior = checkpoints.get(race.raceKey);
+    const publicRace = liveCoverage.races.find(
+      (current) =>
+        current.contestId === race.contestId &&
+        current.jurisdiction === race.jurisdiction &&
+        current.electionDate === race.electionDate,
+    );
     if (
       prior?.releaseId &&
+      publicRace?.releaseId === prior.releaseId &&
+      publicRace.policyVersion === input.policyVersion &&
       Date.parse(deps.now()) - Date.parse(prior.sourceCheckedAt ?? "") <
         12 * 60 * 60 * 1000
     ) {
@@ -1012,6 +1082,9 @@ export async function reconcile(
       continue;
     }
     usage.races++;
+    const attemptPrior = (lease.checkpoint ?? prior) as
+      | CaliforniaWorkCheckpoint
+      | undefined;
     let savedCollectionId: string | undefined;
     let dispatchedModelKey: string | undefined;
     const candidateProvenance: NonNullable<
@@ -1025,17 +1098,15 @@ export async function reconcile(
       }[] = [];
       for (const member of race.members) {
         usage.candidates++;
-        const liveRace = liveCoverage.races.find(
-          (current) =>
-            current.contestId === race.contestId &&
-            current.jurisdiction === race.jurisdiction &&
-            current.electionDate === race.electionDate,
-        );
+        const previousDossierEpoch =
+          attemptPrior?.dossierReviewEpochs?.[member.candidateId] ?? 0;
         const previousDossierDigest =
-          liveRace?.members.find(
-            (current) => current.candidateId === member.candidateId,
-          )?.author?.dossierDigest ??
-          prior?.dossierDigests?.[member.candidateId];
+          previousDossierEpoch === lease.reviewEpoch
+            ? (publicRace?.members.find(
+                (current) => current.candidateId === member.candidateId,
+              )?.author?.dossierDigest ??
+              attemptPrior?.dossierDigests?.[member.candidateId])
+            : undefined;
         const previousDossier = previousDossierDigest
           ? ((await deps.artifact(
               `dossier:${previousDossierDigest}`,
@@ -1186,6 +1257,7 @@ export async function reconcile(
             format: "pdf",
             text: snapshot.certification.text,
             contentHash: snapshot.certification.textHash,
+            byteHash: snapshot.certification.byteHash,
             fetchedAt: snapshot.certification.fetchedAt,
           },
         ],
@@ -1243,6 +1315,12 @@ export async function reconcile(
           collectionId: saved.collectionId,
           rosterCheckArtifactKey,
           candidateProvenance,
+          dossierReviewEpochs: Object.fromEntries(
+            investigated.map((item) => [
+              item.dossier.identity.candidateId,
+              lease.reviewEpoch,
+            ]),
+          ),
           sourceCheckedAt: document.manifest.sourceCheckedAt,
           dossierDigests: Object.fromEntries(
             investigated.map((item) => [
@@ -1269,6 +1347,12 @@ export async function reconcile(
         collectionId: saved.collectionId,
         rosterCheckArtifactKey,
         candidateProvenance,
+        dossierReviewEpochs: Object.fromEntries(
+          investigated.map((item) => [
+            item.dossier.identity.candidateId,
+            lease.reviewEpoch,
+          ]),
+        ),
         releaseId: release.releaseId,
         sourceCheckedAt: document.manifest.sourceCheckedAt,
         dossierDigests: Object.fromEntries(
@@ -1323,15 +1407,24 @@ export async function reconcile(
       )
         await deps.fail(race.raceKey, reason, lease);
       await deps.checkpoint(lease, status, {
-        ...prior,
+        ...attemptPrior,
         rosterCheckArtifactKey,
-        collectionId: savedCollectionId ?? prior?.collectionId,
+        collectionId: savedCollectionId ?? attemptPrior?.collectionId,
         candidateProvenance: {
-          ...prior?.candidateProvenance,
+          ...attemptPrior?.candidateProvenance,
           ...candidateProvenance,
         },
+        dossierReviewEpochs: {
+          ...attemptPrior?.dossierReviewEpochs,
+          ...Object.fromEntries(
+            Object.keys(candidateProvenance).map((id) => [
+              id,
+              lease.reviewEpoch,
+            ]),
+          ),
+        },
         dossierDigests: {
-          ...prior?.dossierDigests,
+          ...attemptPrior?.dossierDigests,
           ...Object.fromEntries(
             Object.entries(candidateProvenance).map(([id, item]) => [
               id,
@@ -1340,7 +1433,7 @@ export async function reconcile(
           ),
         },
         classification: {
-          ...prior?.classification,
+          ...attemptPrior?.classification,
           ...Object.fromEntries(
             Object.entries(candidateProvenance).map(([id, item]) => [
               id,
@@ -1357,6 +1450,7 @@ export async function reconcile(
   return {
     snapshotId: snapshot.id,
     scopeLabel: snapshot.scopeLabel,
+    rosterCheckArtifactKey,
     usage,
     outcomes,
     prepared: outcomes.filter((item) => item.status === "prepared").length,
@@ -1371,7 +1465,7 @@ export async function coverage(
   input: { snapshotId: string },
   provided?: CaliforniaDependencies,
 ) {
-  const deps = provided ?? (await dependencies());
+  const deps = provided ?? (await createCaliforniaDependencies());
   const snapshot = await deps.loadSnapshot(input.snapshotId);
   if (!snapshot) throw new Error("Unknown California roster snapshot");
   const [work, published] = await Promise.all([

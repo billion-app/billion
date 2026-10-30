@@ -64,7 +64,7 @@ void test(
         candidateId: pilotKey,
         contestId: pilotKey,
         jurisdiction: `fixture:${pilotKey}`,
-        electionDate: "2026-11-03",
+        electionDate: "2090-11-03",
       };
       const revisionId = randomUUID();
       return candidateResearchCollectionSchema.parse({

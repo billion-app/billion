@@ -392,7 +392,11 @@ test("report version and tally changes derive a fresh binding without rewriting 
     refreshed.races.map((r) => r.members.map((m) => m.candidateId)),
     original.races.map((r) => r.members.map((m) => m.candidateId)),
   );
-  assert.notEqual(refreshed.id, original.id);
+  assert.equal(refreshed.id, original.id);
+  assert.deepEqual(
+    refreshed.races.map((race) => race.rosterDigest),
+    original.races.map((race) => race.rosterDigest),
+  );
   const renewed = await refreshReviewedSanJoseRoster(
     refreshed,
     state,
@@ -509,7 +513,7 @@ test("a version-only report advance records derivation even when definition byte
     refreshed.localPrimary?.derivation?.observedDefinitionHash,
     definition.contentHash,
   );
-  assert.notEqual(refreshed.id, original.id);
+  assert.equal(refreshed.id, original.id);
   assert(refreshed.localPrimary?.definitionURL.includes("/382436/"));
   assert.deepEqual(refreshed.localCrosswalk, original.localCrosswalk);
 });
@@ -834,5 +838,143 @@ test("historical county row aliases bind exact IDs while preserving reviewed cro
         historicalSources: [],
       }),
     /crosswalk is unreviewed or stale/,
+  );
+});
+
+test("two successive real-shaped authority refreshes preserve semantic ID and immutable review basis", async () => {
+  const { state, input } = fixture();
+  const metadata = JSON.parse(read("authority-projection-sources.json")) as {
+    id: string;
+    url: string;
+    publisher: string;
+  }[];
+  const pairs = metadata.map((meta) => {
+    const prefix = meta.id === "mvla-authority" ? "mvla-authority" : "cde-item";
+    const original = {
+      ...source(meta.id, meta.url, read(`${prefix}-reviewed.txt`), "text"),
+      publisher: meta.publisher,
+    };
+    const observedText = read(`${prefix}-observed.txt`);
+    return {
+      original,
+      observed: {
+        ...original,
+        text: observedText,
+        contentHash: hash(observedText),
+        byteHash: hash(observedText),
+      },
+    };
+  });
+  const { review, ...scopeDoc } = input.scopeCrosswalk;
+  const document = {
+    ...scopeDoc,
+    entries: scopeDoc.entries.map((entry) =>
+      entry.status === "include"
+        ? {
+            ...entry,
+            proofs: [
+              ...entry.proofs,
+              ...pairs.map((pair) => ({
+                url: pair.original.url,
+                contentHash: pair.original.contentHash,
+              })),
+            ],
+          }
+        : entry,
+    ),
+  };
+  const scopeCrosswalk = {
+    ...document,
+    review: { ...review, digest: sanJoseScopeCrosswalkDigest(document) },
+  };
+  const { authorityProjectionDigest } =
+    await import("./california-source-projections.js");
+  const sourceRenewalProjections = pairs.map(({ original }) => {
+    const projectionId =
+      original.id === "mvla-authority"
+        ? ("mvla-trustee-authority-seven-asset-versions-v1" as const)
+        : ("cde-item-48870daecfe14c6ab376f6a673491914-telemetry-v1" as const);
+    return {
+      projectionId,
+      url: original.url,
+      publisher: original.publisher,
+      format: "text" as const,
+      reviewedContentHash: original.contentHash,
+      reviewedRawHash: original.contentHash,
+      canonicalDigest: authorityProjectionDigest(projectionId, original.text),
+      reviewedSource: original,
+      approval: {
+        actorId: "test-specific-projection-reviewer",
+        reviewedAt: definition.fetchedAt,
+        receiptHash: "b".repeat(64),
+        scopeDigest: scopeCrosswalk.review.digest,
+        reviewedSourceBundleHash: "c".repeat(64),
+      },
+    };
+  });
+  const first = appendReviewedClaritySanJoseRoster(state, {
+    ...input,
+    scopeCrosswalk,
+    sourceRenewalProjections,
+    proofSources: [
+      ...input.proofSources,
+      ...pairs.map((pair) => pair.observed),
+    ],
+  });
+  const originalReview = hash(
+    JSON.stringify({
+      scope: first.localCrosswalk,
+      identity: first.localPrimary?.identityCrosswalk,
+      archives: first.localPrimary?.reviewedSources,
+    }),
+  );
+  const second = await refreshReviewedSanJoseRoster(
+    first,
+    state,
+    async (_id, url) => {
+      const prior = first.additionalSources!.find(
+        (source) => source.url === url,
+      )!;
+      let text = prior.text;
+      if (url === pairs[0]!.original.url) {
+        const json = JSON.parse(text);
+        json.numViews++;
+        json.lastViewed++;
+        text = JSON.stringify(json);
+      } else if (url === pairs[1]!.original.url)
+        text = text.replaceAll("20261030194310", "20261030200000");
+      return {
+        ...prior,
+        text,
+        contentHash: hash(text),
+        byteHash: hash(text),
+        fetchedAt: "2026-10-30T21:00:00.000Z",
+      };
+    },
+  );
+  assert.equal(first.id, second.id);
+  assert.deepEqual(
+    first.races.map((race) => race.rosterDigest),
+    second.races.map((race) => race.rosterDigest),
+  );
+  assert.notDeepEqual(
+    first.localPrimary?.sourceProjectionProofs,
+    second.localPrimary?.sourceProjectionProofs,
+  );
+  assert.equal(
+    hash(
+      JSON.stringify({
+        scope: second.localCrosswalk,
+        identity: second.localPrimary?.identityCrosswalk,
+        archives: second.localPrimary?.reviewedSources,
+      }),
+    ),
+    originalReview,
+  );
+  assert.deepEqual(
+    second.localPrimary?.sourceProjectionProofs?.map(
+      (proof) => proof.checkedAt,
+    ),
+    ["2026-10-30T21:00:00.000Z", "2026-10-30T21:00:00.000Z"],
   );
 });

@@ -366,6 +366,7 @@ export function decodeCaliforniaRoster(input: {
       text,
     },
     certification: {
+      byteHash: input.certification.byteHash,
       url: input.certification.url,
       textHash: certificationHash,
       fetchedAt: input.certification.fetchedAt,

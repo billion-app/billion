@@ -171,9 +171,7 @@ export function validateCampaignContactDestination(
     (source) => source.id === proof.destinationSourceId,
   );
   if (
-    !destination ||
-    !destination.retrievalUrls ||
-    destination.retrievalUrls.length !== proof.retrievalUrls.length ||
+    destination?.retrievalUrls?.length !== proof.retrievalUrls.length ||
     proof.retrievalUrls.some(
       (url, index) =>
         canonicalCampaignContactUrl(url) !==

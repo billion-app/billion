@@ -542,6 +542,7 @@ void test(
         policyVersion: collection.manifest.policyVersion,
         researchVersion: collection.researchVersion,
         owner: lease.owner,
+        status: "running",
         generation: 1,
         leaseUntil: new Date(Date.now() + 60_000),
       });

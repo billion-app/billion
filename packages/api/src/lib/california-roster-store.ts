@@ -363,6 +363,17 @@ export async function claimCaliforniaModelDispatch(
     return inserted.length === 1;
   });
 }
+export async function hasCaliforniaResearchArtifact(
+  database: Reader,
+  key: string,
+): Promise<boolean> {
+  const [row] = await database
+    .select({ key: CaliforniaResearchArtifact.key })
+    .from(CaliforniaResearchArtifact)
+    .where(eq(CaliforniaResearchArtifact.key, key))
+    .limit(1);
+  return row !== undefined;
+}
 export async function getCaliforniaResearchArtifact(
   database: Reader,
   key: string,

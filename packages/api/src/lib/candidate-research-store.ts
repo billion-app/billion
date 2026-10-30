@@ -5,6 +5,7 @@ import { and, desc, eq, inArray, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   CaliforniaRaceWork,
+  CaliforniaRoster,
   CandidateBriefReviewEvent,
   CandidateBriefRevision,
   CandidateRaceRelease,
@@ -18,7 +19,10 @@ import {
 } from "@acme/validators";
 
 import { getLatestPublicCaliforniaRoster } from "./california-public-roster";
-import { invalidateCaliforniaResearchState } from "./california-roster-store";
+import {
+  getCurrentCaliforniaRosterId,
+  invalidateCaliforniaResearchState,
+} from "./california-roster-store";
 import { briefDigest, briefIdentityKey } from "./candidate-brief-publication";
 import {
   candidatePublicationPolicy,
@@ -39,7 +43,10 @@ export const lockResearchElection = (
 ) => lockPilot(tx, `election:${electionDate}`);
 export async function lockResearchRace(
   tx: ResearchTransaction,
-  manifest: CandidateResearchCollectionDocument["manifest"],
+  manifest: Pick<
+    CandidateResearchCollectionDocument["manifest"],
+    "jurisdiction" | "electionDate" | "contestId"
+  >,
 ) {
   await lockPilot(
     tx,
@@ -52,6 +59,28 @@ export interface ResearchWorkLease {
   generation: number;
   reviewEpoch: number;
 }
+async function activeResearchWorkLease(
+  tx: ResearchTransaction,
+  lease: ResearchWorkLease,
+  pilotKey: string,
+) {
+  const [work] = await tx
+    .select()
+    .from(CaliforniaRaceWork)
+    .where(eq(CaliforniaRaceWork.key, lease.key))
+    .for("update");
+  if (
+    work?.owner !== lease.owner ||
+    work.generation !== lease.generation ||
+    work.reviewEpoch !== lease.reviewEpoch ||
+    work.status !== "running" ||
+    !work.leaseUntil ||
+    work.leaseUntil.getTime() <= Date.now() ||
+    work.raceKey !== pilotKey
+  )
+    throw new Error("Research work lease expired or was superseded");
+  return work;
+}
 export async function assertResearchWorkLease(
   tx: ResearchTransaction,
   lease: ResearchWorkLease | undefined,
@@ -63,23 +92,13 @@ export async function assertResearchWorkLease(
       throw new Error("Automated research requires a current work lease");
     return;
   }
-  const [work] = await tx
-    .select()
-    .from(CaliforniaRaceWork)
-    .where(eq(CaliforniaRaceWork.key, lease.key))
-    .for("update");
+  const work = await activeResearchWorkLease(tx, lease, document.pilotKey);
   if (
-    work?.owner !== lease.owner ||
-    work.generation !== lease.generation ||
-    work.reviewEpoch !== lease.reviewEpoch ||
-    !work.leaseUntil ||
-    work.leaseUntil.getTime() <= Date.now() ||
-    work.raceKey !== document.pilotKey ||
-    (!sourceFailure &&
-      (work.policyVersion !== document.manifest.policyVersion ||
-        work.snapshotId !== document.rosterSnapshotId ||
-        work.rosterDigest !== document.rosterDigest ||
-        work.researchVersion !== document.researchVersion))
+    !sourceFailure &&
+    (work.policyVersion !== document.manifest.policyVersion ||
+      work.snapshotId !== document.rosterSnapshotId ||
+      work.rosterDigest !== document.rosterDigest ||
+      work.researchVersion !== document.researchVersion)
   )
     throw new Error("Research work lease expired or was superseded");
 }
@@ -110,11 +129,17 @@ export async function resolveCurrentResearchRoster(
 export async function requireFreshResearchReview(
   tx: ResearchTransaction,
   pilotKey: string,
+  reason = "Independent review is required",
 ) {
   await tx
     .update(CaliforniaRaceWork)
     .set({
+      generation: sql`${CaliforniaRaceWork.generation}+1`,
       reviewEpoch: sql`${CaliforniaRaceWork.reviewEpoch}+1`,
+      owner: null,
+      leaseUntil: null,
+      status: "pending",
+      checkpoint: sql`coalesce(${CaliforniaRaceWork.checkpoint}, '{}'::jsonb) || ${JSON.stringify({ reason, kind: "required_independent_review" })}::jsonb`,
       updatedAt: new Date(),
     })
     .where(eq(CaliforniaRaceWork.raceKey, pilotKey));
@@ -413,6 +438,7 @@ export async function failResearchRefresh(
   database: ResearchDatabase = db,
   options?: { workLease?: ResearchWorkLease; stagedPolicyVersion?: string },
 ) {
+  if (!reason.trim()) throw new Error("Required source failure needs a reason");
   await database.transaction(async (tx) => {
     const [selected] = await tx
       .select()
@@ -423,8 +449,23 @@ export async function failResearchRefresh(
         desc(CandidateResearchCollection.id),
       )
       .limit(1);
-    if (!selected) return;
-    await lockResearchElection(tx, selected.document.manifest.electionDate);
+    const lease = options?.workLease;
+    let electionDate = selected?.document.manifest.electionDate;
+    if (!electionDate && lease) {
+      const [scope] = await tx
+        .select({ electionDate: CaliforniaRoster.electionDate })
+        .from(CaliforniaRaceWork)
+        .innerJoin(
+          CaliforniaRoster,
+          eq(CaliforniaRoster.id, CaliforniaRaceWork.snapshotId),
+        )
+        .where(eq(CaliforniaRaceWork.key, lease.key));
+      if (!scope)
+        throw new Error("Research work lease expired or was superseded");
+      electionDate = scope.electionDate;
+    }
+    if (!electionDate) return;
+    await lockResearchElection(tx, electionDate);
     await lockPilot(tx, pilotKey);
     const [prior] = await tx
       .select()
@@ -435,15 +476,54 @@ export async function failResearchRefresh(
         desc(CandidateResearchCollection.id),
       )
       .limit(1);
-    if (!prior) return;
-    await lockResearchRace(tx, prior.document.manifest);
-    await assertResearchWorkLease(tx, options?.workLease, prior.document, true);
-    await invalidateRace(tx, prior.document.manifest, reason);
-    await requireFreshResearchReview(tx, prior.pilotKey);
-    await tx
-      .update(CandidateResearchCollection)
-      .set({ failure: reason })
-      .where(eq(CandidateResearchCollection.id, prior.id));
+    if (prior) {
+      if (prior.document.manifest.electionDate !== electionDate)
+        throw new Error("Research collection election changed");
+      await lockResearchRace(tx, prior.document.manifest);
+      await assertResearchWorkLease(tx, lease, prior.document, true);
+      await invalidateRace(tx, prior.document.manifest, reason);
+      await requireFreshResearchReview(tx, prior.pilotKey, reason);
+      await tx
+        .update(CandidateResearchCollection)
+        .set({ failure: reason })
+        .where(eq(CandidateResearchCollection.id, prior.id));
+      return;
+    }
+    if (!lease) return;
+    const [candidateWork] = await tx
+      .select()
+      .from(CaliforniaRaceWork)
+      .where(eq(CaliforniaRaceWork.key, lease.key));
+    if (!candidateWork)
+      throw new Error("Research work lease expired or was superseded");
+    const [scope] = await tx
+      .select({
+        electionDate: CaliforniaRoster.electionDate,
+        races: sql<
+          {
+            raceKey: string;
+            contestId: string;
+            jurisdiction: string;
+            electionDate: string;
+          }[]
+        >`(select coalesce(jsonb_agg(jsonb_build_object('raceKey',r->>'raceKey','contestId',r->>'contestId','jurisdiction',r->>'jurisdiction','electionDate',r->>'electionDate')),'[]'::jsonb) from jsonb_array_elements(${CaliforniaRoster.document}->'races') r where r->>'raceKey'=${pilotKey})`,
+      })
+      .from(CaliforniaRoster)
+      .where(eq(CaliforniaRoster.id, candidateWork.snapshotId));
+    const race = scope?.races[0];
+    if (
+      scope?.electionDate !== electionDate ||
+      scope.races.length !== 1 ||
+      race?.electionDate !== electionDate ||
+      (await getCurrentCaliforniaRosterId(tx, electionDate)) !==
+        candidateWork.snapshotId
+    )
+      throw new Error(
+        "Required source failure does not belong to the current authoritative race",
+      );
+    await lockResearchRace(tx, race);
+    await activeResearchWorkLease(tx, lease, pilotKey);
+    await requireFreshResearchReview(tx, pilotKey, reason);
   });
 }
 
