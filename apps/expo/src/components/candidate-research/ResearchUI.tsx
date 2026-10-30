@@ -73,7 +73,6 @@ export function Action({
     </Pressable>
   );
 }
-/** A whole-card button for choosing a race or a candidate. */
 export function ChoiceCard({
   leading,
   eyebrow,

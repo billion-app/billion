@@ -97,7 +97,6 @@ function SourceRow({
   );
 }
 
-/** Offices in guide order, so each race reads as one group. */
 function officeGroups(candidates: readonly Candidate[]) {
   const groups = new Map<
     string,
@@ -830,7 +829,6 @@ const s = StyleSheet.create({
     lineHeight: 26,
     color: P.inkOnNight,
   },
-  /** Bleeds to the screen edge so the last chip can peek while scrolling. */
   officeChips: {
     flexGrow: 0,
     marginHorizontal: -(DigestSpace.screenPadX + 4),

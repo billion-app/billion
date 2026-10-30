@@ -5,7 +5,6 @@ import { webUrl } from "~/components/ballot-evidence/model";
 import { Text } from "~/components/Themed";
 import { fontEditorial, hair, DigestPalette as P, planes } from "~/styles";
 
-/** First and last initials; a single word gives one letter. */
 export function candidateInitials(name: string) {
   const words = name
     .replace(/\(.*?\)/g, "")
@@ -17,10 +16,6 @@ export function candidateInitials(name: string) {
   return `${first}${last}`.toLocaleUpperCase();
 }
 
-/**
- * Official portrait when the source supplies one; otherwise initials on a
- * neutral tile. The fallback carries no party or ranking color.
- */
 export function CandidatePortrait({
   name,
   photoUrl,
