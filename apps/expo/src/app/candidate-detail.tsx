@@ -1,7 +1,5 @@
-import { useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -20,7 +18,7 @@ import {
   candidateDetailText,
   CandidateDisclosure,
 } from "~/components/ballot-evidence/CandidateDisclosure";
-import { webUrl } from "~/components/ballot-evidence/model";
+import { CandidatePortrait } from "~/components/ballot/CandidatePortrait";
 import { GuideVoteDetails } from "~/components/ballot/GuideVoteResult";
 import {
   CandidateMoneyChapter,
@@ -96,7 +94,6 @@ export default function CandidateDetailScreen() {
     candidate?: string;
     briefPreview?: string;
   }>();
-  const [photoFailed, setPhotoFailed] = useState(false);
   const fromBallot = parseBallotCandidate(params.candidate, params.name);
   const office = params.office ? statewideOfficeSlug(params.office) : undefined;
   const lookupGuide =
@@ -156,12 +153,10 @@ export default function CandidateDetailScreen() {
     ? "https://www.sos.ca.gov/elections/voting-resources/county-elections-offices"
     : "https://www.usa.gov/state-election-office";
 
-  const identityMeta = [
+  const identityTags = [
     fromBallot ? params.district?.trim() : tx("Statewide"),
-    candidate?.party,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+    candidate?.party ? translateAppLabel(uiLanguage, candidate.party) : "",
+  ].filter((tag): tag is string => !!tag);
 
   const statementSourceLabel = sourceUrl
     ? usingGuideStatement
@@ -234,6 +229,19 @@ export default function CandidateDetailScreen() {
         ? publicBiography.sourceUrl
         : undefined;
 
+  const officeGuideAvailable =
+    !!guide?.officeDuties?.length ||
+    !!resolveOfficeRole(
+      {
+        office: guide?.officeName ?? params.office,
+        state: guide ? "CA" : params.state,
+        districtId: guide
+          ? "ocd-division/country:us/state:ca"
+          : params.districtId,
+      },
+      uiLanguage,
+    );
+
   return (
     <View style={s.screen}>
       <NavHeader
@@ -297,20 +305,12 @@ export default function CandidateDetailScreen() {
                   : tx("CANDIDATE RESEARCH")}
               </Text>
               <View style={s.identity}>
-                {webUrl(portraitUrl) && !photoFailed ? (
-                  <Image
-                    source={{ uri: portraitUrl }}
-                    style={s.portrait}
-                    onError={() => setPhotoFailed(true)}
-                    accessibilityLabel={tx("Portrait of {value1}", {
-                      value1: candidate.name,
-                    })}
-                  />
-                ) : (
-                  <View style={s.portraitFallback}>
-                    <Icon name="user" size={24} color={P.quiet} />
-                  </View>
-                )}
+                <CandidatePortrait
+                  name={candidate.name}
+                  photoUrl={portraitUrl}
+                  size={76}
+                  label={tx("Portrait of {value1}", { value1: candidate.name })}
+                />
                 <View style={s.identityText}>
                   <Text accessibilityRole="header" style={s.name}>
                     {candidate.name}
@@ -323,19 +323,29 @@ export default function CandidateDetailScreen() {
                         tx("Office unavailable"),
                     )}
                   </Text>
+                  {identityTags.length ? (
+                    <View style={s.tags}>
+                      {identityTags.map((tag) => (
+                        <View key={tag} style={s.tag}>
+                          <Text style={s.tagText} numberOfLines={1}>
+                            {tag}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
                 </View>
               </View>
-              {identityMeta ? (
-                <Text style={s.heroMeta}>{identityMeta}</Text>
-              ) : null}
-              {guide && office && (
-                <GuideVoteDetails
-                  electionDate={ELECTION_DATE}
-                  candidateKey={`${office}:${guide.name}`}
-                />
-              )}
               <View style={s.statusRow}>
-                <Icon name="info" size={14} color={P.quiet} />
+                <Icon
+                  name={
+                    fromBallot?.ballotStatus === "withdrewStillOnBallot"
+                      ? "alert"
+                      : "info"
+                  }
+                  size={14}
+                  color={P.quiet}
+                />
                 <Text style={[s.muted, s.rowText]}>
                   {fromBallot?.ballotStatus === "withdrewStillOnBallot"
                     ? tx("Withdrawn; name remains on the ballot")
@@ -346,11 +356,19 @@ export default function CandidateDetailScreen() {
                         : tx("Ballot status unavailable")}
                 </Text>
               </View>
+              {guide && office && (
+                <GuideVoteDetails
+                  electionDate={ELECTION_DATE}
+                  candidateKey={`${office}:${guide.name}`}
+                />
+              )}
             </View>
 
-            <View style={{ gap: 8 }}>
-              <Text style={s.eyebrow}>{tx("START YOUR RESEARCH")}</Text>
-              <Text style={s.body}>
+            <View style={s.researchIntro}>
+              <Text accessibilityRole="header" style={s.sectionTitle}>
+                {tx("Research this candidate")}
+              </Text>
+              <Text style={s.lede}>
                 {tx(
                   "Follow the sources, compare records, and look for what’s missing. These are starting points for exploring this candidate.",
                 )}
@@ -368,6 +386,7 @@ export default function CandidateDetailScreen() {
               title={tx("Promises & priorities")}
               question={tx("What do they want to change?")}
               icon="quote"
+              available={!!candidate.statement}
               availability={
                 candidate.statement
                   ? tx("Candidate statement available")
@@ -436,6 +455,7 @@ export default function CandidateDetailScreen() {
               title={tx("Background & record")}
               question={tx("What have they done before?")}
               icon="doc"
+              available={!!publicBiography || !!previewBrief}
               availability={
                 publicBiography
                   ? tx("Source-provided biography available")
@@ -514,6 +534,7 @@ export default function CandidateDetailScreen() {
                 "Who contributes, and who spends outside the campaign?",
               )}
               icon="book"
+              available={false}
               availability={tx("Donor records not connected")}
             >
               <CandidateMoneyChapter
@@ -526,18 +547,9 @@ export default function CandidateDetailScreen() {
               title={tx("Office powers & limits")}
               question={tx("Can this job deliver the promise?")}
               icon="info"
+              available={officeGuideAvailable}
               availability={
-                guide?.officeDuties?.length ||
-                resolveOfficeRole(
-                  {
-                    office: guide?.officeName ?? params.office,
-                    state: guide ? "CA" : params.state,
-                    districtId: guide
-                      ? "ocd-division/country:us/state:ca"
-                      : params.districtId,
-                  },
-                  uiLanguage,
-                )
+                officeGuideAvailable
                   ? tx("Office guide available")
                   : tx("Office guide not supplied")
               }
@@ -703,30 +715,47 @@ const s = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1,
   },
-  identity: { flexDirection: "row", alignItems: "center", gap: 12 },
-  portrait: { width: 64, height: 70, borderRadius: 10 },
-  portraitFallback: {
-    width: 64,
-    height: 70,
-    borderRadius: 10,
-    backgroundColor: planes.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  identityText: { flex: 1, gap: 3 },
+  identity: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
+  identityText: { flex: 1, minWidth: 0, gap: 4 },
   name: {
     color: P.inkOnNight,
     fontFamily: fontDisplay.bold,
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 27,
+    lineHeight: 31,
   },
   office: { color: P.inkOnNight, fontFamily: fontBody.semibold, fontSize: 15 },
-  heroMeta: {
-    color: "rgba(255,255,255,0.70)",
+  tags: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
+  tag: {
+    maxWidth: "100%",
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: hair[3],
+    backgroundColor: planes.surface,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  tagText: {
+    color: P.inkOnNight,
     fontFamily: fontBody.medium,
     fontSize: 12,
+    lineHeight: 16,
   },
-  statusRow: { flexDirection: "row", alignItems: "flex-start", gap: 7 },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: planes.slate,
+  },
+  researchIntro: { gap: 6, paddingTop: 4 },
+  lede: {
+    color: P.inkOnNight,
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    lineHeight: 21,
+    opacity: 0.85,
+  },
   muted: {
     color: "rgba(255,255,255,0.70)",
     fontFamily: fontBody.regular,
@@ -737,7 +766,8 @@ const s = StyleSheet.create({
   sectionTitle: {
     color: P.inkOnNight,
     fontFamily: fontEditorial.bold,
-    fontSize: 18,
+    fontSize: 20,
+    lineHeight: 26,
   },
 
   panel: {

@@ -22,12 +22,15 @@ export function CandidateResearchCard({
   title,
   question,
   availability,
+  available,
   icon,
   children,
 }: {
   title: string;
   question: string;
   availability: string;
+  /** Whether sourced material exists here; omitted keeps a neutral label. */
+  available?: boolean;
   icon: IconName;
   children: ReactNode;
 }) {
@@ -51,8 +54,19 @@ export function CandidateResearchCard({
         <View style={s.headerText}>
           <Text style={s.title}>{title}</Text>
           <Text style={s.question}>{question}</Text>
-          <View style={s.status}>
-            <Text style={s.statusText}>{availability}</Text>
+          <View style={[s.status, available && s.statusAvailable]}>
+            {available !== undefined && (
+              <View aria-hidden>
+                <Icon
+                  name={available ? "check" : "minus"}
+                  size={11}
+                  color={available ? colors.bill : P.quiet}
+                />
+              </View>
+            )}
+            <Text style={[s.statusText, available && s.statusTextAvailable]}>
+              {availability}
+            </Text>
           </View>
         </View>
         <View
@@ -193,6 +207,7 @@ const s = StyleSheet.create({
     borderColor: hair[2],
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 14,
+    overflow: "hidden",
   },
   header: {
     minHeight: 76,
@@ -225,20 +240,30 @@ const s = StyleSheet.create({
   },
   status: {
     alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 2,
     backgroundColor: planes.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: hair[2],
-    borderRadius: 5,
-    paddingHorizontal: 6,
+    borderRadius: 6,
+    paddingHorizontal: 7,
     paddingVertical: 3,
   },
+  statusAvailable: {
+    backgroundColor: `${colors.bill}1F`,
+    borderColor: `${colors.bill}55`,
+  },
   statusText: {
+    flexShrink: 1,
     fontFamily: fontBody.medium,
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 11,
+    lineHeight: 15,
     color: P.inkOnNight,
     opacity: 0.75,
   },
+  statusTextAvailable: { opacity: 1 },
   details: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: hair[2],
