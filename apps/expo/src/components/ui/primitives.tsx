@@ -196,6 +196,10 @@ export function Pill({
 }) {
   return (
     <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityState={
+        active === undefined ? undefined : { selected: active }
+      }
       style={[
         s.pill,
         active

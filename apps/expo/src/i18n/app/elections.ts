@@ -675,4 +675,20 @@ export const electionStrings = {
     es: "Abrir el sitio web de {name}",
     zh: "打开 {name} 的网站",
   },
+  "All offices": {
+    en: "All offices",
+    es: "Todos los cargos",
+    zh: "全部职位",
+  },
+  "Filter by office": {
+    en: "Filter by office",
+    es: "Filtrar por cargo",
+    zh: "按职位筛选",
+  },
+  "Opens the candidate's research page": {
+    en: "Opens the candidate's research page",
+    es: "Abre la página de investigación de la candidatura",
+    zh: "打开该候选人的研究页面",
+  },
+  Compare: { en: "Compare", es: "Comparar", zh: "比较" },
 } satisfies Catalog;
