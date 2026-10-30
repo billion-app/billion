@@ -28,6 +28,7 @@
     },
     "test": {
       "dependsOn": ["^topo", "^build"],
+      "passThroughEnv": ["CALIFORNIA_STORAGE_FIXTURE_PATH"],
       "env": [
         "NOTIFICATIONS_TEST_DATABASE_URL",
         "CANDIDATE_RESEARCH_TEST_DATABASE_URL",

@@ -15,6 +15,12 @@ import {
 } from "@acme/db/schema";
 import { californiaRosterSnapshotSchema } from "@acme/validators";
 
+import {
+  encodeCaliforniaRosterStorage,
+  hydrateCaliforniaRosterStorage,
+  verifyCaliforniaRosterArchive,
+} from "./california-roster-storage";
+
 type Reader = Pick<typeof db, "select">;
 type Writer = Pick<typeof db, "select" | "insert" | "update">;
 export async function getCurrentCaliforniaRosterId(
@@ -47,7 +53,19 @@ export async function getCaliforniaRoster(database: Reader, id: string) {
     .from(CaliforniaRoster)
     .where(eq(CaliforniaRoster.id, id))
     .limit(1);
-  return row ? californiaRosterSnapshotSchema.parse(row.document) : null;
+  return row
+    ? hydrateCaliforniaRosterStorage(row.document, async (key) => {
+        const [archive] = await database
+          .select({
+            kind: CaliforniaResearchArtifact.kind,
+            document: CaliforniaResearchArtifact.document,
+          })
+          .from(CaliforniaResearchArtifact)
+          .where(eq(CaliforniaResearchArtifact.key, key))
+          .limit(1);
+        return archive;
+      })
+    : null;
 }
 export async function saveCaliforniaRoster(
   database: Pick<typeof db, "transaction">,
@@ -81,15 +99,41 @@ export async function saveCaliforniaRoster(
       tx,
       snapshot.electionDate,
     );
-    await tx
-      .insert(CaliforniaRoster)
-      .values({
-        id: snapshot.id,
-        electionDate: snapshot.electionDate,
-        document: snapshot,
-        createdAt: new Date(),
-      })
-      .onConflictDoNothing();
+    const existing = await getCaliforniaRoster(tx, snapshot.id);
+    if (!existing) {
+      const encoded = encodeCaliforniaRosterStorage(snapshot);
+      for (const [key, document] of encoded.archives) {
+        await tx
+          .insert(CaliforniaResearchArtifact)
+          .values({
+            key,
+            kind: "roster_source_archive",
+            raceKey: "__roster_source__",
+            document,
+          })
+          .onConflictDoNothing();
+        const [archive] = await tx
+          .select({
+            kind: CaliforniaResearchArtifact.kind,
+            document: CaliforniaResearchArtifact.document,
+          })
+          .from(CaliforniaResearchArtifact)
+          .where(eq(CaliforniaResearchArtifact.key, key))
+          .limit(1);
+        if (archive?.kind !== "roster_source_archive")
+          throw new Error(`Invalid roster source archive kind: ${key}`);
+        verifyCaliforniaRosterArchive(key, archive.document, document);
+      }
+      await tx
+        .insert(CaliforniaRoster)
+        .values({
+          id: snapshot.id,
+          electionDate: snapshot.electionDate,
+          document: encoded.document,
+          createdAt: new Date(),
+        })
+        .onConflictDoNothing();
+    }
     await tx
       .insert(CaliforniaRaceWork)
       .values({
