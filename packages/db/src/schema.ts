@@ -14,7 +14,6 @@ import { z } from "zod/v4";
 
 import type {
   BillBriefRecord,
-  CaliforniaRosterSnapshot,
   CandidateBrief,
   CandidateRaceManifest,
   CandidateResearchCollectionDocument,
@@ -1530,7 +1529,7 @@ export const CaliforniaRoster = pgTable(
   (t) => ({
     id: t.text().primaryKey(),
     electionDate: t.text().notNull(),
-    document: t.jsonb().$type<CaliforniaRosterSnapshot>().notNull(),
+    document: t.jsonb().$type<unknown>().notNull(),
     createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
   }),
   (table) => [
