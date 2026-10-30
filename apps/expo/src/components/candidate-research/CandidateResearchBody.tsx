@@ -81,7 +81,7 @@ export function CandidateResearchBody({
             <CandidateDisclosure title={tx("About this research")}>
               <Text style={s.body}>
                 {tx(
-                  "Billion’s AI-assisted explanation is separate from the official record below.",
+                  "Billion’s AI-assisted explanation is separate from the source material below.",
                 )}
               </Text>
               <Text selectable style={s.muted}>
