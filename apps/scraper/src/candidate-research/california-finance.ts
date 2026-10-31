@@ -256,7 +256,6 @@ export async function collectCaliforniaFederalFinance(
     }
     const committeeIds = [...new Set([...authorized.values()].flat())].sort();
     const ownCommitteeIds = authorized.get(identity.candidateId)!;
-    // Shared scope URLs make three bounded API requests reusable across the race.
     const reportUrl = new URL(
       fecBatchUrl("reports/house-senate/", cycle, "committee_id", committeeIds),
     );
