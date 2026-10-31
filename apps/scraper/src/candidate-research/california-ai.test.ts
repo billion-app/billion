@@ -24,6 +24,7 @@ function fixtureAuthorEvidence() {
     candidateIds: ["platform"],
     officeIds: [],
     requiredCandidateIds: ["platform"],
+    primaryRecordIds: ["roster"],
   };
 }
 
@@ -130,7 +131,7 @@ test("nested promises compile stable links and separate exact reviewer attestati
   assert.notEqual(a.attestation.runId, r.attestation.runId);
   assert.notEqual(a.attestation.actorId, r.attestation.actorId);
   assert.equal(a.attestation.revisionDigest, r.attestation.revisionDigest);
-  assert.equal(a.attestation.promptVersion, "california-author-v13");
+  assert.equal(a.attestation.promptVersion, "california-author-v14");
   assert.equal(r.attestation.actualModel, "actual-fixture-model");
   assert.equal(calls[1]!.excludedConfiguredModel, "fixture:author");
 });
@@ -793,13 +794,13 @@ test("unchanged typed finance refresh preserves the exact approved brief timesta
   );
 });
 
-test("v13 author owns claims only and preserves temporal and contextual constraints", async () => {
+test("v14 author owns claims only and preserves temporal and contextual constraints", async () => {
   const { deps, calls } = dependencies([authorFixture()]);
   const result = await authorCaliforniaBrief(
     { dossier: fixtureDossier(), policyVersion: "p1" },
     deps,
   );
-  assert.equal(result.attestation.promptVersion, "california-author-v13");
+  assert.equal(result.attestation.promptVersion, "california-author-v14");
   assert.ok(
     calls[0]!.system.includes("Past achievements belong only in Record"),
   );
@@ -1672,7 +1673,12 @@ test("one role envelope constrains provider schema and return parsing including 
   const { zodSchema } = await import("ai");
   for (const envelope of [
     fixtureAuthorEvidence(),
-    { candidateIds: [], officeIds: ["office"], requiredCandidateIds: [] },
+    {
+      candidateIds: [],
+      officeIds: ["office"],
+      requiredCandidateIds: [],
+      primaryRecordIds: ["roster"],
+    },
   ]) {
     const schema = californiaAuthorOutputSchema(envelope);
     const json = await zodSchema(schema).jsonSchema;
@@ -1717,6 +1723,7 @@ test("one role envelope constrains provider schema and return parsing including 
     candidateIds: [],
     officeIds: [],
     requiredCandidateIds: [],
+    primaryRecordIds: ["roster"],
   });
   assert.deepEqual(
     JSON.parse(calls[0]!.prompt).authorEvidence,
@@ -1734,6 +1741,7 @@ test("strict role boundary excludes roster and finance and limits office-only ne
     candidateIds: ["platform"],
     officeIds: ["office"],
     requiredCandidateIds: ["platform"],
+    primaryRecordIds: ["office"],
   });
   const good = authorFixture();
   good.priorities.claims[0]!.promiseDetails.brief.authority.evidenceIds = [
