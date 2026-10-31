@@ -143,9 +143,10 @@ before publication. A nickname or missing middle initial alone is insufficient.
 
 The finance collector in
 [`california-finance.ts`](../apps/scraper/src/candidate-research/california-finance.ts)
-shares bounded queries across the active requested races. It retrieves one
-processed House-report index for their verified authorized committees and one
-candidate-scoped independent-expenditure aggregate query. A committee without a
+shares bounded queries between the members of the current race. It retrieves
+one processed House-report index for that race’s verified authorized committees
+and one candidate-scoped independent-expenditure aggregate query. Unclaimed,
+current or budget-excluded races do not enter the batch. A committee without a
 financial summary also needs its exact filing index. A configured `FEC_API_KEY`
 is preferred; the existing public demonstration key is subject to a shared
 quota. A transient failure stops acquisition without extending an earlier
