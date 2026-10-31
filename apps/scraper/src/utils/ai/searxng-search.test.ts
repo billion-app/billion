@@ -11,6 +11,14 @@ test("SearXNG uses JSON HTTP search and retains only HTTP source citations", asy
       new URLSearchParams(init.body as URLSearchParams).get("format"),
       "json",
     );
+    assert.equal(
+      new URLSearchParams(init.body as URLSearchParams).get("categories"),
+      "general",
+    );
+    assert.equal(
+      new URLSearchParams(init.body as URLSearchParams).has("engines"),
+      false,
+    );
     return Response.json({
       results: [
         {
@@ -43,4 +51,18 @@ test("blocked upstreams and failed requests do not masquerade as successful empt
     searchSearxng("history", "http://search.internal"),
     /upstream engines/,
   );
+});
+
+test("explicit SearXNG engines exclude category defaults", async (t) => {
+  t.mock.method(globalThis, "fetch", async (_url: URL, init: RequestInit) => {
+    const body = new URLSearchParams(init.body as URLSearchParams);
+    assert.equal(body.get("q"), "Mike McGuire");
+    assert.equal(body.get("engines"), "mwmbl,other");
+    assert.equal(body.has("categories"), false);
+    return Response.json({ results: [] });
+  });
+  await searchSearxng("Mike McGuire", "http://search.internal", [
+    "mwmbl",
+    "other",
+  ]);
 });

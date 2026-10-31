@@ -28,6 +28,27 @@ sources are not persisted as successful research. The serial production
 supervisor provides cross-job ordering; separate concurrent processes can still
 duplicate a cache miss. The library is not a distributed work queue.
 
+California candidate research supplies a separate `california-candidate-research-v2`
+discovery scope with the configured provider, SearXNG base URL, engine selection
+and query policy through its
+[library factory](../apps/scraper/src/candidate-research/california-library.ts).
+This bypasses the old fixed California discovery cache and separates results
+from different providers or SearXNG deployments. Provider configuration stays
+stable for the lifetime of a scraper process. A configuration change requires
+a new process. Retrieved documents remain keyed by URL and can still satisfy
+local searches across providers without another download or discovery request.
+No cache rows are deleted. Failed and empty discoveries remain retryable.
+
+The California job selects Mwmbl explicitly and searches the candidate's full
+name. The previous office-and-year queries returned unrelated first-name results
+from the enabled upstream engines in the production trial. Explicit engine
+requests omit the general-category selector so SearXNG does not add other engines
+to the request. General scraper searches retain their default engine selection.
+Retrieved pages still need candidate, office, election and publisher qualification
+before contributing evidence. Source citations and independent AI review remain
+required for publication. Mwmbl's index can miss relevant material; those races
+remain retryable rather than becoming completed research.
+
 Collected notes expire with their earliest source document, up to seven days.
 Citation IDs include only documents actually read, including the source adapter's
 original text. Search snippets alone never become citation evidence. Original

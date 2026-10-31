@@ -10,11 +10,14 @@ import { fetchWithRetry } from "../utils/fetch.js";
 export const hash = (text: string | Uint8Array) =>
   createHash("sha256").update(text).digest("hex");
 export const normalize = (text: string) => text.replace(/\s+/g, " ").trim();
+const minimumSourceTextLength = 20;
 export function htmlText(html: string): string {
   const $ = load(html);
   $("script,style,nav,footer,noscript").remove();
-  const body = $("main").length ? $("main") : $("body");
-  return normalize(body.text());
+  const main = normalize($("main").text());
+  return main.length >= minimumSourceTextLength
+    ? main
+    : normalize($("body").text());
 }
 export async function fetchSource(
   id: string,
@@ -78,7 +81,7 @@ export async function fetchSource(
         : "utf-8",
       { fatal: true },
     ).decode(buffer);
-  if (text.length < 20 || text.length > 5_000_000)
+  if (text.length < minimumSourceTextLength || text.length > 5_000_000)
     throw new Error(`Unusable ${id} source text`);
   return {
     id,

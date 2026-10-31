@@ -270,14 +270,14 @@ export async function createCaliforniaDependencies(
     store,
     collection,
     service,
-    { createResearchLibrary },
+    { createCaliforniaResearchLibrary },
     { generateWebSearch },
   ] = await Promise.all([
     import("@acme/db/client"),
     import("@acme/api/lib/california-roster-store"),
     import("@acme/api/lib/candidate-research-store"),
     import("@acme/api/lib/candidate-research-service"),
-    import("../research/library.js"),
+    import("./california-library.js"),
     import("../utils/ai/provider.js"),
   ]);
   let configuredModels:
@@ -285,30 +285,32 @@ export async function createCaliforniaDependencies(
     | undefined;
   const sharedSources = new Map<string, Promise<ResearchSource>>();
   const legacyPilotSources = new Map<string, Promise<ResearchSource[]>>();
-  const library = createResearchLibrary({
-    namespace: "california-candidate-research-v1",
-    discover: async (query) => {
-      if (
-        !["searxng", "tavily"].includes(
-          process.env.SCRAPER_SEARCH_PROVIDER ?? "",
+  const library = createCaliforniaResearchLibrary(
+    {
+      discover: async (query, engines) => {
+        if (
+          !["searxng", "tavily"].includes(
+            process.env.SCRAPER_SEARCH_PROVIDER ?? "",
+          )
         )
-      )
-        throw new Error(
-          "California discovery requires a bounded SearXNG or Tavily provider; hosted model search is not an uncounted call",
-        );
-      const result = await generateWebSearch(query);
-      return {
-        text: result.text,
-        sources: result.sources
-          .filter((source) => source.sourceType === "url")
-          .map((source) => ({
-            sourceType: "url" as const,
-            url: source.url,
-            title: source.title,
-          })),
-      };
+          throw new Error(
+            "California discovery requires a bounded SearXNG or Tavily provider; hosted model search is not an uncounted call",
+          );
+        const result = await generateWebSearch(query, engines);
+        return {
+          text: result.text,
+          sources: result.sources
+            .filter((source) => source.sourceType === "url")
+            .map((source) => ({
+              sourceType: "url" as const,
+              url: source.url,
+              title: source.title,
+            })),
+        };
+      },
     },
-  });
+    process.env,
+  );
   return {
     get authorConfigurationKey() {
       return configuredModels

@@ -5,6 +5,7 @@ import { extractText } from "unpdf";
 
 import { requestPublicSource } from "./transport.js";
 
+const minimumSourceTextLength = 100;
 const privateNetworks = new BlockList();
 for (const [address, prefix] of [
   ["0.0.0.0", 8],
@@ -126,12 +127,16 @@ export async function retrieveSource(
       title = $("title").first().text().trim() || url;
       $("script, style, nav, header, footer, noscript, svg").remove();
       body =
-        $("main").first().text() ||
-        $("article").first().text() ||
-        $("body").text();
+        [
+          $("main").first().text(),
+          $("article").first().text(),
+          $("body").text(),
+        ]
+          .map((text) => text.replace(/\s+/g, " ").trim())
+          .find((text) => text.length >= minimumSourceTextLength) ?? "";
     }
     body = body.replace(/\s+/g, " ").trim().slice(0, 200_000);
-    if (body.length < 100)
+    if (body.length < minimumSourceTextLength)
       throw new Error("Source has insufficient readable text");
     return { url, title, body };
   }

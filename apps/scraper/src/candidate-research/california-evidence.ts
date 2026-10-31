@@ -675,7 +675,7 @@ export async function collectCaliforniaEvidence(
               "",
             ),
         );
-  const query = `${member.name} ${race.office} California ${race.electionDate.slice(0, 4)}`;
+  const query = member.name;
   const statementSlug = officeSlug(race.office);
   const officialStatements = statementSlug
     ? [officeUrl(statementSlug)]

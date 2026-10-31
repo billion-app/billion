@@ -47,6 +47,65 @@ test("readable source extraction removes navigation and retains source text", as
   assert.match(document.body, /Documented policy/);
 });
 
+test("whitespace-only main falls back to readable body text", async () => {
+  const body = "Documented candidate record and source evidence. "
+    .repeat(4)
+    .trim();
+  const document = await retrieveSource(
+    "https://93.184.216.34/report",
+    async () =>
+      new Response(
+        `<body><nav>menu</nav><main> \n\t </main><p>${body}</p><script>bad</script><footer>footer</footer></body>`,
+        { headers: { "Content-Type": "text/html" } },
+      ),
+  );
+  assert.equal(document.body, body);
+});
+
+test("heading-only main falls back to readable body text", async () => {
+  const body = "Documented candidate record and source evidence. "
+    .repeat(4)
+    .trim();
+  const document = await retrieveSource(
+    "https://93.184.216.34/report",
+    async () =>
+      new Response(`<body><p>${body}</p><main><h1>Home</h1></main></body>`, {
+        headers: { "Content-Type": "text/html" },
+      }),
+  );
+  assert.equal(document.body, `${body}Home`);
+});
+
+test("whitespace-only main falls back to article before other body text", async () => {
+  const article = "Documented policy precedent and attributable evidence. "
+    .repeat(4)
+    .trim();
+  const document = await retrieveSource(
+    "https://93.184.216.34/report",
+    async () =>
+      new Response(
+        `<body><main> \n\t </main><article>${article}</article><p>Unrelated body text</p></body>`,
+        { headers: { "Content-Type": "text/html" } },
+      ),
+  );
+  assert.equal(document.body, article);
+});
+
+test("meaningful main takes priority over article and other body text", async () => {
+  const main = "Documented candidate record and source evidence. "
+    .repeat(4)
+    .trim();
+  const document = await retrieveSource(
+    "https://93.184.216.34/report",
+    async () =>
+      new Response(
+        `<body><main>${main}</main><article>Other article</article><p>Unrelated body text</p></body>`,
+        { headers: { "Content-Type": "text/html" } },
+      ),
+  );
+  assert.equal(document.body, main);
+});
+
 test("redirects cannot reach private services", async () => {
   let requests = 0;
   const transport = async () => {

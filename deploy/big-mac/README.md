@@ -152,6 +152,13 @@ loopback port 8888. Its [engine settings](searxng/settings.yml) use upstream web
 engines, so rate limits, CAPTCHAs and irrelevant results remain possible. This
 service does not replace the scraper supervisor or resume paused jobs.
 
+The November candidate job explicitly selects Mwmbl. The checked-in settings make
+that engine available with `disabled: true`, which leaves it out of default
+searches while allowing explicit selection. Update `settings.yml` on an existing
+host before deploying the candidate worker, then restart the existing service
+with `docker compose restart searxng`. This settings update does not require
+replacing the host's image or certificate configuration.
+
 Copy the `searxng` directory to `~/.config/billion/searxng` on Big Mac and create
 an ignored private `.env` containing `SEARXNG_SECRET` (a random 32-byte hex secret).
 Do not commit that value. Start and inspect the service from that directory:
