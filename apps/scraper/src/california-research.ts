@@ -14,6 +14,8 @@ const { values, positionals } = parseArgs({
     snapshot: { type: "string" },
     policy: { type: "string" },
     race: { type: "string", multiple: true },
+    "request-reason": { type: "string" },
+    "refresh-current": { type: "boolean", default: false },
     "san-jose-manifest": { type: "string" },
     "state-scope-only": { type: "boolean", default: false },
     "prepare-policy": { type: "string" },
@@ -38,14 +40,14 @@ function bound(name: keyof typeof values, maximum: number) {
 async function main() {
   if (values.help) {
     console.log(
-      "Usage: california-research <plan|reconcile|coverage> [--snapshot ID|latest] [--policy VERSION] [--apply]\nReconcile accepts --max-races, --max-candidates, --max-source-requests, --max-source-bytes, --max-model-calls and --max-input-tokens. Concurrency is 1. Planning without --apply performs no database writes.",
+      "Usage: california-research <plan|reconcile|coverage|request> [--snapshot ID|latest] [--policy VERSION] [--apply]\nReconcile defaults to actual ballot demand; --race selects explicit operator races. Request persists explicit --race keys with --request-reason and --apply, without source or model calls. Reconcile accepts --max-races, --max-candidates, --max-source-requests, --max-source-bytes, --max-model-calls and --max-input-tokens. Concurrency is 1. Planning without --apply performs no database writes.",
     );
     return;
   }
   const command = positionals[0];
   if (
     positionals.length !== 1 ||
-    !["plan", "reconcile", "coverage"].includes(command ?? "")
+    !["plan", "reconcile", "coverage", "request"].includes(command ?? "")
   )
     throw new Error(
       "Usage: california-research <plan|reconcile|coverage> [--snapshot ID] [--policy VERSION] [--apply]. Reconcile requires --apply and explicit bounds.",
@@ -76,6 +78,33 @@ async function main() {
   }
   if (!snapshotId)
     throw new Error("No authoritative California roster has been persisted");
+  if (command === "request") {
+    if (!values.apply || !values.race?.length || !values["request-reason"])
+      throw new Error(
+        "Request requires --apply, explicit --race keys, and --request-reason",
+      );
+    const [{ requestOperatorResearch }, { getCaliforniaRoster }, { db }] =
+      await Promise.all([
+        import("@acme/api/lib/ballot-research-demand"),
+        import("@acme/api/lib/california-roster-store"),
+        import("@acme/db/client"),
+      ]);
+    const snapshot = await getCaliforniaRoster(db, snapshotId);
+    if (!snapshot) throw new Error("Unknown authoritative roster snapshot");
+    console.log(
+      JSON.stringify(
+        await requestOperatorResearch(
+          db,
+          snapshot,
+          values.race,
+          values["request-reason"],
+        ),
+        null,
+        2,
+      ),
+    );
+    return;
+  }
   if (command === "coverage") {
     console.log(
       JSON.stringify(
@@ -100,6 +129,7 @@ async function main() {
     policyVersion: values.policy,
     includePilotRaces: values["include-pilot-races"],
     raceKeys: values.race,
+    refreshCurrent: values["refresh-current"],
     preparationPolicy,
     bounds: {
       maxRaces: bound("max-races", 1000),

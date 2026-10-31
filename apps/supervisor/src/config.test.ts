@@ -45,6 +45,15 @@ void test("job ids are unique", () => {
   assert.equal(new Set(ids).size, ids.length);
 });
 
+void test("legacy pilot research cannot bypass ballot demand on a schedule", () => {
+  for (const id of [
+    "candidate-research-twice-daily",
+    "candidate-research-lt-governor-twice-daily",
+  ]) {
+    assert.deepEqual(findJob(id)?.schedule, { kind: "manual" });
+  }
+});
+
 void test("every job is reachable by id", () => {
   for (const job of jobs) {
     assert.equal(findJob(job.id)?.id, job.id);

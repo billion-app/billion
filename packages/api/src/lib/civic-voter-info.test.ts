@@ -30,6 +30,37 @@ const ballot: VoterInfoResponse = {
   contests: [{ type: "test", office: "Test office" }],
 };
 
+void test("cold and warm provider ballots record demand before enrichment and supplementation", async () => {
+  let cached: VoterInfoResponse | null = null;
+  const observed: VoterInfoResponse[] = [];
+  const load = createVoterInfoLoader({
+    getCached: async () => cached,
+    setCache: async (_, __, ___, value) => {
+      cached = structuredClone(value);
+    },
+    fetch: async () => structuredClone(ballot),
+    observeBallot: async (value) => {
+      observed.push(structuredClone(value));
+    },
+    enrich: async () => {
+      assert.fail("base ballot must not enrich");
+    },
+    supplement: async (value) => ({ ...value, kind: "supplemented" }),
+  });
+  assert.equal(
+    (await load("private address", undefined, { includeEnrichment: false }))
+      .kind,
+    "supplemented",
+  );
+  assert.equal(
+    (await load("private address", undefined, { includeEnrichment: false }))
+      .kind,
+    "supplemented",
+  );
+  assert.equal(observed.length, 2);
+  assert.deepEqual(observed, [ballot, ballot]);
+});
+
 void test("base and enriched caches stay independent and retain other elections", async () => {
   const cache = new Map<string, VoterInfoResponse>([
     ["voterinfo", ballot],

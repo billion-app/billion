@@ -22,7 +22,8 @@ export interface FecIdentity {
 }
 function canonicalName(value: string) {
   return value
-    .normalize("NFKC")
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
     .toLocaleUpperCase("en-US")
     .replace(/[.'’"]/g, "")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
@@ -30,9 +31,11 @@ function canonicalName(value: string) {
 }
 function fecName(value: string) {
   const pieces = value.split(",");
-  return canonicalName(
-    pieces.length === 2 ? `${pieces[1]} ${pieces[0]}` : value,
-  );
+  if (pieces.length !== 2) return canonicalName(value);
+  const [family = "", personal = ""] = pieces;
+  const surname = canonicalName(family);
+  const given = canonicalName(personal).replace(/ (?:MR|MRS|MS|MISS|DR)$/, "");
+  return `${given} ${surname}`;
 }
 export function resolveFecCandidate<T extends FecIndexCandidate>(
   candidates: readonly T[],

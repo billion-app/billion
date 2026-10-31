@@ -1553,7 +1553,7 @@ test("McGuire's archived block footer qualifies the filed campaign and its actua
             id,
             url,
             url.includes("contact-list")
-              ? `${member.name}\nWEBSITE: ${root}\n${race.members.find((other) => other.name !== member.name)!.name}`
+              ? `General Election - November 3, 2026\nOfficial Candidate Contact List\n${race.office}\n${member.name} ${member.party}\nWEBSITE: ${root}\n${race.members.find((other) => other.name !== member.name)!.name} ${race.members.find((other) => other.name !== member.name)!.party}`
               : "Official office responsibilities.",
           );
         return fetchBoundedCaliforniaSource(
@@ -1735,5 +1735,267 @@ test("native interrupted source response is an acquisition outage rather than a 
       assert.ok(error.message.includes(url));
       return true;
     },
+  );
+});
+
+async function capturedHouseCampaign(name: string) {
+  const { snapshot } = await fixture();
+  const race = snapshot.races.find(
+    (target) =>
+      target.officeFamily === "us_house" &&
+      target.members.some((candidate) => candidate.name === name),
+  )!;
+  const member = race.members.find((candidate) => candidate.name === name)!;
+  const archive = JSON.parse(
+    await readFile(
+      new URL(
+        "./fixtures/three-district-campaign-sources.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as { sources: ResearchSource[] };
+  const sources = structuredClone(archive.sources);
+  const fetched: string[] = [];
+  const deps = {
+    now: () => now,
+    sharedSources: new Map<string, Promise<ResearchSource>>(),
+    budget: { request() {}, bytes() {} },
+    search: async () => ({ sources: [] }),
+    fetch: async (id: string, url: string) => {
+      fetched.push(url);
+      const found = sources.find(
+        (entry) => entry.url === url || entry.retrievalUrls?.[0] === url,
+      );
+      if (found) return { ...found, id };
+      if (url === "https://www.house.gov/the-house-explained")
+        return source(
+          id,
+          url,
+          "Representatives introduce bills and resolutions, offer amendments and serve on committees.",
+        );
+      throw new Error("No captured source for this offline replay");
+    },
+  };
+  return { snapshot, race, member, sources, deps, fetched };
+}
+
+for (const name of [
+  "Peter Coe Verbica",
+  "Jimmy Panetta",
+  "Mark DeSaulnier",
+  "Jeff Frese",
+  "Peter Sundin Soulé",
+]) {
+  test(`current SOS contact qualifies the captured ${name} campaign without inventing a personal speaker`, async () => {
+    const f = await capturedHouseCampaign(name);
+    const dossier = await collectCaliforniaEvidence(f, f.deps);
+    assert.equal(dossier.classification, "supported");
+    const evidence = dossier.evidence.find(
+      (entry) => entry.role === "campaign_material",
+    );
+    assert.ok(evidence, "actual platform must become available to the author");
+    assert.equal(evidence.identityQualification, "official_cross_link");
+    assert.equal(evidence.attribution?.status, "unresolved");
+    const page = dossier.sources.find(
+      (entry) => entry.id === evidence.sourceId,
+    )!;
+    assert.equal(
+      evidence.attribution.context.excerpt,
+      page.text.split("\nLinked source navigation (discovery only):\n")[0],
+    );
+    assert.ok(
+      dossier.sourceLinks?.some(
+        (link) =>
+          link.relation === "official_contact" && link.toSourceId === page.id,
+      ),
+    );
+    assert.ok(evidence.excerpt.length >= 180);
+    if (name === "Jeff Frese") {
+      assert.ok(
+        evidence.excerpt.includes(
+          "Ban members of Congress from trading stocks",
+        ),
+      );
+      assert.equal(evidence.excerpt.includes("Text Message Terms"), false);
+    }
+  });
+}
+
+for (const [label, mutate] of [
+  [
+    "wrong election",
+    (text: string) =>
+      text.replaceAll(
+        "General Election - November 3, 2026",
+        "General Election - November 5, 2024",
+      ),
+  ],
+  [
+    "wrong district",
+    (text: string) =>
+      text.replace(
+        "United States Representative District 19",
+        "United States Representative District 190",
+      ),
+  ],
+  [
+    "duplicate candidate",
+    (text: string) =>
+      text.replace(
+        "Peter Coe Verbica Republican",
+        "Peter Coe Verbica Republican\nPeter Coe Verbica Republican",
+      ),
+  ],
+  [
+    "missing website",
+    (text: string) =>
+      text.replace(
+        "WEBSITE: www.peterverbica.com",
+        "CAMPAIGN: www.peterverbica.com",
+      ),
+  ],
+  [
+    "two websites",
+    (text: string) =>
+      text.replace(
+        "WEBSITE: www.peterverbica.com",
+        "WEBSITE: www.peterverbica.com\nWEBSITE: www.other.example",
+      ),
+  ],
+  [
+    "neighbor website",
+    (text: string) =>
+      text.replace(
+        "WEBSITE: www.peterverbica.com",
+        "WEBSITE: www.jimmypanetta.com",
+      ),
+  ],
+] as const) {
+  test(`current SOS campaign identity rejects ${label}`, async () => {
+    const f = await capturedHouseCampaign("Peter Coe Verbica");
+    const contact = f.sources.find((entry) =>
+      entry.url.endsWith("contact-list.pdf"),
+    )!;
+    contact.text = mutate(contact.text);
+    contact.contentHash = createHash("sha256")
+      .update(contact.text)
+      .digest("hex");
+    const dossier = await collectCaliforniaEvidence(f, f.deps);
+    assert.equal(
+      dossier.evidence.some((entry) => entry.role === "campaign_material"),
+      false,
+    );
+  });
+}
+
+for (const [label, body] of [
+  ["conflicting middle name", "Peter Other Soulé"],
+  ["conflicting suffix", "Peter Soule Jr."],
+  ["unrelated candidate", "Another Candidate"],
+] as const) {
+  test(`current SOS contact does not rescue a ${label} on its destination`, async () => {
+    const f = await capturedHouseCampaign("Peter Sundin Soulé");
+    const page = f.sources.find(
+      (entry) => entry.url === "https://souleforcongress.com/",
+    )!;
+    page.text =
+      `${body} will support public services and reduce unnecessary costs. `.repeat(
+        8,
+      );
+    page.contentHash = createHash("sha256").update(page.text).digest("hex");
+    const dossier = await collectCaliforniaEvidence(f, f.deps);
+    assert.equal(
+      dossier.evidence.some((entry) => entry.role === "campaign_material"),
+      false,
+    );
+  });
+}
+
+test("current SOS contact rejects an unrelated intermediate redirect even when the final publisher matches", async () => {
+  const f = await capturedHouseCampaign("Peter Coe Verbica");
+  const page = f.sources.find(
+    (entry) => entry.url === "https://peterverbica.com/",
+  )!;
+  page.retrievalUrls = [
+    "https://www.peterverbica.com/",
+    "https://unrelated.example/",
+    page.url,
+  ];
+  const dossier = await collectCaliforniaEvidence(f, f.deps);
+  assert.equal(
+    dossier.evidence.some((entry) => entry.role === "campaign_material"),
+    false,
+  );
+});
+
+test("official House short district identity is attached to the exact named representative", async () => {
+  const f = await capturedHouseCampaign("Jimmy Panetta");
+  const actual = f.sources.find(
+    (entry) => entry.url === "https://panetta.house.gov/",
+  )!;
+  assert.equal(
+    qualifiedCandidatePage(actual, f.race, f.member.name, false),
+    true,
+  );
+  for (const text of [
+    "United States Representative Jimmy Panetta (CA-190)",
+    "United States Representative Jimmy Panetta (CA-18)",
+    "United States Representative Other Person (CA-19). Jimmy Panetta.",
+    "United States Representative Jimmy Panetta (OH-19)",
+  ]) {
+    assert.equal(
+      qualifiedCandidatePage(
+        source("negative", actual.url, text),
+        f.race,
+        f.member.name,
+        false,
+      ),
+      false,
+      text,
+    );
+  }
+  assert.equal(
+    qualifiedCandidatePage(
+      { ...actual, url: "https://panetta.house.gov.evil.example/" },
+      f.race,
+      f.member.name,
+      false,
+    ),
+    false,
+  );
+});
+
+test("the last House contact row stops before the captured State Senate section", async () => {
+  const f = await capturedHouseCampaign("Jeff Belle");
+  const url = "https://www.belleforcongress.com/";
+  const text =
+    "Jeff Belle will support public services and reduce unnecessary costs through published budget proposals. ".repeat(
+      5,
+    );
+  f.sources.push({ ...source("last-house", url, text), retrievalUrls: [url] });
+  const dossier = await collectCaliforniaEvidence(f, f.deps);
+  assert.equal(dossier.classification, "supported");
+  assert.ok(f.fetched.includes(url));
+  assert.equal(
+    f.fetched.some((value) => /damonconnolly|tief4casenate/.test(value)),
+    false,
+  );
+});
+
+test("a current campaign redirect cannot switch to another HTTPS service on the same host", async () => {
+  const f = await capturedHouseCampaign("Peter Coe Verbica");
+  const page = f.sources.find(
+    (entry) => entry.url === "https://peterverbica.com/",
+  )!;
+  page.retrievalUrls = [
+    "https://www.peterverbica.com/",
+    "https://peterverbica.com:8443/",
+    page.url,
+  ];
+  const dossier = await collectCaliforniaEvidence(f, f.deps);
+  assert.equal(
+    dossier.evidence.some((entry) => entry.role === "campaign_material"),
+    false,
   );
 });

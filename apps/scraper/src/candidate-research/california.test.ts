@@ -118,6 +118,7 @@ async function fixture() {
     costUsd: null,
   });
   const deps: CaliforniaDependencies = {
+    demandedRaceKeys: async () => snapshot.races.map((race) => race.raceKey),
     now: () => now,
     readPublishedCoverage: async () => ({ snapshotId: snapshot.id, races: [] }),
     authorizedPolicy: async () => stats.authorized,
@@ -308,6 +309,56 @@ async function fixture() {
   };
   return { deps, snapshot, stats, artifacts, rows, allRaces: original.races };
 }
+
+test("empty ballot demand and explicit empty operator scope perform no source, lease, publication or model work", async () => {
+  for (const raceKeys of [undefined, []]) {
+    const f = await fixture();
+    f.deps.demandedRaceKeys = async () => [];
+    for (const key of [
+      "beginSourceCheck",
+      "fetchRoster",
+      "listWork",
+      "claim",
+      "invalidateElection",
+      "publish",
+    ] as const) {
+      f.deps[key] = async () => {
+        throw new Error(`must not call ${key}`);
+      };
+    }
+    const result = await reconcile(
+      { snapshotId: f.snapshot.id, policyVersion: "policy", bounds, raceKeys },
+      f.deps,
+    );
+    assert.equal(result.completed, 0);
+    assert.deepEqual(result.outcomes, []);
+    assert.equal(result.usage.sourceRequests, 0);
+    assert.equal(result.usage.modelCalls, 0);
+    assert.equal(f.stats.investigations, 0);
+    assert.equal(f.stats.authors, 0);
+    assert.equal(f.stats.failures, 0);
+  }
+});
+
+test("one demanded race researches all authoritative members without widening to other races", async () => {
+  const f = await fixture();
+  const demanded = f.snapshot.races[1]!;
+  f.deps.demandedRaceKeys = async () => [demanded.raceKey];
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      includePilotRaces: true,
+    },
+    f.deps,
+  );
+  assert.ok(result.outcomes.length);
+  assert.ok(
+    result.outcomes.every((outcome) => outcome.raceKey === demanded.raceKey),
+  );
+  assert.equal(f.stats.investigations, demanded.members.length);
+});
 test("closed automation policy stops before any source or model work", async () => {
   const f = await fixture();
   f.stats.authorized = false;
@@ -1105,6 +1156,17 @@ test("a fresh checkpoint skips only while the exact release remains publicly ava
   const healthy = await reconcile(input, f.deps);
   assert.equal(healthy.outcomes[0]!.status, "current");
   assert.equal(f.stats.investigations, 0);
+  await assert.rejects(
+    () => reconcile({ ...input, refreshCurrent: true }, f.deps),
+    /explicit operator race keys/,
+  );
+  const refreshed = await reconcile(
+    { ...input, raceKeys: [race.raceKey], refreshCurrent: true },
+    f.deps,
+  );
+  assert.notEqual(refreshed.outcomes[0]?.status, "current");
+  assert.equal(f.stats.investigations, race.members.length);
+  f.stats.investigations = 0;
   live = false;
   const claim = f.deps.claim;
   f.deps.claim = async (input) => ({

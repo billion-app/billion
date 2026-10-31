@@ -62,6 +62,33 @@ the background request.
 
 ## California research refresh failures
 
+California research is scheduled by complete race demand, not by the full
+candidate catalog. A successful address-matched provider ballot records only
+the election, contest, district, office and candidate identities needed to match
+an authoritative race. These demand records contain no address, address hash or
+user identity. Cold and cached reads use the original provider observation;
+reading a cached ballot cannot extend its 24-hour demand expiry. Statewide-only,
+unknown, incomplete and ambiguous contest matches do not schedule research.
+Matching includes every non-write-in opponent; the researcher then covers the
+entire authoritative race, including qualified write-ins.
+
+The shared demand store lives in
+[`ballot-research-demand.ts`](../packages/api/src/lib/ballot-research-demand.ts).
+The scheduled worker returns without source or model work when no active races
+match. Demand expiry stops new work and does not withdraw existing publications.
+Source freshness and independent review still control what readers can see.
+The existing research browser still shows the collected catalog; it is not an
+address-matched personal ballot. The separate address-based ballot flow remains
+subject to provider launch readiness. A location such as San José alone does not
+establish congressional, legislative or local districts. Restricting automatic
+research does not change the mobile discovery interface.
+
+Operators can persist explicitly requested districts using the scraper's
+[`request` command](../apps/scraper/README.md#candidate-research-demand). These
+records are labelled operator requests, not address-verified personal ballots.
+They expire after the California election day and do not widen the automatic
+worker to unrelated races.
+
 Automatic California research refreshes the authoritative roster and the reviewed
 San José source bundle before claiming races or generating new briefs. A typed
 network outage or transient HTTP response stops that run without withdrawing

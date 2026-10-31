@@ -129,6 +129,7 @@ export interface CaliforniaPublishedCoverage {
 }
 export interface CaliforniaDependencies {
   now(): string;
+  demandedRaceKeys(snapshot: CaliforniaRosterSnapshot): Promise<string[]>;
   readPublishedCoverage(
     snapshotId: string,
     electionDate: string,
@@ -351,6 +352,11 @@ export async function createCaliforniaDependencies(
     process.env,
   );
   return {
+    demandedRaceKeys: async (snapshot) => {
+      const { readDemandedRosterRaceKeys } =
+        await import("@acme/api/lib/ballot-research-demand");
+      return readDemandedRosterRaceKeys(db, snapshot);
+    },
     get authorConfigurationKey() {
       return configuredModels
         ? JSON.stringify(configuredModels.author)
@@ -926,11 +932,16 @@ export async function reconcile(
     bounds: CaliforniaBounds;
     includePilotRaces?: boolean;
     raceKeys?: string[];
+    refreshCurrent?: boolean;
     preparationPolicy?: CaliforniaPreparationPolicy;
   },
   provided?: CaliforniaDependencies,
 ) {
   positiveBounds(input.bounds);
+  if (input.refreshCurrent && !input.raceKeys?.length)
+    throw new Error(
+      "Refreshing current research requires explicit operator race keys",
+    );
   const deps =
     provided ?? (await createCaliforniaDependencies(input.preparationPolicy));
   if (
@@ -955,7 +966,6 @@ export async function reconcile(
     throw new Error(
       "At least two source requests are required for fresh roster validation",
     );
-  const sourceEpoch = await deps.beginSourceCheck(snapshot.electionDate);
   const usage = {
     races: 0,
     candidates: 0,
@@ -982,6 +992,27 @@ export async function reconcile(
     releaseId?: string;
     collectionId?: string;
   }[] = [];
+  const raceKeys = input.raceKeys ?? (await deps.demandedRaceKeys(snapshot));
+  const initialRaces = snapshot.races;
+  if (
+    raceKeys.some((key) => !initialRaces.some((race) => race.raceKey === key))
+  )
+    throw new Error(
+      "Requested race key is absent from the authoritative snapshot",
+    );
+  if (!raceKeys.length)
+    return {
+      snapshotId: snapshot.id,
+      scopeLabel: snapshot.scopeLabel,
+      rosterCheckArtifactKey: null,
+      usage,
+      outcomes,
+      prepared: 0,
+      completed: 0,
+      blocked: 0,
+      remaining: 0,
+    };
+  const sourceEpoch = await deps.beginSourceCheck(snapshot.electionDate);
   const budget = {
     discovery() {
       usage.discoveryRequests++;
@@ -1080,16 +1111,14 @@ export async function reconcile(
       : Date.parse(checkpoint?.attemptedAt ?? "1970-01-01");
   };
   if (
-    input.raceKeys?.some(
-      (key) => !snapshot.races.some((race) => race.raceKey === key),
-    )
+    raceKeys.some((key) => !snapshot.races.some((race) => race.raceKey === key))
   )
     throw new Error(
       "Requested race key is absent from the authoritative snapshot",
     );
-  const selectedRaces = input.raceKeys?.length
-    ? snapshot.races.filter((race) => input.raceKeys!.includes(race.raceKey))
-    : snapshot.races;
+  const selectedRaces = snapshot.races.filter((race) =>
+    raceKeys.includes(race.raceKey),
+  );
   const races = [...selectedRaces].sort(
     (a, b) =>
       Number(!checkpoints.get(a.raceKey)?.releaseId) -
@@ -1098,6 +1127,18 @@ export async function reconcile(
       a.raceKey.localeCompare(b.raceKey),
   );
   for (const race of races) {
+    if (
+      input.raceKeys === undefined &&
+      !(await deps.demandedRaceKeys(snapshot)).includes(race.raceKey)
+    ) {
+      outcomes.push({
+        raceKey: race.raceKey,
+        status: "pending",
+        reason:
+          "Ballot research demand expired or no longer matches the authoritative race",
+      });
+      continue;
+    }
     if (
       !input.includePilotRaces &&
       ["ca-house-17-2026", "ca-lieutenant-governor-2026"].includes(race.raceKey)
@@ -1113,6 +1154,7 @@ export async function reconcile(
         current.electionDate === race.electionDate,
     );
     if (
+      !input.refreshCurrent &&
       prior?.releaseId &&
       publicRace?.releaseId === prior.releaseId &&
       publicRace.policyVersion === input.policyVersion &&
