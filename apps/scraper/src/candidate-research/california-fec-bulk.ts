@@ -5,6 +5,18 @@ import { isOfficialFecCandidateMasterUrl } from "@acme/validators";
 export const fecCandidateMasterCompressedLimit = 1_000_000;
 const inflatedLimit = 1_250_000;
 
+export function isFecCandidateMasterRedirect(
+  officialUrl: string,
+  redirectUrl: string,
+) {
+  if (!isOfficialFecCandidateMasterUrl(officialUrl)) return false;
+  const path = new URL(officialUrl).pathname.slice("/files".length);
+  return (
+    redirectUrl ===
+    `https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com${path}`
+  );
+}
+
 function validExtraFields(bytes: Buffer) {
   let offset = 0;
   while (offset < bytes.length) {

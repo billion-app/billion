@@ -27,6 +27,7 @@ import {
 import {
   decodeFecCandidateMasterZip,
   fecCandidateMasterCompressedLimit,
+  isFecCandidateMasterRedirect,
 } from "./california-fec-bulk.js";
 import { collectCaliforniaFederalFinance } from "./california-finance.js";
 import { fetchSource, hash, htmlText } from "./sources.js";
@@ -1075,7 +1076,10 @@ export async function fetchBoundedCaliforniaSource(
     addresses?: typeof publicSourceAddresses;
   },
 ): Promise<ResearchSource> {
-  let currentURL = canonicalSourceUrl(url);
+  const requestedURL = canonicalSourceUrl(url);
+  let currentURL = requestedURL;
+  const fecMaster =
+    format === "text" && isOfficialFecCandidateMasterUrl(requestedURL);
   const transport = controls?.transport ?? requestPublicSource;
   const addresses = controls?.addresses ?? publicSourceAddresses;
   const signal = AbortSignal.timeout(30_000);
@@ -1098,6 +1102,11 @@ export async function fetchBoundedCaliforniaSource(
     const location = response.headers.get("location");
     if (!location) throw new Error("Source redirect has no location");
     if (redirects === 3) throw new Error("Source exceeds three redirects");
+    if (
+      fecMaster &&
+      (redirects !== 0 || !isFecCandidateMasterRedirect(requestedURL, location))
+    )
+      throw new Error("Unsupported FEC candidate master redirect");
     currentURL = canonicalSourceUrl(new URL(location, currentURL).toString());
     if (new URL(currentURL).hostname === "validate.perfdrive.com")
       throw new Error("Source requires an interactive access check");
@@ -1110,8 +1119,6 @@ export async function fetchBoundedCaliforniaSource(
   }
   const reader = response.body?.getReader();
   if (!reader) throw new Error("Source has no body");
-  const fecMaster =
-    format === "text" && isOfficialFecCandidateMasterUrl(currentURL);
   const sourceByteLimit = fecMaster
     ? fecCandidateMasterCompressedLimit
     : format === "image"
@@ -1202,7 +1209,7 @@ export async function fetchBoundedCaliforniaSource(
   } else if (format === "json")
     text = JSON.stringify(JSON.parse(buffer.toString("utf8")), null, 2);
   else if (fecMaster)
-    text = decodeFecCandidateMasterZip(new Uint8Array(buffer), currentURL);
+    text = decodeFecCandidateMasterZip(new Uint8Array(buffer), requestedURL);
   else if (format === "text" && /\.zip$/.test(currentURL))
     text = decodeClarityXmlZip(new Uint8Array(buffer), currentURL);
   else
@@ -1223,7 +1230,7 @@ export async function fetchBoundedCaliforniaSource(
     throw new Error("Unusable source text");
   return {
     id,
-    url: currentURL,
+    url: fecMaster ? requestedURL : currentURL,
     retrievalUrls,
     publisher,
     format,
