@@ -113,3 +113,10 @@ When a brief has no finance record, its public disclosure describes that absence
 in the brief. Private collector gaps retain identity and retrieval diagnostics;
 the compiler does not copy those assertions into an absent-finance disclosure.
 Structured financial records and their supported coverage remain separate.
+
+A first draft with financial records can still omit useful campaign research.
+When eligible candidate passages exist but Priorities and Record are empty, the
+worker uses its existing single correction attempt to reassess those passages.
+This does not require invented claims: if the context still cannot establish
+candidate research, an accurately sourced finance-only brief remains eligible
+for independent review. The original draft and correction slot remain immutable.
