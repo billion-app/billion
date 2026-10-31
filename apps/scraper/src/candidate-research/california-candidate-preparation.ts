@@ -198,6 +198,35 @@ function reviewRevisionKey(
   ]);
 }
 
+async function collectionReviewTail(
+  revisionKey: string,
+  deps: PreparationDependencies,
+  remember: (key: string) => void,
+) {
+  let successorKey = `review-collection:${revisionKey}`;
+  const visited = new Set<string>();
+  for (;;) {
+    const successor = (await deps.artifact(successorKey)) as {
+      collectionId: string;
+      reviewKey: string;
+    } | null;
+    if (!successor) return successorKey;
+    remember(successorKey);
+    remember(successor.reviewKey);
+    if (visited.has(successor.reviewKey))
+      throw new Error("Invalid collection review successor cycle");
+    visited.add(successor.reviewKey);
+    const previous = (await deps.artifact(
+      successor.reviewKey,
+    )) as ReviewResult | null;
+    if (previous?.verdict !== "approve")
+      throw new Error(
+        "An unfinished or rejected collection review prevents another review or cached approval",
+      );
+    successorKey = `review-collection:${successor.reviewKey}`;
+  }
+}
+
 function modelDispatch(
   input: Parameters<typeof prepareReviewedCaliforniaCandidate>[0],
   deps: PreparationDependencies,
@@ -444,6 +473,12 @@ export async function prepareReviewedCaliforniaCandidate(
         throw new Error("Invalid immutable collection review rejection");
       await save(rejectedReview.reviewKey, "review", rejectedReview.reviewed);
     }
+    if (!rejectedReview)
+      await collectionReviewTail(
+        reviewRevisionKey(authored, dossier, policyVersion),
+        deps,
+        remember,
+      );
     let reviewed =
       rejectedReview?.reviewed ??
       ((await deps.artifact(reviewKey)) as ReviewResult | null);
@@ -592,35 +627,7 @@ export async function reviewPreparedCaliforniaCandidateForCollection(
     );
   }
   const reviewKey = candidateReviewKey(authored, input, deps, collectionId);
-  let successorKey = `review-collection:${revisionKey}`;
-  const visited = new Set<string>();
-  for (;;) {
-    const successor = (await deps.artifact(successorKey)) as {
-      collectionId: string;
-      reviewKey: string;
-    } | null;
-    if (!successor) break;
-    remember(successorKey);
-    remember(successor.reviewKey);
-    if (visited.has(successor.reviewKey))
-      throw new Error("Invalid collection review successor cycle");
-    visited.add(successor.reviewKey);
-    if (successor.collectionId === collectionId) {
-      if (successor.reviewKey !== reviewKey)
-        throw new Error(
-          "Collection review configuration differs from its persisted attempt",
-        );
-      break;
-    }
-    const previous = (await deps.artifact(
-      successor.reviewKey,
-    )) as ReviewResult | null;
-    if (previous?.verdict !== "approve")
-      throw new Error(
-        "An unfinished or rejected collection review prevents a new target invocation",
-      );
-    successorKey = `review-collection:${successor.reviewKey}`;
-  }
+  const successorKey = await collectionReviewTail(revisionKey, deps, remember);
   remember(reviewKey);
   let reviewed = (await deps.artifact(reviewKey)) as ReviewResult | null;
   if (!reviewed) {

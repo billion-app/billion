@@ -565,6 +565,67 @@ test("a saved collection conflict refreshes only reviews and checkpoints the act
   }
 });
 
+test("an unknown collection review blocks ordinary coordinator retries before attestation or publication", async () => {
+  for (const change of ["cached", "epoch", "configuration"] as const) {
+    const f = await fixture();
+    f.snapshot.races.splice(1);
+    let collectionId = randomUUID();
+    const bindings = new Map<string, string>();
+    let attests = 0;
+    f.deps.saveCollection = async (document) => ({
+      collectionId,
+      changed: true,
+      checkedAt: document.manifest.sourceCheckedAt,
+    });
+    f.deps.attest = async (input) => {
+      attests++;
+      const prior = bindings.get(input.review.attestation.runId);
+      if (prior && prior !== input.collectionId)
+        throw new ResearchReviewCollectionConflict(
+          input.collectionId,
+          input.revisionId,
+          input.review.attestation.runId,
+        );
+      bindings.set(input.review.attestation.runId, input.collectionId);
+    };
+    const run = () =>
+      reconcile(
+        {
+          snapshotId: f.snapshot.id,
+          policyVersion: "policy",
+          bounds: { ...bounds, maxRaces: 1 },
+        },
+        f.deps,
+      );
+    assert.equal((await run()).completed, 1);
+    collectionId = randomUUID();
+    const review = f.deps.review;
+    f.deps.review = async () => {
+      f.stats.reviews++;
+      throw new Error("lost response");
+    };
+    assert.equal((await run()).blocked, 1);
+    const before = { ...f.stats, attests };
+    f.deps.review = review;
+    if (change === "configuration")
+      f.deps.reviewerConfigurationKey = "changed-configuration";
+    if (change === "epoch") {
+      const claim = f.deps.claim;
+      f.deps.claim = async (input) => {
+        const lease = await claim(input);
+        return lease ? { ...lease, reviewEpoch: lease.reviewEpoch + 1 } : lease;
+      };
+    }
+    const resumed = await run();
+    assert.equal(resumed.blocked, 1, JSON.stringify(resumed));
+    assert.equal(resumed.usage.modelCalls, 0, change);
+    assert.equal(f.stats.reviews, before.reviews, change);
+    assert.equal(f.stats.authors, before.authors, change);
+    assert.equal(attests, before.attests, change);
+    assert.equal(f.stats.releases, before.releases, change);
+  }
+});
+
 test("a rejected review stays blocked on retries and cannot publish", async () => {
   const f = await fixture();
   f.snapshot.races.splice(1);

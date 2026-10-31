@@ -1186,7 +1186,7 @@ test("unknown collection reviewer dispatch cannot be replayed after lease reclai
       },
       f.deps,
     ),
-    /already reserved/,
+    /unfinished or rejected collection review/,
   );
   await assert.rejects(
     reviewPreparedCaliforniaCandidateForCollection(
@@ -1196,6 +1196,39 @@ test("unknown collection reviewer dispatch cannot be replayed after lease reclai
     /unfinished or rejected collection review/,
   );
   assert.equal(reviews, 1);
+});
+
+test("ordinary preparation cannot bypass an unknown collection review with cached approval, epoch or configuration changes", async () => {
+  for (const change of ["cached", "epoch", "configuration"] as const) {
+    const f = fixture();
+    const prepared = await prepareReviewedCaliforniaCandidate(
+      f.fresh(),
+      f.deps,
+    );
+    const review = f.deps.review;
+    f.deps.review = async () => {
+      throw new Error("lost response");
+    };
+    await assert.rejects(
+      reviewPreparedCaliforniaCandidateForCollection(
+        { ...f.fresh(), collectionId: randomUUID(), prepared },
+        f.deps,
+      ),
+      /lost response/,
+    );
+    f.deps.review = review;
+    const calls = f.calls.length;
+    const input = f.fresh();
+    if (change === "epoch") input.lease.reviewEpoch++;
+    if (change === "configuration")
+      f.deps.reviewerConfigurationKey = "new-configuration";
+    await assert.rejects(
+      prepareReviewedCaliforniaCandidate(input, f.deps),
+      /unfinished or rejected collection review/,
+    );
+    assert.equal(f.calls.length, calls, change);
+    assert.equal(input.usage.modelCalls, 0, change);
+  }
 });
 
 test("collection rejection is durable across target changes and uses the existing correction slot", async () => {
