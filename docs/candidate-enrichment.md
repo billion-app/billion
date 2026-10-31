@@ -77,8 +77,11 @@ The shared demand store lives in
 The scheduled worker returns without source or model work when no active races
 match. Demand expiry stops new work and does not withdraw existing publications.
 Source freshness and independent review still control what readers can see.
-The research entry opens the address-based ballot flow; a location such as
-San José alone does not establish congressional, legislative or local districts.
+The existing research browser still shows the collected catalog; it is not an
+address-matched personal ballot. The separate address-based ballot flow remains
+subject to provider launch readiness. A location such as San José alone does not
+establish congressional, legislative or local districts. Restricting automatic
+research does not change the mobile discovery interface.
 
 Operators can persist explicitly requested districts using the scraper's
 [`request` command](../apps/scraper/README.md#candidate-research-demand). These
