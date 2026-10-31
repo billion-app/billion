@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
+import dns from "node:dns/promises";
 import { readFile } from "node:fs/promises";
 import https from "node:https";
 import { syncBuiltinESMExports } from "node:module";
@@ -2036,9 +2037,18 @@ for (const failure of [
                   },
                 }),
               );
-            return new Response(null, {
-              status: typeof failure === "number" ? failure : 503,
-            });
+            return new Response(
+              failure === 503
+                ? new ReadableStream({
+                    start(controller) {
+                      controller.error(network);
+                    },
+                  })
+                : null,
+              {
+                status: typeof failure === "number" ? failure : 503,
+              },
+            );
           },
         },
       );
@@ -2095,6 +2105,8 @@ for (const failure of [
   "malformed-json",
   "private-address",
   "tls-identity",
+  "mixed-network-tls",
+  "tls-with-network-cause",
   "unknown-aborted",
   "budget",
 ] as const) {
@@ -2122,10 +2134,49 @@ for (const failure of [
             return [{ address: "93.184.216.34", family: 4 }];
           },
           transport: async () => {
-            if (failure === "tls-identity")
-              throw Object.assign(new Error("certificate hostname mismatch"), {
-                code: "ERR_TLS_CERT_ALTNAME_INVALID",
-              });
+            if (
+              failure === "tls-identity" ||
+              failure === "tls-with-network-cause"
+            )
+              throw Object.assign(
+                new Error("certificate hostname mismatch", {
+                  cause:
+                    failure === "tls-with-network-cause"
+                      ? Object.assign(new Error("connection reset"), {
+                          code: "ECONNRESET",
+                        })
+                      : undefined,
+                }),
+                {
+                  code: "ERR_TLS_CERT_ALTNAME_INVALID",
+                },
+              );
+            if (failure === "mixed-network-tls")
+              throw new AggregateError([
+                Object.assign(new Error("network failure"), {
+                  code: "ENETUNREACH",
+                }),
+                Object.assign(new Error("certificate hostname mismatch"), {
+                  code: "ERR_TLS_CERT_ALTNAME_INVALID",
+                }),
+              ]);
+            if (failure === "budget")
+              return new Response(
+                new ReadableStream({
+                  start(controller) {
+                    controller.enqueue(
+                      new TextEncoder().encode(
+                        "A source chunk reaching byte accounting.",
+                      ),
+                    );
+                  },
+                  cancel() {
+                    throw new Error(
+                      "cleanup failure must not replace the source budget",
+                    );
+                  },
+                }),
+              );
             return new Response("This is deliberately malformed source JSON.");
           },
         },
@@ -2159,7 +2210,16 @@ for (const failure of ["request", "body", 429, 503] as const) {
             },
           }),
         );
-      return new Response(null, { status: failure });
+      return new Response(
+        failure === 503
+          ? new ReadableStream({
+              start(controller) {
+                controller.error(network);
+              },
+            })
+          : null,
+        { status: failure },
+      );
     });
     f.deps.fetchRoster = fetchCaliforniaPlan;
     await assert.rejects(() =>
@@ -2174,11 +2234,17 @@ for (const failure of ["request", "body", 429, 503] as const) {
   });
 }
 
-test("changed complete SOS roster bytes invalidate before a later certification outage can hide them", async (t) => {
+test("changed complete SOS roster bytes remain invalidating when certification acquisition fails", async (t) => {
   const f = await fixture();
   const changed = f.snapshot.source.text.replace("C26GG", "C26GX") + "\n";
   const calls: string[] = [];
   const originalRequest = https.request;
+  const originalLookup = dns.lookup;
+  Object.defineProperty(dns, "lookup", {
+    configurable: true,
+    writable: true,
+    value: async () => [{ address: "93.184.216.34", family: 4 }],
+  });
   Object.defineProperty(https, "request", {
     configurable: true,
     writable: true,
@@ -2192,6 +2258,7 @@ test("changed complete SOS roster bytes invalidate before a later certification 
   syncBuiltinESMExports();
   t.after(() => {
     https.request = originalRequest;
+    dns.lookup = originalLookup;
     syncBuiltinESMExports();
   });
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
@@ -2204,13 +2271,154 @@ test("changed complete SOS roster bytes invalidate before a later certification 
     });
   });
   f.deps.fetchRoster = fetchCaliforniaPlan;
-  await assert.rejects(() =>
-    reconcile(
-      { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
-      f.deps,
-    ),
+  await assert.rejects(
+    () =>
+      reconcile(
+        { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+        f.deps,
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(
+        error.message,
+        /Changed authoritative SOS roster remains unverified/,
+      );
+      assert.ok(error.cause instanceof Error);
+      assert.equal(error.cause.name, "CaliforniaSourceUnavailable");
+      return true;
+    },
   );
   assert.equal(f.stats.failures, 1);
   assert.equal(f.stats.authors, 0);
-  assert.deepEqual(calls, ["https://media.sos.ca.gov/media/C26GG.txt"]);
+  assert.deepEqual(calls, [
+    "https://media.sos.ca.gov/media/C26GG.txt",
+    "certification-transport",
+  ]);
 });
+
+test("raw SOS byte budget remains the failure when cancellation cleanup also fails", async (t) => {
+  const f = await fixture();
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array(bounds.maxSourceBytes + 1));
+          },
+          cancel() {
+            throw new Error("cleanup failure must not replace accounting");
+          },
+        }),
+      ),
+  );
+  f.deps.fetchRoster = fetchCaliforniaPlan;
+  await assert.rejects(
+    () =>
+      reconcile(
+        { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+        f.deps,
+      ),
+    (error) => error instanceof CaliforniaBudgetReached,
+  );
+  assert.equal(f.stats.failures, 0);
+  assert.equal(f.stats.authors, 0);
+});
+
+for (const changed of ["none", "roster", "certification"] as const) {
+  test(`completed ${changed} statewide observation before a local acquisition outage retains its authority meaning`, async () => {
+    const f = await fixture();
+    const state = structuredClone(f.snapshot);
+    if (changed === "roster") {
+      state.source.text += "\n";
+      state.source.textHash = hash(state.source.text);
+    } else if (changed === "certification") {
+      state.certification.text += "\n";
+      state.certification.textHash = hash(state.certification.text);
+    }
+    f.snapshot.scope = "ca_sos_certified_and_san_jose";
+    const localSource: ResearchSource = {
+      id: "san-jose-qualified-roster",
+      url: "https://county.example.gov/qualified.pdf",
+      publisher: "County",
+      format: "pdf",
+      text: "Synthetic local roster source for acquisition failure fixture",
+      contentHash: hash(
+        "Synthetic local roster source for acquisition failure fixture",
+      ),
+      fetchedAt: f.deps.now(),
+    };
+    f.snapshot.additionalSources = [localSource];
+    f.snapshot.localCrosswalk = {
+      schemaVersion: 1,
+      electionDate: "2026-11-03",
+      rosterSourceHash: localSource.contentHash,
+      method: "Synthetic crosswalk for a failure before proof validation.",
+      entries: Array.from({ length: 129 }, (_, i) => ({
+        sourceContestId: String(i),
+        status: "pending" as const,
+        reason: "Synthetic failure fixture only.",
+        proofs: [
+          { url: localSource.url, contentHash: localSource.contentHash },
+        ],
+      })),
+      review: {
+        digest: hash("fixture review"),
+        actorId: "fixture-reviewer",
+        reviewedAt: f.deps.now(),
+      },
+    };
+    let outage: unknown;
+    try {
+      await fetchBoundedCaliforniaSource(
+        "required",
+        localSource.url,
+        "County",
+        "text",
+        { request() {}, bytes() {} },
+        undefined,
+        {
+          addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+          transport: async () => {
+            throw Object.assign(new Error("connection reset"), {
+              code: "ECONNRESET",
+            });
+          },
+        },
+      );
+    } catch (error) {
+      outage = error;
+    }
+    assert.ok(outage instanceof Error);
+    let localFetches = 0;
+    f.deps.fetchRoster = async () => state;
+    f.deps.fetchProof = async () => {
+      localFetches++;
+      throw outage;
+    };
+    await assert.rejects(
+      () =>
+        reconcile(
+          { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+          f.deps,
+        ),
+      (error: unknown) => {
+        if (changed === "none") assert.equal(error, outage);
+        else {
+          assert.ok(error instanceof Error);
+          assert.match(
+            error.message,
+            /Changed statewide roster authority remains unverified/,
+          );
+          assert.equal(error.cause, outage);
+        }
+        return true;
+      },
+    );
+    assert.equal(localFetches, 1);
+    assert.equal(f.stats.failures, changed === "none" ? 0 : 1);
+    assert.equal(f.stats.authors, 0);
+    assert.equal(f.rows.size, 0);
+  });
+}

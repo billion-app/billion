@@ -30,7 +30,13 @@ import {
   isFecCandidateMasterRedirect,
 } from "./california-fec-bulk.js";
 import { collectCaliforniaFederalFinance } from "./california-finance.js";
+import {
+  CaliforniaSourceHttpError,
+  sourceAcquisitionFailure,
+} from "./california-source-availability.js";
 import { fetchSource, hash, htmlText } from "./sources.js";
+
+export { CaliforniaSourceHttpError } from "./california-source-availability.js";
 
 export interface EvidenceBudget {
   request(): void;
@@ -1058,12 +1064,6 @@ export class CaliforniaBudgetReached extends Error {
   }
 }
 
-export class CaliforniaSourceHttpError extends Error {
-  constructor(public readonly status: number) {
-    super(`Source request failed (${status})`);
-  }
-}
-
 export async function fetchBoundedCaliforniaSource(
   id: string,
   url: string,
@@ -1086,19 +1086,28 @@ export async function fetchBoundedCaliforniaSource(
   let response: Response | undefined;
   const retrievalUrls: string[] = [];
   for (let redirects = 0; redirects <= 3; redirects++) {
-    const resolved = await addresses(currentURL);
+    let resolved: Awaited<ReturnType<typeof addresses>>;
+    try {
+      resolved = await addresses(currentURL);
+    } catch (error) {
+      throw sourceAcquisitionFailure(currentURL, error);
+    }
     retrievalUrls.push(currentURL);
-    response = await transport(currentURL, resolved, signal, {
-      "User-Agent": "Mozilla/5.0 (compatible; BillionResearch/1.0)",
-      Accept: "text/html,application/pdf,text/plain,application/json",
-      ...(apiKey &&
-      new URL(currentURL).hostname === "api.open.fec.gov" &&
-      new URL(currentURL).origin === new URL(url).origin
-        ? { "X-Api-Key": apiKey }
-        : {}),
-    });
+    try {
+      response = await transport(currentURL, resolved, signal, {
+        "User-Agent": "Mozilla/5.0 (compatible; BillionResearch/1.0)",
+        Accept: "text/html,application/pdf,text/plain,application/json",
+        ...(apiKey &&
+        new URL(currentURL).hostname === "api.open.fec.gov" &&
+        new URL(currentURL).origin === new URL(url).origin
+          ? { "X-Api-Key": apiKey }
+          : {}),
+      });
+    } catch (error) {
+      throw sourceAcquisitionFailure(currentURL, error);
+    }
     if (![301, 302, 303, 307, 308].includes(response.status)) break;
-    await response.body?.cancel();
+    await response.body?.cancel().catch(() => undefined);
     const location = response.headers.get("location");
     if (!location) throw new Error("Source redirect has no location");
     if (redirects === 3) throw new Error("Source exceeds three redirects");
@@ -1113,7 +1122,7 @@ export async function fetchBoundedCaliforniaSource(
     budget.request();
   }
   if (!response?.ok) {
-    await response?.body?.cancel();
+    await response?.body?.cancel().catch(() => undefined);
     if (response) throw new CaliforniaSourceHttpError(response.status);
     throw new Error("Source request failed (no response)");
   }
@@ -1128,7 +1137,12 @@ export async function fetchBoundedCaliforniaSource(
   let bytes = 0;
   try {
     for (;;) {
-      const part = await reader.read();
+      let part: Awaited<ReturnType<typeof reader.read>>;
+      try {
+        part = await reader.read();
+      } catch (error) {
+        throw sourceAcquisitionFailure(currentURL, error);
+      }
       if (part.done) break;
       bytes += part.value.byteLength;
       budget.bytes(part.value.byteLength);
@@ -1137,7 +1151,7 @@ export async function fetchBoundedCaliforniaSource(
       chunks.push(part.value);
     }
   } catch (error) {
-    await reader.cancel();
+    await reader.cancel().catch(() => undefined);
     throw error;
   }
   const buffer = Buffer.concat(chunks);

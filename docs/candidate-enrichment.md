@@ -59,3 +59,25 @@ Biography loading waits for the California guide only for a matching statewide
 ballot candidate. Other candidates load background immediately, even when the
 unused guide query has never fetched. A supplied ballot biography still avoids
 the background request.
+
+## California research refresh failures
+
+Automatic California research refreshes the authoritative roster and the reviewed
+San José source bundle before claiming races or generating new briefs. A typed
+network outage or transient HTTP response stops that run without withdrawing
+still-fresh published research. Its original source observations, approvals and
+24-hour expiry remain unchanged; a failed refresh cannot extend them. The next
+scheduled run must fetch the sources again before publishing new research.
+
+Invalid or changed authority remains a hard failure. Retrieval validates each
+territorial proof before requesting the next one, including approved telemetry
+projections and strong raw-byte references. If a Clarity report changed and the
+remaining bundle cannot be acquired, that unverified change also keeps the
+invalidation behavior. A later timeout cannot hide a proof change already seen.
+
+The acquisition classification lives in
+[`california-source-availability.ts`](../apps/scraper/src/candidate-research/california-source-availability.ts).
+The shared roster boundary is in
+[`reconcile`](../apps/scraper/src/candidate-research/california.ts), and public
+expiry remains enforced by
+[`readCandidateRace`](../packages/api/src/lib/candidate-race-release.ts).
