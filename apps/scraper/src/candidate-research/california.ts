@@ -44,6 +44,11 @@ import {
   decodeCaliforniaRoster,
   refreshReviewedSanJoseRoster,
 } from "./california-roster.js";
+import {
+  CaliforniaSourceHttpError,
+  isCaliforniaSourceUnavailable,
+  sourceAcquisitionFailure,
+} from "./california-source-availability.js";
 
 export interface CaliforniaBounds {
   maxRaces: number;
@@ -144,6 +149,7 @@ export interface CaliforniaDependencies {
   fetchRoster(
     electionDate: string,
     budget?: { request(): void; bytes(amount: number): void },
+    expectedSource?: CaliforniaRosterSnapshot["source"],
   ): Promise<CaliforniaRosterSnapshot>;
   listWork(
     snapshotId: string,
@@ -221,47 +227,75 @@ export interface CaliforniaDependencies {
 export async function fetchCaliforniaPlan(
   electionDate: string,
   budget?: { request(): void; bytes(amount: number): void },
+  expectedSource?: CaliforniaRosterSnapshot["source"],
 ): Promise<CaliforniaRosterSnapshot> {
   if (electionDate !== "2026-11-03")
     throw new Error(
       "No verified California roster adapter for this election date",
     );
   budget?.request();
-  const response = await fetch("https://media.sos.ca.gov/media/C26GG.txt", {
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!response.ok)
-    throw new Error(`SOS roster request failed (${response.status})`);
+  const url = "https://media.sos.ca.gov/media/C26GG.txt";
+  let response: Response;
+  try {
+    response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+  } catch (error) {
+    throw sourceAcquisitionFailure(url, error);
+  }
+  if (!response.ok) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new CaliforniaSourceHttpError(response.status);
+  }
   const reader = response.body?.getReader();
   if (!reader) throw new Error("SOS roster response has no body");
   const chunks: Uint8Array[] = [];
   let length = 0;
   for (;;) {
-    const part = await reader.read();
+    let part: Awaited<ReturnType<typeof reader.read>>;
+    try {
+      part = await reader.read();
+    } catch (error) {
+      await reader.cancel().catch(() => undefined);
+      throw sourceAcquisitionFailure(url, error);
+    }
     if (part.done) break;
     length += part.value.byteLength;
     try {
       budget?.bytes(part.value.byteLength);
     } catch (error) {
-      await reader.cancel();
+      await reader.cancel().catch(() => undefined);
       throw error;
     }
     if (length > 2_000_000) {
-      await reader.cancel();
+      await reader.cancel().catch(() => undefined);
       throw new Error("SOS roster exceeds byte budget");
     }
     chunks.push(part.value);
   }
+  const bytes = Buffer.concat(chunks);
+  const rawChanged =
+    expectedSource !== undefined &&
+    createHash("sha256").update(bytes).digest("hex") !==
+      expectedSource.byteHash;
   budget?.request();
-  const certification = await fetchBoundedCaliforniaSource(
-    "certified-roster",
-    "https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/cert-list-candidates.pdf",
-    "California Secretary of State",
-    "pdf",
-    budget ?? { request() {}, bytes() {} },
-  );
+  let certification: ResearchSource;
+  try {
+    certification = await fetchBoundedCaliforniaSource(
+      "certified-roster",
+      "https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/cert-list-candidates.pdf",
+      "California Secretary of State",
+      "pdf",
+      budget ?? { request() {}, bytes() {} },
+    );
+  } catch (error) {
+    if (rawChanged && isCaliforniaSourceUnavailable(error))
+      throw new Error(
+        "Changed authoritative SOS roster remains unverified after a certification source outage",
+        { cause: error },
+      );
+    throw error;
+  }
   return decodeCaliforniaRoster({
-    bytes: Buffer.concat(chunks),
+    bytes,
     fetchedAt: new Date().toISOString(),
     certification,
     electionDate,
@@ -964,8 +998,16 @@ export async function reconcile(
     },
   };
   let fresh: CaliforniaRosterSnapshot;
+  let stateAuthorityChanged = false;
   try {
-    fresh = await deps.fetchRoster(snapshot.electionDate, budget);
+    fresh = await deps.fetchRoster(
+      snapshot.electionDate,
+      budget,
+      snapshot.source,
+    );
+    stateAuthorityChanged =
+      fresh.source.textHash !== snapshot.source.textHash ||
+      fresh.certification.textHash !== snapshot.certification.textHash;
     if (
       snapshot.scope === "ca_sos_certified_and_san_jose" &&
       fresh.scope === "ca_sos_certified"
@@ -975,7 +1017,7 @@ export async function reconcile(
         fresh,
         async (id, url, publisher, format) => {
           budget.request();
-          return fetchBoundedCaliforniaSource(
+          return (deps.fetchProof ?? fetchBoundedCaliforniaSource)(
             id,
             url,
             publisher,
@@ -985,14 +1027,24 @@ export async function reconcile(
         },
       );
   } catch (error) {
-    if (!(error instanceof CaliforniaBudgetReached))
+    const failure =
+      stateAuthorityChanged && isCaliforniaSourceUnavailable(error)
+        ? new Error(
+            "Changed statewide roster authority remains unverified after a local source outage",
+            { cause: error },
+          )
+        : error;
+    if (
+      !(failure instanceof CaliforniaBudgetReached) &&
+      !isCaliforniaSourceUnavailable(failure)
+    )
       await deps.invalidateElection({
         electionDate: snapshot.electionDate,
         snapshotId: snapshot.id,
         reason:
           "Required authoritative roster or reviewed local source refresh failed",
       });
-    throw error;
+    throw failure;
   }
   if (fresh.id !== snapshot.id) {
     await deps.saveSnapshot(fresh, sourceEpoch ?? undefined);

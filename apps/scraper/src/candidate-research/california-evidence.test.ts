@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import test from "node:test";
 
 import type { ResearchSource } from "@acme/validators";
@@ -1664,4 +1665,75 @@ test("verified current House office records retain exact name and district witho
       false,
       `${url} ${body}`,
     );
+});
+
+test("partial source body failure preserves the acquisition cause and canonical URL", async () => {
+  const network = Object.assign(new Error("aborted"), { code: "ECONNRESET" });
+  await assert.rejects(
+    () =>
+      fetchBoundedCaliforniaSource(
+        "required",
+        "https://county.example.gov/roster",
+        "County",
+        "text",
+        { request() {}, bytes() {} },
+        undefined,
+        {
+          addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+          transport: async () =>
+            new Response(
+              new ReadableStream({
+                start(controller) {
+                  controller.error(network);
+                },
+              }),
+            ),
+        },
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.name, "CaliforniaSourceUnavailable");
+      assert.equal(error.cause, network);
+      assert.match(error.message, /https:\/\/county\.example\.gov\/roster/);
+      return true;
+    },
+  );
+});
+
+test("native interrupted source response is an acquisition outage rather than a completed archive", async (t) => {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, {
+      "Content-Type": "text/plain",
+      "Content-Length": "100000",
+    });
+    response.write("Partial authoritative source bytes.");
+    setImmediate(() => response.destroy());
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const url = `http://county.example.gov:${address.port}/roster`;
+  await assert.rejects(
+    () =>
+      fetchBoundedCaliforniaSource(
+        "required",
+        url,
+        "County",
+        "text",
+        { request() {}, bytes() {} },
+        undefined,
+        {
+          addresses: async () => [{ address: "127.0.0.1", family: 4 }],
+        },
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.name, "CaliforniaSourceUnavailable");
+      assert.ok(error.cause instanceof Error);
+      assert.equal((error.cause as NodeJS.ErrnoException).code, "ECONNRESET");
+      assert.ok(error.message.includes(url));
+      return true;
+    },
+  );
 });
