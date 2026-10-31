@@ -3,6 +3,7 @@ import { z } from "zod/v4";
 import type { CandidateEvidenceDossier } from "@acme/validators";
 import {
   candidateBriefSchema,
+  candidateFinanceSemanticProjection,
   hasSubstantiveCandidateResearch,
 } from "@acme/validators";
 
@@ -103,6 +104,34 @@ function canonicalValue(value: unknown): unknown {
 }
 const feedbackHash = (value: CaliforniaAuthorCorrection) =>
   evidenceDigest(canonicalValue(value));
+
+function publicContentDigest(brief: AuthorResult["brief"]) {
+  const {
+    revisionId: _revision,
+    supersedes: _supersedes,
+    createdAt: _created,
+    authorId: _author,
+    authorship: _authorship,
+    correction: _correction,
+    evidence,
+    research,
+    ...content
+  } = candidateBriefSchema.parse(brief);
+  return evidenceDigest(
+    canonicalValue({
+      ...content,
+      evidence: evidence.map(({ retrievedAt: _retrieved, ...entry }) => entry),
+      ...(research
+        ? {
+            research: {
+              ...research,
+              finance: candidateFinanceSemanticProjection(research.finance),
+            },
+          }
+        : {}),
+    }),
+  );
+}
 
 export class PendingCandidateResearchGap extends Error {}
 
@@ -420,6 +449,14 @@ export async function prepareReviewedCaliforniaCandidate(
         throw error;
       }
     }
+    if (
+      correction?.kind === "review_rejection" &&
+      publicContentDigest(authored.brief) ===
+        publicContentDigest(correction.previousBrief)
+    )
+      throw new Error(
+        "Bounded candidate correction did not change the rejected public content",
+      );
     Object.assign(provenance, {
       revisionId: authored.brief.revisionId,
       author: authored.attestation,

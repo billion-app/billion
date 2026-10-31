@@ -212,9 +212,15 @@ compiler regenerates financial records, evidence observations and coverage text
 from the current dossier. A fresh independent reviewer assesses the complete new
 profile. Historical approval cannot approve a new financial revision. The existing
 single correction can repair reviewer findings, and rejected or unknown attempts
-remain terminal for the same input.
+remain terminal for the same input. A correction receives another review only
+when its compiled reader-facing content changes. New revision IDs, author IDs,
+observation timestamps and correction metadata do not count as a repair. An
+unchanged saved correction cannot use a cached approval or dispatch another
+review. Compiler-owned coverage describes what the brief presents without
+exposing collection-workflow commentary.
 
-The finance-refresh prompt has its own version. Cache keys include the current
+The finance-refresh prompt has its own version. These versions also identify the
+trusted compiler's output contract. Cache keys include the current
 semantic dossier and retained narrative, but exclude historical publication run
 IDs. Repeating the same refresh cannot obtain a new attempt merely because the
 previous publication changed those IDs. Ordinary research still discovers new
