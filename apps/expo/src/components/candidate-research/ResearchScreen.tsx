@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, View } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import type { EvidenceSelection } from "./EvidenceSheet";
@@ -13,7 +13,6 @@ import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { DigestPalette as P } from "~/styles";
 import { trpc } from "~/utils/api";
 import { claimLabels, PromiseDetail } from "./Brief";
-import { CandidateCatalog } from "./CandidateCatalog";
 import { CandidateResearchBody } from "./CandidateResearchBody";
 import { EvidenceSheet } from "./EvidenceSheet";
 import { candidateResearchPreview } from "./fixtures";
@@ -523,7 +522,7 @@ export function ResearchScreen(props: { promisePage?: boolean }) {
     preview?: string;
   }>();
   return !params.race && !params.draft && !params.preview ? (
-    <CandidateCatalog />
+    <Redirect href="/ballot" />
   ) : (
     <ResearchDetailScreen {...props} />
   );

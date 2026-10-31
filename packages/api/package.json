@@ -3,6 +3,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./lib/ballot-research-demand": {
+      "types": "./dist/lib/ballot-research-demand.d.ts",
+      "default": "./src/lib/ballot-research-demand.ts"
+    },
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./src/index.ts"

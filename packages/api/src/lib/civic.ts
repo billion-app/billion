@@ -27,6 +27,7 @@ import {
   ballotSelectionDate,
   createDemocracyWorksClient,
 } from "../clients/democracy-works";
+import { recordBallotResearchDemand } from "./ballot-research-demand";
 import { loadCaliforniaGuideResults } from "./california-guide-results";
 import { selectCaliforniaGuideStandings } from "./california-guide-standings";
 import {
@@ -978,6 +979,13 @@ export function getVoterInfo(
 }
 
 const loadVoterInfo = createVoterInfoLoader({
+  observeBallot: async (ballot) => {
+    try {
+      await recordBallotResearchDemand(db, ballot);
+    } catch {
+      console.warn("[civic] Could not queue ballot candidate research");
+    }
+  },
   getCached,
   setCache: (address, endpoint, params, result) =>
     setCache(address, endpoint, params, result, CACHE_TTL.voterinfo),
