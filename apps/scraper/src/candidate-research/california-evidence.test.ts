@@ -1509,3 +1509,153 @@ test("candidate discovery searches the full name without office, year or quotes"
     { query: member.name, discover: true },
   ]);
 });
+
+test("McGuire's archived block footer qualifies the filed campaign and its actual about page", async () => {
+  const { snapshot } = await fixture();
+  const race = snapshot.races.find((target) =>
+    target.members.some((member) => member.name === "Mike McGuire"),
+  )!;
+  const member = race.members.find(
+    (candidate) => candidate.name === "Mike McGuire",
+  )!;
+  const root = "https://www.votemikemcguire.com/";
+  const pages = new Map(
+    await Promise.all(
+      [
+        [root, "mcguire-root-regression.txt"],
+        [`${root}about`, "mcguire-about-regression.txt"],
+      ].map(
+        async ([url, file]) =>
+          [
+            url!,
+            await readFile(
+              new URL(`./fixtures/${file}`, import.meta.url),
+              "utf8",
+            ),
+          ] as const,
+      ),
+    ),
+  );
+  const fetched: string[] = [];
+  const dossier = await collectCaliforniaEvidence(
+    { snapshot, race, member },
+    {
+      now: () => now,
+      sharedSources: new Map(),
+      budget: { request() {}, bytes() {} },
+      search: async () => ({ sources: [] }),
+      fetch: async (id, url, publisher, format) => {
+        fetched.push(url);
+        const html = pages.get(url);
+        if (!html)
+          return source(
+            id,
+            url,
+            url.includes("contact-list")
+              ? `${member.name}\nWEBSITE: ${root}\n${race.members.find((other) => other.name !== member.name)!.name}`
+              : "Official office responsibilities.",
+          );
+        return fetchBoundedCaliforniaSource(
+          id,
+          url,
+          publisher,
+          format,
+          { request() {}, bytes() {} },
+          undefined,
+          {
+            addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+            transport: async () => new Response(html),
+          },
+        ).then((archive) => ({ ...archive, fetchedAt: now }));
+      },
+    },
+  );
+  assert.ok(
+    fetched.includes(`${root}about`),
+    "verified campaign must reach its substantive about page",
+  );
+  const archive = dossier.sources.find((entry) => entry.url === root)!;
+  assert.ok(archive.text.includes("\nPaid for by Mike McGuire for Congress"));
+  const about = dossier.sources.find((entry) => entry.url === `${root}about`)!;
+  const evidence = dossier.evidence.find(
+    (entry) =>
+      entry.sourceId === about.id && entry.role === "campaign_material",
+  );
+  assert.ok(evidence, "actual campaign biography supplies record evidence");
+  assert.equal(evidence.origin, "candidate");
+  assert.equal(evidence.attribution?.status, "unresolved");
+  assert.ok(about.text.includes(evidence.excerpt));
+  assert.ok(
+    dossier.sourceLinks?.some(
+      (link) =>
+        link.fromSourceId === archive.id &&
+        link.toSourceId === about.id &&
+        link.relation === "same_origin_campaign",
+    ),
+  );
+});
+
+test("county education authority accepts the current county roster office order without swallowing Equalization", () => {
+  assert.equal(
+    californiaLocalAuthority({
+      office: "Board of Education, Area 7",
+      jurisdictionLabel: "Santa Clara County",
+    })?.id,
+    "county-education-board",
+  );
+  assert.equal(
+    californiaLocalAuthority({
+      office: "Board of Education, Area 7",
+      jurisdictionLabel: "Example School District",
+    })?.id,
+    "school-district-board",
+  );
+  assert.equal(
+    californiaLocalAuthority({
+      office: "Board of Equalization, District 2",
+      jurisdictionLabel: "California",
+    }),
+    null,
+  );
+});
+
+test("verified current House office records retain exact name and district without future-election prose", async () => {
+  const { snapshot } = await fixture();
+  const race = snapshot.races.find((target) =>
+    target.members.some((member) => member.name === "Ro Khanna"),
+  )!;
+  const text =
+    "Congressman Ro Khanna represents California's 17th Congressional District. He has worked to expand public services and support families through legislation.";
+  assert.equal(
+    qualifiedCandidatePage(
+      source("khanna", "https://khanna.house.gov/about", text),
+      race,
+      "Ro Khanna",
+      false,
+    ),
+    true,
+  );
+  for (const [url, body] of [
+    ["https://other.house.gov/about", text.replace("17th", "18th")],
+    ["https://unrelated.gov/about", text],
+    [
+      "https://khanna.house.gov/about",
+      text.replace("Ro Khanna", "Ro Khanna Jr."),
+    ],
+    ["https://example.org/about", text],
+    [
+      "https://khanna.house.gov/about",
+      "Ro Khanna worked to expand public services.",
+    ],
+  ])
+    assert.equal(
+      qualifiedCandidatePage(
+        source("rejected", url!, body!),
+        race,
+        "Ro Khanna",
+        false,
+      ),
+      false,
+      `${url} ${body}`,
+    );
+});
