@@ -276,7 +276,7 @@ function legalRosterName(source: FecIdentitySource, query: FecIdentityQuery) {
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line) =>
-      /^\[[^\[\]]+\]$/.test(line) ? line.slice(1, -1).split("|") : [],
+      /^\[[^[\]]+\]$/.test(line) ? line.slice(1, -1).split("|") : [],
     );
   const matches = rows.filter(
     (row) =>
@@ -286,7 +286,8 @@ function legalRosterName(source: FecIdentitySource, query: FecIdentityQuery) {
       row[4] === query.sourceCandidateId,
   );
   if (matches.length !== 1) return null;
-  const row = matches[0]!;
+  const row = matches[0];
+  if (!row) return null;
   if (
     row[3] !== `110000${query.district.padStart(2, "0")}0000` ||
     canonicalName(row[10] ?? "") !== canonicalName(query.name) ||
@@ -314,7 +315,8 @@ function rosterDomain(source: FecIdentitySource, query: FecIdentityQuery) {
     (section) => Number(section[1]) === Number(query.district),
   );
   if (matches.length !== 1) return null;
-  const section = matches[0]!;
+  const section = matches[0];
+  if (!section) return null;
   const block = source.text.slice(
     section.index + section[0].length,
     sections.find((next) => next.index > section.index)?.index,
@@ -325,10 +327,11 @@ function rosterDomain(source: FecIdentitySource, query: FecIdentityQuery) {
     ),
   ];
   const matching = candidates.filter(
-    (row) => canonicalName(row[1]!) === canonicalName(query.name),
+    (row) => canonicalName(row[1] ?? "") === canonicalName(query.name),
   );
   if (matching.length !== 1) return null;
-  const row = matching[0]!;
+  const row = matching[0];
+  if (!row) return null;
   const contact = block.slice(
     row.index + row[0].length,
     candidates.find((next) => next.index > row.index)?.index,
@@ -338,7 +341,9 @@ function rosterDomain(source: FecIdentitySource, query: FecIdentityQuery) {
       /(?:^|\n)(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(?:\/)?Website:/g,
     ),
   ];
-  return websites.length === 1 ? websites[0]![1]!.toLowerCase() : null;
+  return websites.length === 1
+    ? (websites[0]?.[1]?.toLowerCase() ?? null)
+    : null;
 }
 function formCandidate(
   source: FecIdentitySource,
@@ -365,7 +370,8 @@ function formCandidate(
     !["8.4", "8.5"].includes(header[2] ?? "")
   )
     return null;
-  const row = rows[1]!;
+  const row = rows[1];
+  if (!row) return null;
   if (
     row.length !== 101 ||
     !/^F1[AN]$/.test(row[0] ?? "") ||
@@ -378,10 +384,13 @@ function formCandidate(
     !/^\d{8}$/.test(row[14] ?? "")
   )
     return null;
+  const websiteField = row[13] ?? "";
   let website: URL;
   try {
     website = new URL(
-      /^https?:\/\//.test(row[13]!) ? row[13]! : `https://${row[13]}`,
+      /^https?:\/\//.test(websiteField)
+        ? websiteField
+        : `https://${websiteField}`,
     );
   } catch {
     return null;
@@ -428,15 +437,15 @@ function bridgeQuery(
   if (!roster || !filing || rosterDomain(roster, query) !== bridge.domain)
     return null;
   const candidate = formCandidate(filing, bridge.committeeId, bridge.domain);
+  if (!candidate) return null;
   if (
-    !candidate ||
     candidate.state !== "CA" ||
     Number(candidate.district) !== Number(query.district)
   )
     return null;
   const matched = resolveFecCandidate(rows, { ...query, name: candidate.name });
+  if (!matched) return null;
   if (
-    !matched ||
     matched.candidate_id !== candidate.candidateId ||
     matched.principal_committee_id !== bridge.committeeId
   )
@@ -450,12 +459,12 @@ export function findFecIdentityBridge(
 ): FecIdentityBridge | undefined {
   const proofs: FecIdentityBridge[] = [];
   for (const source of sources) {
-    if (legalRosterName(source, query))
+    if (query.sourceCandidateId && legalRosterName(source, query))
       proofs.push({
         kind: "sos_legal_name_v1",
         sourceId: source.id,
         sourceHash: source.contentHash,
-        sourceCandidateId: query.sourceCandidateId!,
+        sourceCandidateId: query.sourceCandidateId,
       });
     const domain = rosterDomain(source, query);
     if (!domain) continue;
