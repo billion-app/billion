@@ -11,6 +11,9 @@ import {
   sanJoseScopeCrosswalkSchema,
 } from "@acme/validators";
 
+import { isCaliforniaSourceUnavailable } from "./california-source-availability.js";
+import { validateAuthorityRenewalProjection } from "./california-source-projections.js";
+
 const hash = (value: string | Uint8Array) =>
   createHash("sha256").update(value).digest("hex");
 const offices: Record<
@@ -875,6 +878,41 @@ export async function refreshReviewedSanJoseRoster(
   if (!current.localCrosswalk)
     throw new Error("San José snapshot lacks a reviewed crosswalk");
   const prior = current.additionalSources ?? [];
+  const validateProof = (
+    reviewed: ResearchSource,
+    observed: ResearchSource,
+  ) => {
+    if (hash(observed.text) !== observed.contentHash)
+      throw new Error("Fresh territorial proof archive hash mismatch");
+    const projection = current.localPrimary?.sourceRenewalProjections?.find(
+      (contract) => contract.url === reviewed.url,
+    );
+    if (projection) {
+      validateAuthorityRenewalProjection(
+        projection,
+        observed,
+        current.localCrosswalk!.review.digest,
+      );
+    } else if (
+      observed.url !== reviewed.url ||
+      observed.contentHash !== reviewed.contentHash
+    )
+      throw new Error(
+        `Territorial proof changed (${reviewed.id}); source digest mismatch requires new San José scope review`,
+      );
+    const strongRefs = current
+      .localCrosswalk!.entries.flatMap((entry) => entry.proofs)
+      .filter(
+        (ref) =>
+          ref.url === reviewed.url &&
+          ref.contentHash === reviewed.contentHash &&
+          ref.byteHash,
+      );
+    if (strongRefs.some((ref) => observed.byteHash !== ref.byteHash))
+      throw new Error(
+        "Territorial proof raw bytes changed; new scope review required",
+      );
+  };
   if (current.localPrimary?.kind === "scc_clarity") {
     const versionArchive = prior.find(
       (source) => source.url === current.localPrimary!.currentVersionURL,
@@ -887,20 +925,61 @@ export async function refreshReviewedSanJoseRoster(
       versionArchive.publisher,
       versionArchive.format,
     );
+    if (currentVersion.url !== versionArchive.url)
+      throw new Error("Fresh Clarity version source URL changed");
     const version = currentVersion.text.trim();
     if (!/^\d{6}$/.test(version))
       throw new Error("Invalid current Clarity report version");
+    if (hash(currentVersion.text) !== currentVersion.contentHash)
+      throw new Error("Fresh Clarity version archive hash mismatch");
     const fresh: ResearchSource[] = [currentVersion];
-    for (const source of prior.filter(
-      (source) => source.url !== versionArchive.url,
-    )) {
-      const url = source.url.replace(
-        /^(https:\/\/results\.enr\.clarityelections\.com\/CA\/Santa_Clara\/127570\/)\d{6}(\/)/,
-        `$1${version}$2`,
-      );
-      fresh.push(
-        await fetchSource(source.id, url, source.publisher, source.format),
-      );
+    let unverifiedReportChange =
+      currentVersion.contentHash !== versionArchive.contentHash;
+    try {
+      for (const source of prior.filter(
+        (source) => source.url !== versionArchive.url,
+      )) {
+        const url = source.url.replace(
+          /^(https:\/\/results\.enr\.clarityelections\.com\/CA\/Santa_Clara\/127570\/)\d{6}(\/)/,
+          `$1${version}$2`,
+        );
+        const observed = await fetchSource(
+          source.id,
+          url,
+          source.publisher,
+          source.format,
+        );
+        if (observed.url !== url)
+          throw new Error(
+            "Fresh Clarity or territorial proof source URL changed",
+          );
+        if (hash(observed.text) !== observed.contentHash)
+          throw new Error(
+            "Fresh Clarity or territorial proof archive hash mismatch",
+          );
+        const report =
+          /^https:\/\/results\.enr\.clarityelections\.com\/CA\/Santa_Clara\/127570\/\d{6}\/(?:json\/en\/(?:summary|electionsettings)\.json|reports\/detailwithoutvotetypesxml\.zip)$/.test(
+            source.url,
+          );
+        if (report) {
+          if (observed.contentHash !== source.contentHash)
+            unverifiedReportChange = true;
+        } else {
+          const reviewed =
+            current.localPrimary.reviewedSources?.find(
+              (prior) => prior.url === source.url,
+            ) ?? source;
+          validateProof(reviewed, observed);
+        }
+        fresh.push(observed);
+      }
+    } catch (error) {
+      if (unverifiedReportChange && isCaliforniaSourceUnavailable(error))
+        throw new Error(
+          "Changed Clarity report remains unverified after a required source outage",
+          { cause: error },
+        );
+      throw error;
     }
     const { renewReviewedClaritySanJoseRoster } =
       await import("./california-clarity.js");
@@ -916,10 +995,16 @@ export async function refreshReviewedSanJoseRoster(
   );
   if (!county) throw new Error("San José source archive is incomplete");
   const fresh: ResearchSource[] = [];
-  for (const source of prior)
-    fresh.push(
-      await fetchSource(source.id, source.url, source.publisher, source.format),
+  for (const source of prior) {
+    const observed = await fetchSource(
+      source.id,
+      source.url,
+      source.publisher,
+      source.format,
     );
+    validateProof(source, observed);
+    fresh.push(observed);
+  }
   const source = fresh.find((s) => s.url === county.url)!;
   const writeInSource = writeIns
     ? fresh.find((s) => s.url === writeIns.url)

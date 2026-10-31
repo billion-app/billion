@@ -978,3 +978,178 @@ test("two successive real-shaped authority refreshes preserve semantic ID and im
     ["2026-10-30T21:00:00.000Z", "2026-10-30T21:00:00.000Z"],
   );
 });
+
+async function interruptedRequiredSource() {
+  const { fetchBoundedCaliforniaSource } =
+    await import("./california-evidence.js");
+  try {
+    await fetchBoundedCaliforniaSource(
+      "required",
+      "https://county.example.gov/required",
+      "County",
+      "text",
+      { request() {}, bytes() {} },
+      undefined,
+      {
+        addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+        transport: async () => {
+          throw Object.assign(new Error("connection reset"), {
+            code: "ECONNRESET",
+          });
+        },
+      },
+    );
+  } catch (error) {
+    return error;
+  }
+  assert.fail("The source acquisition must fail");
+}
+
+test("changed territorial proof is rejected before a later acquisition outage", async () => {
+  const { state, input } = fixture();
+  const geo = source(
+    "geometry",
+    "https://maps.example.gov/boundary.json",
+    '{"boundaryVersion":1}',
+  );
+  const snapshot = appendReviewedClaritySanJoseRoster(state, {
+    ...input,
+    proofSources: [...input.proofSources, geo],
+  });
+  snapshot.additionalSources = [
+    version,
+    geo,
+    ...snapshot.additionalSources!.filter(
+      (s) => s.url !== version.url && s.url !== geo.url,
+    ),
+  ];
+  const outage = await interruptedRequiredSource();
+  let fetchedAfterChange = false;
+  await assert.rejects(
+    () =>
+      refreshReviewedSanJoseRoster(snapshot, state, async (_id, url) => {
+        if (url === version.url) return version;
+        if (url === geo.url)
+          return {
+            ...geo,
+            text: '{"boundaryVersion":2}',
+            contentHash: hash('{"boundaryVersion":2}'),
+          };
+        fetchedAfterChange = true;
+        throw outage;
+      }),
+    /Territorial proof changed/,
+  );
+  assert.equal(fetchedAfterChange, false);
+});
+
+test("changed report cannot be retained when a later required archive is unavailable", async () => {
+  const { state, input } = fixture();
+  const snapshot = appendReviewedClaritySanJoseRoster(state, input);
+  snapshot.additionalSources = [
+    version,
+    definition,
+    ...snapshot.additionalSources!.filter(
+      (s) => s.url !== version.url && s.url !== definition.url,
+    ),
+  ];
+  const outage = await interruptedRequiredSource();
+  await assert.rejects(
+    () =>
+      refreshReviewedSanJoseRoster(snapshot, state, async (_id, url) => {
+        if (url === version.url) return version;
+        if (url === definition.url)
+          return {
+            ...definition,
+            text: definition.text + "\n",
+            contentHash: hash(definition.text + "\n"),
+          };
+        throw outage;
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.notEqual(error, outage);
+      assert.match(error.message, /changed.*(?:report|source)|unverified/i);
+      assert.equal(error.cause, outage);
+      return true;
+    },
+  );
+});
+
+for (const valid of [true, false]) {
+  test(`${valid ? "approved telemetry" : "invalid projected authority"} before a later unavailable archive retains its own failure meaning`, async () => {
+    const { state, input } = fixture();
+    const metadata = JSON.parse(read("authority-projection-sources.json")) as {
+      id: string;
+      url: string;
+      publisher: string;
+    }[];
+    const meta = metadata.find((m) => m.id !== "mvla-authority")!;
+    const original = {
+      ...source(meta.id, meta.url, read("cde-item-reviewed.txt"), "text"),
+      byteHash: hash(read("cde-item-reviewed.txt")),
+      publisher: meta.publisher,
+    };
+    const { authorityProjectionDigest } =
+      await import("./california-source-projections.js");
+    const projectionId =
+      "cde-item-48870daecfe14c6ab376f6a673491914-telemetry-v1" as const;
+    const contract = {
+      projectionId,
+      url: original.url,
+      publisher: original.publisher,
+      format: "text" as const,
+      reviewedContentHash: original.contentHash,
+      reviewedRawHash: original.contentHash,
+      canonicalDigest: authorityProjectionDigest(projectionId, original.text),
+      reviewedSource: original,
+      approval: {
+        actorId: "test-projection-reviewer",
+        reviewedAt: definition.fetchedAt,
+        receiptHash: "b".repeat(64),
+        scopeDigest: input.scopeCrosswalk.review.digest,
+        reviewedSourceBundleHash: "c".repeat(64),
+      },
+    };
+    const snapshot = appendReviewedClaritySanJoseRoster(state, {
+      ...input,
+      proofSources: [...input.proofSources, original],
+      sourceRenewalProjections: [contract],
+    });
+    snapshot.additionalSources = [
+      version,
+      original,
+      ...snapshot.additionalSources!.filter(
+        (s) => s.url !== version.url && s.url !== original.url,
+      ),
+    ];
+    const observed = JSON.parse(original.text);
+    observed.lastViewed = valid ? -1 : -2;
+    observed.numViews++;
+    const text = JSON.stringify(observed);
+    const outage = await interruptedRequiredSource();
+    await assert.rejects(
+      () =>
+        refreshReviewedSanJoseRoster(snapshot, state, async (_id, url) => {
+          if (url === version.url) return version;
+          if (url === original.url)
+            return {
+              ...original,
+              text,
+              contentHash: hash(text),
+              byteHash: hash(text),
+            };
+          throw outage;
+        }),
+      (error: unknown) => {
+        if (valid) assert.equal(error, outage);
+        else {
+          assert.notEqual(error, outage);
+          assert.ok(error instanceof Error);
+          assert.match(error.message, /CDE|lastViewed|telemetry/);
+        }
+        return true;
+      },
+    );
+  });
+}
