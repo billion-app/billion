@@ -8,10 +8,14 @@ import {
 } from "./candidate-brief";
 import {
   campaignFinanceSchema,
+  candidateFinanceEvidenceIds,
   hasSubstantiveCampaignFinance,
 } from "./candidate-research";
 import { researchSourceSchema } from "./candidate-research-collection";
-import { resolveFecIdentityFromSource } from "./fec-candidate-identity";
+import {
+  fecIdentityBridgeSchema,
+  resolveFecIdentityFromSource,
+} from "./fec-candidate-identity";
 
 const text = z.string().trim().min(1).max(4000);
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
@@ -80,6 +84,7 @@ export const candidateEvidenceDossierSchema = z
         cycle: z.number().int(),
         sourceId: text,
         sourceHash: digest,
+        bridge: fecIdentityBridgeSchema.optional(),
       })
       .optional(),
     sources: z.array(researchSourceSchema).min(1).max(40),
@@ -382,11 +387,17 @@ export function deriveCandidateResearchQuality(
   )?.[1];
   try {
     if (!district) return null;
-    const matched = resolveFecIdentityFromSource(index, {
-      name: dossier.name,
-      district,
-      cycle: Number(dossier.identity.electionDate.slice(0, 4)),
-    });
+    const matched = resolveFecIdentityFromSource(
+      index,
+      {
+        name: dossier.name,
+        district,
+        cycle: Number(dossier.identity.electionDate.slice(0, 4)),
+        sourceCandidateId: dossier.identity.candidateId.split(":").at(-1),
+      },
+      proof.bridge,
+      dossier.sources,
+    );
     if (
       matched?.candidateId !== proof.candidateId ||
       matched.name !== proof.name ||
@@ -397,11 +408,7 @@ export function deriveCandidateResearchQuality(
   } catch {
     return null;
   }
-  const ids = [
-    ...finance.filingEvidenceIds,
-    ...finance.donors.flatMap((donor) => donor.evidenceIds),
-    ...(finance.outsideSpending?.flatMap((entry) => entry.evidenceIds) ?? []),
-  ];
+  const ids = candidateFinanceEvidenceIds(finance);
   if (
     ids.some(
       (id) =>

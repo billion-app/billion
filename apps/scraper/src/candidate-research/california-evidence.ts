@@ -507,6 +507,7 @@ export async function collectCaliforniaEvidence(
   input: {
     snapshot: CaliforniaRosterSnapshot;
     race: CaliforniaRaceTarget;
+    researchRaces?: CaliforniaRaceTarget[];
     member: CaliforniaRaceTarget["members"][number];
     previousDossier?: CandidateEvidenceDossier;
     supplementalSources?: ResearchSource[];
@@ -1120,8 +1121,46 @@ export async function collectCaliforniaEvidence(
   let financeGap =
     "California or local campaign-finance totals and donor records have not been reconciled. Federal FEC records do not apply to this office.";
   if (race.officeFamily === "us_house") {
+    const scope = input.researchRaces ?? [race];
+    const identitySources = [rosterSource];
+    if (
+      scope.some(
+        (target) =>
+          target.officeFamily === "us_house" &&
+          target.district === "16" &&
+          target.members.some((candidate) => candidate.name === "Sam Liccardo"),
+      )
+    ) {
+      for (const [url, publisher, format] of [
+        [
+          "https://smcacre.gov/system/files/2026-03/51_candidateroster03272026.pdf",
+          "San Mateo County elections",
+          "pdf",
+        ],
+        [
+          "https://docquery.fec.gov/dcdev/posted/1856505.fec",
+          "Federal Election Commission",
+          "text",
+        ],
+      ] as const) {
+        try {
+          identitySources.push(await get(url, publisher, format));
+        } catch (error) {
+          if (
+            error instanceof CaliforniaBudgetReached ||
+            error instanceof CaliforniaCitedSourceFailure
+          )
+            throw error;
+        }
+      }
+    }
     const result = await collectCaliforniaFederalFinance(
-      { race, member },
+      {
+        race,
+        member,
+        scope,
+        identitySources,
+      },
       {
         fetch: deps.fetch,
         sharedSources: deps.sharedSources,

@@ -359,6 +359,14 @@ test("one demanded race researches all authoritative members without widening to
   const f = await fixture();
   const demanded = f.snapshot.races[1]!;
   f.deps.demandedRaceKeys = async () => [demanded.raceKey];
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (input, budget) => {
+    assert.deepEqual(
+      input.researchRaces?.map((race) => race.raceKey),
+      [demanded.raceKey],
+    );
+    return investigate(input, budget);
+  };
   const result = await reconcile(
     {
       snapshotId: f.snapshot.id,
@@ -373,6 +381,41 @@ test("one demanded race researches all authoritative members without widening to
     result.outcomes.every((outcome) => outcome.raceKey === demanded.raceKey),
   );
   assert.equal(f.stats.investigations, demanded.members.length);
+});
+test("expired demand is excluded from the finance batch before investigation", async () => {
+  const f = await fixture();
+  const active = f.snapshot.races[1]!;
+  let checks = 0;
+  f.deps.demandedRaceKeys = async () =>
+    ++checks === 1
+      ? f.snapshot.races.map((race) => race.raceKey)
+      : [active.raceKey];
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (input, budget) => {
+    assert.equal(input.race.raceKey, active.raceKey);
+    assert.deepEqual(
+      input.researchRaces?.map((race) => race.raceKey),
+      [active.raceKey],
+    );
+    return investigate(input, budget);
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      includePilotRaces: true,
+    },
+    f.deps,
+  );
+  assert.equal(f.stats.investigations, active.members.length);
+  assert.ok(
+    result.outcomes.some(
+      (outcome) =>
+        outcome.status === "pending" &&
+        outcome.reason?.includes("demand expired"),
+    ),
+  );
 });
 test("closed automation policy stops before any source or model work", async () => {
   const f = await fixture();

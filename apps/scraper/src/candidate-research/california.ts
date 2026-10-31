@@ -198,6 +198,7 @@ export interface CaliforniaDependencies {
     input: {
       snapshot: CaliforniaRosterSnapshot;
       race: CaliforniaRaceTarget;
+      researchRaces?: CaliforniaRaceTarget[];
       member: CaliforniaRaceTarget["members"][number];
       previousDossier?: CandidateEvidenceDossier;
     },
@@ -1136,10 +1137,12 @@ export async function reconcile(
       a.raceKey.localeCompare(b.raceKey),
   );
   for (const race of races) {
-    if (
-      input.raceKeys === undefined &&
-      !(await deps.demandedRaceKeys(snapshot)).includes(race.raceKey)
-    ) {
+    const activeKeys =
+      input.raceKeys ?? (await deps.demandedRaceKeys(snapshot));
+    const researchRaces = selectedRaces.filter((selected) =>
+      activeKeys.includes(selected.raceKey),
+    );
+    if (!activeKeys.includes(race.raceKey)) {
       outcomes.push({
         raceKey: race.raceKey,
         status: "pending",
@@ -1235,6 +1238,7 @@ export async function reconcile(
           {
             snapshot,
             race,
+            researchRaces,
             member,
             previousDossier: previousDossier ?? undefined,
           },
