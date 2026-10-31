@@ -1824,19 +1824,20 @@ void test(
       revisionIds.push(changedPairBrief.revisionId);
       required(pairChanged.manifest.members[0]).revisionId =
         changedPairBrief.revisionId;
+      const changedPairArtifacts = required(pairChanged.candidateArtifacts);
       const changedPairAuthor = {
         ...candidateModelAttestationSchema.parse(
-          required(pairChanged.candidateArtifacts?.[0]).author,
+          required(changedPairArtifacts[0]).author,
         ),
         actorId: changedPairBrief.authorId,
         runId: randomUUID(),
         requestId: `pair-changed-author-request:${randomUUID()}`,
         revisionDigest: briefDigest(changedPairBrief),
       };
-      required(pairChanged.candidateArtifacts[0]).author = changedPairAuthor;
+      required(changedPairArtifacts[0]).author = changedPairAuthor;
       assert.deepEqual(pairChanged.briefs[1], pairDocument.briefs[1]);
       assert.deepEqual(
-        pairChanged.candidateArtifacts[1],
+        changedPairArtifacts[1],
         pairDocument.candidateArtifacts[1],
       );
       const pairNext = await saveResearchCollection(pairChanged, db, {
