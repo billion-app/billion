@@ -1,0 +1,40 @@
+{
+  "projectionId": "cde-data-ca-gov-school-district-areas-2025-26-related-harvest-v1",
+  "url": "https://data.ca.gov/@california-department-of-education/california-school-district-areas-2025-26",
+  "publisher": "California Department of Education",
+  "format": "text",
+  "reviewedContentHash": "2c63bb63cba2ae9112fe5f94df3af7720262d8f46d58197344207a19575b60b5",
+  "reviewedRawHash": "2c63bb63cba2ae9112fe5f94df3af7720262d8f46d58197344207a19575b60b5",
+  "canonicalDigest": "07910e6fe6e94dd625e793e9ed08a91108f323283a1d06f9c8170ab806ddca44",
+  "reviewedSource": {
+    "id": "cde-2025-26-authority",
+    "url": "https://data.ca.gov/@california-department-of-education/california-school-district-areas-2025-26",
+    "publisher": "California Department of Education",
+    "format": "text",
+    "contentHash": "2c63bb63cba2ae9112fe5f94df3af7720262d8f46d58197344207a19575b60b5",
+    "byteHash": "2c63bb63cba2ae9112fe5f94df3af7720262d8f46d58197344207a19575b60b5",
+    "fetchedAt": "2026-10-30T20:15:18.086Z",
+    "retrievalUrls": [
+      "https://data.ca.gov/@california-department-of-education/california-school-district-areas-2025-26"
+    ]
+  },
+  "observedSource": {
+    "id": "cde-2025-26-authority",
+    "url": "https://data.ca.gov/@california-department-of-education/california-school-district-areas-2025-26",
+    "retrievalUrls": [
+      "https://data.ca.gov/@california-department-of-education/california-school-district-areas-2025-26"
+    ],
+    "publisher": "California Department of Education",
+    "format": "text",
+    "contentHash": "ea2a1c2f39594c0a918975343f151403f26a1af021906c6d742925fb3d241fff",
+    "byteHash": "ea2a1c2f39594c0a918975343f151403f26a1af021906c6d742925fb3d241fff",
+    "fetchedAt": "2026-10-31T01:00:59.326Z"
+  },
+  "approval": {
+    "actorId": "ai:gpt-6-astra:california-related-harvest-review:2026-10-31",
+    "reviewedAt": "2026-10-31T01:06:16Z",
+    "scopeDigest": "a04b0dc8a476fb06ed52d9aace451f6564fdaa476a672e751595fcd47c9562b7",
+    "reviewedSourceBundleHash": "1b15a619545d5138063f4216ebb297b031a6dfba4f03fdf8d6887dc53e8319c3",
+    "receiptHash": "199b4e2d264df6f862d087f403e6a66f79f1572f01e7c68c1c843bb28421a39f"
+  }
+}
