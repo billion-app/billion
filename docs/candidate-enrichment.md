@@ -81,3 +81,8 @@ The shared roster boundary is in
 [`reconcile`](../apps/scraper/src/candidate-research/california.ts), and public
 expiry remains enforced by
 [`readCandidateRace`](../packages/api/src/lib/candidate-race-release.ts).
+
+When a brief has no finance record, its public disclosure describes that absence
+in the brief. Private collector gaps retain identity and retrieval diagnostics;
+the compiler does not copy those assertions into an absent-finance disclosure.
+Structured financial records and their supported coverage remain separate.
