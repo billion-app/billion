@@ -14,6 +14,8 @@ This release covers the November 3, 2026 state-certified roster and the reviewed
 
 ## Bounded statewide reconciliation
 
+Territorial renewal retains the raw authority responses and compares the explicitly approved source projections. The CDE item projection excludes only its top-level traffic fields, `lastViewed` and `numViews`. The observed `lastViewed: -1` represents an unavailable access time, while a nonnegative integer represents a reported time; it never supplies source freshness. `numViews` remains a nonnegative count. Missing or malformed telemetry and changes to any retained metadata remain failures. The source retrieval time, approved scope, canonical digest and approval receipt stay binding.
+
 The [California worker](../apps/scraper/src/candidate-research/california.ts) exposes `plan`, `reconcile` and `coverage`. Planning retrieves official sources and validates a snapshot. Persistence requires `--apply`. Reconciliation requires an immutable snapshot, explicit policy and write authorization. Verify the selected database host before applying a plan or running reconciliation.
 
 ```sh

@@ -159,6 +159,13 @@ test("CDE unavailable view time does not admit malformed telemetry or retained s
       ),
     );
   }
+  for (const field of ["lastViewed", "numViews"]) {
+    const missing = { ...item };
+    delete missing[field];
+    assert.throws(() =>
+      projectAuthoritySource(contract.projectionId, JSON.stringify(missing)),
+    );
+  }
   for (const key of Object.keys(item).filter(
     (key) => !["lastViewed", "numViews"].includes(key),
   )) {
@@ -213,7 +220,7 @@ test("CDE projection rejects duplicate keys, nonfinite values and malformed excl
   delete missing.lastViewed;
   assert.throws(
     () => projectAuthoritySource(id, JSON.stringify(missing)),
-    /CDE telemetry lastViewed is not a nonnegative integer/,
+    /CDE telemetry lastViewed must be -1 or a nonnegative integer/,
   );
 });
 test("every retained CDE field remains binding, including nested names matching ignored counters", () => {
