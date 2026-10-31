@@ -131,7 +131,7 @@ test("nested promises compile stable links and separate exact reviewer attestati
   assert.notEqual(a.attestation.runId, r.attestation.runId);
   assert.notEqual(a.attestation.actorId, r.attestation.actorId);
   assert.equal(a.attestation.revisionDigest, r.attestation.revisionDigest);
-  assert.equal(a.attestation.promptVersion, "california-author-v16");
+  assert.equal(a.attestation.promptVersion, "california-author-v17");
   assert.equal(r.attestation.actualModel, "actual-fixture-model");
   assert.equal(calls[1]!.excludedConfiguredModel, "fixture:author");
 });
@@ -837,7 +837,7 @@ test("v15 author owns claims only and preserves temporal and contextual constrai
     { dossier: fixtureDossier(), policyVersion: "p1" },
     deps,
   );
-  assert.equal(result.attestation.promptVersion, "california-author-v16");
+  assert.equal(result.attestation.promptVersion, "california-author-v17");
   assert.ok(
     calls[0]!.system.includes("Past achievements belong only in Record"),
   );
@@ -1872,7 +1872,11 @@ test("compiler projects gap meanings without asserting retrieval cause or unseen
     assert.ok(!coverage.includes("could not be retrieved"));
     assert.ok(!coverage.includes("person's identity"));
     if (gap.code === "source_unavailable")
-      assert.ok(coverage.includes("Collection of usable material"));
+      assert.ok(
+        coverage.includes(
+          "This brief's account of this topic remains limited.",
+        ),
+      );
     if (gap.code === "identity_unresolved")
       assert.ok(coverage.includes("Verification of sources"));
     assert.equal(
@@ -1898,6 +1902,41 @@ test("compiler projects gap meanings without asserting retrieval cause or unseen
     /Required source or identity/,
   );
   assert.equal(calls.length, 0);
+});
+
+test("empty section coverage does not expose source collection workflow", async () => {
+  const input = dossierInput();
+  input.gaps.push({
+    dimension: "record",
+    code: "source_unavailable",
+    message: "The record source could not be downloaded.",
+    checkedSourceIds: ["official"],
+    required: false,
+  });
+  const dossier = buildCaliforniaDossier(input);
+  const { deps } = dependencies([authorFixture()]);
+  const result = await authorCaliforniaBrief(
+    { dossier, policyVersion: "p1" },
+    deps,
+  );
+  const record = result.brief.sections.find(
+    (section) => section.topic === "record",
+  );
+  assert.equal(record?.claims.length, 0);
+  assert.equal(
+    record?.missingEvidence,
+    "This section does not present a separate account of the candidate's record.",
+  );
+  assert.equal(
+    dossier.gaps.find((gap) => gap.dimension === "record")?.message,
+    "The record source could not be downloaded.",
+  );
+  assert.equal(result.attestation.promptVersion, "california-author-v17");
+  assert.deepEqual(result.brief.authorship, {
+    kind: "generated",
+    model: "actual-fixture-model",
+    promptVersion: "california-author-v17",
+  });
 });
 
 test("nonempty local Mechanisms retains incomplete authority scope and exact private notes", async () => {

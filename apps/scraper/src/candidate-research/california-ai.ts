@@ -19,10 +19,10 @@ import {
 } from "./california-dossier.js";
 
 // Includes the trusted compiler contract so finance-only changes invalidate cached drafts.
-export const californiaAuthorPromptVersion = "california-author-v16";
+export const californiaAuthorPromptVersion = "california-author-v17";
 export const californiaReviewerPromptVersion = "california-review-v6";
 export const californiaFinanceRefreshPromptVersion =
-  "california-finance-refresh-v1";
+  "california-finance-refresh-v2";
 export interface CaliforniaRetainedNarrative {
   dossierDigest: string;
   narrative: z.infer<ReturnType<typeof californiaAuthorOutputSchema>>;
@@ -272,9 +272,10 @@ function sectionCoverage(
   for (const gap of gaps) {
     switch (gap.code) {
       case "source_unavailable":
-        statements.push(
-          "Collection of usable material for this topic was incomplete in this attempt.",
-        );
+        if (hasSectionClaims)
+          statements.push(
+            "This brief's account of this topic remains limited.",
+          );
         break;
       case "identity_unresolved":
         statements.push(

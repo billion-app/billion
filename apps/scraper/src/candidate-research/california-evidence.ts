@@ -33,6 +33,10 @@ import {
   financeRefreshNonfinancialSources,
   refreshableUnusedDiscoverySource,
 } from "./california-finance-refresh.js";
+import {
+  reusableFinanceQuerySources,
+  seedFinanceQueryCache,
+} from "./california-finance-source-cache.js";
 import { collectCaliforniaFederalFinance } from "./california-finance.js";
 import {
   CaliforniaSourceHttpError,
@@ -515,6 +519,7 @@ export async function collectCaliforniaEvidence(
     member: CaliforniaRaceTarget["members"][number];
     previousDossier?: CandidateEvidenceDossier;
     researchScope?: "finance_refresh";
+    cachedFinanceDossier?: { digest: string; document: unknown };
     supplementalSources?: ResearchSource[];
   },
   deps: CaliforniaEvidenceDependencies,
@@ -636,6 +641,15 @@ export async function collectCaliforniaEvidence(
     (!financeRefresh || race.officeFamily !== "us_house")
   )
     throw new Error("Finance refresh requires a published federal dossier");
+  if (financeRefresh && input.cachedFinanceDossier)
+    seedFinanceQueryCache(
+      reusableFinanceQuerySources({
+        ...input.cachedFinanceDossier,
+        expected: financeRefresh,
+        now: deps.now(),
+      }),
+      deps.sharedSources,
+    );
   const priorCitedSources = (input.previousDossier?.sources ?? []).filter(
     (source) =>
       input.previousDossier!.evidence.some(
@@ -1386,8 +1400,13 @@ export async function fetchBoundedCaliforniaSource(
     budget.request();
   }
   if (!response?.ok) {
+    const retryAfterSeconds = response?.headers.get("retry-after");
     await response?.body?.cancel().catch(() => undefined);
-    if (response) throw new CaliforniaSourceHttpError(response.status);
+    if (response)
+      throw new CaliforniaSourceHttpError(response.status, {
+        resource: currentURL,
+        retryAfterSeconds,
+      });
     throw new Error("Source request failed (no response)");
   }
   const reader = response.body?.getReader();

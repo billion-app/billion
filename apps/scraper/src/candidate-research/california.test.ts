@@ -2311,22 +2311,41 @@ test("actual whole-brief rejection feeds one replacement and independently revie
       assert.deepEqual(correction.previousBrief, rejectedBrief);
       assert.equal(
         correction.overallReason,
-        "The record chapter misattributes the campaign's statement to the official record.",
+        "The record chapter asserts committee leadership not established by the source.",
       );
       assert.deepEqual(correction.findings, []);
     }
-    return author(input);
+    const result = await author(input);
+    const claim = result.brief.sections.find(
+      (section) => section.topic === "record",
+    )!.claims[0]!;
+    if (!correction && !rejectedBrief) {
+      claim.text += " The candidate chaired that committee.";
+      result.attestation.revisionDigest = evidenceDigest(result.brief);
+    }
+    if (correction) {
+      assert.ok(!claim.text.includes("chaired that committee"));
+      assert.notDeepEqual(result.brief.sections, rejectedBrief?.sections);
+    }
+    return result;
   };
   f.deps.review = async (input) => {
     reviewedRevisions.push(input.brief.revisionId);
     const result = await review(input);
     if (!rejectedBrief) {
+      assert.ok(
+        input.brief.sections.some((section) =>
+          section.claims.some((claim) =>
+            claim.text.includes("chaired that committee"),
+          ),
+        ),
+      );
       rejectedBrief = input.brief;
       return {
         ...result,
         verdict: "reject",
         overallReason:
-          "The record chapter misattributes the campaign's statement to the official record.",
+          "The record chapter asserts committee leadership not established by the source.",
       };
     }
     return result;
@@ -2414,19 +2433,49 @@ test("source failure atomically preserves attempted provenance before fencing an
 test("a recovered first candidate cannot publish an incomplete race", async () => {
   const f = await fixture();
   f.snapshot.races.splice(1);
-  const review = f.deps.review;
+  const author = f.deps.author,
+    review = f.deps.review;
   let rejected = false;
+  let repaired = false;
+  f.deps.author = async (input) => {
+    const result = await author(input);
+    const claim = result.brief.sections.find(
+      (section) => section.topic === "record",
+    )!.claims[0]!;
+    if (!rejected) {
+      claim.text += " The candidate chaired that committee.";
+      result.attestation.revisionDigest = evidenceDigest(result.brief);
+    } else if (input.correction?.kind === "review_rejection") {
+      assert.ok(!claim.text.includes("chaired that committee"));
+      repaired = true;
+    }
+    return result;
+  };
   f.deps.review = async (input) => {
     const result = await review(input);
     if (!rejected) {
+      assert.ok(
+        input.brief.sections.some((section) =>
+          section.claims.some((claim) =>
+            claim.text.includes("chaired that committee"),
+          ),
+        ),
+      );
       rejected = true;
       return {
         ...result,
         verdict: "reject",
         overallReason:
-          "The record chapter assigns the committee's action to the candidate without source support.",
+          "The source establishes committee service but not committee leadership.",
       };
     }
+    assert.ok(
+      input.brief.sections.every((section) =>
+        section.claims.every(
+          (claim) => !claim.text.includes("chaired that committee"),
+        ),
+      ),
+    );
     return result;
   };
   const result = await reconcile(
@@ -2439,6 +2488,7 @@ test("a recovered first candidate cannot publish an incomplete race", async () =
   );
   assert.equal(f.stats.authors, 2);
   assert.equal(f.stats.reviews, 2);
+  assert.equal(repaired, true);
   assert.equal(result.remaining, 1);
   assert.equal(result.completed, 0);
   assert.equal(f.stats.releases, 0);
@@ -3059,4 +3109,102 @@ test("changed state authority cannot retain composite identity during state-only
   );
   assert.equal(f.stats.failures, 1);
   assert.equal(f.stats.investigations, 0);
+});
+
+test("finance-only recovery separates latest acquisition from the published narrative base", async () => {
+  const f = await fixture();
+  const race = f.allRaces.find((entry) => entry.officeFamily === "us_house")!;
+  f.snapshot.races = [race];
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (...args) =>
+    buildCaliforniaDossier({
+      ...(await investigate(...args)),
+      officeKind: "federal_legislative",
+    });
+  const author = f.deps.author;
+  const briefs = new Map<string, CandidateBrief>();
+  f.deps.author = async (input) => {
+    const result = await author(input);
+    result.attestation.actualModel = "fixture";
+    briefs.set(input.dossier.identity.candidateId, result.brief);
+    return result;
+  };
+  const input = {
+    snapshotId: f.snapshot.id,
+    policyVersion: "policy",
+    bounds: { ...bounds, maxRaces: 1 },
+    raceKeys: [race.raceKey],
+  };
+  const first = await reconcile(input, f.deps);
+  assert.equal(first.completed, 1);
+  const saved = structuredClone(
+    f.rows.get(race.raceKey)!.checkpoint,
+  ) as CaliforniaWorkCheckpoint;
+  const member = race.members[0]!;
+  const published = saved.candidateProvenance![member.candidateId]!;
+  const oldDossier = f.artifacts.get(
+    `dossier:${published.dossierDigest}`,
+  ) as CandidateEvidenceDossier;
+  const acquired = buildCaliforniaDossier({
+    ...oldDossier,
+    gaps: [
+      {
+        dimension: "finance",
+        code: "source_unavailable",
+        message: "Later acquisition attempt.",
+        checkedSourceIds: [],
+        required: false,
+      },
+    ],
+  });
+  f.artifacts.set(`dossier:${acquired.dossierDigest}`, acquired);
+  const current = structuredClone(saved);
+  current.candidateProvenance![member.candidateId]!.dossierDigest =
+    acquired.dossierDigest;
+  f.rows.set(race.raceKey, {
+    raceKey: race.raceKey,
+    status: "blocked",
+    checkpoint: current,
+  });
+  f.deps.readPublishedCoverage = async () => ({
+    snapshotId: f.snapshot.id,
+    races: [
+      {
+        contestId: race.contestId,
+        jurisdiction: race.jurisdiction,
+        electionDate: race.electionDate,
+        releaseId: saved.releaseId!,
+        sourceCheckedAt: saved.sourceCheckedAt!,
+        policyVersion: "policy",
+        members: race.members.map((candidate) => {
+          const p = saved.candidateProvenance![candidate.candidateId]!;
+          return {
+            candidateId: candidate.candidateId,
+            revisionId: p.revisionId!,
+            collectionId: saved.collectionId!,
+            brief: briefs.get(candidate.candidateId),
+            author: p.author!,
+            reviewer: p.reviewer!,
+          };
+        }),
+      },
+    ],
+  });
+  let calls = 0;
+  f.deps.investigate = async (request) => {
+    calls++;
+    assert.equal(
+      request.previousDossier?.dossierDigest,
+      published.dossierDigest,
+    );
+    assert.equal(request.cachedFinanceDossier?.digest, acquired.dossierDigest);
+    assert.deepEqual(request.cachedFinanceDossier?.document, acquired);
+    assert.equal(request.researchScope, "finance_refresh");
+    throw new Error("Stop after acquisition input inspection");
+  };
+  await reconcile(
+    { ...input, financeOnly: true, refreshCurrent: true },
+    f.deps,
+  );
+  assert.equal(calls, 1);
 });

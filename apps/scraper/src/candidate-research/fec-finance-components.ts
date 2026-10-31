@@ -7,7 +7,7 @@ import { campaignFinanceSchema } from "@acme/validators";
 
 import { selectFecFilingContributions } from "./fec-filing-transactions.js";
 import { evidence, rowSource } from "./finance.js";
-import { field, money } from "./sources.js";
+import { field, hash, money } from "./sources.js";
 
 type Get = (
   url: string,
@@ -65,6 +65,8 @@ export function applyIndependentExpenditures(input: {
   sources: ResearchSource[];
   evidence: CandidateBrief["evidence"];
 }) {
+  if (!input.candidateIds.includes(input.candidateId))
+    throw new Error("Independent expenditure candidate is outside query scope");
   const expected = fecBatchUrl(
     "schedules/schedule_e/by_candidate/",
     input.cycle,
@@ -135,21 +137,22 @@ export function applyIndependentExpenditures(input: {
       evidenceIds: [id],
     });
   }
-  if (!refs.length) {
-    const id = `${input.candidateId}:outside:scope`;
-    const citation = evidence(
+  const scopeId = `${input.candidateId}:outside:scope`;
+  if (input.source.text.length > 4000)
+    throw new Error(
+      "Independent expenditure query proof exceeds evidence bound",
+    );
+  input.evidence.push(
+    evidence(
       input.source,
-      id,
+      scopeId,
       "Processed independent expenditure query",
       input.source.text,
       "primary_record",
       `Exactly exhausted ${input.cycle} candidate-scoped aggregate query; requested IDs include ${input.candidateId}`,
-    );
-    if (input.source.text.length > 4000)
-      throw new Error("Empty candidate scope proof exceeds evidence bound");
-    input.evidence.push(citation);
-    refs.push(id);
-  }
+    ),
+  );
+  refs.push(scopeId);
   input.finance.outsideSpending = outside;
   if (!input.finance.observation)
     throw new Error("Finance observation missing");
@@ -193,6 +196,31 @@ export async function applyReportedContributions(input: {
   const rows = exactFecRows(input.source);
   if (rows.some((row) => !scopedCommittees.includes(String(row.committee_id))))
     throw new Error("Processed report belongs to an unrequested committee");
+  const filings = new Set<string>();
+  for (const row of rows) {
+    if (
+      !/^C\d{8}$/.test(String(row.committee_id)) ||
+      !Number.isSafeInteger(row.file_number) ||
+      Number(row.file_number) <= 0 ||
+      row.report_form !== "Form 3"
+    )
+      throw new Error(
+        "Processed report index contains an invalid filing identity",
+      );
+    if (
+      row.cycle !== input.cycle ||
+      row.most_recent !== true ||
+      row.is_amended !== false ||
+      Number(row.most_recent_file_number) !== row.file_number
+    )
+      throw new Error("Financial report is not a latest processed amendment");
+    const key = `${String(row.committee_id)}:${String(row.file_number)}`;
+    if (filings.has(key))
+      throw new Error(
+        "Processed report index contains a duplicate filing identity",
+      );
+    filings.add(key);
+  }
   const selected = rows.filter((row) =>
     input.committeeIds.includes(String(row.committee_id)),
   );
@@ -200,16 +228,6 @@ export async function applyReportedContributions(input: {
   const latest = new Map<string, Record<string, unknown>>();
   const periods = new Set<string>();
   for (const row of selected) {
-    if (
-      row.cycle !== input.cycle ||
-      row.most_recent !== true ||
-      row.is_amended !== false ||
-      row.report_form !== "Form 3" ||
-      !Number.isSafeInteger(row.file_number) ||
-      Number(row.file_number) <= 0 ||
-      Number(row.most_recent_file_number) !== row.file_number
-    )
-      throw new Error("Financial report is not a latest processed amendment");
     const start = field(row, "coverage_start_date").slice(0, 10);
     const end = field(row, "coverage_end_date").slice(0, 10);
     if (
@@ -228,6 +246,42 @@ export async function applyReportedContributions(input: {
   }
   if (latest.size !== input.committeeIds.length || latest.size > 3)
     throw new Error("Authorized committee report coverage incomplete");
+  const index = {
+    query: {
+      cycle: input.cycle,
+      committee_ids: scopedCommittees,
+      most_recent: true,
+    },
+    pagination: (JSON.parse(input.source.text) as { pagination: unknown })
+      .pagination,
+    reports: rows.map((row) => ({
+      committee_id: row.committee_id,
+      file_number: row.file_number,
+      report_form: row.report_form,
+    })),
+  };
+  const readableIndex = JSON.stringify(index, null, 2);
+  const indexText =
+    readableIndex.length <= 4000 ? readableIndex : JSON.stringify(index);
+  if (indexText.length > 4000)
+    throw new Error("Processed report index proof exceeds evidence bound");
+  const indexSource: ResearchSource = {
+    ...input.source,
+    id: `${input.candidateId}:financial-report-index`,
+    text: indexText,
+    contentHash: hash(indexText),
+  };
+  input.sources.push(indexSource);
+  input.evidence.push(
+    evidence(
+      indexSource,
+      indexSource.id,
+      "Complete processed financial report index",
+      indexSource.text,
+      "primary_record",
+      "Exactly exhausted FEC report query; every returned filing identity and original pagination",
+    ),
+  );
   const donors: CampaignFinance["donors"] = [];
   const refs: string[] = [];
   const filingNumbers: number[] = [];
@@ -315,7 +369,10 @@ export async function applyReportedContributions(input: {
     periodStart: start,
     periodEnd: end,
     updatedAt: input.source.fetchedAt,
-    evidenceIds: refs.filter((id) => id.includes(":report:")),
+    evidenceIds: [
+      indexSource.id,
+      ...refs.filter((id) => id.includes(":report:")),
+    ],
   };
   campaignFinanceSchema.parse(input.finance);
   return true;

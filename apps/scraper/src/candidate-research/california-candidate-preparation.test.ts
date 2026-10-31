@@ -19,7 +19,10 @@ import {
   prepareReviewedCaliforniaCandidate,
   reviewPreparedCaliforniaCandidateForCollection,
 } from "./california-candidate-preparation.js";
-import { buildCaliforniaDossier } from "./california-dossier.js";
+import {
+  buildCaliforniaDossier,
+  evidenceDigest,
+} from "./california-dossier.js";
 import {
   fixtureCampaignMaterialDossier,
   fixtureDossier,
@@ -99,7 +102,10 @@ function fixture() {
               claims: [
                 {
                   kind: "promise",
-                  text: "Morgan Lee proposes funding public libraries.",
+                  text:
+                    input.correction?.kind === "review_rejection"
+                      ? "Morgan Lee proposes public-library funding."
+                      : "Morgan Lee proposes funding public libraries.",
                   evidenceIds: ["platform"],
                   promiseDetails: null,
                 },
@@ -228,6 +234,122 @@ test("one rejected correction exhausts the shared slot across reviewer wording, 
     ).length,
     1,
   );
+});
+
+test("unchanged rejected content cannot obtain another review through new metadata or a cached approval", async () => {
+  const f = fixture();
+  const author = f.deps.author;
+  let corrected: Awaited<ReturnType<Dependencies["author"]>> | undefined;
+  f.deps.author = async (input) => {
+    const result = await author(input);
+    if (input.correction?.kind === "review_rejection") {
+      const previous = input.correction.previousBrief;
+      result.brief = {
+        ...previous,
+        revisionId: result.brief.revisionId,
+        createdAt: "2026-10-30T00:00:02.000Z",
+        authorId: result.brief.authorId,
+        supersedes: previous.revisionId,
+        correction: {
+          reason: "Reassessed the same public content.",
+          previousRevisionId: previous.revisionId,
+        },
+        evidence: previous.evidence.map((entry) => ({
+          ...entry,
+          retrievedAt: "2026-10-30T00:00:02.000Z",
+        })),
+      };
+      result.attestation.revisionDigest = evidenceDigest(result.brief);
+      corrected = result;
+    }
+    return result;
+  };
+  const review = f.deps.review;
+  f.deps.review = async (input) => ({
+    ...(await review(input)),
+    verdict: "reject",
+    overallReason: "The Record disclosure contains internal workflow text.",
+  });
+  const artifact = f.deps.artifact;
+  let correctedReviewReads = 0;
+  f.deps.artifact = async (key) => {
+    if (key.startsWith("review:") && corrected) {
+      correctedReviewReads++;
+      return {
+        verdict: "approve",
+        overallReason: "A cached approval for unchanged content.",
+        findings: [],
+        attestation: {
+          ...corrected.attestation,
+          role: "reviewer",
+          actorId: "cached-reviewer",
+          runId: randomUUID(),
+        },
+      };
+    }
+    return artifact(key);
+  };
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(f.fresh(), f.deps),
+    /did not change the rejected public content/,
+  );
+  assert.equal(f.calls.filter((call) => call.role === "author").length, 2);
+  assert.equal(f.calls.filter((call) => call.role === "reviewer").length, 1);
+  assert.equal(correctedReviewReads, 0);
+  const calls = f.calls.length;
+  const input = f.fresh();
+  input.lease.owner = "replacement";
+  input.lease.generation++;
+  input.lease.reviewEpoch++;
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(input, f.deps),
+    /did not change the rejected public content/,
+  );
+  assert.equal(f.calls.length, calls);
+  assert.equal(input.usage.modelCalls, 0);
+  assert.equal(correctedReviewReads, 0);
+});
+
+test("a changed correction can remove an unsupported assertion and obtain fresh review", async () => {
+  const f = fixture();
+  const author = f.deps.author;
+  f.deps.author = async (input) => {
+    const result = await author(input);
+    if (!input.correction) {
+      result.brief.sections[0]!.claims[0]!.text +=
+        " The candidate can do so without legislative approval.";
+      result.attestation.revisionDigest = evidenceDigest(result.brief);
+    }
+    return result;
+  };
+  const review = f.deps.review;
+  f.deps.review = async (input) => {
+    const result = await review(input);
+    if (
+      input.brief.sections[0]!.claims[0]!.text.includes(
+        "without legislative approval",
+      )
+    )
+      return {
+        ...result,
+        verdict: "reject",
+        overallReason:
+          "The cited proposal does not establish unilateral spending authority.",
+      };
+    return result;
+  };
+  const prepared = await prepareReviewedCaliforniaCandidate(f.fresh(), f.deps);
+  assert.equal(prepared.reviewed.verdict, "approve");
+  assert.ok(
+    !prepared.authored.brief.sections[0]!.claims[0]!.text.includes(
+      "without legislative approval",
+    ),
+  );
+  assert.equal(f.calls.filter((call) => call.role === "author").length, 2);
+  assert.equal(f.calls.filter((call) => call.role === "reviewer").length, 2);
+  const calls = f.calls.length;
+  await prepareReviewedCaliforniaCandidate(f.fresh(), f.deps);
+  assert.equal(f.calls.length, calls);
 });
 
 test("a terminal schema failure on the correction cannot consume a second schema or review correction", async () => {
@@ -1457,7 +1579,7 @@ test("finance refresh cache binds narrative rather than changing publication run
   );
   assert.equal(
     first.authored.attestation.promptVersion,
-    "california-finance-refresh-v1",
+    "california-finance-refresh-v2",
   );
   const count = f.calls.length;
   const second = await prepareReviewedCaliforniaCandidate(

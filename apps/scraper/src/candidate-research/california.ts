@@ -211,6 +211,7 @@ export interface CaliforniaDependencies {
       member: CaliforniaRaceTarget["members"][number];
       previousDossier?: CandidateEvidenceDossier;
       researchScope?: "finance_refresh";
+      cachedFinanceDossier?: { digest: string; document: unknown };
     },
     budget: {
       request(): void;
@@ -1272,6 +1273,19 @@ export async function reconcile(
           throw new Error(
             "Finance-only research requires an exact qualified published revision and dossier",
           );
+        const acquisitionDigest =
+          input.financeOnly &&
+          work.some(
+            (row) => row.raceKey === race.raceKey && row.status === "blocked",
+          )
+            ? attemptPrior?.candidateProvenance?.[member.candidateId]
+                ?.dossierDigest
+            : undefined;
+        const acquisitionDossier = acquisitionDigest
+          ? acquisitionDigest === publishedDossier?.dossierDigest
+            ? null
+            : await deps.artifact(`dossier:${acquisitionDigest}`)
+          : null;
         const dossier = await deps.investigate(
           {
             snapshot,
@@ -1281,7 +1295,17 @@ export async function reconcile(
               ? publishedDossier!
               : (previousDossier ?? undefined),
             ...(input.financeOnly
-              ? { researchScope: "finance_refresh" as const }
+              ? {
+                  researchScope: "finance_refresh" as const,
+                  ...(acquisitionDigest && acquisitionDossier
+                    ? {
+                        cachedFinanceDossier: {
+                          digest: acquisitionDigest,
+                          document: acquisitionDossier,
+                        },
+                      }
+                    : {}),
+                }
               : {}),
           },
           budget,

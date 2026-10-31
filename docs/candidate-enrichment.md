@@ -166,7 +166,9 @@ Schedule A transactions from the latest processed Form 3 for authorized
 committees. Committees are ordered by ID, then transactions by receipt date
 (descending) and transaction ID. The combined bound is ten. The source is a raw
 FEC 8.5 electronic filing, checked against the processed report's committee and
-coverage. Memo conduit rows, loans, refunds and transfers do not become donor
+coverage. Filing counts cite a compact index of every returned report with the
+original query pagination and committee filters. This lets readers and reviewers
+count the relevant committee's filings without loading the full report archive. Memo conduit rows, loans, refunds and transfers do not become donor
 observations. Repeated contributor names remain separate transactions. A latest
 filing with no selected transactions does not establish an empty donor history.
 
@@ -174,8 +176,10 @@ Independent expenditures use their own two-year election-cycle window. Complete
 support and opposition totals require an exactly exhausted query for every
 requested candidate ID. An empty candidate partition establishes zero only
 inside that verified query scope. Periodic-report aggregates are separate from
-campaign receipts and spending; notices are not added to them. New filings can
-still be awaiting FEC processing.
+campaign receipts and spending; notices are not added to them. The full exhausted
+query is cited even when positive spender rows exist. One support row cannot
+establish zero opposition or complete coverage. New filings can still be awaiting
+FEC processing.
 
 A filing-status observation can instead cite a committee's Form 99 statement
 that it has not crossed the reporting threshold. The filing index records its
@@ -208,11 +212,27 @@ compiler regenerates financial records, evidence observations and coverage text
 from the current dossier. A fresh independent reviewer assesses the complete new
 profile. Historical approval cannot approve a new financial revision. The existing
 single correction can repair reviewer findings, and rejected or unknown attempts
-remain terminal for the same input.
+remain terminal for the same input. A correction receives another review only
+when its compiled reader-facing content changes. New revision IDs, author IDs,
+observation timestamps and correction metadata do not count as a repair. An
+unchanged saved correction cannot use a cached approval or dispatch another
+review. Compiler-owned coverage describes what the brief presents without
+exposing collection-workflow commentary.
 
-The finance-refresh prompt has its own version. Cache keys include the current
+The finance-refresh prompt has its own version. These versions also identify the
+trusted compiler's output contract. Cache keys include the current
 semantic dossier and retained narrative, but exclude historical publication run
 IDs. Repeating the same refresh cannot obtain a new attempt merely because the
 previous publication changed those IDs. Ordinary research still discovers new
 campaign material. The targeted operator command is documented in the
 [scraper CLI guide](../apps/scraper/README.md#candidate-research-demand).
+
+A finance-only restart can reuse full official FEC query responses from its latest
+saved acquisition dossier for up to 12 hours. The political narrative still comes
+from the exact published revision. Cached queries retain their original text,
+hashes and observation times. Fresh identity resolution determines the exact
+requested URL, so a changed candidate or committee scope misses the cache.
+Derived rows, incomplete responses, invalid hashes and stale observations are not
+reused. The ordinary publication expiry still starts at the oldest actual source
+observation. Reusing a query does not adopt a rejected model output or clear a
+review failure.
