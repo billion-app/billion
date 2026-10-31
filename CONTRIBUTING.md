@@ -148,6 +148,19 @@ For deliberately running local code against production services, copy `.env.prod
 
 If setup fails, start with [Troubleshooting](docs/troubleshooting.md).
 
+### Ballot research demand integration test
+
+Use an empty, migrated local database whose name ends in `_test`:
+
+```bash
+BALLOT_DEMAND_TEST_DATABASE_URL=postgresql://localhost/billion_ballot_demand_test pnpm --filter @acme/api exec tsx --test src/lib/ballot-research-demand.test.ts
+```
+
+The database regression rolls back its fixture transaction. It verifies shared
+race demand, address exclusion, monotonic observations, expiry and explicit
+operator requests. It skips unless `BALLOT_DEMAND_TEST_DATABASE_URL` is set and
+refuses remote targets.
+
 ### Translation queue integration test
 
 Use an empty, migrated local database whose name ends in `_test`:

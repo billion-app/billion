@@ -254,15 +254,146 @@ function candidateNamePosition(text: string, name: string): number {
     ),
   );
 }
-function excerpt(text: string, name: string): string | undefined {
-  const position = candidateNamePosition(text, name);
-  if (position < 0) return undefined;
-  return text
-    .slice(Math.max(0, position - 120), Math.min(text.length, position + 2800))
-    .trim();
-}
 const publisherDisclosureMarker =
   "\nCampaign publisher disclosure (identity only):\n";
+interface CurrentHouseCampaignContact {
+  url: string;
+  anchorText: string;
+}
+const regexLiteral = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function currentHouseCampaignContact(
+  source: ResearchSource,
+  race: CaliforniaRaceTarget,
+  member: CaliforniaRaceTarget["members"][number],
+): CurrentHouseCampaignContact | undefined {
+  if (
+    race.officeFamily !== "us_house" ||
+    source.url !==
+      "https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/contact-list.pdf" ||
+    race.electionDate !== "2026-11-03" ||
+    !source.text.includes(
+      "General Election - November 3, 2026\nOfficial Candidate Contact List",
+    )
+  )
+    return;
+  const headings = [
+    ...source.text.matchAll(
+      /^(?:United States Representative|State Senate|Member of the State Assembly) District \d+\s*$/gm,
+    ),
+  ];
+  const matching = headings.filter(
+    (heading) => heading[0].trim() === race.office,
+  );
+  if (matching.length !== 1) return;
+  const heading = matching[0]!;
+  const end =
+    headings.find((next) => next.index > heading.index)?.index ??
+    source.text.length;
+  const section = source.text.slice(heading.index + heading[0].length, end);
+  const rows = race.members
+    .flatMap((candidate) => {
+      const matches = [
+        ...section.matchAll(
+          new RegExp(
+            `^${regexLiteral(candidate.name)}\\*? +${regexLiteral(candidate.party ?? "")}\\s*$`,
+            "gm",
+          ),
+        ),
+      ];
+      return matches.map((match) => ({
+        candidateId: candidate.candidateId,
+        index: match.index,
+        length: match[0].length,
+      }));
+    })
+    .sort((a, b) => a.index - b.index);
+  if (
+    rows.length !== race.members.length ||
+    race.members.some(
+      (candidate) =>
+        rows.filter((row) => row.candidateId === candidate.candidateId)
+          .length !== 1,
+    )
+  )
+    return;
+  const index = rows.findIndex((row) => row.candidateId === member.candidateId);
+  if (index < 0) return;
+  const row = rows[index]!;
+  const block = section.slice(
+    row.index + row.length,
+    rows[index + 1]?.index ?? section.length,
+  );
+  const websites = [...block.matchAll(/^WEBSITE:\s*([^\r\n]+)$/gm)];
+  if (websites.length !== 1) return;
+  const anchorText = websites[0]![1]!.trim();
+  try {
+    const url = new URL(
+      anchorText.startsWith("www.") ? `https://${anchorText}` : anchorText,
+    );
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      /\s/.test(anchorText)
+    )
+      return;
+    return { url: url.href, anchorText };
+  } catch {
+    return;
+  }
+}
+function currentContactDestination(
+  source: ResearchSource,
+  contact: CurrentHouseCampaignContact,
+  name: string,
+): boolean {
+  const listed = new URL(contact.url);
+  const host = (url: URL) => url.hostname.replace(/^www\./, "");
+  const retrieval = source.retrievalUrls;
+  if (
+    !retrieval?.length ||
+    retrieval[0] !== contact.url ||
+    retrieval.at(-1) !== source.url
+  )
+    return false;
+  if (
+    retrieval.some((value) => {
+      const url = new URL(value);
+      return (
+        url.protocol !== "https:" ||
+        !!url.username ||
+        !!url.password ||
+        url.port !== listed.port ||
+        host(url) !== host(listed)
+      );
+    })
+  )
+    return false;
+  const substantive = substantiveSourceText(source);
+  if (
+    candidateNamePosition(substantive, name) >= 0 ||
+    candidatePublisherDisclosure(source, name)
+  )
+    return true;
+  const folded = (value: string) =>
+    value.normalize("NFD").replace(/\p{M}/gu, "");
+  const tokens = name.match(/[\p{L}\p{N}]+/gu) ?? [];
+  if (
+    tokens.length < 3 ||
+    /^(?:jr|sr|junior|senior|ii|iii|iv|v)$/i.test(tokens.at(-1)!)
+  )
+    return false;
+  const alias = `${folded(tokens[0]!)} ${folded(tokens.at(-1)!)}`;
+  const body = folded(substantive);
+  return (
+    candidateNamePosition(body, alias) >= 0 ||
+    new RegExp(
+      `(?<![\\p{L}\\p{N}])${regexLiteral(alias)}for Congress(?=\\p{Lu}|[\\s.!?]|$)`,
+      "u",
+    ).test(body)
+  );
+}
 function candidatePublisherDisclosure(
   source: ResearchSource,
   name: string,
@@ -308,9 +439,12 @@ export function qualifiedCandidatePage(
     new RegExp(
       `(?:representative|congressman|congresswoman) ${compact(name)}(?: |$)`,
     ).test(body) &&
-    new RegExp(
+    (new RegExp(
       `california(?: s)? ${race.district}(?:st|nd|rd|th)? congressional district(?: |$)`,
-    ).test(body)
+    ).test(body) ||
+      new RegExp(
+        `(?:representative|congressman|congresswoman) ${compact(name)} ca ${race.district}(?: |$)`,
+      ).test(body))
   )
     return true;
   if (
@@ -698,16 +832,22 @@ export async function collectCaliforniaEvidence(
       contactExcerpt = contact.text.slice(start, end);
     }
   }
-  const linked =
-    localWebsite?.status === "listed" && localWebsite.url
-      ? [localWebsite.url]
-      : (contactExcerpt?.match(/(?:https?:\/\/|www\.)[^\s<>]+/g) ?? []).map(
-          (url) =>
-            (url.startsWith("www.") ? `https://${url}` : url).replace(
-              /[.,;)]+$/,
-              "",
-            ),
-        );
+  const currentContact = contact
+    ? currentHouseCampaignContact(contact, race, member)
+    : undefined;
+  const linked = currentContact
+    ? [currentContact.url]
+    : race.officeFamily === "us_house"
+      ? []
+      : localWebsite?.status === "listed" && localWebsite.url
+        ? [localWebsite.url]
+        : (contactExcerpt?.match(/(?:https?:\/\/|www\.)[^\s<>]+/g) ?? []).map(
+            (url) =>
+              (url.startsWith("www.") ? `https://${url}` : url).replace(
+                /[.,;)]+$/,
+                "",
+              ),
+          );
   const query = member.name;
   const statementSlug = officeSlug(race.office);
   const officialStatements = statementSlug
@@ -779,6 +919,10 @@ export async function collectCaliforniaEvidence(
         new URL(url).hostname,
         /\.pdf(?:$|\?)/i.test(url) ? "pdf" : "html",
       );
+      const currentCampaign =
+        currentContact?.url === url &&
+        currentContactDestination(source, currentContact, member.name);
+      if (currentContact?.url === url && !currentCampaign) continue;
       if (parent) {
         if (new URL(parent.url).origin !== new URL(source.url).origin) continue;
         sourceLinks.push({
@@ -789,11 +933,16 @@ export async function collectCaliforniaEvidence(
           relation: "same_origin_campaign",
         });
       } else if (
+        !currentCampaign &&
         !qualifiedCandidatePage(source, race, member.name, linked.includes(url))
       )
         continue;
       if (linked.includes(url)) {
-        if (!candidatePublisherDisclosure(source, member.name)) continue;
+        if (
+          !currentCampaign &&
+          !candidatePublisherDisclosure(source, member.name)
+        )
+          continue;
         if (localWebsite?.status === "listed") {
           if (
             !localWebsite.url ||
@@ -810,15 +959,17 @@ export async function collectCaliforniaEvidence(
             retrievalUrls: source.retrievalUrls,
           };
         }
-        const rawAnchor = (
-          contactExcerpt?.match(/(?:https?:\/\/|www\.)[^\s<>]+/g) ?? []
-        ).find(
-          (value) =>
-            (value.startsWith("www.") ? `https://${value}` : value).replace(
-              /[.,;)]+$/,
-              "",
-            ) === url,
-        );
+        const rawAnchor = currentCampaign
+          ? currentContact.anchorText
+          : (
+              contactExcerpt?.match(/(?:https?:\/\/|www\.)[^\s<>]+/g) ?? []
+            ).find(
+              (value) =>
+                (value.startsWith("www.") ? `https://${value}` : value).replace(
+                  /[.,;)]+$/,
+                  "",
+                ) === url,
+            );
         if (rawAnchor && contact)
           sourceLinks.push({
             fromSourceId: contact.id,
@@ -855,13 +1006,8 @@ export async function collectCaliforniaEvidence(
       }
       const substantive = substantiveSourceText(source);
       const ownNameStart = candidateNamePosition(substantive, member.name);
-      if (ownNameStart < 0 && !parent) continue;
-      const start = Math.max(0, ownNameStart);
-      let quote =
-        parent && ownNameStart < 0
-          ? substantive.slice(0, 2800)
-          : excerpt(substantive, member.name);
-      if (!quote) continue;
+      if (ownNameStart < 0 && !parent && !currentCampaign) continue;
+      const start = currentCampaign ? 0 : Math.max(0, ownNameStart);
       let end = Math.min(substantive.length, start + 2800);
       for (const other of officialStatements.includes(url) ? race.members : [])
         if (other.candidateId !== member.candidateId) {
@@ -873,13 +1019,13 @@ export async function collectCaliforniaEvidence(
             );
           if (next >= 0) end = Math.min(end, next);
         }
-      quote = substantive.slice(start, end).trim();
+      const quote = substantive.slice(start, end).trim();
       const official = /(^|\.)[a-z0-9-]+\.gov$/i.test(
         new URL(source.url).hostname,
       );
       if (
         quote.length < 180 ||
-        !/\b(will|support|oppose|worked|served|appointed|confirmed|authored|plan|priorit|protect|reduce|expand|reform|achiev|lead|led)\w*\b/i.test(
+        !/\b(will|support|oppose|worked|served|appointed|confirmed|authored|plan|priorit|protect|reduce|expand|reform|achiev|lead|led|ban|cut|stop|end|invest|lower|build)\w*\b/i.test(
           quote,
         )
       )

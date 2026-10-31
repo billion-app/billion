@@ -20,6 +20,7 @@ export function createVoterInfoLoader(deps: {
   ) => Promise<void>;
   fetch: (params: Record<string, string>) => Promise<VoterInfoResponse>;
   enrich: (result: VoterInfoResponse) => Promise<void>;
+  observeBallot?: (result: VoterInfoResponse) => Promise<void>;
   /** Attach ingested source records on every read, outside the provider cache. */
   supplement?: (result: VoterInfoResponse) => Promise<VoterInfoResponse>;
 }) {
@@ -33,13 +34,16 @@ export function createVoterInfoLoader(deps: {
       ? { electionId }
       : { startDate: ballotSelectionDate(deps.now?.()) };
     const cached = await deps.getCached(address, endpoint, cacheParams);
-    if (cached)
+    if (cached) {
+      await deps.observeBallot?.(cached);
       return deps.supplement
         ? deps.supplement(structuredClone(cached))
         : cached;
+    }
     const params: Record<string, string> = { address };
     if (electionId) params.electionId = electionId;
     const result = await deps.fetch(params);
+    await deps.observeBallot?.(result);
     if (options.includeEnrichment !== false) await deps.enrich(result);
     // Cache only the provider-returned election identity.
     const writeParams = electionId

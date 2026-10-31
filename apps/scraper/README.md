@@ -562,3 +562,36 @@ record is not a completed translation. Failed records are retried on the next
 walk, and failed generation retains the existing worker backoff. The automatic
 walk is intentionally limited to Chinese; other supported languages continue
 to queue when requested.
+
+## Candidate research demand
+
+The scheduled California researcher selects complete races from active,
+address-matched ballot demand. It does not backfill the statewide catalog.
+An empty demand set performs no source, discovery or model work. Provider
+demand expires with its original 24-hour observation; reading a cached ballot
+does not extend it. Existing published research keeps its independent source
+freshness and review requirements.
+
+For an explicit operator request, inspect the selected database host and the
+authoritative snapshot first. This command records only the three requested
+congressional races and a reason. It performs no source or model calls and does
+not assert that those districts form one person's ballot:
+
+```bash
+pnpm --filter @acme/scraper california-research request --snapshot latest --apply \
+  --race ca-sos-2026-11-03-110000100000 \
+  --race ca-sos-2026-11-03-110000160000 \
+  --race ca-sos-2026-11-03-110000190000 \
+  --request-reason 'User requested November 3 research for CA10, CA16 and CA19'
+```
+
+Operator demand expires after the California election day. Repeating the
+request converges on the same race records. Automatic reconciliation retains
+the approved policy, complete-race publication checks and production budgets.
+The older pilot collectors are manual jobs so they cannot bypass this scope.
+
+A one-off `reconcile --race <key>` remains available with `--apply`, the approved
+`--policy` and all normal budget flags. Add `--refresh-current` only with explicit
+race keys to refresh a release inside the ordinary 12-hour reuse window. It
+still fetches current sources and requires independent review; it does not reset
+old drafts or relax publication checks.

@@ -60,29 +60,29 @@ regeneration, and records an exhausted rejection so later drains skip it.
 `--skip-review` remains available as an explicit manual outage mode, but no
 supervisor job uses it.
 
-| id                                           | schedule          | notes                                                                                        |
-| -------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------- |
-| `candidate-research-twice-daily`             | every 12 hours    | Collects the complete CA-17 House research draft; refreshes or withdraws an approved release |
-| `candidate-research-lt-governor-twice-daily` | every 12 hours    | Collects the complete California Lieutenant Governor research draft with state finance gaps  |
-| `congress-daily`                             | daily 03:15 local | Refreshes federal bills and applies the 90-day editorial retention policy                    |
-| `open-states-{ca,ma,nc,tx}-daily`            | daily 03:30 local | Refreshes state measures and applies the same retention policy                               |
-| `bill-interest-daily`                        | daily 02:00 local | Scores missing or changed bills for interest, controversy, and outside attention             |
-| `whitehouse-daily`                           | daily 01:00 local | Reads presidential actions directly from the White House RSS feed                            |
-| `federalregister-daily`                      | daily 01:30 local | Refreshes executive orders and presidential documents                                        |
-| `scotus-daily`                               | daily 01:45 local | Reads 20 recent official Court decisions, including order opinions; five generation slots    |
-| `ecourt-records-daily`                       | daily 02:15 local | Refreshes up to five indexed Massachusetts criminal dockets; two generation slots            |
-| `content-images-daily`                       | daily 04:15 local | Generates illustrated Storage-backed header art for recent retained content                  |
-| `notify-followers-hourly`                    | every 60 minutes  | Sends saved-bill updates and opted-in new-bill and executive-order alerts                    |
-| `court-image-smoke`                          | manual            | Generates and reviews at most one real court-case image for production verification          |
-| `backfill-content-images`                    | manual            | Drains missing or style-stale header art across all retained content                         |
-| `scc-cvig-weekly`                            | Sundays 03:15     | Santa Clara County voter guide                                                               |
-| `ca-official-guide-daily`                    | daily 04:30 local | Date-scoped California official guide                                                        |
-| `ca-election-logistics-daily`                | daily 04:45 local | Official statewide election dates and guidance                                               |
-| `santa-cruz-locations-daily`                 | daily 05:00 local | Published Santa Cruz vote centers for the configured election                                |
-| `ca-sos-weekly`                              | Sundays 03:15     | California SoS candidate statements                                                          |
-| `retro-briefs`                               | manual            | Fills in missing structured briefs                                                           |
-| `backfill-court-briefs`                      | manual            | Fills historical court briefs without regenerating perspectives or imagery                   |
-| `retro-lenses`                               | manual            | Fills in missing dual-lens perspectives                                                      |
+| id                                           | schedule          | notes                                                                                     |
+| -------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------- |
+| `candidate-research-twice-daily`             | manual            | Legacy complete CA-17 collector; automatic research uses ballot demand                    |
+| `candidate-research-lt-governor-twice-daily` | manual            | Legacy Lieutenant Governor collector; automatic research uses ballot demand               |
+| `congress-daily`                             | daily 03:15 local | Refreshes federal bills and applies the 90-day editorial retention policy                 |
+| `open-states-{ca,ma,nc,tx}-daily`            | daily 03:30 local | Refreshes state measures and applies the same retention policy                            |
+| `bill-interest-daily`                        | daily 02:00 local | Scores missing or changed bills for interest, controversy, and outside attention          |
+| `whitehouse-daily`                           | daily 01:00 local | Reads presidential actions directly from the White House RSS feed                         |
+| `federalregister-daily`                      | daily 01:30 local | Refreshes executive orders and presidential documents                                     |
+| `scotus-daily`                               | daily 01:45 local | Reads 20 recent official Court decisions, including order opinions; five generation slots |
+| `ecourt-records-daily`                       | daily 02:15 local | Refreshes up to five indexed Massachusetts criminal dockets; two generation slots         |
+| `content-images-daily`                       | daily 04:15 local | Generates illustrated Storage-backed header art for recent retained content               |
+| `notify-followers-hourly`                    | every 60 minutes  | Sends saved-bill updates and opted-in new-bill and executive-order alerts                 |
+| `court-image-smoke`                          | manual            | Generates and reviews at most one real court-case image for production verification       |
+| `backfill-content-images`                    | manual            | Drains missing or style-stale header art across all retained content                      |
+| `scc-cvig-weekly`                            | Sundays 03:15     | Santa Clara County voter guide                                                            |
+| `ca-official-guide-daily`                    | daily 04:30 local | Date-scoped California official guide                                                     |
+| `ca-election-logistics-daily`                | daily 04:45 local | Official statewide election dates and guidance                                            |
+| `santa-cruz-locations-daily`                 | daily 05:00 local | Published Santa Cruz vote centers for the configured election                             |
+| `ca-sos-weekly`                              | Sundays 03:15     | California SoS candidate statements                                                       |
+| `retro-briefs`                               | manual            | Fills in missing structured briefs                                                        |
+| `backfill-court-briefs`                      | manual            | Fills historical court briefs without regenerating perspectives or imagery                |
+| `retro-lenses`                               | manual            | Fills in missing dual-lens perspectives                                                   |
 
 The federal and state daily jobs are the point of the whole arrangement: the
 app is a news feed, so a bill whose status changed today matters more than one
@@ -245,8 +245,14 @@ translations and consumes Codex capacity; `--watch` serves the queue continuousl
 
 ## November 3 California research bounds
 
-`california-candidate-research-reconcile` serves the current state-certified and
-San José local snapshot under its explicit automation policy. It runs serially
+`california-candidate-research-reconcile` selects only active requested races
+from the current state-certified and San José local snapshot under its explicit
+automation policy. Demand comes from trusted address-matched provider ballots
+or explicit operator requests. It never falls back to the full catalog when
+demand is empty or unmatched. An empty set makes no source or model calls and
+does not withdraw existing publications. The two legacy pilot collectors are
+manual jobs. See [candidate research demand](../scraper/README.md#candidate-research-demand)
+for scoped operator requests. The researcher runs serially
 every 30 minutes with finite ceilings of 48 races, 96 candidates, 500 source
 requests, 250 MB of response bodies, 192 model calls and 4 million conservative
 input-token reservations. This job explicitly selects SearXNG and requires
