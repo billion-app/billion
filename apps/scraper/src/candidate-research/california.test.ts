@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import https from "node:https";
+import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
 
 import type {
@@ -29,11 +31,18 @@ import {
   evidenceDigest,
 } from "./california-dossier.js";
 import {
+  CaliforniaBudgetReached,
   CaliforniaCitedSourceFailure,
   collectCaliforniaEvidence,
+  fetchBoundedCaliforniaSource,
 } from "./california-evidence.js";
 import { decodeCaliforniaRoster } from "./california-roster.js";
-import { coverage, plan, reconcile } from "./california.js";
+import {
+  coverage,
+  fetchCaliforniaPlan,
+  plan,
+  reconcile,
+} from "./california.js";
 
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 const bounds: CaliforniaBounds = {
@@ -1981,4 +1990,227 @@ test("an ordinary failed checkpoint surfaces lease loss instead of claiming a sa
     /lease expired before failure checkpoint/,
   );
   assert.equal(f.stats.releases, 0);
+});
+
+for (const failure of [
+  "request",
+  "body",
+  "dns",
+  408,
+  429,
+  500,
+  502,
+  503,
+  504,
+] as const) {
+  test(`temporary shared roster acquisition failure ${failure} preserves published-state authorization`, async () => {
+    const f = await fixture();
+    const network = Object.assign(
+      new Error("connection reset during acquisition"),
+      { code: "ECONNRESET" },
+    );
+    let caught: unknown;
+    try {
+      await fetchBoundedCaliforniaSource(
+        "required-roster",
+        "https://county.example.gov/roster",
+        "County",
+        "text",
+        { request() {}, bytes() {} },
+        undefined,
+        {
+          addresses: async () => {
+            if (failure === "dns")
+              throw Object.assign(new Error("DNS temporarily unavailable"), {
+                code: "EAI_AGAIN",
+              });
+            return [{ address: "93.184.216.34", family: 4 }];
+          },
+          transport: async () => {
+            if (failure === "request") throw network;
+            if (failure === "body")
+              return new Response(
+                new ReadableStream({
+                  start(controller) {
+                    controller.error(network);
+                  },
+                }),
+              );
+            return new Response(null, {
+              status: typeof failure === "number" ? failure : 503,
+            });
+          },
+        },
+      );
+    } catch (error) {
+      caught = error;
+    }
+    assert.ok(caught instanceof Error);
+    f.deps.fetchRoster = async () => {
+      throw caught;
+    };
+    await assert.rejects(
+      () =>
+        reconcile(
+          { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+          f.deps,
+        ),
+      (error) => error === caught,
+    );
+    assert.equal(f.stats.failures, 0);
+    assert.equal(f.stats.investigations, 0);
+    assert.equal(f.stats.authors, 0);
+    assert.equal(f.rows.size, 0);
+  });
+}
+
+for (const status of [401, 403, 404, 410]) {
+  test(`nontransient shared roster HTTP ${status} still invalidates election research`, async () => {
+    const f = await fixture();
+    f.deps.fetchRoster = async () =>
+      fetchBoundedCaliforniaSource(
+        "required",
+        "https://county.example.gov/roster",
+        "County",
+        "text",
+        { request() {}, bytes() {} },
+        undefined,
+        {
+          addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+          transport: async () => new Response(null, { status }),
+        },
+      ) as never;
+    await assert.rejects(() =>
+      reconcile(
+        { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+        f.deps,
+      ),
+    );
+    assert.equal(f.stats.failures, 1);
+    assert.equal(f.stats.authors, 0);
+  });
+}
+
+for (const failure of [
+  "malformed-json",
+  "private-address",
+  "tls-identity",
+  "unknown-aborted",
+  "budget",
+] as const) {
+  test(`shared roster ${failure} retains its existing invalidation or budget behavior`, async () => {
+    const f = await fixture();
+    f.deps.fetchRoster = async () => {
+      if (failure === "unknown-aborted") throw new Error("aborted");
+      return (await fetchBoundedCaliforniaSource(
+        "required",
+        "https://county.example.gov/roster",
+        "County",
+        failure === "malformed-json" ? "json" : "text",
+        {
+          request() {},
+          bytes() {
+            if (failure === "budget")
+              throw new CaliforniaBudgetReached("source bytes");
+          },
+        },
+        undefined,
+        {
+          addresses: async () => {
+            if (failure === "private-address")
+              throw new Error("Private source addresses are not permitted");
+            return [{ address: "93.184.216.34", family: 4 }];
+          },
+          transport: async () => {
+            if (failure === "tls-identity")
+              throw Object.assign(new Error("certificate hostname mismatch"), {
+                code: "ERR_TLS_CERT_ALTNAME_INVALID",
+              });
+            return new Response("This is deliberately malformed source JSON.");
+          },
+        },
+      )) as never;
+    };
+    await assert.rejects(() =>
+      reconcile(
+        { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+        f.deps,
+      ),
+    );
+    assert.equal(f.stats.failures, failure === "budget" ? 0 : 1);
+    assert.equal(f.stats.authors, 0);
+  });
+}
+
+for (const failure of ["request", "body", 429, 503] as const) {
+  test(`raw SOS roster ${failure} acquisition failure preserves existing publication`, async (t) => {
+    const f = await fixture();
+    const network = Object.assign(new Error("raw roster connection reset"), {
+      code: "ECONNRESET",
+    });
+    t.mock.method(globalThis, "fetch", async () => {
+      if (failure === "request")
+        throw new TypeError("fetch failed", { cause: network });
+      if (failure === "body")
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(network);
+            },
+          }),
+        );
+      return new Response(null, { status: failure });
+    });
+    f.deps.fetchRoster = fetchCaliforniaPlan;
+    await assert.rejects(() =>
+      reconcile(
+        { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+        f.deps,
+      ),
+    );
+    assert.equal(f.stats.failures, 0);
+    assert.equal(f.stats.authors, 0);
+    assert.equal(f.rows.size, 0);
+  });
+}
+
+test("changed complete SOS roster bytes invalidate before a later certification outage can hide them", async (t) => {
+  const f = await fixture();
+  const changed = f.snapshot.source.text.replace("C26GG", "C26GX") + "\n";
+  const calls: string[] = [];
+  const originalRequest = https.request;
+  Object.defineProperty(https, "request", {
+    configurable: true,
+    writable: true,
+    value: () => {
+      calls.push("certification-transport");
+      throw Object.assign(new Error("certification temporarily down"), {
+        code: "ECONNRESET",
+      });
+    },
+  });
+  syncBuiltinESMExports();
+  t.after(() => {
+    https.request = originalRequest;
+    syncBuiltinESMExports();
+  });
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    const url = String(input);
+    calls.push(url);
+    if (url === "https://media.sos.ca.gov/media/C26GG.txt")
+      return new Response(changed);
+    throw Object.assign(new Error("certification temporarily down"), {
+      code: "ECONNRESET",
+    });
+  });
+  f.deps.fetchRoster = fetchCaliforniaPlan;
+  await assert.rejects(() =>
+    reconcile(
+      { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+      f.deps,
+    ),
+  );
+  assert.equal(f.stats.failures, 1);
+  assert.equal(f.stats.authors, 0);
+  assert.deepEqual(calls, ["https://media.sos.ca.gov/media/C26GG.txt"]);
 });
