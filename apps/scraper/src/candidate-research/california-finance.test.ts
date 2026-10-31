@@ -427,3 +427,150 @@ test("rate-limited FEC index uses the official master and real public profiles f
     1,
   );
 });
+
+test("official master resolution preserves incomplete upstream rows without guessing a target identity", async () => {
+  const { resolveFecIdentityFromSource } = await import("@acme/validators");
+  const text =
+    [
+      "H6CA01269|MCGUIRE, MIKE|DEM|2026|CA|H|01|C|C|C00926519|||||",
+      "H0MO07113|LONG, BILLY MR.|REP|2022|MO|S|00|C|C||||||",
+      "H6AZ08210|||2026|AZ|H||C|C||||||",
+    ].join("\n") + "\n";
+  const input = source(
+    "master",
+    "https://www.fec.gov/files/bulk-downloads/2026/cn26.zip",
+    "text",
+    text,
+  );
+  const query = { name: "Mike McGuire", district: "1", cycle: 2026 };
+  assert.equal(
+    resolveFecIdentityFromSource(input, query)?.candidateId,
+    candidate.candidate_id,
+  );
+  for (const change of [
+    { name: "Mike" },
+    { name: "Michael McGuire" },
+    { district: "17" },
+    { cycle: 2024 },
+  ]) {
+    const changedQuery = { ...query, ...change };
+    if (changedQuery.cycle !== 2026)
+      assert.throws(() => resolveFecIdentityFromSource(input, changedQuery));
+    else assert.equal(resolveFecIdentityFromSource(input, changedQuery), null);
+  }
+  for (const changed of [
+    text.replace("2026|CA", "2024|CA"),
+    text.replace("2026|CA|H|01", "2026|NV|H|01"),
+    text.replace("2026|CA|H|01", "2026|CA|S|01"),
+    text.replace("MCGUIRE, MIKE", ""),
+    text.replace("2026|CA|H|01", "2026|CA|H|"),
+    text + text.split("\n")[0]!.replace("H6CA01269", "H6CA01277") + "\n",
+  ])
+    assert.equal(
+      resolveFecIdentityFromSource({ ...input, text: changed }, query),
+      null,
+    );
+  for (const changed of [
+    text + text,
+    text.replace("H6CA01269", "not-an-id"),
+    text.replace("|DEM|", "|DEM|extra|"),
+    text + "\ninvalid\n",
+  ]) {
+    assert.throws(() =>
+      resolveFecIdentityFromSource({ ...input, text: changed }, query),
+    );
+  }
+  for (const url of [
+    "https://fec.gov.evil.example/files/bulk-downloads/2026/cn26.zip",
+    "http://www.fec.gov/files/bulk-downloads/2026/cn26.zip",
+    "https://www.fec.gov/files/bulk-downloads/2026/cn24.zip",
+    input.url + "?download=1",
+    input.url + "#fragment",
+  ])
+    assert.throws(() => resolveFecIdentityFromSource({ ...input, url }, query));
+});
+
+test("only a typed FEC index 429 selects bulk and a run budget never becomes a second source attempt", async () => {
+  const { CaliforniaSourceHttpError, CaliforniaBudgetReached } =
+    await import("./california-evidence.js");
+  for (const error of [
+    new Error("Source request failed (429)"),
+    new CaliforniaSourceHttpError(503),
+    new CaliforniaBudgetReached("source requests"),
+  ]) {
+    const calls: string[] = [];
+    const deps: CaliforniaFinanceDependencies = {
+      sharedSources: new Map(),
+      budget: { request() {} },
+      fetch: async (_id, url) => {
+        calls.push(url);
+        throw error;
+      },
+    };
+    if (error instanceof CaliforniaBudgetReached)
+      await assert.rejects(
+        collectCaliforniaFederalFinance({ race, member }, deps),
+        error,
+      );
+    else
+      assert.equal(
+        (await collectCaliforniaFederalFinance({ race, member }, deps)).gapCode,
+        "source_unavailable",
+      );
+    assert.equal(calls.length, 1);
+  }
+  let requests = 0;
+  const calls: string[] = [];
+  await assert.rejects(
+    collectCaliforniaFederalFinance(
+      { race, member },
+      {
+        sharedSources: new Map(),
+        budget: {
+          request() {
+            if (++requests === 2)
+              throw new CaliforniaBudgetReached("source requests");
+          },
+        },
+        fetch: async (_id, url) => {
+          calls.push(url);
+          throw new CaliforniaSourceHttpError(429);
+        },
+      },
+    ),
+    /California research budget/,
+  );
+  assert.equal(calls.length, 1);
+  for (const master of [
+    "invalid master body",
+    "H6CA01269|MCGUIRE, MIKE|DEM|2024|CA|H|01|C|C|C00926519|||||\n",
+  ]) {
+    const attempted: string[] = [];
+    const result = await collectCaliforniaFederalFinance(
+      { race, member },
+      {
+        sharedSources: new Map(),
+        budget: { request() {} },
+        fetch: async (id, url, _publisher, format) => {
+          attempted.push(url);
+          if (url.includes("api.open.fec.gov"))
+            throw new CaliforniaSourceHttpError(429);
+          return source(id, url, format, master);
+        },
+      },
+    );
+    assert.equal(result.finance, null);
+    assert.equal(result.identityProof, undefined);
+    assert.equal(
+      result.gapCode,
+      master.startsWith("invalid")
+        ? "source_unavailable"
+        : "identity_unresolved",
+    );
+    assert.equal(attempted.length, 2);
+    assert.equal(
+      attempted.some((url) => url.includes("/data/candidate/")),
+      false,
+    );
+  }
+});

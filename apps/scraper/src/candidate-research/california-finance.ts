@@ -6,8 +6,14 @@ import type {
   CandidateBrief,
   ResearchSource,
 } from "@acme/validators";
-import { campaignFinanceSchema } from "@acme/validators";
+import {
+  campaignFinanceSchema,
+  fecCandidateMasterUrl,
+  resolveFecCandidate,
+  resolveFecIdentityFromSource,
+} from "@acme/validators";
 
+import { CaliforniaSourceHttpError } from "./california-evidence.js";
 import { buildFinance } from "./finance.js";
 import { profileFinance } from "./profile.js";
 import { fecRows, field, hash } from "./sources.js";
@@ -64,35 +70,13 @@ export interface CaliforniaFederalFinance {
     sourceHash: string;
   };
 }
-const canonicalName = (value: string) =>
-  value
-    .normalize("NFKC")
-    .toLocaleUpperCase("en-US")
-    .replace(/[.'’"]/g, "")
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim();
-function fecName(value: string) {
-  const pieces = value.split(",");
-  return canonicalName(
-    pieces.length === 2 ? `${pieces[1]} ${pieces[0]}` : value,
-  );
-}
 export function resolveCaliforniaFecCandidate(input: {
   candidates: FecCandidate[];
   name: string;
   district: string;
   cycle: number;
 }): FecCandidate | null {
-  const matches = input.candidates.filter(
-    (candidate) =>
-      candidate.office === "H" &&
-      candidate.state === "CA" &&
-      Number(candidate.district) === Number(input.district) &&
-      candidate.cycles.includes(input.cycle) &&
-      candidate.election_years.includes(input.cycle) &&
-      fecName(candidate.name) === canonicalName(input.name),
-  );
-  return matches.length === 1 ? matches[0]! : null;
+  return resolveFecCandidate(input.candidates, input);
 }
 function isRunBudget(error: unknown) {
   return (
@@ -165,7 +149,8 @@ export async function collectCaliforniaFederalFinance(
       url.searchParams.set(key, value);
     return get(url.toString(), "json", true);
   };
-  let candidate: FecCandidate;
+  let candidate: Pick<FecCandidate, "candidate_id" | "name"> | undefined;
+  let apiRateLimited = false;
   try {
     const rows: FecCandidate[] = [];
     const ids = new Set<string>();
@@ -231,11 +216,42 @@ export async function collectCaliforniaFederalFinance(
     };
   } catch (error) {
     if (isRunBudget(error)) throw error;
-    result.gap =
-      "The bounded official FEC candidate-index request or validation failed. No federal identity was inferred from a name alone, and unavailable financial amounts are not zero.";
-    result.gapCode = "source_unavailable";
-    return result;
+    let recovered = false;
+    if (error instanceof CaliforniaSourceHttpError && error.status === 429) {
+      apiRateLimited = true;
+      try {
+        const source = await get(fecCandidateMasterUrl(cycle), "text");
+        const matched = resolveFecIdentityFromSource(source, {
+          name: input.member.name,
+          district,
+          cycle,
+        });
+        if (!matched) {
+          result.gap =
+            "The official FEC candidate master did not provide one exact full-name match for this House office, California district and election cycle. Financial amounts remain unavailable, not zero.";
+          result.gapCode = "identity_unresolved";
+          return result;
+        }
+        candidate = { candidate_id: matched.candidateId, name: matched.name };
+        result.identityProof = {
+          ...matched,
+          sourceId: source.id,
+          sourceHash: source.contentHash,
+        };
+        recovered = true;
+      } catch (fallbackError) {
+        if (isRunBudget(fallbackError)) throw fallbackError;
+      }
+    }
+    if (!recovered) {
+      result.gap =
+        "The bounded official FEC candidate-index request or validation failed. No federal identity was inferred from a name alone, and unavailable financial amounts are not zero.";
+      result.gapCode = "source_unavailable";
+      return result;
+    }
   }
+  if (!candidate)
+    throw new Error("FEC identity recovery did not produce an identity");
   let profile: CampaignFinance | null = null;
   const profileEvidence: CandidateBrief["evidence"] = [];
   try {
@@ -256,7 +272,7 @@ export async function collectCaliforniaFederalFinance(
   } catch (error) {
     if (isRunBudget(error)) throw error;
   }
-  if (apiKey !== "DEMO_KEY") {
+  if (apiKey !== "DEMO_KEY" && !apiRateLimited) {
     try {
       const metadata = await api(`candidate/${candidate.candidate_id}/`);
       const identities = z

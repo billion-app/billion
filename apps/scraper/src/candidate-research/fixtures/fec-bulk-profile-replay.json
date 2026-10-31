@@ -1,4 +1,5 @@
 {
+  "fixtureDescription": "Selected unchanged candidate-master rows and archived public-profile text captured on 2026-10-30. The complete 8883-row master is verified separately; this fixture is a bounded unit-test subset.",
   "archiveUrl": "https://www.fec.gov/files/bulk-downloads/2026/cn26.zip",
   "masterRows": "H6CA01269|MCGUIRE, MIKE|DEM|2026|CA|H|01|C|C|C00926519|1014 HOPPER AVENUE|SUITE 506|SANTA ROSA|CA|95403\nH6CA01285|GALLAGHER, JAMES|REP|2026|CA|H|01|C|C|C00942458|10093 DAVIS ROAD||WILTON|CA|95693\n",
   "profiles": [

@@ -744,7 +744,12 @@ test("a successful empty author on supported campaign material uses one substant
   const input = f.fresh({ dossier });
   const prepared = await prepareReviewedCaliforniaCandidate(input, f.deps);
   assert.equal(prepared.reviewed.verdict, "approve");
-  assert.equal(prepared.authored.brief.priorities.claims.length, 1);
+  assert.equal(
+    prepared.authored.brief.sections.find(
+      (section) => section.topic === "priorities",
+    )!.claims.length,
+    1,
+  );
   assert.deepEqual(
     f.calls.map((call) => call.role),
     ["author", "author", "reviewer"],
@@ -810,4 +815,72 @@ test("a roster-only evidence gap does not dispatch a substantive correction", as
     [...f.artifacts.keys()].some((key) => key.startsWith("correction-plan:")),
     false,
   );
+});
+
+test("a substantive correction respects its reservation budget and resumes the same saved author trigger", async () => {
+  const f = fixture();
+  const dossier = campaignSubjectDossier();
+  const author = f.deps.author;
+  const empty = emptyAuthor(f);
+  f.deps.author = (input) => (input.correction ? author(input) : empty(input));
+  const initial = f.fresh({
+    dossier,
+    bounds: { maxModelCalls: 1, maxInputTokens: 1_000_000 },
+  });
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(initial, f.deps),
+    /budget/i,
+  );
+  assert.equal(initial.usage.modelCalls, 1);
+  assert.equal(
+    [...f.artifacts.keys()].some((key) =>
+      key.startsWith("dispatch:author-correction:"),
+    ),
+    false,
+  );
+  assert.equal(
+    [...f.artifacts.keys()].some((key) => key.startsWith("failure:")),
+    false,
+  );
+  const plan = slot(f);
+  const resumed = f.fresh({ dossier });
+  const prepared = await prepareReviewedCaliforniaCandidate(resumed, f.deps);
+  assert.equal(prepared.reviewed.verdict, "approve");
+  assert.equal(resumed.usage.modelCalls, 2);
+  assert.deepEqual(slot(f), plan);
+});
+
+test("an uncertain substantive correction dispatch never replays after owner or review epoch changes", async () => {
+  const f = fixture();
+  const dossier = campaignSubjectDossier();
+  f.deps.author = emptyAuthor(f);
+  const reserve = f.deps.reserveDispatch;
+  let interrupted = false;
+  f.deps.reserveDispatch = async (input) => {
+    const result = await reserve(input);
+    if (!interrupted && input.key.startsWith("dispatch:author-correction:")) {
+      interrupted = true;
+      throw Error("interrupted after substantive correction reservation");
+    }
+    return result;
+  };
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(f.fresh({ dossier }), f.deps),
+    /interrupted/,
+  );
+  const plan = slot(f);
+  const resumed = f.fresh({ dossier });
+  resumed.lease = {
+    ...resumed.lease,
+    owner: "replacement",
+    generation: 5,
+    reviewEpoch: 9,
+  };
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(resumed, f.deps),
+    /already reserved/,
+  );
+  assert.equal(f.calls.length, 1);
+  assert.equal(resumed.usage.modelCalls, 0);
+  assert.deepEqual(slot(f), plan);
 });

@@ -131,7 +131,7 @@ test("nested promises compile stable links and separate exact reviewer attestati
   assert.notEqual(a.attestation.runId, r.attestation.runId);
   assert.notEqual(a.attestation.actorId, r.attestation.actorId);
   assert.equal(a.attestation.revisionDigest, r.attestation.revisionDigest);
-  assert.equal(a.attestation.promptVersion, "california-author-v14");
+  assert.equal(a.attestation.promptVersion, "california-author-v15");
   assert.equal(r.attestation.actualModel, "actual-fixture-model");
   assert.equal(calls[1]!.excludedConfiguredModel, "fixture:author");
 });
@@ -794,13 +794,13 @@ test("unchanged typed finance refresh preserves the exact approved brief timesta
   );
 });
 
-test("v14 author owns claims only and preserves temporal and contextual constraints", async () => {
+test("v15 author owns claims only and preserves temporal and contextual constraints", async () => {
   const { deps, calls } = dependencies([authorFixture()]);
   const result = await authorCaliforniaBrief(
     { dossier: fixtureDossier(), policyVersion: "p1" },
     deps,
   );
-  assert.equal(result.attestation.promptVersion, "california-author-v14");
+  assert.equal(result.attestation.promptVersion, "california-author-v15");
   assert.ok(
     calls[0]!.system.includes("Past achievements belong only in Record"),
   );
@@ -2113,6 +2113,25 @@ test("actual corrected Wagner reading never contradicts compiler document covera
     mechanisms.missingEvidence ?? "",
     /\b(?:this|the) brief\b[^.]*\b(?:does not|no|without|lacks)\b[^.]*\b(?:implementation|office authority)\b/i,
     "An empty Mechanisms chapter must not become a whole-brief absence assertion when the promise reading presents office authority.",
+  );
+});
+
+test("empty chapter disclosures describe their section while finance warnings describe the brief", async () => {
+  const authored = await authorCaliforniaBrief(
+    { dossier: fixtureCampaignMaterialDossier(), policyVersion: "p1" },
+    dependencies([emptyAuthorFixture()]).deps,
+  );
+  assert.equal(authored.brief.sections.length, 6);
+  for (const section of authored.brief.sections) {
+    assert.deepEqual(section.claims, []);
+    assert.match(section.missingEvidence!, /^This section\b/);
+  }
+  assert.ok(
+    authored.brief.sections
+      .find((section) => section.topic === "unknowns")!
+      .missingEvidence!.includes(
+        "This brief includes no reconciled campaign-finance analysis.",
+      ),
   );
 });
 

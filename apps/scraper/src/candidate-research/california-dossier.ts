@@ -9,6 +9,7 @@ import {
   candidateDossierSourceProjection,
   candidateEvidenceDossierSchema,
   candidateFinanceSemanticProjection,
+  resolveFecIdentityFromSource,
   validateCampaignContactDestination,
 } from "@acme/validators";
 
@@ -105,61 +106,33 @@ export function validateCaliforniaDossier(
     const source = sources.get(proof.sourceId);
     const district =
       dossier.identity.jurisdiction.match(/\/cd:(\d+)(?:\/|$)/)?.[1];
-    const normalize = (name: string) =>
-      name
-        .normalize("NFKC")
-        .toUpperCase()
-        .replace(/[^\p{L}\p{N}]+/gu, " ")
-        .trim();
-    let rows: Record<string, unknown>[] = [];
+    let matched: ReturnType<typeof resolveFecIdentityFromSource> = null;
     try {
-      const parsed = JSON.parse(source?.text ?? "") as { results?: unknown };
-      if (Array.isArray(parsed.results))
-        rows = parsed.results.filter(
-          (row): row is Record<string, unknown> =>
-            !!row && typeof row === "object",
-        );
+      if (source && district)
+        matched = resolveFecIdentityFromSource(source, {
+          name: dossier.name,
+          district,
+          cycle: Number(dossier.identity.electionDate.slice(0, 4)),
+        });
     } catch {
-      throw new Error(
-        "FEC identity proof requires an archived official JSON candidate index",
-      );
-    }
-    const matching = rows.filter(
-      (row) => row.candidate_id === proof.candidateId,
-    );
-    const row = matching[0];
-    if (
-      matching.length !== 1 ||
-      !row ||
-      row.name !== proof.name ||
-      row.office !== "H" ||
-      row.state !== "CA" ||
-      Number(row.district) !== Number(proof.district) ||
-      !Array.isArray(row.cycles) ||
-      !row.cycles.includes(proof.cycle) ||
-      !Array.isArray(row.election_years) ||
-      !row.election_years.includes(proof.cycle)
-    )
       throw new Error(
         "FEC identity proof must match exactly one archived official index row",
       );
-    const comma = proof.name.indexOf(",");
-    const fecName =
-      comma >= 0
-        ? `${proof.name.slice(comma + 1)} ${proof.name.slice(0, comma)}`
-        : proof.name;
+    }
     if (
       dossier.officeKind !== "federal_legislative" ||
       !source ||
       source.contentHash !== proof.sourceHash ||
-      new URL(source.url).hostname !== "api.open.fec.gov" ||
-      !district ||
-      Number(proof.district) !== Number(district) ||
-      proof.cycle !== Number(dossier.identity.electionDate.slice(0, 4)) ||
-      normalize(fecName) !== normalize(dossier.name)
+      !matched ||
+      matched.candidateId !== proof.candidateId ||
+      matched.name !== proof.name ||
+      matched.office !== proof.office ||
+      matched.state !== proof.state ||
+      Number(matched.district) !== Number(proof.district) ||
+      matched.cycle !== proof.cycle
     )
       throw new Error(
-        "FEC identity proof does not match this candidate and archived official index",
+        "FEC identity proof must match exactly one archived official index row for this candidate",
       );
   }
   if (dossier.finance) {
