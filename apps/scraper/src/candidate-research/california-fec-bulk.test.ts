@@ -232,9 +232,11 @@ test("official FEC ZIP rejects invalid UTF-8 and cancels oversized compressed st
 const fecArchiveUrl =
   "https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com/bulk-downloads/2026/cn26.zip";
 
-async function fetchRedirectedZip(target = fecArchiveUrl) {
+async function fetchRedirectedZip(
+  target = fecArchiveUrl,
+  calls: string[] = [],
+) {
   const archive = storedZip();
-  const calls: string[] = [];
   let redirects = 0;
   let transferred = 0;
   const source = await fetchBoundedCaliforniaSource(
@@ -296,9 +298,98 @@ test("FEC archive redirects do not admit another bucket or election cycle", asyn
     fecArchiveUrl.replace("cg-519a459a", "cg-00000000"),
     fecArchiveUrl.replace("2026/cn26", "2024/cn24"),
     `${fecArchiveUrl}?copy=1`,
+    `${fecArchiveUrl}#copy`,
+    fecArchiveUrl.replace(".com/", ".com:443/"),
     fecArchiveUrl.replace("https:", "http:"),
     "https://example.com/bulk-downloads/2026/cn26.zip",
-  ])
-    await assert.rejects(fetchRedirectedZip(target));
+  ]) {
+    const calls: string[] = [];
+    await assert.rejects(fetchRedirectedZip(target, calls), /FEC.*redirect/i);
+    assert.deepEqual(calls, [url]);
+  }
   await assert.rejects(fetchZip(storedZip(), fecArchiveUrl), /Unsupported/);
+});
+
+test("FEC master rejects a second redirect before requesting another source", async () => {
+  const calls: string[] = [];
+  let countedRedirects = 0;
+  await assert.rejects(
+    fetchBoundedCaliforniaSource(
+      "fec-master",
+      url,
+      "Federal Election Commission",
+      "text",
+      {
+        request() {
+          countedRedirects++;
+        },
+        bytes() {},
+      },
+      undefined,
+      {
+        addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+        transport: async (requestedUrl) => {
+          calls.push(requestedUrl);
+          return new Response(null, {
+            status: 302,
+            headers: { location: fecArchiveUrl },
+          });
+        },
+      },
+    ),
+    /FEC.*redirect/i,
+  );
+  assert.deepEqual(calls, [url, fecArchiveUrl]);
+  assert.equal(countedRedirects, 1);
+});
+
+test("redirected FEC archive retains its compressed bound and cancels an oversized body", async () => {
+  let canceled = false;
+  let emitted = false;
+  let transferred = 0;
+  const calls: string[] = [];
+  const body = new Response(
+    new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (!emitted) {
+          emitted = true;
+          controller.enqueue(new Uint8Array(1_000_001));
+        }
+      },
+      cancel() {
+        canceled = true;
+      },
+    }),
+  );
+  await assert.rejects(
+    fetchBoundedCaliforniaSource(
+      "fec-master",
+      url,
+      "Federal Election Commission",
+      "text",
+      {
+        request() {},
+        bytes(amount) {
+          transferred += amount;
+        },
+      },
+      undefined,
+      {
+        addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+        transport: async (requestedUrl) => {
+          calls.push(requestedUrl);
+          return requestedUrl === url
+            ? new Response(null, {
+                status: 302,
+                headers: { location: fecArchiveUrl },
+              })
+            : body;
+        },
+      },
+    ),
+    /byte bound/,
+  );
+  assert.deepEqual(calls, [url, fecArchiveUrl]);
+  assert.equal(canceled, true);
+  assert.equal(transferred, 1_000_001);
 });
