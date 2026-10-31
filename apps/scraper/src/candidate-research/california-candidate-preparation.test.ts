@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import type { CandidateEvidenceDossier } from "@acme/validators";
+import { hasSubstantiveCandidateResearch } from "@acme/validators";
 
 import type { CaliforniaModelFailureDiagnostic } from "./california-ai.js";
 import {
@@ -712,6 +713,252 @@ function emptyAuthor(f: ReturnType<typeof fixture>) {
     });
   };
 }
+
+function financedDossier(dossier = campaignSubjectDossier()) {
+  const {
+    schemaVersion: _schema,
+    classification: _classification,
+    sourceSetDigest: _sources,
+    dossierDigest: _digest,
+    ...input
+  } = dossier;
+  input.officeKind = "federal_legislative";
+  input.officeFamily = "us_house";
+  input.identity = {
+    ...input.identity,
+    candidateId: "ca-sos:2026-11-03:110000010000:1",
+    contestId: "ca-sos:2026-11-03:110000010000",
+    jurisdiction: "ocd-division/country:us/state:ca/cd:1",
+  };
+  for (const source of input.sources) {
+    source.text = source.text.replaceAll(
+      "Assembly District 1",
+      "House District 1",
+    );
+    source.contentHash = createHash("sha256").update(source.text).digest("hex");
+  }
+  for (const entry of input.evidence) {
+    entry.excerpt = entry.excerpt.replaceAll(
+      "Assembly District 1",
+      "House District 1",
+    );
+    if (entry.attribution)
+      entry.attribution.context.excerpt =
+        entry.attribution.context.excerpt.replaceAll(
+          "Assembly District 1",
+          "House District 1",
+        );
+  }
+  const text = "H0CA01001|LEE, MORGAN|DEM|2026|CA|H|01|C|C|C00000001|||||\n";
+  const contentHash = createHash("sha256").update(text).digest("hex");
+  const filingText = "Total receipts $100.00";
+  input.sources.push(
+    {
+      id: "fec-master",
+      url: "https://www.fec.gov/files/bulk-downloads/2026/cn26.zip",
+      publisher: "FEC fixture",
+      format: "text",
+      text,
+      contentHash,
+      fetchedAt: input.createdAt,
+    },
+    {
+      id: "filing",
+      url: "https://www.fec.gov/data/candidate/H0CA01001/?cycle=2026",
+      publisher: "FEC fixture",
+      format: "html",
+      text: filingText,
+      contentHash: createHash("sha256").update(filingText).digest("hex"),
+      fetchedAt: input.createdAt,
+    },
+  );
+  input.evidence.push({
+    id: "finance",
+    sourceId: "filing",
+    excerpt: filingText,
+    locator: "Processed financial summary",
+    origin: "primary_record",
+    role: "finance",
+    identityQualification: "exact_election_office",
+  });
+  input.financeIdentityProof = {
+    candidateId: "H0CA01001",
+    name: "LEE, MORGAN",
+    office: "H",
+    state: "CA",
+    district: "1",
+    cycle: 2026,
+    sourceId: "fec-master",
+    sourceHash: contentHash,
+  };
+  input.finance = {
+    committeeId: "C00000001",
+    committeeName: "Fixture committee",
+    periodStart: "2025-01-01",
+    periodEnd: "2026-09-30",
+    currency: "USD",
+    coverage: "partial",
+    coverageNote: "Fixture processed summary",
+    updatedAt: input.createdAt,
+    filingEvidenceIds: ["finance"],
+    receipts: {
+      totalCents: 10000,
+      breakdown: {
+        individuals: 10000,
+        committees: 0,
+        self_contributions: 0,
+        candidate_loans: 0,
+        transfers: 0,
+        other: 0,
+      },
+      refundsCents: null,
+    },
+    donors: [],
+    donorAmounts: "contribution",
+    donorCoverage: "unavailable",
+    outsideSpending: null,
+  };
+  return buildCaliforniaDossier(input);
+}
+
+test("valid finance does not skip one reassessment of supplied campaign research", async () => {
+  const f = fixture();
+  const dossier = financedDossier();
+  const author = f.deps.author;
+  const empty = emptyAuthor(f);
+  f.deps.author = async (input) => {
+    if (!input.correction) {
+      const original = await empty(input);
+      assert.equal(
+        hasSubstantiveCandidateResearch(original.brief, dossier),
+        true,
+      );
+      return original;
+    }
+    assert.equal(input.correction.kind, "author_validation");
+    if (input.correction.kind === "author_validation") {
+      assert.match(
+        input.correction.validationProblems.join(" "),
+        /finance-only/,
+      );
+      assert.match(
+        input.correction.validationProblems.join(" "),
+        /unresolved/i,
+      );
+    }
+    return author(input);
+  };
+  const prepared = await prepareReviewedCaliforniaCandidate(
+    f.fresh({ dossier, candidateId: dossier.identity.candidateId }),
+    f.deps,
+  );
+  assert.equal(prepared.authored.brief.sections[0]!.claims.length, 1);
+  assert.deepEqual(prepared.authored.brief.research!.finance, dossier.finance);
+  assert.deepEqual(
+    f.calls.map((call) => call.role),
+    ["author", "author", "reviewer"],
+  );
+  const plan = slot(f);
+  const resumed = f.fresh({
+    dossier,
+    candidateId: dossier.identity.candidateId,
+  });
+  resumed.lease = { ...resumed.lease, owner: "replacement", generation: 4 };
+  await prepareReviewedCaliforniaCandidate(resumed, f.deps);
+  assert.equal(resumed.usage.modelCalls, 0);
+  assert.deepEqual(slot(f), plan);
+});
+
+test("honest campaign abstention preserves valid finance and still requires independent review", async () => {
+  const f = fixture();
+  const dossier = financedDossier(fixtureCampaignMaterialDossier());
+  f.deps.author = emptyAuthor(f);
+  const prepared = await prepareReviewedCaliforniaCandidate(
+    f.fresh({ dossier, candidateId: dossier.identity.candidateId }),
+    f.deps,
+  );
+  assert.equal(
+    prepared.authored.brief.sections.flatMap((s) => s.claims).length,
+    0,
+  );
+  assert.deepEqual(prepared.authored.brief.research!.finance, dossier.finance);
+  assert.equal(prepared.reviewed.verdict, "approve");
+  assert.deepEqual(
+    f.calls.map((call) => call.role),
+    ["author", "author", "reviewer"],
+  );
+  assert.equal(
+    [...f.artifacts.keys()].filter((key) => key.startsWith("correction-plan:"))
+      .length,
+    1,
+  );
+});
+
+test("finance without candidate passages proceeds without a prose correction", async () => {
+  const f = fixture();
+  const dossier = financedDossier(fixtureDossier(false));
+  f.deps.author = emptyAuthor(f);
+  const prepared = await prepareReviewedCaliforniaCandidate(
+    f.fresh({ dossier, candidateId: dossier.identity.candidateId }),
+    f.deps,
+  );
+  assert.equal(prepared.reviewed.verdict, "approve");
+  assert.deepEqual(
+    f.calls.map((call) => call.role),
+    ["author", "reviewer"],
+  );
+  assert.equal(
+    [...f.artifacts.keys()].some((key) => key.startsWith("correction-plan:")),
+    false,
+  );
+});
+
+test("initial candidate prose and valid finance proceed without another author call", async () => {
+  const f = fixture();
+  const dossier = financedDossier();
+  const prepared = await prepareReviewedCaliforniaCandidate(
+    f.fresh({ dossier, candidateId: dossier.identity.candidateId }),
+    f.deps,
+  );
+  assert.equal(prepared.authored.brief.sections[0]!.claims.length, 1);
+  assert.equal(prepared.reviewed.verdict, "approve");
+  assert.deepEqual(
+    f.calls.map((call) => call.role),
+    ["author", "reviewer"],
+  );
+  assert.equal(
+    [...f.artifacts.keys()].some((key) => key.startsWith("correction-plan:")),
+    false,
+  );
+});
+
+test("a financed prose reassessment reserves its budget and resumes the same correction", async () => {
+  const f = fixture();
+  const dossier = financedDossier();
+  const author = f.deps.author;
+  const empty = emptyAuthor(f);
+  f.deps.author = (input) => (input.correction ? author(input) : empty(input));
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(
+      f.fresh({
+        dossier,
+        candidateId: dossier.identity.candidateId,
+        bounds: { maxModelCalls: 1, maxInputTokens: 1_000_000 },
+      }),
+      f.deps,
+    ),
+    /budget/i,
+  );
+  assert.equal(f.calls.length, 1);
+  const plan = slot(f);
+  const resumed = f.fresh({
+    dossier,
+    candidateId: dossier.identity.candidateId,
+  });
+  await prepareReviewedCaliforniaCandidate(resumed, f.deps);
+  assert.equal(resumed.usage.modelCalls, 2);
+  assert.deepEqual(slot(f), plan);
+});
 
 test("a successful empty author on supported campaign material uses one substantive correction before independent review", async () => {
   const f = fixture();
