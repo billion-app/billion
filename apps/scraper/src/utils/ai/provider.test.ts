@@ -423,9 +423,12 @@ test("preferred SearXNG bypasses hosted and Tavily providers", async (t) => {
     ...fallback,
   });
   let calls = 0;
-  t.mock.method(globalThis, "fetch", async (url: URL) => {
+  t.mock.method(globalThis, "fetch", async (url: URL, init: RequestInit) => {
     calls++;
     assert.equal(String(url), "http://search.test/search");
+    const body = new URLSearchParams(init.body as URLSearchParams);
+    assert.equal(body.get("engines"), "mwmbl");
+    assert.equal(body.has("categories"), false);
     return Response.json({
       results: [
         {
@@ -437,7 +440,8 @@ test("preferred SearXNG bypasses hosted and Tavily providers", async (t) => {
     });
   });
   assert.equal(
-    (await provider.generateWebSearch("bill analysis")).sources.length,
+    (await provider.generateWebSearch("bill analysis", ["mwmbl"])).sources
+      .length,
     1,
   );
   assert.equal(calls, 1);
@@ -452,13 +456,16 @@ test("SearXNG outage never activates a paid fallback", async (t) => {
     ...fallback,
   });
   let calls = 0;
-  t.mock.method(globalThis, "fetch", async (url: URL) => {
+  t.mock.method(globalThis, "fetch", async (url: URL, init: RequestInit) => {
     calls++;
     assert.equal(String(url), "http://search.test/search");
+    const body = new URLSearchParams(init.body as URLSearchParams);
+    assert.equal(body.get("engines"), "mwmbl");
+    assert.equal(body.has("categories"), false);
     return new Response("blocked", { status: 503 });
   });
   await assert.rejects(
-    provider.generateWebSearch("analysis"),
+    provider.generateWebSearch("analysis", ["mwmbl"]),
     /SearXNG search failed/,
   );
   assert.equal(calls, 1);

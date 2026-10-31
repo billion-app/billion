@@ -3,6 +3,43 @@ import test from "node:test";
 
 import { findJob, jobs } from "./config.js";
 
+void test("California reconciliation uses local discovery with bounded reviewed work", () => {
+  const job = findJob("california-candidate-research-reconcile");
+  assert.ok(job);
+  assert.equal(job.env?.SCRAPER_SEARCH_PROVIDER, "searxng");
+  assert.equal(job.env?.SCRAPER_TAVILY_MAX_SEARCHES_PER_RUN, undefined);
+  assert.deepEqual(job.args, [
+    "reconcile",
+    "--snapshot",
+    "latest",
+    "--policy",
+    "ca-california-candidate-research-2026-10-30-v2",
+    "--include-pilot-races",
+    "--apply",
+    "--max-races",
+    "48",
+    "--max-candidates",
+    "96",
+    "--max-source-requests",
+    "500",
+    "--max-source-bytes",
+    "250000000",
+    "--max-model-calls",
+    "192",
+    "--max-input-tokens",
+    "4000000",
+    "--concurrency",
+    "1",
+  ]);
+  assert.deepEqual(job.schedule, { kind: "interval", everyMinutes: 30 });
+  assert.equal(job.env?.SCRAPER_FALLBACK_PRIORITY, "primary");
+  assert.equal(job.env?.SCRAPER_FALLBACK_MODEL, "gpt-6-luna");
+  assert.equal(job.env?.SCRAPER_FALLBACK_REASONING_EFFORT, "low");
+  assert.equal(job.env?.CANDIDATE_RESEARCH_REVIEW_MODEL, "gpt-6-astra");
+  assert.equal(job.idleTimeoutMinutes, 30);
+  assert.equal(job.maxRuntimeHours, 12);
+});
+
 void test("job ids are unique", () => {
   const ids = jobs.map((job) => job.id);
   assert.equal(new Set(ids).size, ids.length);

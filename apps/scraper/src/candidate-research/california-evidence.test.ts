@@ -1485,3 +1485,27 @@ test("Governor authority selects only the official role preface and never candid
     }
   }
 });
+
+test("candidate discovery searches the full name without office, year or quotes", async () => {
+  const { snapshot, race } = await fixture();
+  const member = race.members[0]!;
+  const queries: { query: string; discover: boolean }[] = [];
+  await collectCaliforniaEvidence(
+    { snapshot, race, member },
+    {
+      now: () => now,
+      sharedSources: new Map(),
+      budget: { request() {}, bytes() {} },
+      search: async (query, discover) => {
+        queries.push({ query, discover });
+        return { sources: [] };
+      },
+      fetch: async (id, url) =>
+        source(id, url, "No candidate evidence available."),
+    },
+  );
+  assert.deepEqual(queries, [
+    { query: member.name, discover: false },
+    { query: member.name, discover: true },
+  ]);
+});
