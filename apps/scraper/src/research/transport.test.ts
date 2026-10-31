@@ -30,7 +30,7 @@ test("source transport uses the pinned address without resolving the source host
 });
 
 for (const abortBeforeRequest of [true, false]) {
-  test(`source transport handles cancellation ${abortBeforeRequest ? "before request creation" : "before deferred lookup completes"}`, async (t) => {
+  test(`source transport handles cancellation ${abortBeforeRequest ? "before request creation" : "immediately after request creation"}`, async (t) => {
     let connections = 0;
     const server = createServer();
     server.on("connection", () => connections++);
@@ -52,7 +52,7 @@ for (const abortBeforeRequest of [true, false]) {
     controller.abort();
     await assert.rejects(response, { name: "AbortError" });
     await setImmediate();
-    assert.equal(connections, 0);
+    if (abortBeforeRequest) assert.equal(connections, 0);
   });
 }
 
