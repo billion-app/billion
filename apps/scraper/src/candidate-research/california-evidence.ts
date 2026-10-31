@@ -11,6 +11,7 @@ import {
   officeSlug,
   officeUrl,
 } from "@acme/api/lib/candidate-sources/ca-sos-voterguide";
+import { isOfficialFecCandidateMasterUrl } from "@acme/validators";
 
 import {
   canonicalSourceUrl,
@@ -23,6 +24,10 @@ import {
   buildCaliforniaDossier,
   californiaResearchVersion,
 } from "./california-dossier.js";
+import {
+  decodeFecCandidateMasterZip,
+  fecCandidateMasterCompressedLimit,
+} from "./california-fec-bulk.js";
 import { collectCaliforniaFederalFinance } from "./california-finance.js";
 import { fetchSource, hash, htmlText } from "./sources.js";
 
@@ -1052,6 +1057,12 @@ export class CaliforniaBudgetReached extends Error {
   }
 }
 
+export class CaliforniaSourceHttpError extends Error {
+  constructor(public readonly status: number) {
+    super(`Source request failed (${status})`);
+  }
+}
+
 export async function fetchBoundedCaliforniaSource(
   id: string,
   url: string,
@@ -1094,12 +1105,18 @@ export async function fetchBoundedCaliforniaSource(
   }
   if (!response?.ok) {
     await response?.body?.cancel();
-    throw new Error(
-      `Source request failed (${response?.status ?? "no response"})`,
-    );
+    if (response) throw new CaliforniaSourceHttpError(response.status);
+    throw new Error("Source request failed (no response)");
   }
   const reader = response.body?.getReader();
   if (!reader) throw new Error("Source has no body");
+  const fecMaster =
+    format === "text" && isOfficialFecCandidateMasterUrl(currentURL);
+  const sourceByteLimit = fecMaster
+    ? fecCandidateMasterCompressedLimit
+    : format === "image"
+      ? 5_000_000
+      : 25_000_000;
   const chunks: Uint8Array[] = [];
   let bytes = 0;
   try {
@@ -1107,9 +1124,9 @@ export async function fetchBoundedCaliforniaSource(
       const part = await reader.read();
       if (part.done) break;
       bytes += part.value.byteLength;
-      if (bytes > (format === "image" ? 5_000_000 : 25_000_000))
-        throw new Error("Source exceeds per-document byte bound");
       budget.bytes(part.value.byteLength);
+      if (bytes > sourceByteLimit)
+        throw new Error("Source exceeds per-document byte bound");
       chunks.push(part.value);
     }
   } catch (error) {
@@ -1184,6 +1201,8 @@ export async function fetchBoundedCaliforniaSource(
       [...new Set(disclosures)].join("\n");
   } else if (format === "json")
     text = JSON.stringify(JSON.parse(buffer.toString("utf8")), null, 2);
+  else if (fecMaster)
+    text = decodeFecCandidateMasterZip(new Uint8Array(buffer), currentURL);
   else if (format === "text" && /\.zip$/.test(currentURL))
     text = decodeClarityXmlZip(new Uint8Array(buffer), currentURL);
   else

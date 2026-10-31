@@ -1269,7 +1269,7 @@ test("permanently changed cited pages recover in the new review epoch without re
   assert.equal(live, true);
 });
 
-test("all-gap author drafts remain private and pending without reviewing or withdrawing healthy coverage", async () => {
+test("all-gap author drafts exhaust one correction and remain private without reviewing or withdrawing healthy coverage", async () => {
   const f = await fixture();
   f.snapshot.races.splice(1);
   const race = f.snapshot.races[0]!;
@@ -1340,15 +1340,26 @@ test("all-gap author drafts remain private and pending without reviewing or with
     assert.equal(result.completed, 0);
     assert.equal(result.blocked, 0);
     assert.equal(result.remaining, 1);
-    assert.equal(result.usage.modelCalls, attempt === 0 ? 1 : 0);
+    assert.equal(result.usage.modelCalls, attempt === 0 ? 2 : 0);
   }
-  assert.equal(f.stats.authors, 1);
+  assert.equal(f.stats.authors, 2);
   assert.equal(f.stats.reviews, 0);
   assert.equal(f.stats.releases, 0);
   assert.equal(f.stats.failures, 0);
   assert.equal(collections, 0);
   assert.equal(
     [...f.artifacts.keys()].filter((key) => key.startsWith("author:")).length,
+    1,
+  );
+  assert.equal(
+    [...f.artifacts.keys()].filter((key) =>
+      key.startsWith("author-correction:"),
+    ).length,
+    1,
+  );
+  assert.equal(
+    [...f.artifacts.keys()].filter((key) => key.startsWith("correction-plan:"))
+      .length,
     1,
   );
   assert.equal(

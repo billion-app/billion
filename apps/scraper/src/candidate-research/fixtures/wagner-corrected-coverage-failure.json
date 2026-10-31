@@ -1,0 +1,157 @@
+{
+  "provenance": {
+    "snapshotId": "45668f72fe21951ecbd673a39b53d27e8e203b303bb8e5013ea46a657c1d5eaa",
+    "authorArtifactKey": "author-correction:66538b300e28cfc9e6bed7b7fe56d48709ed9041c14f732020a3fe50f5c69cfb",
+    "reviewArtifactKey": "review:a43a19a735367fd7252db5033aaea57d9cb3915969abad1ddce06f23c68f1d03",
+    "dossierFixture": "wagner-author-origin-failure.json",
+    "dossierDigest": "6327353167432459aa0ee7c9fdcd6e8cf6c701b6924d1aaddc767cb87a751788",
+    "capturedAt": "2026-10-31T06:53:02.682Z",
+    "note": "Author contract reconstructed from the persisted corrected brief by removing compiler-owned IDs and emphasis and reattaching promiseDetails by claimId. Authored prose, source references and nested reading are unchanged."
+  },
+  "output": {
+    "priorities": {
+      "claims": [
+        {
+          "kind": "promise",
+          "text": "Wagner pledges to speed up vote counting, secure elections, and remove the chief elections officer from partisan politics; he also pledges to protect votes and restore trust with “fast, free, and fair elections.”",
+          "evidenceIds": ["candidate-2"],
+          "promiseDetails": {
+            "brief": {
+              "change": {
+                "text": "Speed up vote counting, secure elections, and remove the chief elections officer from partisan politics.",
+                "title": "Proposed changes",
+                "evidenceIds": ["candidate-2"]
+              },
+              "unknowns": {
+                "text": "The statement does not specify how counting would be sped up, what security measures would be used, or how the chief elections officer would be removed from partisan politics.",
+                "title": "Unspecified details",
+                "evidenceIds": ["candidate-2"]
+              },
+              "authority": {
+                "text": "The Secretary of State serves as California’s chief elections officer and oversees state and federal elections within California.",
+                "title": "Office authority",
+                "evidenceIds": ["office-authority"]
+              }
+            },
+            "costs": [],
+            "steps": [],
+            "title": "Election administration and trust",
+            "affected": [],
+            "benefits": [
+              {
+                "text": "Wagner says the pledges aim to protect votes and restore trust through fast, free, and fair elections.",
+                "title": "Stated aims",
+                "evidenceIds": ["candidate-2"]
+              }
+            ],
+            "unknowns": [
+              {
+                "text": "The statement does not give an implementation plan or timeline for these pledges.",
+                "title": "Implementation",
+                "evidenceIds": ["candidate-2"]
+              }
+            ],
+            "alternatives": [],
+            "perspectives": []
+          }
+        }
+      ]
+    },
+    "record": {
+      "claims": [
+        {
+          "kind": "analysis",
+          "text": "Wagner says he has maintained a “gold standard of democracy” through almost 30 years of public service.",
+          "evidenceIds": ["candidate-2"]
+        }
+      ]
+    },
+    "mechanisms": {
+      "claims": []
+    },
+    "effects": {
+      "claims": []
+    },
+    "tradeoffs": {
+      "claims": []
+    },
+    "unknowns": {
+      "claims": [
+        {
+          "kind": "analysis",
+          "text": "The statement does not specify how Wagner would speed up vote counting, secure elections, or remove the chief elections officer from partisan politics.",
+          "evidenceIds": ["candidate-2"]
+        }
+      ]
+    },
+    "terms": []
+  },
+  "promiseReadings": [
+    {
+      "brief": {
+        "change": {
+          "text": "Speed up vote counting, secure elections, and remove the chief elections officer from partisan politics.",
+          "title": "Proposed changes",
+          "emphasis": [],
+          "evidenceIds": ["candidate-2"]
+        },
+        "unknowns": {
+          "text": "The statement does not specify how counting would be sped up, what security measures would be used, or how the chief elections officer would be removed from partisan politics.",
+          "title": "Unspecified details",
+          "emphasis": [],
+          "evidenceIds": ["candidate-2"]
+        },
+        "authority": {
+          "text": "The Secretary of State serves as California’s chief elections officer and oversees state and federal elections within California.",
+          "title": "Office authority",
+          "emphasis": [],
+          "evidenceIds": ["office-authority"]
+        }
+      },
+      "costs": [],
+      "steps": [],
+      "title": "Election administration and trust",
+      "claimId": "priorities-1",
+      "affected": [],
+      "benefits": [
+        {
+          "text": "Wagner says the pledges aim to protect votes and restore trust through fast, free, and fair elections.",
+          "title": "Stated aims",
+          "emphasis": [],
+          "evidenceIds": ["candidate-2"]
+        }
+      ],
+      "unknowns": [
+        {
+          "text": "The statement does not give an implementation plan or timeline for these pledges.",
+          "title": "Implementation",
+          "emphasis": [],
+          "evidenceIds": ["candidate-2"]
+        }
+      ],
+      "alternatives": [],
+      "perspectives": []
+    }
+  ],
+  "observedReview": {
+    "verdict": "reject",
+    "findings": [
+      {
+        "reason": "Wagner explicitly makes these pledges in his official candidate statement.",
+        "claimId": "priorities-1",
+        "supported": true
+      },
+      {
+        "reason": "The statement explicitly makes this public-service assertion, and the claim preserves attribution to Wagner.",
+        "claimId": "record-1",
+        "supported": true
+      },
+      {
+        "reason": "The cited statement states the goals without specifying implementation methods for these pledges.",
+        "claimId": "unknowns-1",
+        "supported": true
+      }
+    ],
+    "overallReason": "The mechanisms.missingEvidence disclosure says, “This brief does not present a separate account of implementation or office authority,” but the promise reading includes a dedicated “Office authority” account. This document-coverage disclosure contradicts the brief itself. The cited claims are otherwise supported, and the finance gap accurately discloses unreconciled records."
+  }
+}

@@ -22,3 +22,5 @@ export * from "./candidate-evidence-dossier";
 export * from "./proposition-context";
 export * from "./trillion";
 export * from "./official-title";
+
+export * from "./fec-candidate-identity";

@@ -11,6 +11,7 @@ import {
   hasSubstantiveCampaignFinance,
 } from "./candidate-research";
 import { researchSourceSchema } from "./candidate-research-collection";
+import { resolveFecIdentityFromSource } from "./fec-candidate-identity";
 
 const text = z.string().trim().min(1).max(4000);
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
@@ -375,56 +376,22 @@ export function deriveCandidateResearchQuality(
     (source) =>
       source.id === proof.sourceId && source.contentHash === proof.sourceHash,
   );
-  if (!index || new URL(index.url).hostname !== "api.open.fec.gov") return null;
+  if (!index) return null;
   const district = /\/cd:(\d+)(?:\/|$)/.exec(
     dossier.identity.jurisdiction,
   )?.[1];
-  const normalize = (name: string) =>
-    name
-      .normalize("NFKC")
-      .toUpperCase()
-      .replace(/[^\p{L}\p{N}]+/gu, " ")
-      .trim();
-  const comma = proof.name.indexOf(",");
-  const candidateName =
-    comma >= 0
-      ? `${proof.name.slice(comma + 1)} ${proof.name.slice(0, comma)}`
-      : proof.name;
-  if (
-    !district ||
-    Number(proof.district) !== Number(district) ||
-    proof.cycle !== Number(dossier.identity.electionDate.slice(0, 4)) ||
-    normalize(candidateName) !== normalize(dossier.name)
-  )
-    return null;
   try {
-    const parsed: unknown = JSON.parse(index.text);
+    if (!district) return null;
+    const matched = resolveFecIdentityFromSource(index, {
+      name: dossier.name,
+      district,
+      cycle: Number(dossier.identity.electionDate.slice(0, 4)),
+    });
     if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      !("results" in parsed) ||
-      !Array.isArray(parsed.results)
-    )
-      return null;
-    const rows: unknown[] = parsed.results;
-    const matches = rows.filter(
-      (value: unknown): value is Record<string, unknown> =>
-        !!value &&
-        typeof value === "object" &&
-        "candidate_id" in value &&
-        value.candidate_id === proof.candidateId,
-    );
-    const row = matches[0];
-    if (
-      matches.length !== 1 ||
-      row?.name !== proof.name ||
-      row.office !== "H" ||
-      row.state !== "CA" ||
-      Number(row.district) !== Number(proof.district) ||
-      !Array.isArray(row.cycles) ||
-      !row.cycles.includes(proof.cycle) ||
-      !Array.isArray(row.election_years) ||
-      !row.election_years.includes(proof.cycle)
+      matched?.candidateId !== proof.candidateId ||
+      matched.name !== proof.name ||
+      Number(matched.district) !== Number(proof.district) ||
+      matched.cycle !== proof.cycle
     )
       return null;
   } catch {

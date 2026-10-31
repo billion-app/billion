@@ -349,10 +349,27 @@ export async function prepareReviewedCaliforniaCandidate(
       delete provenance.reviewer;
       delete provenance.verdict;
     }
-    if (!hasSubstantiveCandidateResearch(authored.brief, dossier))
+    if (!hasSubstantiveCandidateResearch(authored.brief, dossier)) {
+      if (!correction && dossier.classification === "supported") {
+        const candidateEvidenceIds = dossier.evidence
+          .filter((entry) => entry.origin === "candidate")
+          .map((entry) => entry.id);
+        return {
+          kind: "correction",
+          triggerArtifactKey: authorKey,
+          feedback: {
+            kind: "author_validation",
+            previousOutput: authored.brief,
+            validationProblems: [
+              `The compiled brief does not meet the substantive research requirement: it presents no qualifying candidate priorities, record, or identity-reconciled campaign finances. Reassess the supplied candidate evidence IDs ${JSON.stringify(candidateEvidenceIds)} against their full context. Explicit named-subject campaign accounts may support clearly campaign-attributed priorities or record claims. Unresolved speakers, third-party pledges, ambiguous referents, and mere hosting never establish candidate adoption. Do not infer personal authorship or independent verification. Return honest empty claims when the evidence cannot support research; do not invent content to satisfy this requirement.`,
+            ],
+          },
+        };
+      }
       throw new PendingCandidateResearchGap(
-        "The checked sources do not yet support a publishable account of this candidate's priorities, record, or campaign finances.",
+        "The authored brief does not yet present a publishable account of this candidate's priorities, record, or campaign finances.",
       );
+    }
     const reviewKey = `review:${evidenceDigest([authored.attestation.revisionDigest, dossier.dossierDigest, policyVersion, californiaReviewerPromptVersion, deps.reviewerConfigurationKey ?? deps.modelConfigurationKey ?? "fixture", lease.key, lease.reviewEpoch])}`;
     remember(reviewKey);
     let reviewed = (await deps.artifact(reviewKey)) as ReviewResult | null;
@@ -414,7 +431,8 @@ export async function prepareReviewedCaliforniaCandidate(
       plan.feedbackDigest !== feedbackHash(plan.feedback) ||
       plan.authorKey !== childKey(plan.feedbackDigest) ||
       (plan.feedback.kind === "author_validation"
-        ? plan.triggerArtifactKey !== `failure:${rootAuthorKey}`
+        ? plan.triggerArtifactKey !== `failure:${rootAuthorKey}` &&
+          plan.triggerArtifactKey !== rootAuthorKey
         : !plan.triggerArtifactKey.startsWith("review:"))
     )
       throw new Error(

@@ -19,7 +19,7 @@ import {
 } from "./california-dossier.js";
 
 // Includes the trusted compiler contract so finance-only changes invalidate cached drafts.
-export const californiaAuthorPromptVersion = "california-author-v14";
+export const californiaAuthorPromptVersion = "california-author-v15";
 export const californiaReviewerPromptVersion = "california-review-v6";
 const topics = [
   "priorities",
@@ -203,28 +203,28 @@ export function californiaAuthorOutputSchema(evidence: AuthorEvidence) {
     });
 }
 
-function documentCoverage(
+function sectionCoverage(
   topic: (typeof topics)[number],
-  hasClaims: boolean,
+  hasSectionClaims: boolean,
   dossier: CandidateEvidenceDossier,
   financeOnly: boolean,
 ): string | null {
   const empty: Record<(typeof topics)[number], string> = {
     priorities:
-      "This brief does not present candidate-specific priorities or proposals.",
+      "This section does not present candidate-specific priorities or proposals.",
     record:
-      "This brief does not present a separate account of the candidate's record.",
+      "This section does not present a separate account of the candidate's record.",
     mechanisms:
-      "This brief does not present a separate account of implementation or office authority.",
+      "This section does not present a separate account of implementation or office authority.",
     effects:
-      "This brief does not present a separate analysis of expected effects.",
+      "This section does not present a separate analysis of expected effects.",
     tradeoffs:
-      "This brief does not present a separate analysis of costs and competing considerations.",
+      "This section does not present a separate analysis of costs and competing considerations.",
     unknowns:
-      "This brief includes no separate analysis of unresolved questions.",
+      "This section includes no separate analysis of unresolved questions.",
   };
-  const statements = hasClaims ? [] : [empty[topic]];
-  if (topic === "unknowns" && !hasClaims) {
+  const statements = hasSectionClaims ? [] : [empty[topic]];
+  if (topic === "unknowns" && !hasSectionClaims) {
     const finance = dossier.finance;
     if (financeOnly && finance) {
       if (!finance.receipts)
@@ -936,7 +936,7 @@ export async function authorCaliforniaBrief(
       !sections.some((section) => section.claims.length) &&
       hasSubstantiveCampaignFinance(dossier.finance);
     for (const section of sections)
-      section.missingEvidence = documentCoverage(
+      section.missingEvidence = sectionCoverage(
         section.topic,
         section.claims.length > 0,
         dossier,
