@@ -85,6 +85,108 @@ test("exact approved projections reproduce independently acknowledged digests", 
     assert.notEqual(proof.observedContentHash, proof.reviewedContentHash);
   }
 });
+test("actual CDE unavailable last-viewed time renews the exact approved source without changing retained metadata", () => {
+  const { contract, original } = projectionFixtures().find((row) =>
+    row.contract.projectionId.startsWith("cde"),
+  )!;
+  const text = read("cde-item-unavailable-view-time.txt");
+  const item = JSON.parse(text) as Record<string, unknown>;
+  const reviewed = JSON.parse(original.text) as Record<string, unknown>;
+  assert.equal(item.lastViewed, -1);
+  assert.equal(item.numViews, 0);
+  assert.deepEqual(
+    Object.fromEntries(
+      Object.entries(item).filter(
+        ([key]) => !["lastViewed", "numViews"].includes(key),
+      ),
+    ),
+    Object.fromEntries(
+      Object.entries(reviewed).filter(
+        ([key]) => !["lastViewed", "numViews"].includes(key),
+      ),
+    ),
+  );
+  const observed: ResearchSource = {
+    ...original,
+    text,
+    contentHash: hash(text),
+    byteHash: hash(text),
+    fetchedAt: "2026-10-31T07:26:40.727Z",
+  };
+  const result = validateAuthorityRenewalProjection(
+    contract,
+    observed,
+    contract.approval.scopeDigest,
+  );
+  assert.deepEqual(result.contract, contract);
+  assert.equal(
+    result.proof.canonicalDigest,
+    "720348bff7cd6b05bf80f187822ccf406d659566dfa28d548d05f7812489d2fc",
+  );
+  assert.equal(result.proof.canonicalDigest, contract.canonicalDigest);
+  assert.equal(result.proof.observedRawHash, hash(text));
+  assert.equal(result.proof.observedContentHash, hash(text));
+  assert.equal(result.proof.checkedAt, observed.fetchedAt);
+  assert.equal(result.proof.approvalReceiptHash, contract.approval.receiptHash);
+  assert.equal(observed.text, text);
+  assert.equal(
+    (JSON.parse(observed.text) as Record<string, unknown>).lastViewed,
+    -1,
+  );
+  assert.notEqual(result.proof.observedRawHash, result.proof.reviewedRawHash);
+});
+test("CDE unavailable view time does not admit malformed telemetry or retained source changes", () => {
+  const { contract, original } = projectionFixtures().find((row) =>
+    row.contract.projectionId.startsWith("cde"),
+  )!;
+  const item = JSON.parse(read("cde-item-unavailable-view-time.txt")) as Record<
+    string,
+    unknown
+  >;
+  for (const value of [-2, 1.5, null, true, "-1"]) {
+    assert.throws(() =>
+      projectAuthoritySource(
+        contract.projectionId,
+        JSON.stringify({ ...item, lastViewed: value }),
+      ),
+    );
+  }
+  for (const value of [-1, -2, 1.5, null, true, "0"]) {
+    assert.throws(() =>
+      projectAuthoritySource(
+        contract.projectionId,
+        JSON.stringify({ ...item, numViews: value }),
+      ),
+    );
+  }
+  for (const field of ["lastViewed", "numViews"]) {
+    const missing = { ...item };
+    delete missing[field];
+    assert.throws(() =>
+      projectAuthoritySource(contract.projectionId, JSON.stringify(missing)),
+    );
+  }
+  for (const key of Object.keys(item).filter(
+    (key) => !["lastViewed", "numViews"].includes(key),
+  )) {
+    const text = JSON.stringify({
+      ...item,
+      [key]: key === "id" ? "wrong-id" : { changed: true },
+    });
+    assert.throws(() =>
+      validateAuthorityRenewalProjection(
+        contract,
+        {
+          ...original,
+          text,
+          contentHash: hash(text),
+          byteHash: hash(text),
+        },
+        contract.approval.scopeDigest,
+      ),
+    );
+  }
+});
 test("CDE projection rejects duplicate keys, nonfinite values and malformed excluded counters", () => {
   const { contract, original } = projectionFixtures().find((row) =>
     row.contract.projectionId.startsWith("cde"),
@@ -118,7 +220,7 @@ test("CDE projection rejects duplicate keys, nonfinite values and malformed excl
   delete missing.lastViewed;
   assert.throws(
     () => projectAuthoritySource(id, JSON.stringify(missing)),
-    /CDE telemetry lastViewed is not a nonnegative integer/,
+    /CDE telemetry lastViewed must be -1 or a nonnegative integer/,
   );
 });
 test("every retained CDE field remains binding, including nested names matching ignored counters", () => {

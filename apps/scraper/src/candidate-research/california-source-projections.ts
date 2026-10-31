@@ -274,13 +274,19 @@ export function projectAuthoritySource(
     const item = parsed as Record<string, unknown>;
     if (item.id !== "48870daecfe14c6ab376f6a673491914")
       throw new Error("CDE item identity changed");
-    for (const field of ["lastViewed", "numViews"])
+    for (const field of ["lastViewed", "numViews"]) {
+      const value = item[field];
       if (
         !Object.hasOwn(item, field) ||
-        !Number.isSafeInteger(item[field]) ||
-        (item[field] as number) < 0
+        !Number.isSafeInteger(value) ||
+        ((value as number) < 0 && !(field === "lastViewed" && value === -1))
       )
-        throw new Error(`CDE telemetry ${field} is not a nonnegative integer`);
+        throw new Error(
+          field === "lastViewed"
+            ? "CDE telemetry lastViewed must be -1 or a nonnegative integer"
+            : "CDE telemetry numViews is not a nonnegative integer",
+        );
+    }
     const retained = { ...item };
     delete retained.lastViewed;
     delete retained.numViews;
