@@ -20,7 +20,10 @@ import type {
   CaliforniaDependencies,
   CaliforniaWorkCheckpoint,
 } from "./california.js";
-import { californiaInvocationFailure } from "./california-ai.js";
+import {
+  californiaInvocationFailure,
+  CaliforniaModelInvocationError,
+} from "./california-ai.js";
 import {
   buildCaliforniaDossier,
   evidenceDigest,
@@ -1722,5 +1725,249 @@ test("a substantive typed finance-only dossier still dispatches the author depen
   assert.equal(invoked.usage.modelCalls, 1);
   assert.equal(f.stats.authors, 1);
   assert.equal(f.stats.reviews, 0);
+  assert.equal(f.stats.releases, 0);
+});
+
+test("terminal author validation feedback produces one corrected independently reviewed revision", async () => {
+  const f = await fixture();
+  f.snapshot.races.splice(1);
+  const author = f.deps.author;
+  let calls = 0;
+  const previousOutput = {
+    chapters: [
+      {
+        topic: "record",
+        claims: [{ kind: "fact", text: "Campaign statement" }],
+      },
+    ],
+  };
+  f.deps.author = async (input) => {
+    calls++;
+    if (calls === 1) {
+      throw new CaliforniaModelInvocationError({
+        role: "author",
+        errorKind: "schema_validation",
+        configuredModel: "fixture",
+        actualModel: "fixture",
+        provider: "fixture",
+        requestId: "terminal-request",
+        rawText: JSON.stringify(previousOutput),
+        parsedOutput: previousOutput,
+        validationProblems: ["record fact must cite a primary record"],
+        finishReason: "stop",
+        startedAt: f.deps.now(),
+        completedAt: f.deps.now(),
+        costUsd: null,
+        usage: {
+          inputTokens: 123,
+          outputTokens: 45,
+          totalTokens: 168,
+          inputTokenDetails: {
+            noCacheTokens: 123,
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+          },
+          outputTokenDetails: { textTokens: 45, reasoningTokens: 0 },
+        },
+      });
+    }
+    if (calls === 2) {
+      assert.deepEqual(
+        (input as unknown as { correction: unknown }).correction,
+        {
+          kind: "author_validation",
+          previousOutput,
+          validationProblems: ["record fact must cite a primary record"],
+        },
+      );
+    }
+    return author(input);
+  };
+  const result = await reconcile(
+    { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+    f.deps,
+  );
+  assert.equal(result.completed, 1, JSON.stringify(result));
+  assert.equal(calls, f.snapshot.races[0]!.members.length + 1);
+  assert.equal(f.stats.reviews, f.snapshot.races[0]!.members.length);
+  assert.equal(result.usage.actualInputTokens, 123 + f.stats.authors * 200);
+  const second = await reconcile(
+    { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+    f.deps,
+  );
+  assert.equal(second.usage.modelCalls, 0);
+});
+
+test("actual whole-brief rejection feeds one replacement and independently reviews the replacement", async () => {
+  const f = await fixture();
+  f.snapshot.races.splice(1);
+  const author = f.deps.author,
+    review = f.deps.review;
+  let rejectedBrief: CandidateBrief | undefined;
+  let correctionSeen = false;
+  const reviewedRevisions: string[] = [];
+  f.deps.author = async (input) => {
+    const correction = (
+      input as unknown as {
+        correction?: {
+          kind: string;
+          previousBrief: CandidateBrief;
+          overallReason: string;
+          findings: unknown[];
+        };
+      }
+    ).correction;
+    if (correction) {
+      correctionSeen = true;
+      assert.equal(correction.kind, "review_rejection");
+      assert.deepEqual(correction.previousBrief, rejectedBrief);
+      assert.equal(
+        correction.overallReason,
+        "The record chapter misattributes the campaign's statement to the official record.",
+      );
+      assert.deepEqual(correction.findings, []);
+    }
+    return author(input);
+  };
+  f.deps.review = async (input) => {
+    reviewedRevisions.push(input.brief.revisionId);
+    const result = await review(input);
+    if (!rejectedBrief) {
+      rejectedBrief = input.brief;
+      return {
+        ...result,
+        verdict: "reject",
+        overallReason:
+          "The record chapter misattributes the campaign's statement to the official record.",
+      };
+    }
+    return result;
+  };
+  const result = await reconcile(
+    { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+    f.deps,
+  );
+  assert.equal(result.completed, 1, JSON.stringify(result));
+  assert.equal(correctionSeen, true);
+  assert.notEqual(reviewedRevisions[0], reviewedRevisions[1]);
+  assert.equal(f.stats.reviews, f.snapshot.races[0]!.members.length + 1);
+});
+
+test("source failure atomically preserves attempted provenance before fencing and lets the next bounded run progress", async () => {
+  const f = await fixture();
+  const race = [...f.snapshot.races].sort((a, b) =>
+    a.raceKey.localeCompare(b.raceKey),
+  )[0]!;
+  const investigate = f.deps.investigate,
+    checkpoint = f.deps.checkpoint;
+  let epoch = 0,
+    staleCheckpoints = 0;
+  const investigated: string[] = [];
+  const claim = f.deps.claim;
+  f.deps.claim = async (input) => ({
+    ...(await claim(input))!,
+    reviewEpoch: epoch,
+  });
+  f.deps.investigate = async (input, budget) => {
+    investigated.push(input.race.raceKey);
+    if (
+      input.race.raceKey === race.raceKey &&
+      input.member.candidateId === race.members[1]!.candidateId
+    )
+      throw new CaliforniaCitedSourceFailure(
+        "Required candidate source changed",
+      );
+    return investigate(input, budget);
+  };
+  f.deps.checkpoint = async (lease, status, value) => {
+    if (lease.reviewEpoch !== epoch) {
+      staleCheckpoints++;
+      return false;
+    }
+    return checkpoint(lease, status, value);
+  };
+  f.deps.fail = async (...args) => {
+    const [key, , lease, attempted] = args as unknown as [
+      string,
+      string,
+      { reviewEpoch: number },
+      CaliforniaWorkCheckpoint | undefined,
+    ];
+    assert.equal(lease.reviewEpoch, epoch);
+    if (attempted)
+      f.rows.set(key, {
+        raceKey: key,
+        status: "pending",
+        checkpoint: attempted,
+      });
+    epoch++;
+  };
+  const input = {
+    snapshotId: f.snapshot.id,
+    policyVersion: "policy",
+    bounds: { ...bounds, maxRaces: 1 },
+  };
+  const first = await reconcile(input, f.deps);
+  assert.equal(first.blocked, 1);
+  const attempted = f.rows.get(race.raceKey)?.checkpoint as
+    | CaliforniaWorkCheckpoint
+    | undefined;
+  assert.equal(attempted?.attemptedAt, f.deps.now());
+  assert.ok(
+    attempted?.candidateProvenance?.[race.members[0]!.candidateId]?.author,
+  );
+  assert.equal(staleCheckpoints, 0);
+  investigated.length = 0;
+  const second = await reconcile(input, f.deps);
+  assert.equal(second.completed, 1, JSON.stringify(second));
+  assert.ok(investigated.every((key) => key !== race.raceKey));
+});
+
+test("a recovered first candidate cannot publish an incomplete race", async () => {
+  const f = await fixture();
+  f.snapshot.races.splice(1);
+  const review = f.deps.review;
+  let rejected = false;
+  f.deps.review = async (input) => {
+    const result = await review(input);
+    if (!rejected) {
+      rejected = true;
+      return {
+        ...result,
+        verdict: "reject",
+        overallReason:
+          "The record chapter assigns the committee's action to the candidate without source support.",
+      };
+    }
+    return result;
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds: { ...bounds, maxModelCalls: 4 },
+    },
+    f.deps,
+  );
+  assert.equal(f.stats.authors, 2);
+  assert.equal(f.stats.reviews, 2);
+  assert.equal(result.remaining, 1);
+  assert.equal(result.completed, 0);
+  assert.equal(f.stats.releases, 0);
+});
+
+test("an ordinary failed checkpoint surfaces lease loss instead of claiming a saved failure", async () => {
+  const f = await fixture();
+  f.deps.author = async () => {
+    throw Error("Unknown transport failure");
+  };
+  f.deps.checkpoint = async () => false;
+  await assert.rejects(
+    reconcile(
+      { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+      f.deps,
+    ),
+    /lease expired before failure checkpoint/,
+  );
   assert.equal(f.stats.releases, 0);
 });
