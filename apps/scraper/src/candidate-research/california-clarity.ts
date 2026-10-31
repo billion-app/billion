@@ -1016,7 +1016,7 @@ export function renewReviewedClaritySanJoseRoster(
       fresh.contentHash !== reviewed.contentHash
     )
       throw new Error(
-        "Territorial proof changed; new San José scope review required",
+        `Territorial proof changed (${reviewed.id}); new San José scope review required`,
       );
     const strongRefs = current.localCrosswalk.entries
       .flatMap((entry) => entry.proofs)

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -937,4 +938,305 @@ test("reconciled finance certificates reject unsupported empty records and bind 
   assert.deepEqual(publicResearchQualityErrors(zero, certificate), []);
   zero.research.finance.coverage = "partial";
   assert.ok(publicResearchQualityErrors(zero, certificate).length);
+});
+
+const relatedProjection =
+  "cde-data-ca-gov-school-district-areas-2025-26-related-harvest-v1";
+const relatedUrl =
+  "https://data.ca.gov/@california-department-of-education/california-school-district-areas-2025-26";
+const relatedDigest =
+  "07910e6fe6e94dd625e793e9ed08a91108f323283a1d06f9c8170ab806ddca44";
+const relatedRead = (name) =>
+  readFileSync(
+    new URL(
+      `../apps/scraper/src/candidate-research/fixtures/cde-related-harvest-${name}.txt`,
+      import.meta.url,
+    ),
+    "utf8",
+  );
+const relatedHash = (text) => createHash("sha256").update(text).digest("hex");
+const relatedProject = (text) =>
+  authorityProjectionDigest(relatedProjection, relatedUrl, text);
+
+test("related harvest renewal binds the independently reviewed raw archives and exact digest", () => {
+  const reviewed = relatedRead("reviewed"),
+    observed = relatedRead("observed");
+  assert.equal(
+    relatedHash(reviewed),
+    "2c63bb63cba2ae9112fe5f94df3af7720262d8f46d58197344207a19575b60b5",
+  );
+  assert.equal(
+    relatedHash(observed),
+    "ea2a1c2f39594c0a918975343f151403f26a1af021906c6d742925fb3d241fff",
+  );
+  assert.equal(relatedProject(reviewed), relatedDigest);
+  assert.equal(relatedProject(observed), relatedDigest);
+  assert.equal(
+    relatedProject(
+      observed.replace(
+        "74d82284-ca3c-443c-8630-3d225c34a9cf",
+        "12345678-1234-4abc-8abc-123456789abc",
+      ),
+    ),
+    relatedDigest,
+  );
+});
+
+test("related harvest renewal rejects ambiguous or malformed exclusions", () => {
+  const text = relatedRead("observed");
+  const uuid = "74d82284-ca3c-443c-8630-3d225c34a9cf";
+  const wrapper = '<script id="__NEXT_DATA__" type="application/json">';
+  for (const changed of [
+    text.repeat(72),
+    text.replace(
+      wrapper,
+      '<script type="application/json" id="__NEXT_DATA__">',
+    ),
+    text + wrapper + "{}</script>",
+    text + "<script id='__NEXT_DATA__'>{}</script>",
+    text + "<script id=__NEXT_DATA__>{}</script>",
+    text.replace(wrapper, ""),
+    text.replace('"props":', '"props":null,"\\u0070rops":'),
+    text.replace('"props":', '"nonfinite":1e999,"props":'),
+    text.replace(
+      '"props":',
+      '"deep":' + "[".repeat(101) + "0" + "]".repeat(101) + ',"props":',
+    ),
+    text.replace(uuid, uuid.replace("-443c-", "-543c-")),
+    text.replace(uuid, uuid.replace("-8630-", "-7630-")),
+    text.replace(uuid, uuid.toUpperCase()),
+    text.replace(uuid, "\\u0037" + uuid.slice(1)),
+    text + uuid,
+    text + "__RELATED_HARVEST_OBJECT_ID_1__",
+    text.replace('"harvest_object_id"', '"other_key"'),
+    text.replace('"harvest_source_id"', '"harvest_object_id"'),
+    text.replace("9a9f7021-d72d-4bdf-8828-1014fc494561", "wrong-primary"),
+    text.replace("6ad5b9d2-58e3-4181-bfb5-851ab41b7fe3", "wrong-related"),
+  ])
+    assert.throws(() => relatedProject(changed));
+});
+
+test("related harvest renewal retains every other raw source byte", () => {
+  const text = relatedRead("observed");
+  for (const changed of [
+    text + " ",
+    text.replace('"props":', '"props" :'),
+    text.replace("California Public Schools 2025-26", "Changed public schools"),
+    text.replace(
+      "2a07eb34-c712-4b9b-83a0-f68a10de2d8f",
+      "2a07eb34-c712-4b9b-83a0-f68a10de2d80",
+    ),
+    text.replace(
+      "CDEGIS::california-school-district-areas-2025-26",
+      "CDEGIS::changed-district-areas",
+    ),
+  ])
+    assert.notEqual(relatedProject(changed), relatedDigest);
+});
+
+function relatedRenewalFixture() {
+  const reviewedText = relatedRead("reviewed"),
+    currentText = relatedRead("observed");
+  const approval = {
+    receiptHash:
+      "199b4e2d264df6f862d087f403e6a66f79f1572f01e7c68c1c843bb28421a39f",
+    scopeDigest:
+      "a04b0dc8a476fb06ed52d9aace451f6564fdaa476a672e751595fcd47c9562b7",
+    reviewedSourceBundleHash:
+      "1b15a619545d5138063f4216ebb297b031a6dfba4f03fdf8d6887dc53e8319c3",
+    actorId: "ai:gpt-6-astra:california-related-harvest-review:2026-10-31",
+    reviewedAt: "2026-10-31T01:06:16Z",
+  };
+  const current = {
+    url: relatedUrl,
+    publisher: "California Department of Education",
+    format: "text",
+    text: currentText,
+    contentHash: relatedHash(currentText),
+    byteHash: relatedHash(currentText),
+    fetchedAt: "2026-10-31T01:00:59.326Z",
+  };
+  const contract = {
+    projectionId: relatedProjection,
+    url: current.url,
+    publisher: current.publisher,
+    format: "text",
+    reviewedContentHash: relatedHash(reviewedText),
+    reviewedRawHash: relatedHash(reviewedText),
+    canonicalDigest: relatedDigest,
+    reviewedSource: {
+      ...current,
+      text: reviewedText,
+      contentHash: relatedHash(reviewedText),
+      byteHash: relatedHash(reviewedText),
+    },
+    approval,
+  };
+  const proof = {
+    projectionId: contract.projectionId,
+    url: contract.url,
+    publisher: contract.publisher,
+    format: contract.format,
+    reviewedContentHash: contract.reviewedContentHash,
+    reviewedRawHash: contract.reviewedRawHash,
+    canonicalDigest: contract.canonicalDigest,
+    observedContentHash: current.contentHash,
+    observedRawHash: current.byteHash,
+    approvalReceiptHash: approval.receiptHash,
+    checkedAt: current.fetchedAt,
+  };
+  return {
+    primary: {
+      sourceRenewalProjections: [contract],
+      sourceProjectionProofs: [proof],
+    },
+    current,
+  };
+}
+
+test("related harvest renewal pins its own forward approval and actual raw observation", () => {
+  const check = ({ primary, current }) =>
+    authorityRenewalErrors(
+      primary,
+      [current],
+      "a04b0dc8a476fb06ed52d9aace451f6564fdaa476a672e751595fcd47c9562b7",
+      Date.parse("2026-10-31T01:07:00Z"),
+    );
+  assert.deepEqual(check(relatedRenewalFixture()), []);
+  for (const mutate of [
+    (f) => {
+      f.primary.sourceRenewalProjections[0].approval.receiptHash =
+        "9b23400c34796de76dbe25140c356e508e3ecd0ae1617c31116df1ecc3c6f519";
+    },
+    ...["actorId", "reviewedAt", "reviewedSourceBundleHash", "scopeDigest"].map(
+      (field) => (f) => {
+        f.primary.sourceRenewalProjections[0].approval[field] = "wrong";
+      },
+    ),
+    (f) => {
+      f.primary.sourceProjectionProofs[0].approvalReceiptHash = "wrong";
+    },
+    (f) => {
+      f.current.byteHash = "wrong";
+    },
+    (f) => {
+      f.current.publisher = "wrong";
+    },
+    (f) => {
+      f.current.format = "html";
+    },
+    (f) => {
+      f.primary.sourceRenewalProjections[0].publisher = "wrong";
+      f.primary.sourceRenewalProjections[0].reviewedSource.publisher = "wrong";
+      f.primary.sourceProjectionProofs[0].publisher = "wrong";
+      f.current.publisher = "wrong";
+    },
+    (f) => {
+      f.primary.sourceRenewalProjections[0].reviewedSource.text += " ";
+    },
+    (f) => {
+      f.primary.sourceRenewalProjections[0].reviewedSource.contentHash =
+        "wrong";
+    },
+    (f) => {
+      f.primary.sourceRenewalProjections[0].reviewedSource.byteHash = "wrong";
+    },
+  ]) {
+    const fixture = relatedRenewalFixture();
+    mutate(fixture);
+    assert.ok(check(fixture).length);
+  }
+});
+
+test("existing authority contracts retain their acknowledged digests and original receipt dates", () => {
+  const fixtureBase = "../apps/scraper/src/candidate-research/fixtures/";
+  const metadata = JSON.parse(
+    readFileSync(
+      new URL(
+        fixtureBase + "authority-projection-sources.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  for (const meta of metadata) {
+    const isCde = meta.id === "cde-2025-26-item";
+    const prefix = isCde ? "cde-item" : "mvla-authority";
+    const read = (kind) =>
+      readFileSync(
+        new URL(fixtureBase + prefix + "-" + kind + ".txt", import.meta.url),
+        "utf8",
+      );
+    const fixture = relatedRenewalFixture();
+    const contract = fixture.primary.sourceRenewalProjections[0];
+    const reviewed = read("reviewed"),
+      observed = read("observed");
+    Object.assign(contract, {
+      projectionId: isCde ? cdeProjection : mvlaProjection,
+      url: meta.url,
+      publisher: meta.publisher,
+      reviewedContentHash: relatedHash(reviewed),
+      reviewedRawHash: relatedHash(reviewed),
+      canonicalDigest: isCde
+        ? "720348bff7cd6b05bf80f187822ccf406d659566dfa28d548d05f7812489d2fc"
+        : "23e6295294ed84717528e916f9ce5f69ddd4ae22f43adfa27d734ccbd80ee2ff",
+      reviewedSource: {
+        ...meta,
+        text: reviewed,
+        contentHash: relatedHash(reviewed),
+      },
+      approval: {
+        receiptHash:
+          "9b23400c34796de76dbe25140c356e508e3ecd0ae1617c31116df1ecc3c6f519",
+        scopeDigest:
+          "a04b0dc8a476fb06ed52d9aace451f6564fdaa476a672e751595fcd47c9562b7",
+        reviewedSourceBundleHash:
+          "f3277611713e1c281d2604dc7cb2349e67551d1149343a5edac16309f1205aea",
+        actorId: "ai:gpt-6-astra:san-jose-full-scope-review:2026-10-30",
+        reviewedAt: "2026-10-30T20:18:50.276Z",
+      },
+    });
+    Object.assign(fixture.current, {
+      ...meta,
+      text: observed,
+      contentHash: relatedHash(observed),
+      byteHash: relatedHash(observed),
+      fetchedAt: "2026-10-30T20:15:18.192Z",
+    });
+    const proof = fixture.primary.sourceProjectionProofs[0];
+    for (const field of [
+      "projectionId",
+      "url",
+      "publisher",
+      "format",
+      "reviewedContentHash",
+      "reviewedRawHash",
+      "canonicalDigest",
+    ])
+      proof[field] = contract[field];
+    Object.assign(proof, {
+      observedContentHash: fixture.current.contentHash,
+      observedRawHash: fixture.current.byteHash,
+      approvalReceiptHash: contract.approval.receiptHash,
+      checkedAt: fixture.current.fetchedAt,
+    });
+    const check = () =>
+      authorityRenewalErrors(
+        fixture.primary,
+        [fixture.current],
+        contract.approval.scopeDigest,
+        Date.parse("2026-10-31T01:07:00Z"),
+      );
+    assert.equal(
+      authorityProjectionDigest(contract.projectionId, meta.url, reviewed),
+      contract.canonicalDigest,
+    );
+    assert.equal(
+      authorityProjectionDigest(contract.projectionId, meta.url, observed),
+      contract.canonicalDigest,
+    );
+    assert.deepEqual(check(), []);
+    contract.approval.reviewedAt = "2026-10-31T01:06:16Z";
+    assert.match(check().join(" "), /approval date/);
+  }
 });

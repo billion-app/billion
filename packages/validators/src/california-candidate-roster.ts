@@ -152,6 +152,7 @@ export type ClarityCandidateCrosswalk = z.infer<
 export const authorityRenewalProjectionIdSchema = z.enum([
   "cde-item-48870daecfe14c6ab376f6a673491914-telemetry-v1",
   "mvla-trustee-authority-seven-asset-versions-v1",
+  "cde-data-ca-gov-school-district-areas-2025-26-related-harvest-v1",
 ]);
 export const authorityRenewalProjectionSchema = z.object({
   projectionId: authorityRenewalProjectionIdSchema,
@@ -232,11 +233,11 @@ export const californiaRosterSnapshotSchema = z.object({
       identityCrosswalk: clarityCandidateCrosswalkSchema,
       sourceRenewalProjections: z
         .array(authorityRenewalProjectionSchema)
-        .max(2)
+        .max(3)
         .optional(),
       sourceProjectionProofs: z
         .array(authorityRenewalProofSchema)
-        .max(2)
+        .max(3)
         .optional(),
       reviewedSources: z.array(researchSourceSchema).max(200).optional(),
       derivation: clarityRosterDerivationSchema.optional(),

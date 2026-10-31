@@ -109,9 +109,17 @@ test("CDE projection rejects duplicate keys, nonfinite values and malformed excl
       ),
     );
   }
+  assert.throws(
+    () =>
+      projectAuthoritySource(id, JSON.stringify({ ...parsed, numViews: "10" })),
+    /CDE telemetry numViews is not a nonnegative integer/,
+  );
   const missing = { ...parsed };
   delete missing.lastViewed;
-  assert.throws(() => projectAuthoritySource(id, JSON.stringify(missing)));
+  assert.throws(
+    () => projectAuthoritySource(id, JSON.stringify(missing)),
+    /CDE telemetry lastViewed is not a nonnegative integer/,
+  );
 });
 test("every retained CDE field remains binding, including nested names matching ignored counters", () => {
   const { contract, original, observed } = projectionFixtures().find((row) =>

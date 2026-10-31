@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { z } from "zod/v4";
 
 import type {
   AuthorityRenewalProjection,
@@ -21,6 +22,8 @@ const canonical = (value: unknown): string =>
 export const authorityProjectionURLs = {
   "cde-item-48870daecfe14c6ab376f6a673491914-telemetry-v1":
     "https://www.arcgis.com/sharing/rest/content/items/48870daecfe14c6ab376f6a673491914?f=json",
+  "cde-data-ca-gov-school-district-areas-2025-26-related-harvest-v1":
+    "https://data.ca.gov/@california-department-of-education/california-school-district-areas-2025-26",
   "mvla-trustee-authority-seven-asset-versions-v1":
     "https://www.mvla.net/trustee-area-election-information",
 } as const;
@@ -33,7 +36,15 @@ const assetTemplates = [
   '<script src="/js/general.js?v={version}">',
   '<script src="/js/deviceDetector.js?v={version}">',
 ];
-function strictJson(text: string): unknown {
+function strictJson(
+  text: string,
+  selectedString?: (
+    path: (string | number)[],
+    value: string,
+    start: number,
+    end: number,
+  ) => void,
+): unknown {
   let position = 0;
   const whitespace = () => {
     while (/[\x20\t\r\n]/.test(text[position] ?? "x")) position++;
@@ -53,12 +64,14 @@ function strictJson(text: string): unknown {
     }
     throw new Error("Unterminated JSON string");
   };
-  const value = (depth: number): void => {
+  const value = (depth: number, path: (string | number)[] = []): void => {
     if (depth > 100) throw new Error("JSON nesting exceeds bound");
     whitespace();
     const first = text[position];
     if (first === '"') {
-      string();
+      const start = position;
+      const decoded = string();
+      selectedString?.(path, decoded, start + 1, position - 1);
       return;
     }
     if (first === "{") {
@@ -76,7 +89,7 @@ function strictJson(text: string): unknown {
         keys.add(key);
         whitespace();
         if (text[position++] !== ":") throw new Error("Expected JSON colon");
-        value(depth + 1);
+        value(depth + 1, selectedString ? [...path, key] : []);
         whitespace();
         const end = text[position++];
         if (end === "}") return;
@@ -90,8 +103,9 @@ function strictJson(text: string): unknown {
         position++;
         return;
       }
+      let index = 0;
       for (;;) {
-        value(depth + 1);
+        value(depth + 1, selectedString ? [...path, index++] : []);
         whitespace();
         const end = text[position++];
         if (end === "]") return;
@@ -139,12 +153,118 @@ function validVersion(version: string) {
     date.getUTCSeconds() === second
   );
 }
+
+const relatedDatasetIds = [
+  "6ad5b9d2-58e3-4181-bfb5-851ab41b7fe3",
+  "1c6303ae-ec57-44d2-8268-f114f6c7d084",
+  "383edcbb-fc51-422e-b537-36b48bd9c5be",
+];
+function projectRelatedHarvest(text: string) {
+  const opening = '<script id="__NEXT_DATA__" type="application/json">';
+  const scripts = [
+    ...text.matchAll(
+      /<script\b[^>]*\bid\s*=\s*(?:"__NEXT_DATA__"|'__NEXT_DATA__'|__NEXT_DATA__(?=[\s>]))[^>]*>/gi,
+    ),
+  ];
+  const script = scripts[0];
+  if (scripts.length !== 1 || script?.[0] !== opening)
+    throw new Error("CDE catalogue requires one exact NEXT_DATA script");
+  const start = script.index + opening.length;
+  const end = text.indexOf("</script>", start);
+  if (end < 0) throw new Error("CDE catalogue JSON script is unterminated");
+  const json = text.slice(start, end);
+  const spans = new Map<
+    string,
+    { value: string; start: number; end: number }
+  >();
+  const paths = relatedDatasetIds.map((_, index) =>
+    JSON.stringify([
+      "props",
+      "pageProps",
+      "relatedDatasets",
+      index,
+      "extras",
+      4,
+      "value",
+    ]),
+  );
+  const parsed = strictJson(json, (path, value, begin, finish) => {
+    const key = JSON.stringify(path);
+    if (paths.includes(key))
+      spans.set(key, { value, start: begin, end: finish });
+  });
+  const page = z
+    .object({
+      props: z.object({
+        pageProps: z.object({
+          dataset: z.object({
+            id: z.literal("9a9f7021-d72d-4bdf-8828-1014fc494561"),
+          }),
+          relatedDatasets: z
+            .array(
+              z.object({
+                id: z.string(),
+                extras: z.array(
+                  z.object({ key: z.string(), value: z.unknown() }),
+                ),
+              }),
+            )
+            .length(3),
+        }),
+      }),
+    })
+    .parse(parsed).props.pageProps;
+  const ranges: { start: number; end: number; token: string }[] = [];
+  const values = new Set<string>();
+  for (const [index, id] of relatedDatasetIds.entries()) {
+    const related = page.relatedDatasets[index];
+    const extra = related?.extras[4];
+    const path = paths[index];
+    const span = path === undefined ? undefined : spans.get(path);
+    const token = `__RELATED_HARVEST_OBJECT_ID_${index}__`;
+    if (
+      !related ||
+      related.id !== id ||
+      !extra ||
+      extra.key !== "harvest_object_id" ||
+      related.extras.filter((item) => item.key === "harvest_object_id")
+        .length !== 1 ||
+      !span ||
+      span.value !== extra.value ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+        span.value,
+      ) ||
+      json.slice(span.start, span.end) !== span.value ||
+      text.split(span.value).length !== 2 ||
+      text.includes(token) ||
+      values.has(span.value)
+    )
+      throw new Error(
+        "CDE catalogue related harvest identity or raw UUID span changed",
+      );
+    values.add(span.value);
+    ranges.push({ start: start + span.start, end: start + span.end, token });
+  }
+  let projected = text;
+  for (const range of ranges.sort((a, b) => b.start - a.start))
+    projected =
+      projected.slice(0, range.start) +
+      range.token +
+      projected.slice(range.end);
+  return projected;
+}
+
 export function projectAuthoritySource(
   projectionId: AuthorityRenewalProjection["projectionId"],
   text: string,
 ): string {
   if (text.length > 5_000_000)
     throw new Error("Authority source exceeds projection bound");
+  if (
+    projectionId ===
+    "cde-data-ca-gov-school-district-areas-2025-26-related-harvest-v1"
+  )
+    return projectRelatedHarvest(text);
   if (
     projectionId === "cde-item-48870daecfe14c6ab376f6a673491914-telemetry-v1"
   ) {
@@ -160,7 +280,7 @@ export function projectAuthoritySource(
         !Number.isSafeInteger(item[field]) ||
         (item[field] as number) < 0
       )
-        throw new Error("CDE telemetry is not a nonnegative integer");
+        throw new Error(`CDE telemetry ${field} is not a nonnegative integer`);
     const retained = { ...item };
     delete retained.lastViewed;
     delete retained.numViews;

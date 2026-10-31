@@ -347,6 +347,92 @@ test("bounded complete races resume with exact model artifact reuse after saving
   assert.equal(f.stats.authors, authored);
   assert.equal(f.stats.reviews, reviewed);
 });
+test("a successor snapshot reuses authors but obtains reviews for its own work scope", async () => {
+  const f = await fixture();
+  f.snapshot.races.splice(1);
+  const successor = {
+    ...structuredClone(f.snapshot),
+    id: hash(`${f.snapshot.id}:renewed-source-approval-contract`),
+  };
+  const snapshots = new Map(
+    [f.snapshot, successor].map((snapshot) => [snapshot.id, snapshot]),
+  );
+  let current = f.snapshot;
+  const rows = new Map<
+    string,
+    {
+      snapshotId: string;
+      raceKey: string;
+      status: string;
+      checkpoint: unknown;
+    }
+  >();
+  const reviewCollections = new Map<string, string>();
+  const reviewEpochs: number[] = [];
+  f.deps.loadSnapshot = async (id) => snapshots.get(id) ?? null;
+  f.deps.fetchRoster = async () => current;
+  f.deps.listWork = async (snapshotId) =>
+    [...rows.values()].filter((row) => row.snapshotId === snapshotId);
+  f.deps.claim = async (input) => {
+    const key = hash(
+      JSON.stringify([
+        input.snapshotId,
+        input.raceKey,
+        input.rosterDigest,
+        input.policyVersion,
+        input.researchVersion,
+      ]),
+    );
+    const previous = rows.get(key);
+    rows.set(key, {
+      snapshotId: input.snapshotId,
+      raceKey: input.raceKey,
+      status: "pending",
+      checkpoint: previous?.checkpoint,
+    });
+    reviewEpochs.push(0);
+    return {
+      key,
+      owner: input.owner,
+      generation: 1,
+      reviewEpoch: 0,
+      checkpoint: previous?.checkpoint,
+    };
+  };
+  f.deps.checkpoint = async (lease, status, checkpoint) => {
+    rows.set(lease.key, { ...rows.get(lease.key)!, status, checkpoint });
+    return true;
+  };
+  f.deps.attest = async ({ collectionId, review }) => {
+    const previous = reviewCollections.get(review.attestation.runId);
+    if (previous && previous !== collectionId)
+      throw new Error(
+        "A superseded collection's reviewer invocation cannot approve a new source generation",
+      );
+    reviewCollections.set(review.attestation.runId, collectionId);
+  };
+  const run = () =>
+    reconcile(
+      {
+        snapshotId: current.id,
+        policyVersion: "policy",
+        bounds: { ...bounds, maxRaces: 1 },
+      },
+      f.deps,
+    );
+  const first = await run();
+  assert.equal(first.completed, 1, JSON.stringify(first));
+  current = successor;
+  const second = await run();
+  assert.equal(second.completed, 1, JSON.stringify(second));
+  const members = f.snapshot.races[0]!.members.length;
+  assert.equal(f.stats.authors, members);
+  assert.equal(f.stats.reviews, 2 * members);
+  assert.equal(f.stats.releases, 2);
+  assert.equal(reviewCollections.size, 2 * members);
+  assert.equal(rows.size, 2);
+  assert.deepEqual(reviewEpochs, [0, 0]);
+});
 test("a rejected review stays blocked on retries and cannot publish", async () => {
   const f = await fixture();
   f.snapshot.races.splice(1);
