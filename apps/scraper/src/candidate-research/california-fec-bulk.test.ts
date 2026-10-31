@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { deflateRawSync } from "node:zlib";
 
+import { resolveFecIdentityFromSource } from "@acme/validators";
+
 import { fetchBoundedCaliforniaSource } from "./california-evidence.js";
 import { decodeFecCandidateMasterZip } from "./california-fec-bulk.js";
 
@@ -225,4 +227,78 @@ test("official FEC ZIP rejects invalid UTF-8 and cancels oversized compressed st
   );
   assert.equal(canceled, true);
   assert.equal(transferred, 1_000_001);
+});
+
+const fecArchiveUrl =
+  "https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com/bulk-downloads/2026/cn26.zip";
+
+async function fetchRedirectedZip(target = fecArchiveUrl) {
+  const archive = storedZip();
+  const calls: string[] = [];
+  let redirects = 0;
+  let transferred = 0;
+  const source = await fetchBoundedCaliforniaSource(
+    "fec-master",
+    url,
+    "Federal Election Commission",
+    "text",
+    {
+      request() {
+        redirects++;
+      },
+      bytes(amount) {
+        transferred += amount;
+      },
+    },
+    undefined,
+    {
+      addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+      transport: async (requestedUrl) => {
+        calls.push(requestedUrl);
+        return requestedUrl === url
+          ? new Response(null, { status: 302, headers: { location: target } })
+          : new Response(archive);
+      },
+    },
+  );
+  return { source, archive, calls, redirects, transferred };
+}
+
+test("official FEC master follows its actual government archive redirect with complete provenance", async () => {
+  const { source, archive, calls, redirects, transferred } =
+    await fetchRedirectedZip();
+  assert.equal(source.url, url);
+  assert.equal(source.text, text);
+  assert.deepEqual(source.retrievalUrls, [url, fecArchiveUrl]);
+  assert.deepEqual(calls, [url, fecArchiveUrl]);
+  assert.equal(redirects, 1);
+  assert.equal(transferred, archive.length);
+  assert.equal(
+    source.contentHash,
+    createHash("sha256").update(text).digest("hex"),
+  );
+  assert.equal(
+    source.byteHash,
+    createHash("sha256").update(archive).digest("hex"),
+  );
+  assert.equal(
+    resolveFecIdentityFromSource(source, {
+      name: "Mike McGuire",
+      district: "1",
+      cycle: 2026,
+    })?.candidateId,
+    "H6CA01269",
+  );
+});
+
+test("FEC archive redirects do not admit another bucket or election cycle", async () => {
+  for (const target of [
+    fecArchiveUrl.replace("cg-519a459a", "cg-00000000"),
+    fecArchiveUrl.replace("2026/cn26", "2024/cn24"),
+    `${fecArchiveUrl}?copy=1`,
+    fecArchiveUrl.replace("https:", "http:"),
+    "https://example.com/bulk-downloads/2026/cn26.zip",
+  ])
+    await assert.rejects(fetchRedirectedZip(target));
+  await assert.rejects(fetchZip(storedZip(), fecArchiveUrl), /Unsupported/);
 });
