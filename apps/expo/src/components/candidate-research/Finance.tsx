@@ -145,11 +145,15 @@ export function Finance({
             {tx("Given to {value1}", { value1: finance.committeeName })}
           </Text>
           <Text style={s.muted}>{tx(donorTypeLabels[donor.type])}</Text>
+          {finance.donorAmounts === "contribution" && (
+            <Text style={s.muted}>
+              {tx(
+                "One selected contribution, not this donor’s total for the election cycle.",
+              )}
+            </Text>
+          )}
           {donorSelection?.status === "available" && (
-            <>
-              <Text style={s.muted}>{donorSelection.selection}</Text>
-              <FinancePeriod {...donorSelection} />
-            </>
+            <FinancePeriod {...donorSelection} />
           )}
           <EvidenceAction
             ids={donor.evidenceIds}
@@ -238,17 +242,22 @@ export function Finance({
         <Panel title={tx("Filing status")}>
           {filingStatus.status === "available" ? (
             <>
-              <Text style={s.body}>
+              {thresholdStatement && (
+                <Text style={s.body}>
+                  {tx(
+                    "The committee reports activity below the reporting threshold. No financial report with exact totals is listed. This does not mean no money was raised or spent.",
+                  )}
+                </Text>
+              )}
+              <Text style={s.muted}>
                 {tx("Latest filing: {value1}", {
                   value1: filingStatus.latestForm,
                 })}
               </Text>
               {filingStatus.statement && (
-                <Text style={s.body}>
-                  {tx("The committee states: {value1}", {
-                    value1: filingStatus.statement,
-                  })}
-                </Text>
+                <CandidateDisclosure title={tx("Original committee statement")}>
+                  <Text style={s.body}>{filingStatus.statement}</Text>
+                </CandidateDisclosure>
               )}
               <Text style={s.muted}>
                 {tx("Filings listed: {value1}", {
@@ -310,6 +319,9 @@ export function Finance({
           ) : (
             <>
               <Text style={s.body}>{summary.reason}</Text>
+              <Text style={s.body}>
+                {tx("No reported amount here means unknown, not $0.")}
+              </Text>
               {thresholdStatement && (
                 <Text style={s.muted}>
                   {tx(
@@ -349,19 +361,28 @@ export function Finance({
         <Panel title={tx("Donors & interests")}>
           {donorSelection?.status === "available" && (
             <>
-              <Text style={s.body}>{donorSelection.selection}</Text>
-              <FinancePeriod {...donorSelection} />
-              <Text style={s.muted}>
+              <Text style={s.body}>
                 {tx(
-                  "This is a selection of contributions from these filings, not a list of every donor or the largest donors for the election cycle.",
+                  "Selected contributions from the latest financial reports. This is not a complete donor list or a ranking of donors.",
                 )}
               </Text>
-              <EvidenceAction
-                ids={donorSelection.evidenceIds}
-                title={tx("Selected contributions")}
-                label={tx("Selection sources")}
-                open={open}
-              />
+              <FinancePeriod {...donorSelection} />
+              <CandidateDisclosure
+                title={tx("How contributions were selected")}
+              >
+                <Text style={s.body}>{donorSelection.selection}</Text>
+                <Text style={s.muted}>
+                  {tx("Filing numbers: {value1}", {
+                    value1: donorSelection.filingNumbers.join(", "),
+                  })}
+                </Text>
+                <EvidenceAction
+                  ids={donorSelection.evidenceIds}
+                  title={tx("Selected contributions")}
+                  label={tx("Selection sources")}
+                  open={open}
+                />
+              </CandidateDisclosure>
             </>
           )}
           <Text style={s.muted}>

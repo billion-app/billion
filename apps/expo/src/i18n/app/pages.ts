@@ -3,6 +3,38 @@
 import type { Catalog } from "./types";
 
 export const pageStrings = {
+  "One selected contribution, not this donor’s total for the election cycle.": {
+    en: "One selected contribution, not this donor’s total for the election cycle.",
+    es: "Un aporte seleccionado, no el total de este donante para el ciclo electoral.",
+    zh: "一笔选取的捐款，并非该捐款人在本选举周期的捐款总额。",
+  },
+  "The committee reports activity below the reporting threshold. No financial report with exact totals is listed. This does not mean no money was raised or spent.":
+    {
+      en: "The committee reports activity below the reporting threshold. No financial report with exact totals is listed. This does not mean no money was raised or spent.",
+      es: "El comité declara actividad por debajo del umbral de presentación de informes. No figura ningún informe financiero con totales exactos. Esto no significa que no se haya recaudado ni gastado dinero.",
+      zh: "委员会报告称，其活动低于须提交财务报告的门槛。所列记录中没有包含确切总额的财务报告。这并不意味着没有筹款或支出。",
+    },
+  "Original committee statement": {
+    en: "Original committee statement",
+    es: "Declaración original del comité",
+    zh: "委员会声明原文",
+  },
+  "Selected contributions from the latest financial reports. This is not a complete donor list or a ranking of donors.":
+    {
+      en: "Selected contributions from the latest financial reports. This is not a complete donor list or a ranking of donors.",
+      es: "Aportes seleccionados de los informes financieros más recientes. No es una lista completa de donantes ni una clasificación de donantes.",
+      zh: "从最新财务报告中选取的捐款。这不是完整的捐款人名单，也不是捐款人排名。",
+    },
+  "How contributions were selected": {
+    en: "How contributions were selected",
+    es: "Cómo se seleccionaron los aportes",
+    zh: "捐款的选取方法",
+  },
+  "Filing numbers: {value1}": {
+    en: "Filing numbers: {value1}",
+    es: "Números de declaración: {value1}",
+    zh: "申报编号：{value1}",
+  },
   "{value1}–{value2} election cycle": {
     en: "{value1}–{value2} election cycle",
     es: "Ciclo electoral {value1}–{value2}",
