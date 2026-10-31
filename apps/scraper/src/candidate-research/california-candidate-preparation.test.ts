@@ -67,8 +67,23 @@ function fixture() {
       if (!artifacts.has(key)) artifacts.set(key, document);
       return artifacts.get(key);
     },
-    reserveDispatch: async ({ key, document }) => {
+    reserveDispatch: async (input) => {
+      const { key, document } = input;
       if (artifacts.has(key)) return false;
+      if (input.collectionReviewAttempt) {
+        const { key, collectionId, reviewKey } = input.collectionReviewAttempt;
+        const prior = artifacts.get(key) as
+          | { collectionId: string; reviewKey: string }
+          | undefined;
+        if (
+          prior &&
+          (prior.collectionId !== collectionId || prior.reviewKey !== reviewKey)
+        )
+          throw new Error(
+            "Another collection review attempt already owns this revision",
+          );
+        artifacts.set(key, { collectionId, reviewKey });
+      }
       artifacts.set(key, document);
       return true;
     },
@@ -1163,6 +1178,36 @@ test("collection-bound review uses one fresh invocation and survives lease recla
   );
   assert.notEqual(next.attestation.runId, reviewed.attestation.runId);
   assert.equal(f.calls.length, before + 2);
+});
+
+test("a refused collection reservation leaves no attempt and allows its replacement to continue", async () => {
+  const f = fixture();
+  const prepared = await prepareReviewedCaliforniaCandidate(f.fresh(), f.deps);
+  const collectionId = randomUUID();
+  const reserve = f.deps.reserveDispatch;
+  const before = f.calls.length;
+  const artifactKeys = [...f.artifacts.keys()];
+  f.deps.reserveDispatch = async () => false;
+  await assert.rejects(
+    reviewPreparedCaliforniaCandidateForCollection(
+      { ...f.fresh(), collectionId, prepared },
+      f.deps,
+    ),
+    /lease expired/,
+  );
+  assert.equal(f.calls.length, before);
+  assert.deepEqual([...f.artifacts.keys()], artifactKeys);
+  f.deps.reserveDispatch = reserve;
+  const input = f.fresh();
+  input.lease.generation++;
+  const resumed = await prepareReviewedCaliforniaCandidate(input, f.deps);
+  assert.equal(f.calls.length, before);
+  const reviewed = await reviewPreparedCaliforniaCandidateForCollection(
+    { ...input, collectionId, prepared: resumed },
+    f.deps,
+  );
+  assert.equal(reviewed.verdict, "approve");
+  assert.equal(f.calls.length, before + 1);
 });
 
 test("unknown collection reviewer dispatch cannot be replayed after lease reclaim", async () => {

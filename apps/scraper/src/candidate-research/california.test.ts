@@ -143,6 +143,20 @@ async function fixture() {
     hasArtifact: async (key) => artifacts.has(key),
     reserveDispatch: async (input) => {
       if (artifacts.has(input.key)) return false;
+      if (input.collectionReviewAttempt) {
+        const { key, collectionId, reviewKey } = input.collectionReviewAttempt;
+        const prior = artifacts.get(key) as
+          | { collectionId: string; reviewKey: string }
+          | undefined;
+        if (
+          prior &&
+          (prior.collectionId !== collectionId || prior.reviewKey !== reviewKey)
+        )
+          throw new Error(
+            "Another collection review attempt already owns this revision",
+          );
+        artifacts.set(key, { collectionId, reviewKey });
+      }
       artifacts.set(input.key, input.document);
       return true;
     },

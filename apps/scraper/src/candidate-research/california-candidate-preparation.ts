@@ -263,7 +263,9 @@ function modelDispatch(
     modelInput: Parameters<typeof californiaModelInput>[0],
     call: () => Promise<T>,
     rejectedCorrectionKey?: string,
-    beforeDispatch?: () => Promise<void>,
+    collectionReviewAttempt?: Parameters<
+      PreparationDependencies["reserveDispatch"]
+    >[0]["collectionReviewAttempt"],
   ): Promise<T> {
     let inputTokenReservation: number;
     try {
@@ -282,13 +284,13 @@ function modelDispatch(
         input.bounds.maxInputTokens
     )
       throw new CaliforniaBudgetReached("model calls or input tokens");
-    await beforeDispatch?.();
     const reserved = await deps.reserveDispatch({
       key: `dispatch:${key}`,
       raceKey: input.raceKey,
       candidateId: input.candidateId,
       document: { startedAt: deps.now(), costUsd: null },
       workLease: lease,
+      collectionReviewAttempt,
     });
     if (!reserved)
       throw new Error(
@@ -629,6 +631,7 @@ export async function reviewPreparedCaliforniaCandidateForCollection(
   const reviewKey = candidateReviewKey(authored, input, deps, collectionId);
   const successorKey = await collectionReviewTail(revisionKey, deps, remember);
   remember(reviewKey);
+  remember(successorKey);
   let reviewed = (await deps.artifact(reviewKey)) as ReviewResult | null;
   if (!reviewed) {
     if (await deps.artifact(`failure:${reviewKey}`)) {
@@ -647,21 +650,7 @@ export async function reviewPreparedCaliforniaCandidateForCollection(
           authorAttestation: authored.attestation,
         }),
       rejectedKey,
-      async () => {
-        remember(successorKey);
-        const successor = (await save(
-          successorKey,
-          "model_review_collection_attempt",
-          { collectionId, reviewKey },
-        )) as { collectionId: string; reviewKey: string };
-        if (
-          successor.collectionId !== collectionId ||
-          successor.reviewKey !== reviewKey
-        )
-          throw new Error(
-            "Another collection review attempt already owns this revision",
-          );
-      },
+      { key: successorKey, collectionId, reviewKey },
     );
   }
   Object.assign(provenance, {

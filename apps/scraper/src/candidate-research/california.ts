@@ -181,6 +181,11 @@ export interface CaliforniaDependencies {
     candidateId?: string;
     document: unknown;
     workLease: Lease;
+    collectionReviewAttempt?: {
+      key: string;
+      collectionId: string;
+      reviewKey: string;
+    };
   }): Promise<boolean>;
   saveArtifact(input: {
     key: string;

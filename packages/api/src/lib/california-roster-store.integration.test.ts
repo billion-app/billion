@@ -349,7 +349,10 @@ void test(
       workKey = randomUUID(),
       raceKey = randomUUID(),
       dispatchKey = `dispatch:author:${randomUUID()}`,
-      concurrentKey = `dispatch:review:${randomUUID()}`;
+      concurrentKey = `dispatch:review:${randomUUID()}`,
+      scopedKey = `dispatch:review:${randomUUID()}`,
+      successorKey = `review-collection:${randomUUID()}`,
+      conflictingKey = `dispatch:review:${randomUUID()}`;
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
@@ -379,6 +382,34 @@ void test(
         reviewEpoch: 0,
         leaseUntil: new Date(Date.now() - 1000),
       });
+      const attempt = {
+        key: successorKey,
+        collectionId: randomUUID(),
+        reviewKey: scopedKey.slice("dispatch:".length),
+      };
+      const scoped = {
+        key: scopedKey,
+        raceKey,
+        document: { startedAt: new Date().toISOString(), costUsd: null },
+        collectionReviewAttempt: attempt,
+      };
+      assert.equal(
+        await claimCaliforniaModelDispatch(
+          {
+            ...scoped,
+            workLease: {
+              key: workKey,
+              owner: "expired-owner",
+              generation: 1,
+              reviewEpoch: 0,
+            },
+          },
+          db,
+        ),
+        false,
+      );
+      assert.equal(await getCaliforniaResearchArtifact(db, scopedKey), null);
+      assert.equal(await getCaliforniaResearchArtifact(db, successorKey), null);
       holding = db.transaction(async (tx) => {
         await tx.execute(
           sql`select pg_advisory_xact_lock(hashtext(${"candidate-research:election:2093-11-03"}))`,
@@ -470,6 +501,52 @@ void test(
         false,
         "An uncertain existing reservation never permits another invocation",
       );
+      assert.equal(
+        await claimCaliforniaModelDispatch(
+          { ...scoped, workLease: activeLease },
+          db,
+        ),
+        true,
+      );
+      assert.deepEqual(await getCaliforniaResearchArtifact(db, successorKey), {
+        collectionId: attempt.collectionId,
+        reviewKey: attempt.reviewKey,
+      });
+      assert.deepEqual(
+        await getCaliforniaResearchArtifact(db, scopedKey),
+        scoped.document,
+      );
+      assert.equal(
+        await claimCaliforniaModelDispatch(
+          { ...scoped, workLease: activeLease },
+          db,
+        ),
+        false,
+      );
+      await assert.rejects(
+        claimCaliforniaModelDispatch(
+          {
+            ...scoped,
+            key: conflictingKey,
+            collectionReviewAttempt: {
+              ...attempt,
+              collectionId: randomUUID(),
+              reviewKey: conflictingKey.slice("dispatch:".length),
+            },
+            workLease: activeLease,
+          },
+          db,
+        ),
+        /Another collection review attempt already owns/,
+      );
+      assert.equal(
+        await getCaliforniaResearchArtifact(db, conflictingKey),
+        null,
+      );
+      assert.deepEqual(await getCaliforniaResearchArtifact(db, successorKey), {
+        collectionId: attempt.collectionId,
+        reviewKey: attempt.reviewKey,
+      });
       const simultaneous = await Promise.all([
         claimCaliforniaModelDispatch(
           { ...base, key: concurrentKey, workLease: activeLease },
@@ -488,7 +565,13 @@ void test(
       await db
         .delete(CaliforniaResearchArtifact)
         .where(
-          inArray(CaliforniaResearchArtifact.key, [dispatchKey, concurrentKey]),
+          inArray(CaliforniaResearchArtifact.key, [
+            dispatchKey,
+            concurrentKey,
+            scopedKey,
+            successorKey,
+            conflictingKey,
+          ]),
         );
       await db
         .delete(CaliforniaRaceWork)
