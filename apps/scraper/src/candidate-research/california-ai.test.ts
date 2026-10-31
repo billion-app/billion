@@ -87,14 +87,14 @@ function dependencies(outputs: unknown[]) {
   };
   return { deps, calls };
 }
-function dossierInput() {
+function dossierInput(candidateSpecific = true) {
   const {
     schemaVersion: _v,
     classification: _c,
     sourceSetDigest: _s,
     dossierDigest: _d,
     ...input
-  } = fixtureDossier();
+  } = fixtureDossier(candidateSpecific);
   return input;
 }
 
@@ -227,7 +227,7 @@ test("strict author rejects cosmetic or financial extras while code preserves fi
 
 for (const hasClaims of [true, false]) {
   test(`absent finance coverage stays document-scoped ${hasClaims ? "with candidate research" : "without a research object"}`, async () => {
-    const input = dossierInput();
+    const input = dossierInput(hasClaims);
     const operationalMessage =
       "An exact official FEC identity was verified, but the public financial summary and bounded API records could not be retrieved and reconciled. Financial totals, donor identities and outside spending remain unavailable, not zero.";
     input.gaps.push({
