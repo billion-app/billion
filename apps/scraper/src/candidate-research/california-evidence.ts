@@ -79,6 +79,7 @@ interface OfficeAuthoritySource {
 interface LocalAuthorityCapability extends OfficeAuthoritySource {
   id: string;
   match: RegExp;
+  jurisdiction?: RegExp;
   officeKind?: CandidateEvidenceDossier["officeKind"];
   supporting?: OfficeAuthoritySource[];
   scopeNote?: string;
@@ -131,7 +132,8 @@ const localAuthorityCapabilities: LocalAuthorityCapability[] = [
   },
   {
     id: "county-education-board",
-    match: /county.*(?:board of education|\bBOE\b)/i,
+    match: /board of education|\bBOE\b/i,
+    jurisdiction: /\bcounty\b/i,
     url: "https://www.sccoe.org/supoffice/student-appeals/Pages/Interdistrict-Appeals.aspx",
     marker:
       /One of the duties and responsibilities of the Santa Clara County Board of Education/i,
@@ -206,8 +208,11 @@ export function californiaLocalAuthority(
   race: Pick<CaliforniaRaceTarget, "office" | "jurisdictionLabel">,
 ) {
   return (
-    localAuthorityCapabilities.find((capability) =>
-      capability.match.test(`${race.office} ${race.jurisdictionLabel}`),
+    localAuthorityCapabilities.find(
+      (capability) =>
+        capability.match.test(`${race.office} ${race.jurisdictionLabel}`) &&
+        (!capability.jurisdiction ||
+          capability.jurisdiction.test(race.jurisdictionLabel)),
     ) ?? null
   );
 }
@@ -280,6 +285,22 @@ export function qualifiedCandidatePage(
   if (candidateNamePosition(substantive, name) < 0) return false;
   if (crossLinked) return true;
   const body = compact(substantive);
+  const url = new URL(source.url);
+  const surname = compact(name).split(" ").at(-1);
+  if (
+    race.officeFamily === "us_house" &&
+    race.district &&
+    url.protocol === "https:" &&
+    url.hostname === `${surname}.house.gov` &&
+    /^\/(?:$|about(?:\/|$)|biography(?:\/|$))/.test(url.pathname) &&
+    new RegExp(
+      `(?:representative|congressman|congresswoman) ${compact(name)}(?: |$)`,
+    ).test(body) &&
+    new RegExp(
+      `california(?: s)? ${race.district}(?:st|nd|rd|th)? congressional district(?: |$)`,
+    ).test(body)
+  )
+    return true;
   if (
     race.kind === "retention" &&
     /(^|\.)[a-z0-9-]+\.gov$/i.test(new URL(source.url).hostname) &&
@@ -1135,7 +1156,13 @@ export async function fetchBoundedCaliforniaSource(
       .toArray()
       .filter((element) => !$(element).parents("article").length)
       .flatMap((element) => {
-        const value = $(element).text().replace(/\s+/g, " ").trim();
+        const block = $(element).clone();
+        block
+          .find("p,div,section,address,li,h1,h2,h3,h4,h5,h6")
+          .prepend(" ")
+          .append(" ");
+        block.find("br").replaceWith(" ");
+        const value = block.text().replace(/\s+/g, " ").trim();
         const offset =
           /\b(?:Paid for by|Authorized (?:and paid for )?by)\b/i.exec(
             value,

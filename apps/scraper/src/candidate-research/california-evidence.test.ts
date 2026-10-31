@@ -1638,6 +1638,12 @@ test("verified current House office records retain exact name and district witho
   for (const [url, body] of [
     ["https://other.house.gov/about", text.replace("17th", "18th")],
     ["https://unrelated.gov/about", text],
+    ["https://other.house.gov/about", text],
+    ["http://khanna.house.gov/about", text],
+    ["https://khanna.house.gov/news/endorsement", text],
+    ["https://khanna.house.gov/about", text.replace("Congressman", "Reporter")],
+    ["https://khanna.house.gov/about", text.replace("California", "Ohio")],
+    ["https://khanna.house.gov/about", text.replace("17th", "170th")],
     [
       "https://khanna.house.gov/about",
       text.replace("Ro Khanna", "Ro Khanna Jr."),
