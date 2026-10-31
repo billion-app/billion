@@ -114,6 +114,8 @@ pnpm test
 pnpm format
 ```
 
+The deployment guard regression runs the production Zsh wrapper. `pnpm test` requires `/bin/zsh`; macOS supplies it, and Linux development environments need the `zsh` package. CI installs it before the suite.
+
 CI also runs workspace dependency lint, a separate Expo tab-visibility test, and iOS/Android bundle exports. Its exact commands live in [.github/workflows/ci.yml](.github/workflows/ci.yml). Run `pnpm onboard:test` when changing onboarding; the root test script does not include it.
 
 For documentation-only changes, check links, command names, and formatting on the edited files. The root `pnpm format` delegates to package scripts and does not cover root documentation. For example:

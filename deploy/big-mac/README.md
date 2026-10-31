@@ -11,6 +11,7 @@ change here is a change to a running service.
 | ------------------------------ | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `com.billion.supervisor.plist` | `~/Library/LaunchAgents/` | The scraper supervisor (`apps/supervisor`), which owns every scheduled and manual job                           |
 | `billion-supervisor`           | `~/.local/bin/`           | The wrapper launchd execs — resolves the pinned image, mounts state, runs the container                         |
+| `billion-autodeploy`           | `~/.local/bin/`           | The existing automatic deployment service checks merged CI images and waits for scraper work to finish          |
 | `com.billion.flux-api.plist`   | `~/Library/LaunchAgents/` | The local FLUX HTTP server that generates header art when the hosted provider is unavailable                    |
 | `Modelfile.billion-scraper`    | `ollama create`           | Pins the local LLM to a 32K context; the full advertised window costs startup latency and memory for no benefit |
 
@@ -29,6 +30,63 @@ pnpm deploy:scraper --dry-run  # check without touching the host
 
 The FLUX plist and the Modelfile are installed by hand; they change rarely and
 have no deploy step of their own.
+
+## Automatic deployment waits for scraper work
+
+The existing `com.billion.autodeploy` LaunchAgent runs `billion-autodeploy` every
+120 seconds. The wrapper fetches `origin/main` in its dedicated checkout at
+`~/.local/share/billion/autodeploy` and pulls that exact CI image. An unavailable
+image leaves the running worker unchanged. Matching image and pin values skip
+deployment.
+
+Before replacing a running supervisor, the wrapper checks its direct children
+and existing manual scraper entrypoints. Unknown sibling Node processes defer
+deployment too. The known Cortese controller is separate infrastructure when it
+has no active scraper child. A busy result preserves the pin and retries on the
+next interval.
+
+For an idle worker, the wrapper captures the old container ID and sends STOP to
+its PID1 through Docker. It confirms the stopped state and checks for work
+again. A job that started before STOP resumes without interruption, and the
+deployment waits. The scheduler stays stopped only across an idle replacement.
+Exit and signal cleanup sends CONT to the captured old ID, never a replacement
+container with the same name. Failure to resume a still-present container is an
+error. Removal of the old container after successful replacement is expected.
+
+Before STOP, the wrapper atomically records the captured container ID in
+`~/.local/state/billion/autodeploy-paused-container`. It retains that record until
+CONT is confirmed or Docker confirms that the old container is gone. Each new
+invocation recovers an owned pause before checking whether the image is already
+current. This also covers a killed wrapper or failed cleanup. A corrupt record
+or a container without the scraper-supervisor label stops deployment without
+signaling an unrelated container. An operator pause without this record remains
+untouched.
+
+The installed local helper `~/.local/bin/billion-deploy-scraper.mjs` supplies the
+existing `--local` deployment path. The wrapper passes its dedicated checkout
+through `BILLION_DEPLOY_REPO`. This change does not replace that helper or the
+LaunchAgent. From a reviewed, merged checkout on `big-mac`, install the wrapper
+atomically:
+
+```sh
+install -m 755 deploy/big-mac/billion-autodeploy "$HOME/.local/bin/billion-autodeploy.next"
+mv "$HOME/.local/bin/billion-autodeploy.next" "$HOME/.local/bin/billion-autodeploy"
+```
+
+The pause prevents the scheduled queue from starting another job during its
+final check. A separate operator can still start a Docker-exec command after
+that check. Start manual recovery after confirming the requested image, and
+avoid another worker release while that recovery runs. A supervisor already
+paused by an operator remains untouched.
+
+Run the local CLI regression:
+
+```sh
+node --test scripts/scraper-autodeploy-idle.test.mjs
+```
+
+It executes the real wrapper with
+isolated command, process, and signal fixtures, without a production connection.
 
 ## Why the supervisor files live here rather than in `apps/supervisor/`
 
