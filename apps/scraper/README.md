@@ -605,3 +605,10 @@ can update without supplying new claims. It collects current finance and require
 new author response and independent review of the complete profile. All source,
 model and token budgets still apply. It does not clear failed attempts or change
 the automatic worker's ordinary discovery behavior.
+
+Finance-only recovery reuses validated full FEC queries acquired within the past
+12 hours, preserving their original timestamps. Only missing or changed exact
+queries require another request. This reduces repeated requests after a failed
+review without extending source freshness or clearing the failed attempt. HTTP
+failure messages identify only the source origin and path. A bounded numeric
+`Retry-After` value is included when the source supplies one.

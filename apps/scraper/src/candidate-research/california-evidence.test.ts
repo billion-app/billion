@@ -2183,3 +2183,33 @@ test("explicit finance refresh rechecks uncited nonfinancial archives without re
     CaliforniaCitedSourceFailure,
   );
 });
+
+test("failed transport diagnostics identify only the public resource and numeric retry delay", async () => {
+  await assert.rejects(
+    fetchBoundedCaliforniaSource(
+      "rate-limited",
+      "https://api.open.fec.gov/v1/filings/?api_key=not-for-logs&cycle=2026",
+      "Federal Election Commission",
+      "json",
+      { request() {}, bytes() {} },
+      undefined,
+      {
+        addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+        transport: async () =>
+          new Response("private response", {
+            status: 429,
+            headers: { "retry-after": "90" },
+          }),
+      },
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof CaliforniaSourceHttpError);
+      assert.equal(error.status, 429);
+      assert.equal(error.resource, "https://api.open.fec.gov/v1/filings/");
+      assert.equal(error.retryAfterSeconds, 90);
+      assert.equal(error.message.includes("not-for-logs"), false);
+      assert.equal(error.message.includes("private response"), false);
+      return true;
+    },
+  );
+});

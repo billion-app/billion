@@ -24,8 +24,43 @@ export class CaliforniaSourceUnavailable extends Error {
 }
 
 export class CaliforniaSourceHttpError extends Error {
-  constructor(public readonly status: number) {
-    super(`Source request failed (${status})`);
+  readonly resource?: string;
+  readonly retryAfterSeconds?: number;
+
+  constructor(
+    public readonly status: number,
+    diagnostic?: {
+      resource?: string;
+      retryAfterSeconds?: string | number | null;
+    },
+  ) {
+    let resource: string | undefined;
+    try {
+      const url = new URL(diagnostic?.resource ?? "");
+      if (["http:", "https:"].includes(url.protocol))
+        resource = `${url.origin}${url.pathname}`;
+    } catch {
+      resource = undefined;
+    }
+    const value = diagnostic?.retryAfterSeconds;
+    const retry =
+      typeof value === "number"
+        ? value
+        : typeof value === "string" && /^\d+$/.test(value)
+          ? Number(value)
+          : undefined;
+    const retryAfterSeconds =
+      retry !== undefined &&
+      Number.isSafeInteger(retry) &&
+      retry >= 0 &&
+      retry <= 86_400
+        ? retry
+        : undefined;
+    super(
+      `Source request failed (${status})${resource ? `; source ${resource}` : ""}${retryAfterSeconds !== undefined ? `; retry after ${retryAfterSeconds} seconds` : ""}`,
+    );
+    this.resource = resource;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
