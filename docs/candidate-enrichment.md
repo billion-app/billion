@@ -120,3 +120,11 @@ worker uses its existing single correction attempt to reassess those passages.
 This does not require invented claims: if the context still cannot establish
 candidate research, an accurately sourced finance-only brief remains eligible
 for independent review. The original draft and correction slot remain immutable.
+
+An approved review belongs to its saved collection. If replacing one candidate's
+draft creates a new collection, an unchanged opponent needs a review for that
+collection too. The worker reuses the author and obtains a collection-scoped
+review after the publication service identifies the binding conflict. Planned
+successors are immutable, so an unknown attempt or rejected revision cannot be
+retried by changing only the target collection. This behavior lives in
+[`california-candidate-preparation.ts`](../apps/scraper/src/candidate-research/california-candidate-preparation.ts).
