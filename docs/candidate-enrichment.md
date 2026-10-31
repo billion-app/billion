@@ -89,12 +89,18 @@ records are labelled operator requests, not address-verified personal ballots.
 They expire after the California election day and do not widen the automatic
 worker to unrelated races.
 
-Automatic California research refreshes the authoritative roster and the reviewed
-San José source bundle before claiming races or generating new briefs. A typed
-network outage or transient HTTP response stops that run without withdrawing
-still-fresh published research. Its original source observations, approvals and
-24-hour expiry remain unchanged; a failed refresh cannot extend them. The next
-scheduled run must fetch the sources again before publishing new research.
+Automatic California research refreshes the authority for the selected races
+before claiming work or generating new briefs. When every selected race matches
+the unchanged SOS-certified roster, the worker checks fresh SOS text and PDF
+observations. It preserves the combined snapshot and its historical San José
+metadata without claiming a new local observation. Local or mixed selections
+still refresh the reviewed San José source bundle. Changed statewide authority
+still requires full snapshot reconciliation.
+
+A typed network outage or transient HTTP response stops that run without
+withdrawing still-fresh published research. Its original source observations,
+approvals and 24-hour expiry remain unchanged. A failed refresh cannot extend
+them. The next scheduled run must fetch the sources again before publishing.
 
 Invalid or changed authority remains a hard failure. Retrieval validates each
 territorial proof before requesting the next one, including approved telemetry
@@ -131,3 +137,82 @@ Once reserved, a missing result blocks further reviews and cached approvals for
 the same revision. Changing the target collection, review epoch or reviewer
 configuration cannot bypass an unknown or rejected attempt. This behavior lives
 in [`california-candidate-preparation.ts`](../apps/scraper/src/candidate-research/california-candidate-preparation.ts).
+
+## Federal finance observations
+
+Federal research resolves each selected House candidate against the official FEC
+candidate master for the election cycle. Exact matching includes the office,
+California district and election year. When a display name differs, the archived
+SOS legal/display row or an official roster domain linked through a candidate's
+Form 1 can establish the identity. The shared validator replays the same proof
+before publication. A nickname or missing middle initial alone is insufficient.
+
+The finance collector in
+[`california-finance.ts`](../apps/scraper/src/candidate-research/california-finance.ts)
+shares bounded queries between the members of the current race. It retrieves
+one processed House-report index for that race’s verified authorized committees
+and one candidate-scoped independent-expenditure aggregate query. Unclaimed,
+current or budget-excluded races do not enter the batch. A committee without a
+financial summary also needs its exact filing index. A configured `FEC_API_KEY`
+is preferred; the existing public demonstration key is subject to a shared
+quota. A transient failure stops acquisition without extending an earlier
+publication's original 24-hour expiry. The collector does not publish a replacement
+summary-only record after a required component fails.
+
+`finance.observation` records four separate outcomes. The campaign summary keeps
+its reported coverage and explicitly supplied spending, cash, debt and individual
+itemization amounts. Donor observations select up to ten positive non-memo
+Schedule A transactions from the latest processed Form 3 for authorized
+committees. Committees are ordered by ID, then transactions by receipt date
+(descending) and transaction ID. The combined bound is ten. The source is a raw
+FEC 8.5 electronic filing, checked against the processed report's committee and
+coverage. Memo conduit rows, loans, refunds and transfers do not become donor
+observations. Repeated contributor names remain separate transactions. A latest
+filing with no selected transactions does not establish an empty donor history.
+
+Independent expenditures use their own two-year election-cycle window. Complete
+support and opposition totals require an exactly exhausted query for every
+requested candidate ID. An empty candidate partition establishes zero only
+inside that verified query scope. Periodic-report aggregates are separate from
+campaign receipts and spending; notices are not added to them. New filings can
+still be awaiting FEC processing.
+
+A filing-status observation can instead cite a committee's Form 99 statement
+that it has not crossed the reporting threshold. The filing index records its
+observed forms and counts. Such a statement supplies neither exact campaign
+amounts nor zero donors. Summary and donor components remain unavailable in that
+case, while independently retrieved outside spending remains usable.
+
+Whole source filings remain in the private archive. Public contribution evidence
+contains the filing number, transaction ID, contributor name, entity type, date
+and amount. Home addresses, employer and occupation fields are excluded from
+those excerpts. Donor industry, lobbying status and influence are never inferred
+from a contribution. The optional observation field has no parsing default, so
+older approved revisions retain their original digest.
+
+## Finance refreshes of published research
+
+A targeted finance refresh preserves reviewed political narrative when its
+nonfinancial evidence remains unchanged. The worker resolves the exact published
+revision and its author and reviewer attestations. It fetches every retained
+nonfinancial archive again. Candidate, primary, linked and gap-referenced source
+content must remain unchanged before it collects current finance. Unused
+third-party discovery pages may change without becoming evidence for a claim.
+Their actual fresh archives remain in the dossier. Source identity, qualification
+and membership stay fixed. Binary proofs remain strict. Nonbinary comparisons
+use extracted text rather than volatile HTML bytes or historical redirect chains.
+
+The author receives the qualified published narrative through the existing output
+schema. Its actual first response must reproduce that narrative exactly. The
+compiler regenerates financial records, evidence observations and coverage text
+from the current dossier. A fresh independent reviewer assesses the complete new
+profile. Historical approval cannot approve a new financial revision. The existing
+single correction can repair reviewer findings, and rejected or unknown attempts
+remain terminal for the same input.
+
+The finance-refresh prompt has its own version. Cache keys include the current
+semantic dossier and retained narrative, but exclude historical publication run
+IDs. Repeating the same refresh cannot obtain a new attempt merely because the
+previous publication changed those IDs. Ordinary research still discovers new
+campaign material. The targeted operator command is documented in the
+[scraper CLI guide](../apps/scraper/README.md#candidate-research-demand).

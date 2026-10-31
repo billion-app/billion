@@ -43,8 +43,71 @@ export const receiptLabels = {
   other: "Other receipts",
 } as const;
 
+const financeWindow = {
+  periodStart: z.iso.date(),
+  periodEnd: z.iso.date(),
+  updatedAt: z.iso.datetime(),
+  evidenceIds: refs,
+};
+const unavailableFinanceComponent = z.object({
+  status: z.literal("unavailable"),
+  reason: text,
+  evidenceIds: refs,
+});
+const component = <T extends z.ZodRawShape>(shape: T) =>
+  z.discriminatedUnion("status", [
+    z.object({ status: z.literal("available"), ...financeWindow, ...shape }),
+    unavailableFinanceComponent,
+  ]);
+export const candidateFinanceObservationSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    summary: component({
+      basis: z.literal("reported_campaign_totals"),
+      spentCents: cents.nullable(),
+      cashCents: cents.nullable(),
+      debtCents: cents.nullable(),
+      itemizedIndividualCents: cents.nullable(),
+      unitemizedIndividualCents: cents.nullable(),
+    }),
+    donorSelection: component({
+      basis: z.literal("selected_filing_transactions"),
+      selection: text,
+      filingNumbers: z.array(z.number().int().positive()).min(1).max(20),
+      limit: z.number().int().min(1).max(20),
+    }),
+    independentExpenditures: component({
+      basis: z.literal("processed_periodic_reports"),
+      completeness: z.literal("complete"),
+      supportCents: cents,
+      opposeCents: cents,
+      transactionCount: z.number().int().nonnegative(),
+    }),
+    filingStatus: component({
+      basis: z.literal("official_filing_index"),
+      kind: z.enum(["financial_reports", "committee_threshold_statement"]),
+      latestForm: text,
+      observedForms: z.array(text).min(1).max(20),
+      statement: text.nullable(),
+    }),
+  })
+  .superRefine((observation, ctx) => {
+    for (const part of Object.values(observation)) {
+      if (
+        typeof part === "object" &&
+        part.status === "available" &&
+        part.periodStart > part.periodEnd
+      )
+        ctx.addIssue({
+          code: "custom",
+          message: "Finance component reporting period is reversed",
+        });
+    }
+  });
+
 export const campaignFinanceSchema = z
   .object({
+    observation: candidateFinanceObservationSchema.optional(),
     committeeId: text,
     committeeName: text,
     periodStart: z.iso.date(),
@@ -115,6 +178,73 @@ export const campaignFinanceSchema = z
       .nullable(),
   })
   .superRefine((finance, ctx) => {
+    const observation = finance.observation;
+    if (observation) {
+      const donor = observation.donorSelection;
+      if (
+        donor.status === "available" &&
+        (finance.donorCoverage !== "selected" ||
+          finance.donorAmounts !== "contribution" ||
+          finance.donors.length > donor.limit)
+      )
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "Selected filing transactions must preserve the declared contribution selection",
+        });
+      const summary = observation.summary;
+      if (
+        summary.status === "available" &&
+        finance.receipts &&
+        summary.itemizedIndividualCents !== null &&
+        summary.unitemizedIndividualCents !== null &&
+        summary.itemizedIndividualCents + summary.unitemizedIndividualCents !==
+          finance.receipts.breakdown.individuals
+      )
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "Individual itemized and unitemized contributions must reconcile",
+        });
+      const outside = observation.independentExpenditures;
+      if (outside.status === "available") {
+        if (
+          finance.outsideSpending === null ||
+          finance.outsideSpending.some(
+            (row) => row.direction === "unspecified",
+          ) ||
+          finance.outsideSpending
+            .filter((row) => row.direction === "support")
+            .reduce((total, row) => total + row.amountCents, 0) !==
+            outside.supportCents ||
+          finance.outsideSpending
+            .filter((row) => row.direction === "oppose")
+            .reduce((total, row) => total + row.amountCents, 0) !==
+            outside.opposeCents ||
+          (outside.transactionCount === 0) !==
+            (finance.outsideSpending.length === 0)
+        )
+          ctx.addIssue({
+            code: "custom",
+            message:
+              "Independent expenditure aggregates must reconcile to complete spender records",
+          });
+      }
+      const filing = observation.filingStatus;
+      if (
+        filing.status === "available" &&
+        filing.kind === "committee_threshold_statement" &&
+        (finance.receipts !== null ||
+          finance.donors.length > 0 ||
+          summary.status !== "unavailable" ||
+          donor.status !== "unavailable")
+      )
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "A reporting-threshold statement cannot establish exact campaign amounts or donor coverage",
+        });
+    }
     if (finance.periodStart > finance.periodEnd)
       ctx.addIssue({ code: "custom", message: "Reporting period is reversed" });
     if (
@@ -143,13 +273,33 @@ export const campaignFinanceSchema = z
         message: "Duplicate outside spending IDs",
       });
   });
+export function candidateFinanceEvidenceIds(
+  finance: z.infer<typeof campaignFinanceSchema>,
+): string[] {
+  return [
+    ...new Set([
+      ...finance.filingEvidenceIds,
+      ...finance.donors.flatMap((row) => row.evidenceIds),
+      ...(finance.outsideSpending?.flatMap((row) => row.evidenceIds) ?? []),
+      ...(finance.observation
+        ? [
+            finance.observation.summary,
+            finance.observation.donorSelection,
+            finance.observation.independentExpenditures,
+            finance.observation.filingStatus,
+          ].flatMap((part) => part.evidenceIds)
+        : []),
+    ]),
+  ];
+}
 /** Substantive records can stand alone when no sourced prose claim is available. */
 export function hasSubstantiveCampaignFinance(
   finance: z.infer<typeof campaignFinanceSchema> | null | undefined,
 ): boolean {
   return (
     !!finance &&
-    (finance.receipts !== null ||
+    (finance.observation?.filingStatus.status === "available" ||
+      finance.receipts !== null ||
       finance.donors.length > 0 ||
       (finance.outsideSpending !== null &&
         (finance.outsideSpending.length > 0 ||

@@ -29,9 +29,14 @@ import {
   fecCandidateMasterCompressedLimit,
   isFecCandidateMasterRedirect,
 } from "./california-fec-bulk.js";
+import {
+  financeRefreshNonfinancialSources,
+  refreshableUnusedDiscoverySource,
+} from "./california-finance-refresh.js";
 import { collectCaliforniaFederalFinance } from "./california-finance.js";
 import {
   CaliforniaSourceHttpError,
+  isCaliforniaSourceUnavailable,
   sourceAcquisitionFailure,
 } from "./california-source-availability.js";
 import { fetchSource, hash, htmlText } from "./sources.js";
@@ -509,6 +514,7 @@ export async function collectCaliforniaEvidence(
     race: CaliforniaRaceTarget;
     member: CaliforniaRaceTarget["members"][number];
     previousDossier?: CandidateEvidenceDossier;
+    researchScope?: "finance_refresh";
     supplementalSources?: ResearchSource[];
   },
   deps: CaliforniaEvidenceDependencies,
@@ -621,6 +627,15 @@ export async function collectCaliforniaEvidence(
     }
     return source;
   };
+  const financeRefresh =
+    input.researchScope === "finance_refresh"
+      ? input.previousDossier
+      : undefined;
+  if (
+    input.researchScope === "finance_refresh" &&
+    (!financeRefresh || race.officeFamily !== "us_house")
+  )
+    throw new Error("Finance refresh requires a published federal dossier");
   const priorCitedSources = (input.previousDossier?.sources ?? []).filter(
     (source) =>
       input.previousDossier!.evidence.some(
@@ -633,7 +648,10 @@ export async function collectCaliforniaEvidence(
     (input.previousDossier?.sources ?? []).some(
       (other) => other.id !== source.id && other.url === source.url,
     ) && /^[A-Z][A-Z0-9]{8}:/.test(source.id);
-  for (const priorSource of priorCitedSources.filter(
+  const nonfinancialSources = financeRefresh
+    ? financeRefreshNonfinancialSources(financeRefresh)
+    : undefined;
+  for (const priorSource of (nonfinancialSources ?? priorCitedSources).filter(
     (source) => !derivedFinanceSource(source),
   )) {
     try {
@@ -643,16 +661,36 @@ export async function collectCaliforniaEvidence(
         priorSource.format,
         priorSource.id,
       );
-      if (fresh.contentHash !== priorSource.contentHash)
+      if (
+        fresh.contentHash !== priorSource.contentHash &&
+        !(
+          financeRefresh &&
+          refreshableUnusedDiscoverySource(financeRefresh, priorSource)
+        )
+      )
         throw new CaliforniaCitedSourceFailure(
           `A previously cited source changed: ${priorSource.url}`,
         );
+      if (financeRefresh) {
+        const observed = {
+          ...fresh,
+          id: priorSource.id,
+          publisher: priorSource.publisher,
+        };
+        const index = sources.findIndex(
+          (source) => source.id === priorSource.id,
+        );
+        if (index < 0) sources.push(observed);
+        else sources[index] = observed;
+      }
     } catch (error) {
+      const failure = sourceAcquisitionFailure(priorSource.url, error);
       if (
-        error instanceof CaliforniaBudgetReached ||
-        error instanceof CaliforniaCitedSourceFailure
+        failure instanceof CaliforniaBudgetReached ||
+        failure instanceof CaliforniaCitedSourceFailure ||
+        isCaliforniaSourceUnavailable(failure)
       )
-        throw error;
+        throw failure;
       throw new CaliforniaCitedSourceFailure(
         `A previously cited source could not be refreshed: ${priorSource.url}`,
       );
@@ -660,457 +698,487 @@ export async function collectCaliforniaEvidence(
   }
   const localCapability =
     race.officeFamily === "local" ? californiaLocalAuthority(race) : null;
-  let authorityUrl = localCapability?.url ?? authority[race.officeFamily];
-  if (race.officeFamily === "statewide") authorityUrl = statewide[race.office];
-  if (
-    race.officeFamily === "judicial_retention" &&
-    race.sourceContestId.startsWith("15")
-  )
-    authorityUrl = "https://appellate.courts.ca.gov/about-courts";
-  if (authorityUrl) {
-    try {
-      const requiredAuthoritySources: OfficeAuthoritySource[] = localCapability
-        ? [localCapability, ...(localCapability.supporting ?? [])]
-        : race.officeFamily === "statewide" &&
-            race.office === "Lieutenant Governor"
-          ? [
-              {
-                url: authorityUrl,
-                marker:
-                  /Under California[’']s Constitution, the Lieutenant Governor serves as Acting Governor/,
-              },
-            ]
-          : race.officeFamily === "statewide" && race.office === "Governor"
-            ? [
-                {
-                  url: authorityUrl,
-                  marker:
-                    /As the state[’']s chief executive officer, oversees most state departments and agencies, and appoints judges\. Proposes new laws, approves or vetoes legislation, and submits the annual state budget to the Legislature\. Mobilizes and directs state resources during emergencies\./,
-                  exactMatch: true,
-                },
-              ]
-            : [{ url: authorityUrl, marker: /.*/ }];
-      const checkedAuthoritySourceIds: string[] = [];
-      for (const [index, descriptor] of requiredAuthoritySources.entries()) {
-        const source = await get(
-          descriptor.url,
-          "Official office responsibilities",
-          descriptor.format ?? "html",
-        );
-        const body = substantiveSourceText(source);
-        const match = descriptor.marker.exec(body);
-        if (!match)
-          throw new Error(
-            "Official authority source does not contain the required office provision",
+  let campaignContactProof: CandidateEvidenceDossier["campaignContactProof"];
+  const sourceLinks: NonNullable<CandidateEvidenceDossier["sourceLinks"]> = [];
+  if (financeRefresh) {
+    evidence.splice(
+      0,
+      evidence.length,
+      ...financeRefresh.evidence.filter((entry) => entry.role !== "finance"),
+    );
+    gaps.push(
+      ...financeRefresh.gaps.filter((gap) => gap.dimension !== "finance"),
+    );
+    sourceLinks.push(...(financeRefresh.sourceLinks ?? []));
+    campaignContactProof = financeRefresh.campaignContactProof;
+  } else {
+    let authorityUrl = localCapability?.url ?? authority[race.officeFamily];
+    if (race.officeFamily === "statewide")
+      authorityUrl = statewide[race.office];
+    if (
+      race.officeFamily === "judicial_retention" &&
+      race.sourceContestId.startsWith("15")
+    )
+      authorityUrl = "https://appellate.courts.ca.gov/about-courts";
+    if (authorityUrl) {
+      try {
+        const requiredAuthoritySources: OfficeAuthoritySource[] =
+          localCapability
+            ? [localCapability, ...(localCapability.supporting ?? [])]
+            : race.officeFamily === "statewide" &&
+                race.office === "Lieutenant Governor"
+              ? [
+                  {
+                    url: authorityUrl,
+                    marker:
+                      /Under California[’']s Constitution, the Lieutenant Governor serves as Acting Governor/,
+                  },
+                ]
+              : race.officeFamily === "statewide" && race.office === "Governor"
+                ? [
+                    {
+                      url: authorityUrl,
+                      marker:
+                        /As the state[’']s chief executive officer, oversees most state departments and agencies, and appoints judges\. Proposes new laws, approves or vetoes legislation, and submits the annual state budget to the Legislature\. Mobilizes and directs state resources during emergencies\./,
+                      exactMatch: true,
+                    },
+                  ]
+                : [{ url: authorityUrl, marker: /.*/ }];
+        const checkedAuthoritySourceIds: string[] = [];
+        for (const [index, descriptor] of requiredAuthoritySources.entries()) {
+          const source = await get(
+            descriptor.url,
+            "Official office responsibilities",
+            descriptor.format ?? "html",
           );
-        const start = Math.max(0, match.index - 120);
-        evidence.push({
-          id:
-            index === 0 ? "office-authority" : `office-authority-${index + 1}`,
-          sourceId: source.id,
-          excerpt: descriptor.exactMatch
-            ? match[0]
-            : body.slice(start, start + (descriptor.maxExcerpt ?? 3800)),
-          locator: localCapability
-            ? `Official office authority: ${localCapability.id}`
-            : "Official responsibilities and institutional constraints",
-          origin: "primary_record",
-          role: "office_authority",
-          identityQualification: "exact_election_office",
-        });
-        checkedAuthoritySourceIds.push(source.id);
-      }
-      if (localCapability?.scopeNote)
+          const body = substantiveSourceText(source);
+          const match = descriptor.marker.exec(body);
+          if (!match)
+            throw new Error(
+              "Official authority source does not contain the required office provision",
+            );
+          const start = Math.max(0, match.index - 120);
+          evidence.push({
+            id:
+              index === 0
+                ? "office-authority"
+                : `office-authority-${index + 1}`,
+            sourceId: source.id,
+            excerpt: descriptor.exactMatch
+              ? match[0]
+              : body.slice(start, start + (descriptor.maxExcerpt ?? 3800)),
+            locator: localCapability
+              ? `Official office authority: ${localCapability.id}`
+              : "Official responsibilities and institutional constraints",
+            origin: "primary_record",
+            role: "office_authority",
+            identityQualification: "exact_election_office",
+          });
+          checkedAuthoritySourceIds.push(source.id);
+        }
+        if (localCapability?.scopeNote)
+          gaps.push({
+            dimension: "mechanisms",
+            code: "not_found_in_checked_sources",
+            message: localCapability.scopeNote,
+            checkedSourceIds: checkedAuthoritySourceIds,
+            required: false,
+          });
+      } catch (error) {
+        if (
+          error instanceof CaliforniaBudgetReached ||
+          error instanceof CaliforniaCitedSourceFailure
+        )
+          throw error;
         gaps.push({
           dimension: "mechanisms",
-          code: "not_found_in_checked_sources",
-          message: localCapability.scopeNote,
-          checkedSourceIds: checkedAuthoritySourceIds,
-          required: false,
+          code: "source_unavailable",
+          message:
+            "The official office-authority source could not be retrieved in this attempt.",
+          checkedSourceIds: [],
+          required: true,
         });
-    } catch (error) {
-      if (
-        error instanceof CaliforniaBudgetReached ||
-        error instanceof CaliforniaCitedSourceFailure
-      )
-        throw error;
+      }
+    } else
       gaps.push({
         dimension: "mechanisms",
-        code: "source_unavailable",
-        message:
-          "The official office-authority source could not be retrieved in this attempt.",
+        code: "identity_unresolved",
+        message: "No verified office-authority adapter exists for this office.",
         checkedSourceIds: [],
         required: true,
       });
-    }
-  } else
-    gaps.push({
-      dimension: "mechanisms",
-      code: "identity_unresolved",
-      message: "No verified office-authority adapter exists for this office.",
-      checkedSourceIds: [],
-      required: true,
-    });
-  let campaignContactProof: CandidateEvidenceDossier["campaignContactProof"];
-  let localWebsite:
-    | ReturnType<typeof resolveCaliforniaOfficialCampaignWebsite>
-    | undefined;
-  if (race.officeFamily === "local") {
-    try {
-      localWebsite = resolveCaliforniaOfficialCampaignWebsite({
-        snapshot,
-        race,
-        member,
-      });
-      if (localWebsite.status !== "listed")
+    let localWebsite:
+      | ReturnType<typeof resolveCaliforniaOfficialCampaignWebsite>
+      | undefined;
+    if (race.officeFamily === "local") {
+      try {
+        localWebsite = resolveCaliforniaOfficialCampaignWebsite({
+          snapshot,
+          race,
+          member,
+        });
+        if (localWebsite.status !== "listed")
+          gaps.push({
+            dimension: "priorities",
+            code:
+              localWebsite.status === "identity_unresolved"
+                ? "identity_unresolved"
+                : "not_found_in_checked_sources",
+            message:
+              localWebsite.status === "missing"
+                ? "The archived official candidate filing did not list a campaign website."
+                : "We could not verify a campaign website from the archived official filing.",
+            checkedSourceIds: [],
+            required: false,
+          });
+      } catch {
         gaps.push({
           dimension: "priorities",
-          code:
-            localWebsite.status === "identity_unresolved"
-              ? "identity_unresolved"
-              : "not_found_in_checked_sources",
+          code: "identity_unresolved",
           message:
-            localWebsite.status === "missing"
-              ? "The archived official candidate filing did not list a campaign website."
-              : "We could not verify a campaign website from the archived official filing.",
+            "We could not verify a campaign website from the archived official filing.",
           checkedSourceIds: [],
           required: false,
         });
-    } catch {
-      gaps.push({
-        dimension: "priorities",
-        code: "identity_unresolved",
-        message:
-          "We could not verify a campaign website from the archived official filing.",
-        checkedSourceIds: [],
-        required: false,
-      });
-    }
-  }
-  let contact: ResearchSource | undefined;
-  if (race.officeFamily !== "local")
-    try {
-      contact = await get(
-        "https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/contact-list.pdf",
-        "California Secretary of State",
-        "pdf",
-      );
-    } catch (error) {
-      if (
-        error instanceof CaliforniaBudgetReached ||
-        error instanceof CaliforniaCitedSourceFailure
-      )
-        throw error;
-      gaps.push({
-        dimension: "priorities",
-        code: "source_unavailable",
-        message:
-          "Official campaign contacts could not be retrieved in this attempt.",
-        checkedSourceIds: [],
-        required: false,
-      });
-    }
-  let contactExcerpt: string | undefined;
-  if (contact) {
-    const start = contact.text.indexOf(member.name);
-    if (
-      start >= 0 &&
-      snapshot.races
-        .flatMap((target) => target.members)
-        .filter((other) => compact(other.name) === compact(member.name))
-        .length === 1
-    ) {
-      let end = Math.min(contact.text.length, start + 1500);
-      for (const other of snapshot.races.flatMap((target) => target.members))
-        if (other.candidateId !== member.candidateId) {
-          const next = contact.text.indexOf(
-            other.name,
-            start + member.name.length,
-          );
-          if (next >= 0) end = Math.min(end, next);
-        }
-      contactExcerpt = contact.text.slice(start, end);
-    }
-  }
-  const currentContact = contact
-    ? currentHouseCampaignContact(contact, race, member)
-    : undefined;
-  const linked = currentContact
-    ? [currentContact.url]
-    : race.officeFamily === "us_house"
-      ? []
-      : localWebsite?.status === "listed" && localWebsite.url
-        ? [localWebsite.url]
-        : (contactExcerpt?.match(/(?:https?:\/\/|www\.)[^\s<>]+/g) ?? []).map(
-            (url) =>
-              (url.startsWith("www.") ? `https://${url}` : url).replace(
-                /[.,;)]+$/,
-                "",
-              ),
-          );
-  const query = member.name;
-  const statementSlug = officeSlug(race.office);
-  const officialStatements = statementSlug
-    ? [officeUrl(statementSlug)]
-    : race.kind === "retention"
-      ? [
-          race.sourceContestId.startsWith("14")
-            ? "https://voterguide.sos.ca.gov/justices/supreme-court.htm"
-            : "https://voterguide.sos.ca.gov/justices/court-of-appeal.htm",
-        ]
-      : [];
-  const withoutInitials = (value: string) =>
-    compact(value)
-      .split(" ")
-      .filter((word) => word.length > 1)
-      .join(" ");
-  const courtLinks = sources
-    .flatMap((source) =>
-      source.text
-        .split("\n")
-        .filter((line) =>
-          withoutInitials(line.split(" => ")[0] ?? "").includes(
-            withoutInitials(member.name),
-          ),
-        )
-        .flatMap((line) => line.match(/https?:\/\/[^\s]+/g) ?? []),
-    )
-    .filter((url) => new URL(url).hostname.endsWith("courts.ca.gov"));
-  const linkedBiographies = [...new Set(courtLinks)];
-  if (linkedBiographies.length > 1) linkedBiographies.splice(0);
-  const discoveries: string[] = [...linkedBiographies, ...officialStatements];
-  try {
-    for (const discover of [false, true]) {
-      deps.budget.request();
-      deps.budget.discovery?.();
-      const result = await deps.search(query, discover);
-      discoveries.push(...result.sources.map((s) => s.url));
-      if (discoveries.length >= 4 || linked.length) break;
-    }
-  } catch (error) {
-    if (
-      error instanceof CaliforniaBudgetReached ||
-      error instanceof CaliforniaCitedSourceFailure
-    )
-      throw error;
-    gaps.push({
-      dimension: "record",
-      code: "source_unavailable",
-      message: "Candidate-source discovery was unavailable in this attempt.",
-      checkedSourceIds: [],
-      required: false,
-    });
-  }
-  let unavailable = false;
-  const sourceLinks: NonNullable<CandidateEvidenceDossier["sourceLinks"]> = [];
-  const queue: { url: string; parent?: ResearchSource; anchorText?: string }[] =
-    [...new Set([...linked, ...discoveries])].map((url) => ({ url }));
-  const visited = new Set<string>();
-  let candidatePages = 0;
-  for (let index = 0; index < queue.length && candidatePages < 5; index++) {
-    const { url, parent, anchorText } = queue[index]!;
-    if (visited.has(url)) continue;
-    visited.add(url);
-    candidatePages++;
-    try {
-      if (!/^https?:\/\//.test(url)) continue;
-      const source = await get(
-        url,
-        new URL(url).hostname,
-        /\.pdf(?:$|\?)/i.test(url) ? "pdf" : "html",
-      );
-      const currentCampaign =
-        currentContact?.url === url &&
-        currentContactDestination(source, currentContact, member.name);
-      if (currentContact?.url === url && !currentCampaign) continue;
-      if (parent) {
-        if (new URL(parent.url).origin !== new URL(source.url).origin) continue;
-        sourceLinks.push({
-          fromSourceId: parent.id,
-          toSourceId: source.id,
-          url: source.url,
-          anchorText: anchorText!,
-          relation: "same_origin_campaign",
-        });
-      } else if (
-        !currentCampaign &&
-        !qualifiedCandidatePage(source, race, member.name, linked.includes(url))
-      )
-        continue;
-      if (linked.includes(url)) {
-        if (
-          !currentCampaign &&
-          !candidatePublisherDisclosure(source, member.name)
-        )
-          continue;
-        if (localWebsite?.status === "listed") {
-          if (
-            !localWebsite.url ||
-            !localWebsite.officialSource ||
-            !source.retrievalUrls
-          )
-            continue;
-          campaignContactProof = {
-            kind: "historical_official_filing",
-            identity: localWebsite.requestedCandidateIdentity,
-            websiteUrl: localWebsite.url,
-            destinationSourceId: source.id,
-            officialSource: localWebsite.officialSource,
-            retrievalUrls: source.retrievalUrls,
-          };
-        }
-        const rawAnchor = currentCampaign
-          ? currentContact.anchorText
-          : (
-              contactExcerpt?.match(/(?:https?:\/\/|www\.)[^\s<>]+/g) ?? []
-            ).find(
-              (value) =>
-                (value.startsWith("www.") ? `https://${value}` : value).replace(
-                  /[.,;)]+$/,
-                  "",
-                ) === url,
-            );
-        if (rawAnchor && contact)
-          sourceLinks.push({
-            fromSourceId: contact.id,
-            toSourceId: source.id,
-            url: source.url,
-            anchorText: rawAnchor,
-            relation: "official_contact",
-          });
-        const children = source.text
-          .split("\n")
-          .flatMap((line) => {
-            const divider = line.indexOf(" => ");
-            if (divider < 0) return [];
-            const label = line.slice(0, divider);
-            const childURL = line.slice(divider + 4);
-            try {
-              const parsed = new URL(childURL);
-              return new URL(source.url).origin === parsed.origin &&
-                /issues|priorit|platform|plans|about/i.test(
-                  `${label} ${parsed.pathname}`,
-                ) &&
-                !/donat|contribut|endorse|volunteer|shop/i.test(
-                  `${label} ${parsed.pathname}`,
-                ) &&
-                !visited.has(childURL)
-                ? [{ url: childURL, parent: source, anchorText: label }]
-                : [];
-            } catch {
-              return [];
-            }
-          })
-          .slice(0, 2);
-        queue.splice(index + 1, 0, ...children);
       }
-      const substantive = substantiveSourceText(source);
-      const ownNameStart = candidateNamePosition(substantive, member.name);
-      if (ownNameStart < 0 && !parent && !currentCampaign) continue;
-      const start = currentCampaign ? 0 : Math.max(0, ownNameStart);
-      let end = Math.min(substantive.length, start + 2800);
-      for (const other of officialStatements.includes(url) ? race.members : [])
-        if (other.candidateId !== member.candidateId) {
-          const next = substantive
-            .toLocaleLowerCase()
-            .indexOf(
-              other.name.toLocaleLowerCase(),
-              start + member.name.length,
-            );
-          if (next >= 0) end = Math.min(end, next);
-        }
-      const quote = substantive.slice(start, end).trim();
-      const official = /(^|\.)[a-z0-9-]+\.gov$/i.test(
-        new URL(source.url).hostname,
-      );
-      if (
-        quote.length < 180 ||
-        !/\b(will|support|oppose|worked|served|appointed|confirmed|authored|plan|priorit|protect|reduce|expand|reform|achiev|lead|led|ban|cut|stop|end|invest|lower|build)\w*\b/i.test(
-          quote,
+    }
+    let contact: ResearchSource | undefined;
+    if (race.officeFamily !== "local")
+      try {
+        contact = await get(
+          "https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/contact-list.pdf",
+          "California Secretary of State",
+          "pdf",
+        );
+      } catch (error) {
+        if (
+          error instanceof CaliforniaBudgetReached ||
+          error instanceof CaliforniaCitedSourceFailure
         )
-      )
-        continue;
-      const officialStatement =
-        officialStatements.includes(url) &&
-        race.kind !== "retention" &&
-        new URL(source.url).origin === new URL(url).origin;
-      const candidateSupplied =
-        linked.includes(url) || !!parent || officialStatement;
-      if (!candidateSupplied && !official) continue;
-      const campaignMaterial = candidateSupplied && !officialStatement;
-      if (campaignMaterial && substantive.length > 12_000) {
+          throw error;
         gaps.push({
-          dimension: "record",
+          dimension: "priorities",
           code: "source_unavailable",
           message:
-            "A campaign page exceeded the bounded context limit. Its attribution context was not clipped or inferred.",
-          checkedSourceIds: [source.id],
+            "Official campaign contacts could not be retrieved in this attempt.",
+          checkedSourceIds: [],
           required: false,
         });
-        continue;
       }
-      evidence.push({
-        id: `candidate-${evidence.length}`,
-        sourceId: source.id,
-        excerpt: quote,
-        locator: `Candidate-specific passage for ${member.name}`,
-        origin: candidateSupplied ? "candidate" : "primary_record",
-        role: campaignMaterial
-          ? "campaign_material"
-          : officialStatement
-            ? "candidate_statement"
-            : "candidate_record",
-        ...(candidateSupplied
-          ? {
-              attribution: {
-                status: campaignMaterial
-                  ? ("unresolved" as const)
-                  : ("official_candidate_statement" as const),
-                context: {
-                  excerpt: campaignMaterial ? substantive : quote,
-                  locator: campaignMaterial
-                    ? "Complete bounded substantive campaign page; publisher identity does not establish the speaker."
-                    : "Official candidate-submitted statement channel.",
-                },
-              },
-            }
-          : {}),
-        identityQualification:
-          linked.includes(url) || !!parent
-            ? "official_cross_link"
-            : "exact_election_office",
-      });
+    let contactExcerpt: string | undefined;
+    if (contact) {
+      const start = contact.text.indexOf(member.name);
+      if (
+        start >= 0 &&
+        snapshot.races
+          .flatMap((target) => target.members)
+          .filter((other) => compact(other.name) === compact(member.name))
+          .length === 1
+      ) {
+        let end = Math.min(contact.text.length, start + 1500);
+        for (const other of snapshot.races.flatMap((target) => target.members))
+          if (other.candidateId !== member.candidateId) {
+            const next = contact.text.indexOf(
+              other.name,
+              start + member.name.length,
+            );
+            if (next >= 0) end = Math.min(end, next);
+          }
+        contactExcerpt = contact.text.slice(start, end);
+      }
+    }
+    const currentContact = contact
+      ? currentHouseCampaignContact(contact, race, member)
+      : undefined;
+    const linked = currentContact
+      ? [currentContact.url]
+      : race.officeFamily === "us_house"
+        ? []
+        : localWebsite?.status === "listed" && localWebsite.url
+          ? [localWebsite.url]
+          : (contactExcerpt?.match(/(?:https?:\/\/|www\.)[^\s<>]+/g) ?? []).map(
+              (url) =>
+                (url.startsWith("www.") ? `https://${url}` : url).replace(
+                  /[.,;)]+$/,
+                  "",
+                ),
+            );
+    const query = member.name;
+    const statementSlug = officeSlug(race.office);
+    const officialStatements = statementSlug
+      ? [officeUrl(statementSlug)]
+      : race.kind === "retention"
+        ? [
+            race.sourceContestId.startsWith("14")
+              ? "https://voterguide.sos.ca.gov/justices/supreme-court.htm"
+              : "https://voterguide.sos.ca.gov/justices/court-of-appeal.htm",
+          ]
+        : [];
+    const withoutInitials = (value: string) =>
+      compact(value)
+        .split(" ")
+        .filter((word) => word.length > 1)
+        .join(" ");
+    const courtLinks = sources
+      .flatMap((source) =>
+        source.text
+          .split("\n")
+          .filter((line) =>
+            withoutInitials(line.split(" => ")[0] ?? "").includes(
+              withoutInitials(member.name),
+            ),
+          )
+          .flatMap((line) => line.match(/https?:\/\/[^\s]+/g) ?? []),
+      )
+      .filter((url) => new URL(url).hostname.endsWith("courts.ca.gov"));
+    const linkedBiographies = [...new Set(courtLinks)];
+    if (linkedBiographies.length > 1) linkedBiographies.splice(0);
+    const discoveries: string[] = [...linkedBiographies, ...officialStatements];
+    try {
+      for (const discover of [false, true]) {
+        deps.budget.request();
+        deps.budget.discovery?.();
+        const result = await deps.search(query, discover);
+        discoveries.push(...result.sources.map((s) => s.url));
+        if (discoveries.length >= 4 || linked.length) break;
+      }
     } catch (error) {
       if (
         error instanceof CaliforniaBudgetReached ||
         error instanceof CaliforniaCitedSourceFailure
       )
         throw error;
-      unavailable = true;
+      gaps.push({
+        dimension: "record",
+        code: "source_unavailable",
+        message: "Candidate-source discovery was unavailable in this attempt.",
+        checkedSourceIds: [],
+        required: false,
+      });
     }
-  }
-  if (
-    !evidence.some(
-      (entry) =>
-        entry.role === "campaign_material" ||
-        entry.role === "candidate_statement" ||
-        entry.role === "candidate_record",
-    )
-  )
-    gaps.push({
-      dimension: "priorities",
-      code: unavailable ? "source_unavailable" : "not_found_in_checked_sources",
-      message: unavailable
-        ? "Candidate-specific source retrieval failed; this is not evidence that no platform exists."
-        : "No identity-qualified candidate-specific platform or record was found in the bounded sources checked.",
-      checkedSourceIds: sources
-        .filter(
-          (source) => !/(^|\.)fec\.gov$/i.test(new URL(source.url).hostname),
+    let unavailable = false;
+    const queue: {
+      url: string;
+      parent?: ResearchSource;
+      anchorText?: string;
+    }[] = [...new Set([...linked, ...discoveries])].map((url) => ({ url }));
+    const visited = new Set<string>();
+    let candidatePages = 0;
+    for (let index = 0; index < queue.length && candidatePages < 5; index++) {
+      const { url, parent, anchorText } = queue[index]!;
+      if (visited.has(url)) continue;
+      visited.add(url);
+      candidatePages++;
+      try {
+        if (!/^https?:\/\//.test(url)) continue;
+        const source = await get(
+          url,
+          new URL(url).hostname,
+          /\.pdf(?:$|\?)/i.test(url) ? "pdf" : "html",
+        );
+        const currentCampaign =
+          currentContact?.url === url &&
+          currentContactDestination(source, currentContact, member.name);
+        if (currentContact?.url === url && !currentCampaign) continue;
+        if (parent) {
+          if (new URL(parent.url).origin !== new URL(source.url).origin)
+            continue;
+          sourceLinks.push({
+            fromSourceId: parent.id,
+            toSourceId: source.id,
+            url: source.url,
+            anchorText: anchorText!,
+            relation: "same_origin_campaign",
+          });
+        } else if (
+          !currentCampaign &&
+          !qualifiedCandidatePage(
+            source,
+            race,
+            member.name,
+            linked.includes(url),
+          )
         )
-        .map((source) => source.id)
-        .sort(),
-      required: false,
-    });
+          continue;
+        if (linked.includes(url)) {
+          if (
+            !currentCampaign &&
+            !candidatePublisherDisclosure(source, member.name)
+          )
+            continue;
+          if (localWebsite?.status === "listed") {
+            if (
+              !localWebsite.url ||
+              !localWebsite.officialSource ||
+              !source.retrievalUrls
+            )
+              continue;
+            campaignContactProof = {
+              kind: "historical_official_filing",
+              identity: localWebsite.requestedCandidateIdentity,
+              websiteUrl: localWebsite.url,
+              destinationSourceId: source.id,
+              officialSource: localWebsite.officialSource,
+              retrievalUrls: source.retrievalUrls,
+            };
+          }
+          const rawAnchor = currentCampaign
+            ? currentContact.anchorText
+            : (
+                contactExcerpt?.match(/(?:https?:\/\/|www\.)[^\s<>]+/g) ?? []
+              ).find(
+                (value) =>
+                  (value.startsWith("www.")
+                    ? `https://${value}`
+                    : value
+                  ).replace(/[.,;)]+$/, "") === url,
+              );
+          if (rawAnchor && contact)
+            sourceLinks.push({
+              fromSourceId: contact.id,
+              toSourceId: source.id,
+              url: source.url,
+              anchorText: rawAnchor,
+              relation: "official_contact",
+            });
+          const children = source.text
+            .split("\n")
+            .flatMap((line) => {
+              const divider = line.indexOf(" => ");
+              if (divider < 0) return [];
+              const label = line.slice(0, divider);
+              const childURL = line.slice(divider + 4);
+              try {
+                const parsed = new URL(childURL);
+                return new URL(source.url).origin === parsed.origin &&
+                  /issues|priorit|platform|plans|about/i.test(
+                    `${label} ${parsed.pathname}`,
+                  ) &&
+                  !/donat|contribut|endorse|volunteer|shop/i.test(
+                    `${label} ${parsed.pathname}`,
+                  ) &&
+                  !visited.has(childURL)
+                  ? [{ url: childURL, parent: source, anchorText: label }]
+                  : [];
+              } catch {
+                return [];
+              }
+            })
+            .slice(0, 2);
+          queue.splice(index + 1, 0, ...children);
+        }
+        const substantive = substantiveSourceText(source);
+        const ownNameStart = candidateNamePosition(substantive, member.name);
+        if (ownNameStart < 0 && !parent && !currentCampaign) continue;
+        const start = currentCampaign ? 0 : Math.max(0, ownNameStart);
+        let end = Math.min(substantive.length, start + 2800);
+        for (const other of officialStatements.includes(url)
+          ? race.members
+          : [])
+          if (other.candidateId !== member.candidateId) {
+            const next = substantive
+              .toLocaleLowerCase()
+              .indexOf(
+                other.name.toLocaleLowerCase(),
+                start + member.name.length,
+              );
+            if (next >= 0) end = Math.min(end, next);
+          }
+        const quote = substantive.slice(start, end).trim();
+        const official = /(^|\.)[a-z0-9-]+\.gov$/i.test(
+          new URL(source.url).hostname,
+        );
+        if (
+          quote.length < 180 ||
+          !/\b(will|support|oppose|worked|served|appointed|confirmed|authored|plan|priorit|protect|reduce|expand|reform|achiev|lead|led|ban|cut|stop|end|invest|lower|build)\w*\b/i.test(
+            quote,
+          )
+        )
+          continue;
+        const officialStatement =
+          officialStatements.includes(url) &&
+          race.kind !== "retention" &&
+          new URL(source.url).origin === new URL(url).origin;
+        const candidateSupplied =
+          linked.includes(url) || !!parent || officialStatement;
+        if (!candidateSupplied && !official) continue;
+        const campaignMaterial = candidateSupplied && !officialStatement;
+        if (campaignMaterial && substantive.length > 12_000) {
+          gaps.push({
+            dimension: "record",
+            code: "source_unavailable",
+            message:
+              "A campaign page exceeded the bounded context limit. Its attribution context was not clipped or inferred.",
+            checkedSourceIds: [source.id],
+            required: false,
+          });
+          continue;
+        }
+        evidence.push({
+          id: `candidate-${evidence.length}`,
+          sourceId: source.id,
+          excerpt: quote,
+          locator: `Candidate-specific passage for ${member.name}`,
+          origin: candidateSupplied ? "candidate" : "primary_record",
+          role: campaignMaterial
+            ? "campaign_material"
+            : officialStatement
+              ? "candidate_statement"
+              : "candidate_record",
+          ...(candidateSupplied
+            ? {
+                attribution: {
+                  status: campaignMaterial
+                    ? ("unresolved" as const)
+                    : ("official_candidate_statement" as const),
+                  context: {
+                    excerpt: campaignMaterial ? substantive : quote,
+                    locator: campaignMaterial
+                      ? "Complete bounded substantive campaign page; publisher identity does not establish the speaker."
+                      : "Official candidate-submitted statement channel.",
+                  },
+                },
+              }
+            : {}),
+          identityQualification:
+            linked.includes(url) || !!parent
+              ? "official_cross_link"
+              : "exact_election_office",
+        });
+      } catch (error) {
+        if (
+          error instanceof CaliforniaBudgetReached ||
+          error instanceof CaliforniaCitedSourceFailure
+        )
+          throw error;
+        unavailable = true;
+      }
+    }
+    if (
+      !evidence.some(
+        (entry) =>
+          entry.role === "campaign_material" ||
+          entry.role === "candidate_statement" ||
+          entry.role === "candidate_record",
+      )
+    )
+      gaps.push({
+        dimension: "priorities",
+        code: unavailable
+          ? "source_unavailable"
+          : "not_found_in_checked_sources",
+        message: unavailable
+          ? "Candidate-specific source retrieval failed; this is not evidence that no platform exists."
+          : "No identity-qualified candidate-specific platform or record was found in the bounded sources checked.",
+        checkedSourceIds: sources
+          .filter(
+            (source) => !/(^|\.)fec\.gov$/i.test(new URL(source.url).hostname),
+          )
+          .map((source) => source.id)
+          .sort(),
+        required: false,
+      });
+  }
   let finance: CandidateEvidenceDossier["finance"] = null;
   let financeIdentityProof: Awaited<
     ReturnType<typeof collectCaliforniaFederalFinance>
@@ -1120,8 +1188,47 @@ export async function collectCaliforniaEvidence(
   let financeGap =
     "California or local campaign-finance totals and donor records have not been reconciled. Federal FEC records do not apply to this office.";
   if (race.officeFamily === "us_house") {
+    const scope = [race];
+    const identitySources = [rosterSource];
+    const beforeIdentity = new Set(sources.map((source) => source.id));
+    if (
+      scope.some(
+        (target) =>
+          target.officeFamily === "us_house" &&
+          target.district === "16" &&
+          target.members.some((candidate) => candidate.name === "Sam Liccardo"),
+      )
+    ) {
+      for (const [url, publisher, format] of [
+        [
+          "https://smcacre.gov/system/files/2026-03/51_candidateroster03272026.pdf",
+          "San Mateo County elections",
+          "pdf",
+        ],
+        [
+          "https://docquery.fec.gov/dcdev/posted/1856505.fec",
+          "Federal Election Commission",
+          "text",
+        ],
+      ] as const) {
+        try {
+          identitySources.push(await get(url, publisher, format));
+        } catch (error) {
+          if (
+            error instanceof CaliforniaBudgetReached ||
+            error instanceof CaliforniaCitedSourceFailure
+          )
+            throw error;
+        }
+      }
+    }
     const result = await collectCaliforniaFederalFinance(
-      { race, member },
+      {
+        race,
+        member,
+        scope,
+        identitySources,
+      },
       {
         fetch: deps.fetch,
         sharedSources: deps.sharedSources,
@@ -1129,6 +1236,15 @@ export async function collectCaliforniaEvidence(
         apiKey: process.env.FEC_API_KEY,
       },
     );
+    for (const source of identitySources) {
+      if (
+        beforeIdentity.has(source.id) ||
+        result.sources.some((current) => current.id === source.id)
+      )
+        continue;
+      const index = sources.findIndex((current) => current.id === source.id);
+      if (index >= 0) sources.splice(index, 1);
+    }
     finance = result.finance;
     financeIdentityProof = result.identityProof;
     financeGap = result.gap ?? "";
@@ -1177,7 +1293,9 @@ export async function collectCaliforniaEvidence(
       checkedSourceIds: [rosterSource.id],
       required: false,
     });
-  for (const prior of priorCitedSources.filter(derivedFinanceSource)) {
+  for (const prior of (financeRefresh ? [] : priorCitedSources).filter(
+    derivedFinanceSource,
+  )) {
     const fresh = sources.find(
       (source) => source.id === prior.id && source.url === prior.url,
     );

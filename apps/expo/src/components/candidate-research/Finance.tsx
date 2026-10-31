@@ -25,6 +25,35 @@ const displayDate = (date: string, locale = "en-US") =>
     timeZone: "UTC",
   });
 
+function FinancePeriod({
+  periodStart,
+  periodEnd,
+  updatedAt,
+  cycleLabel,
+}: {
+  periodStart: string;
+  periodEnd: string;
+  updatedAt: string;
+  cycleLabel?: string;
+}) {
+  const { t: tx, locale } = useAppTranslation();
+  return (
+    <View style={s.point}>
+      <Text style={s.muted}>
+        {cycleLabel ??
+          `${displayDate(periodStart, locale)} – ${displayDate(periodEnd, locale)}`}
+      </Text>
+      <Text style={s.muted}>
+        {tx("Checked {value1}", {
+          value1: new Date(updatedAt).toLocaleDateString(locale, {
+            timeZone: "UTC",
+          }),
+        })}
+      </Text>
+    </View>
+  );
+}
+
 export const money = (cents: number, locale = "en-US") =>
   new Intl.NumberFormat(locale, {
     style: "currency",
@@ -95,6 +124,14 @@ export function Finance({
         )}
       </Panel>
     );
+  const observation = finance.observation;
+  const summary = observation?.summary;
+  const donorSelection = observation?.donorSelection;
+  const independentExpenditures = observation?.independentExpenditures;
+  const filingStatus = observation?.filingStatus;
+  const thresholdStatement =
+    filingStatus?.status === "available" &&
+    filingStatus.kind === "committee_threshold_statement";
   const donor = finance.donors.find((d) => d.id === donorId);
   if (donorId)
     return donor ? (
@@ -108,6 +145,16 @@ export function Finance({
             {tx("Given to {value1}", { value1: finance.committeeName })}
           </Text>
           <Text style={s.muted}>{tx(donorTypeLabels[donor.type])}</Text>
+          {finance.donorAmounts === "contribution" && (
+            <Text style={s.muted}>
+              {tx(
+                "One selected contribution, not this donor’s total for the election cycle.",
+              )}
+            </Text>
+          )}
+          {donorSelection?.status === "available" && (
+            <FinancePeriod {...donorSelection} />
+          )}
           <EvidenceAction
             ids={donor.evidenceIds}
             title={tx("{value1}: contribution", { value1: donor.name })}
@@ -168,6 +215,25 @@ export function Finance({
           ? !d.interests.length
           : d.interests.some((i) => i.area === area))),
   );
+  const outsideSpendingCards = finance.outsideSpending?.map((item) => (
+    <View key={item.id} style={s.rule}>
+      <Text style={s.eyebrow}>
+        {item.direction === "support"
+          ? tx("SUPPORTING")
+          : item.direction === "oppose"
+            ? tx("OPPOSING")
+            : tx("POSITION UNSPECIFIED")}
+      </Text>
+      <Text style={s.body}>{item.spender}</Text>
+      <Text style={s.heading}>{money(item.amountCents, appLocale)}</Text>
+      <EvidenceAction
+        ids={item.evidenceIds}
+        title={item.spender}
+        label={tx("Spending report")}
+        open={open}
+      />
+    </View>
+  ));
   return (
     <>
       <CandidateDisclosure
@@ -191,16 +257,153 @@ export function Finance({
           open={open}
         />
       </CandidateDisclosure>
+      {filingStatus && (
+        <Panel title={tx("Filing status")}>
+          {filingStatus.status === "available" ? (
+            <>
+              {thresholdStatement && (
+                <Text style={s.body}>
+                  {tx(
+                    "The committee reports activity below the reporting threshold. No financial report with exact totals is listed. This does not mean no money was raised or spent.",
+                  )}
+                </Text>
+              )}
+              <Text style={s.muted}>
+                {tx("Latest filing: {value1}", {
+                  value1: filingStatus.latestForm,
+                })}
+              </Text>
+              {filingStatus.statement && (
+                <CandidateDisclosure title={tx("Original committee statement")}>
+                  <Text style={s.body}>{filingStatus.statement}</Text>
+                </CandidateDisclosure>
+              )}
+              <Text style={s.muted}>
+                {tx("Filings listed: {value1}", {
+                  value1: filingStatus.observedForms.join(", "),
+                })}
+              </Text>
+              <FinancePeriod {...filingStatus} />
+            </>
+          ) : (
+            <Text style={s.body}>{filingStatus.reason}</Text>
+          )}
+          <EvidenceAction
+            ids={filingStatus.evidenceIds}
+            title={tx("Filing status")}
+            label={tx("Official filing history")}
+            open={open}
+          />
+        </Panel>
+      )}
+      {summary && (
+        <Panel title={tx("Campaign totals")}>
+          {summary.status === "available" ? (
+            <>
+              <FinancePeriod {...summary} />
+              {(
+                [
+                  ["Total raised", receipts?.totalCents ?? null],
+                  ["Spent", summary.spentCents],
+                  ["Cash on hand", summary.cashCents],
+                  ["Debt", summary.debtCents],
+                  ["Individuals · itemized", summary.itemizedIndividualCents],
+                  [
+                    "Individuals · unitemized",
+                    summary.unitemizedIndividualCents,
+                  ],
+                ] as const
+              ).map(([label, amount]) => (
+                <View
+                  key={label}
+                  style={[
+                    s.row,
+                    { justifyContent: "space-between", flexWrap: "wrap" },
+                  ]}
+                >
+                  <Text style={[s.body, { flexShrink: 1 }]}>{tx(label)}</Text>
+                  <Text style={s.label}>
+                    {amount === null
+                      ? tx("Not reported")
+                      : money(amount, appLocale)}
+                  </Text>
+                </View>
+              ))}
+              <Text style={s.muted}>
+                {tx(
+                  "Itemized contributions include donor details in the filing. Unitemized contributions are reported together. Both are included in total raised.",
+                )}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={s.body}>{summary.reason}</Text>
+              <Text style={s.body}>
+                {tx("No reported amount here means unknown, not $0.")}
+              </Text>
+              {thresholdStatement && (
+                <Text style={s.muted}>
+                  {tx(
+                    "Exact amounts raised, spent, cash on hand and debt have not been filed in a financial report.",
+                  )}
+                </Text>
+              )}
+            </>
+          )}
+          <EvidenceAction
+            ids={summary.evidenceIds}
+            title={tx("Campaign totals")}
+            label={tx("Official filings")}
+            open={open}
+          />
+        </Panel>
+      )}
       {finance.donorCoverage === "unavailable" ? (
         <Panel title={tx("Donors & interests")}>
           <Text style={s.muted}>
-            {tx(
-              "Donor identities and lobbying ties weren’t available in this source check.",
-            )}
+            {donorSelection?.status === "unavailable"
+              ? donorSelection.reason
+              : tx(
+                  "Donor identities and lobbying ties weren’t available in this source check.",
+                )}
           </Text>
+          {donorSelection && (
+            <EvidenceAction
+              ids={donorSelection.evidenceIds}
+              title={tx("Donor availability")}
+              label={tx("Official filings")}
+              open={open}
+            />
+          )}
         </Panel>
       ) : (
         <Panel title={tx("Donors & interests")}>
+          {donorSelection?.status === "available" && (
+            <>
+              <Text style={s.body}>
+                {tx(
+                  "Selected contributions from the latest financial reports. This is not a complete donor list or a ranking of donors.",
+                )}
+              </Text>
+              <FinancePeriod {...donorSelection} />
+              <CandidateDisclosure
+                title={tx("How contributions were selected")}
+              >
+                <Text style={s.body}>{donorSelection.selection}</Text>
+                <Text style={s.muted}>
+                  {tx("Filing numbers: {value1}", {
+                    value1: donorSelection.filingNumbers.join(", "),
+                  })}
+                </Text>
+                <EvidenceAction
+                  ids={donorSelection.evidenceIds}
+                  title={tx("Selected contributions")}
+                  label={tx("Selection sources")}
+                  open={open}
+                />
+              </CandidateDisclosure>
+            </>
+          )}
           <Text style={s.muted}>
             {tx("{value1} · Given to the campaign", {
               value1:
@@ -258,7 +461,7 @@ export function Finance({
                 },
               )}
               onPress={() => onDonor(d.id)}
-              style={s.rule}
+              style={[s.rule, { minHeight: 44 }]}
             >
               <View
                 style={[
@@ -307,7 +510,11 @@ export function Finance({
           </Text>
         </Panel>
       )}
-      <Panel title={tx("Received by the campaign")}>
+      <Panel
+        title={tx(
+          observation ? "Receipt breakdown" : "Received by the campaign",
+        )}
+      >
         {receipts ? (
           <>
             <Text style={[s.title, { fontSize: 36, lineHeight: 44 }]}>
@@ -367,7 +574,9 @@ export function Finance({
           </>
         ) : (
           <Text style={s.body}>
-            {tx("Receipt totals are unavailable for this period.")}
+            {thresholdStatement
+              ? tx("Receipt totals have not been filed in a financial report.")
+              : tx("Receipt totals are unavailable for this period.")}
           </Text>
         )}
         <EvidenceAction
@@ -383,32 +592,63 @@ export function Finance({
             "Spent independently of the campaign. These amounts are not campaign receipts.",
           )}
         </Text>
-        {finance.outsideSpending === null ? (
+        {independentExpenditures ? (
+          <>
+            {independentExpenditures.status === "available" ? (
+              <>
+                <FinancePeriod
+                  {...independentExpenditures}
+                  cycleLabel={tx("{value1}–{value2} election cycle", {
+                    value1: independentExpenditures.periodStart.slice(0, 4),
+                    value2: independentExpenditures.periodEnd.slice(0, 4),
+                  })}
+                />
+                {(
+                  [
+                    [
+                      "Supporting the candidate",
+                      independentExpenditures.supportCents,
+                    ],
+                    [
+                      "Opposing the candidate",
+                      independentExpenditures.opposeCents,
+                    ],
+                  ] as const
+                ).map(([label, amount]) => (
+                  <View
+                    key={label}
+                    style={[
+                      s.row,
+                      { justifyContent: "space-between", flexWrap: "wrap" },
+                    ]}
+                  >
+                    <Text style={[s.body, { flexShrink: 1 }]}>{tx(label)}</Text>
+                    <Text style={s.label}>{money(amount, appLocale)}</Text>
+                  </View>
+                ))}
+                <Text style={s.muted}>
+                  {tx(
+                    "Includes independent spending in processed periodic reports for this period. Excludes 24-hour and 48-hour notices to avoid counting spending twice.",
+                  )}
+                </Text>
+                {outsideSpendingCards}
+              </>
+            ) : (
+              <Text style={s.body}>{independentExpenditures.reason}</Text>
+            )}
+            <EvidenceAction
+              ids={independentExpenditures.evidenceIds}
+              title={tx("Outside spending")}
+              label={tx("Official spending reports")}
+              open={open}
+            />
+          </>
+        ) : finance.outsideSpending === null ? (
           <Text style={s.body}>
             {tx("Outside spending records are unavailable.")}
           </Text>
         ) : finance.outsideSpending.length ? (
-          finance.outsideSpending.map((item) => (
-            <View key={item.id} style={s.rule}>
-              <Text style={s.eyebrow}>
-                {item.direction === "support"
-                  ? tx("SUPPORTING")
-                  : item.direction === "oppose"
-                    ? tx("OPPOSING")
-                    : tx("POSITION UNSPECIFIED")}
-              </Text>
-              <Text style={s.body}>{item.spender}</Text>
-              <Text style={s.heading}>
-                {money(item.amountCents, appLocale)}
-              </Text>
-              <EvidenceAction
-                ids={item.evidenceIds}
-                title={item.spender}
-                label={tx("Spending report")}
-                open={open}
-              />
-            </View>
-          ))
+          outsideSpendingCards
         ) : (
           <Text style={s.body}>
             {tx(

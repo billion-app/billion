@@ -7,6 +7,7 @@ import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
 
 import type {
+  CaliforniaRosterSnapshot,
   CandidateBrief,
   CandidateEvidenceDossier,
   CandidateModelAttestation,
@@ -39,6 +40,10 @@ import {
   fetchBoundedCaliforniaSource,
 } from "./california-evidence.js";
 import { decodeCaliforniaRoster } from "./california-roster.js";
+import {
+  CaliforniaSourceHttpError,
+  isCaliforniaSourceUnavailable,
+} from "./california-source-availability.js";
 import {
   coverage,
   fetchCaliforniaPlan,
@@ -359,6 +364,11 @@ test("one demanded race researches all authoritative members without widening to
   const f = await fixture();
   const demanded = f.snapshot.races[1]!;
   f.deps.demandedRaceKeys = async () => [demanded.raceKey];
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (input, budget) => {
+    assert.equal(input.race.raceKey, demanded.raceKey);
+    return investigate(input, budget);
+  };
   const result = await reconcile(
     {
       snapshotId: f.snapshot.id,
@@ -373,6 +383,37 @@ test("one demanded race researches all authoritative members without widening to
     result.outcomes.every((outcome) => outcome.raceKey === demanded.raceKey),
   );
   assert.equal(f.stats.investigations, demanded.members.length);
+});
+test("expired demand is excluded from the finance batch before investigation", async () => {
+  const f = await fixture();
+  const active = f.snapshot.races[1]!;
+  let checks = 0;
+  f.deps.demandedRaceKeys = async () =>
+    ++checks === 1
+      ? f.snapshot.races.map((race) => race.raceKey)
+      : [active.raceKey];
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (input, budget) => {
+    assert.equal(input.race.raceKey, active.raceKey);
+    return investigate(input, budget);
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      includePilotRaces: true,
+    },
+    f.deps,
+  );
+  assert.equal(f.stats.investigations, active.members.length);
+  assert.ok(
+    result.outcomes.some(
+      (outcome) =>
+        outcome.status === "pending" &&
+        outcome.reason?.includes("demand expired"),
+    ),
+  );
 });
 test("closed automation policy stops before any source or model work", async () => {
   const f = await fixture();
@@ -1702,6 +1743,227 @@ test("a 23-hour source observation leaves one hour and an unchanged fresh retrie
   );
 });
 
+for (const failure of [503, 429, "timeout", "changed"] as const) {
+  test(`actual Frese F99 refresh ${failure} preserves publication only for transient acquisition failure`, async () => {
+    const f = await fixture();
+    const race = f.allRaces.find((target) =>
+      target.members.some((member) => member.name === "Jeff Frese"),
+    )!;
+    f.snapshot.races.splice(
+      0,
+      f.snapshot.races.length,
+      ...f.allRaces.filter(
+        (target) =>
+          target.officeFamily === "us_house" &&
+          ["10", "16", "19"].includes(target.district!),
+      ),
+    );
+    const captured = JSON.parse(
+      await readFile(
+        new URL("./fixtures/six-candidate-finance.json", import.meta.url),
+        "utf8",
+      ),
+    ) as {
+      masterProjection: string;
+      profiles: Record<string, { text: string }>;
+      raw: Record<string, { text: string }>;
+      reports: {
+        results: Record<string, unknown>[];
+        pagination: Record<string, unknown>;
+      };
+      outside: {
+        results: Record<string, unknown>[];
+        pagination: Record<string, unknown>;
+      };
+      filingIndex: unknown;
+    };
+    const target = "https://docquery.fec.gov/dcdev/posted/2028712.fec";
+    let refreshing = false;
+    const requested: string[] = [];
+    const evidenceDeps = () => ({
+      now: f.deps.now,
+      sharedSources: new Map<string, Promise<ResearchSource>>(),
+      budget: { request() {}, bytes() {} },
+      search: async () => ({ sources: [] }),
+      fetch: async (
+        id: string,
+        url: string,
+        publisher: string,
+        format: ResearchSource["format"],
+      ) => {
+        requested.push(url);
+        if (refreshing && url === target) {
+          if (typeof failure === "number")
+            throw new CaliforniaSourceHttpError(failure);
+          if (failure === "timeout")
+            throw Object.assign(new Error("F99 acquisition timeout"), {
+              code: "ETIMEDOUT",
+            });
+        }
+        const parsed = new URL(url);
+        let value: unknown =
+          "Official office description. No candidate campaign statement or website listed.";
+        if (url.endsWith("cn26.zip")) value = captured.masterProjection;
+        else if (parsed.hostname === "www.fec.gov") {
+          const candidateId = /\/candidate\/([^/]+)\//.exec(
+            parsed.pathname,
+          )?.[1];
+          assert.ok(candidateId);
+          value = captured.profiles[candidateId]!.text;
+        } else if (parsed.hostname === "api.open.fec.gov") {
+          value = parsed.pathname.includes("/reports/")
+            ? captured.reports
+            : parsed.pathname.includes("/schedule_e/")
+              ? captured.outside
+              : captured.filingIndex;
+          if (
+            parsed.pathname.includes("/schedule_e/") ||
+            parsed.pathname.includes("/reports/")
+          ) {
+            const data = value as typeof captured.reports;
+            const key = parsed.pathname.includes("/schedule_e/")
+              ? "candidate_id"
+              : "committee_id";
+            const ids = parsed.searchParams.getAll(key);
+            const results = data.results.filter((row) =>
+              ids.includes(String(row[key])),
+            );
+            value = {
+              ...data,
+              results,
+              pagination: { ...data.pagination, count: results.length },
+            };
+          }
+        } else if (parsed.hostname === "docquery.fec.gov") {
+          const filing = /\/(\d+)\.fec$/.exec(parsed.pathname)?.[1];
+          assert.ok(filing);
+          value = captured.raw[filing]!.text;
+        }
+        const text =
+          (typeof value === "string" ? value : JSON.stringify(value, null, 2)) +
+          (refreshing && url === target && failure === "changed"
+            ? "\nChanged filed document"
+            : "");
+        return {
+          id,
+          url,
+          publisher,
+          format,
+          text,
+          contentHash: hash(text),
+          fetchedAt: f.deps.now(),
+        };
+      },
+    });
+    const investigate = f.deps.investigate;
+    let refreshError: unknown;
+    f.deps.investigate = async (input, budget) => {
+      if (input.member.name !== "Jeff Frese") return investigate(input, budget);
+      if (refreshing) assert.ok(input.previousDossier?.finance);
+      let dossier: CandidateEvidenceDossier;
+      try {
+        dossier = await collectCaliforniaEvidence(input, evidenceDeps());
+      } catch (error) {
+        refreshError = error;
+        throw error;
+      }
+      assert.ok(dossier.finance?.observation?.filingStatus.evidenceIds.length);
+      assert.ok(
+        dossier.evidence.some((citation) =>
+          dossier.sources.some(
+            (source) =>
+              source.id === citation.sourceId && source.url === target,
+          ),
+        ),
+      );
+      const record = await investigate(input, budget);
+      return buildCaliforniaDossier({
+        ...dossier,
+        sources: [
+          ...dossier.sources,
+          ...record.sources.filter((source) =>
+            source.id.startsWith("candidate-record:"),
+          ),
+        ],
+        evidence: [
+          ...dossier.evidence,
+          ...record.evidence.filter(
+            (citation) => citation.role === "candidate_record",
+          ),
+        ],
+      });
+    };
+    const documents: CandidateResearchCollectionDocument[] = [];
+    f.deps.saveCollection = async (document) => {
+      documents.push(document);
+      return {
+        collectionId: document.manifest.id,
+        changed: true,
+        checkedAt: document.manifest.sourceCheckedAt,
+      };
+    };
+    const input = {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds: {
+        ...bounds,
+        maxRaces: 1,
+        maxCandidates: 2,
+        maxSourceRequests: 100,
+        maxSourceBytes: 25_000_000,
+      },
+    };
+    const initial = await reconcile(input, f.deps);
+    assert.equal(initial.completed, 1, JSON.stringify(initial));
+    assert.equal(initial.usage.candidates, 2);
+    assert.equal(initial.usage.races, 1);
+    for (const url of requested.filter(
+      (url) => new URL(url).hostname === "api.open.fec.gov",
+    )) {
+      const params = new URL(url).searchParams;
+      for (const id of params.getAll("candidate_id"))
+        assert.ok(
+          ["H0CA10073", "H6CA10187"].includes(id),
+          `Unadmitted candidate in finance request ${url}`,
+        );
+    }
+    assert.equal(
+      requested.some(
+        (url) => url.includes("1856505.fec") || url.includes("smcacre.gov"),
+      ),
+      false,
+    );
+    assert.equal(documents.length, 1);
+    const published = structuredClone(documents[0]!);
+    const checkpoint = structuredClone(
+      f.rows.get(race.raceKey)!.checkpoint,
+    ) as CaliforniaWorkCheckpoint;
+    const releases = f.stats.releases;
+    f.deps.now = () => "2026-10-30T13:00:00.000Z";
+    refreshing = true;
+    const result = await reconcile(input, f.deps);
+    assert.equal(result.blocked, 1);
+    assert.equal(
+      isCaliforniaSourceUnavailable(refreshError),
+      failure !== "changed",
+    );
+    assert.equal(
+      refreshError instanceof CaliforniaCitedSourceFailure,
+      failure === "changed",
+    );
+    assert.equal(f.stats.failures, failure === "changed" ? 1 : 0);
+    assert.equal(f.stats.releases, releases);
+    assert.equal(result.usage.modelCalls, 0);
+    assert.deepEqual(documents, [published]);
+    assert.equal(published.manifest.expiresAt, "2026-10-31T12:00:00.000Z");
+    assert.equal(
+      (f.rows.get(race.raceKey)!.checkpoint as CaliforniaWorkCheckpoint)
+        .sourceCheckedAt,
+      checkpoint.sourceCheckedAt,
+    );
+  });
+}
+
 test("checkpoints use the effective checked time returned by the trusted store", async () => {
   const f = await fixture();
   f.snapshot.races.splice(1);
@@ -2531,7 +2793,13 @@ test("raw SOS byte budget remains the failure when cancellation cleanup also fai
   assert.equal(f.stats.authors, 0);
 });
 
-for (const changed of ["none", "roster", "certification"] as const) {
+for (const changed of [
+  "none",
+  "roster",
+  "certification",
+  "certification_bytes",
+  "source_url",
+] as const) {
   test(`completed ${changed} statewide observation before a local acquisition outage retains its authority meaning`, async () => {
     const f = await fixture();
     const state = structuredClone(f.snapshot);
@@ -2541,8 +2809,18 @@ for (const changed of ["none", "roster", "certification"] as const) {
     } else if (changed === "certification") {
       state.certification.text += "\n";
       state.certification.textHash = hash(state.certification.text);
+    } else if (changed === "certification_bytes") {
+      state.certification.byteHash = hash("changed PDF raw bytes");
+    } else if (changed === "source_url") {
+      state.source.url = "https://county.example.gov/changed-state-source.txt";
     }
     f.snapshot.scope = "ca_sos_certified_and_san_jose";
+    f.snapshot.races.push({
+      ...structuredClone(f.snapshot.races[0]!),
+      raceKey: "required-local-acquisition-fixture",
+      contestId: "scc:2026-11-03:required-local-fixture",
+      officeFamily: "local",
+    });
     const localSource: ResearchSource = {
       id: "san-jose-qualified-roster",
       url: "https://county.example.gov/qualified.pdf",
@@ -2627,3 +2905,158 @@ for (const changed of ["none", "roster", "certification"] as const) {
     assert.equal(f.rows.size, 0);
   });
 }
+
+test("finance-only mode requires explicit current races and a qualified published base before investigation", async () => {
+  const f = await fixture();
+  const input = {
+    snapshotId: f.snapshot.id,
+    policyVersion: "policy",
+    bounds,
+    financeOnly: true,
+  };
+  await assert.rejects(
+    reconcile(input, f.deps),
+    /explicit races and --refresh-current/,
+  );
+  const result = await reconcile(
+    {
+      ...input,
+      raceKeys: [f.snapshot.races[0]!.raceKey],
+      refreshCurrent: true,
+    },
+    f.deps,
+  );
+  assert.equal(f.stats.investigations, 0);
+  assert.equal(result.outcomes[0]?.status, "blocked");
+  assert.match(
+    result.outcomes[0]?.reason ?? "",
+    /exact qualified published revision/,
+  );
+});
+
+async function stateScopedCompositeFixture() {
+  const f = await fixture();
+  const state: CaliforniaRosterSnapshot = {
+    ...structuredClone(f.snapshot),
+    races: structuredClone(f.allRaces),
+  };
+  state.certification.fetchedAt = "2026-10-30T11:59:00.000Z";
+  const local = {
+    ...structuredClone(state.races[0]!),
+    raceKey: "san-jose-local-scope-fixture",
+    contestId: "scc:2026-11-03:local-scope-fixture",
+    officeFamily: "local" as const,
+  };
+  const localProof: ResearchSource = {
+    id: "san-jose-gis-fixture",
+    url: "https://geo.sanjoseca.gov/scope-fixture",
+    publisher: "San José scope fixture",
+    format: "json",
+    text: "reviewed territorial fixture",
+    contentHash: hash("reviewed territorial fixture"),
+    fetchedAt: "2026-10-28T12:00:00.000Z",
+  };
+  Object.assign(f.snapshot, {
+    ...structuredClone(state),
+    id: hash("composite scoped observation fixture"),
+    scope: "ca_sos_certified_and_san_jose",
+    races: [...state.races, local],
+    additionalSources: [localProof],
+  });
+  const keys = [10, 16, 19].map(
+    (district) => `ca-sos-2026-11-03-110000${district}0000`,
+  );
+  f.deps.fetchRoster = async () => structuredClone(state);
+  f.deps.demandedRaceKeys = async () => keys;
+  return { ...f, state, keys, local, localProof };
+}
+
+test("explicit and normal demanded House research observe SOS without renewing unrelated local proofs", async () => {
+  for (const explicit of [false, true]) {
+    const f = await stateScopedCompositeFixture();
+    const original = structuredClone(f.snapshot);
+    let localFetches = 0;
+    f.deps.fetchProof = async () => {
+      localFetches++;
+      throw new Error("Unrelated GIS must not be fetched");
+    };
+    f.deps.saveSnapshot = async () => {
+      throw new Error("Unchanged composite membership must not be replaced");
+    };
+    const manifests: CandidateResearchCollectionDocument["manifest"][] = [];
+    const save = f.deps.saveCollection;
+    f.deps.saveCollection = async (document, lease) => {
+      manifests.push(document.manifest);
+      return save(document, lease);
+    };
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds: {
+          ...bounds,
+          maxRaces: 3,
+          maxCandidates: 6,
+          maxModelCalls: 24,
+          maxInputTokens: 4_000_000,
+        },
+        ...(explicit ? { raceKeys: f.keys } : {}),
+      },
+      f.deps,
+    );
+    assert.equal(result.completed, 3, JSON.stringify(result.outcomes));
+    assert.equal(localFetches, 0);
+    assert.equal(f.stats.failures, 0);
+    assert.equal(manifests.length, 3);
+    assert.deepEqual(f.snapshot, original);
+    for (const manifest of manifests) {
+      assert.equal(manifest.rosterSnapshotId, original.id);
+      assert.equal(manifest.rosterVerifiedAt, f.state.certification.fetchedAt);
+      assert.equal(manifest.sourceCheckedAt, f.state.certification.fetchedAt);
+    }
+    const observation = f.artifacts.get(result.rosterCheckArtifactKey!) as {
+      authority: string;
+      raceKeys: string[];
+      sources: ResearchSource[];
+      clarityDerivation?: unknown;
+      sourceProjectionProofs?: unknown;
+    };
+    assert.equal(observation.authority, "ca_sos_certified");
+    assert.deepEqual(observation.raceKeys, f.keys);
+    assert.deepEqual(
+      observation.sources.map((source) => source.url),
+      [f.state.source.url, f.state.certification.url],
+    );
+    assert.equal(Object.hasOwn(observation, "clarityDerivation"), false);
+    assert.equal(Object.hasOwn(observation, "sourceProjectionProofs"), false);
+  }
+});
+
+test("mixed local demand still requires a complete local authority refresh", async () => {
+  const f = await stateScopedCompositeFixture();
+  f.deps.demandedRaceKeys = async () => [...f.keys, f.local.raceKey];
+  await assert.rejects(
+    reconcile(
+      { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+      f.deps,
+    ),
+    /lacks a reviewed crosswalk/,
+  );
+  assert.equal(f.stats.failures, 1);
+  assert.equal(f.stats.investigations, 0);
+});
+
+test("changed state authority cannot retain composite identity during state-only demand", async () => {
+  const f = await stateScopedCompositeFixture();
+  f.state.source.text += "changed source";
+  f.state.source.textHash = hash(f.state.source.text);
+  await assert.rejects(
+    reconcile(
+      { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+      f.deps,
+    ),
+    /lacks a reviewed crosswalk/,
+  );
+  assert.equal(f.stats.failures, 1);
+  assert.equal(f.stats.investigations, 0);
+});

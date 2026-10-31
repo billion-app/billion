@@ -595,3 +595,13 @@ A one-off `reconcile --race <key>` remains available with `--apply`, the approve
 race keys to refresh a release inside the ordinary 12-hour reuse window. It
 still fetches current sources and requires independent review; it does not reset
 old drafts or relax publication checks.
+
+To update financial research without regenerating unchanged campaign prose, add
+`--finance-only` to an explicit `--refresh-current` reconciliation. Every selected
+candidate must already have a published revision with matching author and reviewer
+attestations. The command fetches the retained nonfinancial archives again and
+stops if qualified narrative context changed. Unused third-party discovery pages
+can update without supplying new claims. It collects current finance and requires a real
+new author response and independent review of the complete profile. All source,
+model and token budgets still apply. It does not clear failed attempts or change
+the automatic worker's ordinary discovery behavior.

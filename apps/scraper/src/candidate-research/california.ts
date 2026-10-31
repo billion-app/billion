@@ -16,12 +16,14 @@ import {
 } from "@acme/api/lib/candidate-brief-publication";
 import {
   authorityRenewalProjectionSchema,
+  candidateBriefSchema,
   candidateModelAttestationSchema,
   candidateResearchCollectionSchema,
   hasSubstantiveCampaignFinance,
   researchSourceSchema,
 } from "@acme/validators";
 
+import type { CaliforniaRosterObservation } from "./california-roster-observation.js";
 import {
   authorCaliforniaBrief,
   configuredCaliforniaModels,
@@ -43,6 +45,13 @@ import {
   collectCaliforniaEvidence,
   fetchBoundedCaliforniaSource,
 } from "./california-evidence.js";
+import { qualifyPublishedFinanceNarrative } from "./california-finance-refresh.js";
+import {
+  observedRosterSources,
+  qualifyStateRosterObservation,
+  rosterVerifiedAt,
+  stateRosterAuthorityUnchanged,
+} from "./california-roster-observation.js";
 import {
   appendReviewedSanJoseRoster,
   decodeCaliforniaRoster,
@@ -126,6 +135,7 @@ export interface CaliforniaPublishedCoverage {
       candidateId: string;
       revisionId: string;
       collectionId: string | null;
+      brief?: CandidateBrief | null;
       author: CandidateModelAttestation | null;
       reviewer: CandidateModelAttestation | null;
     }[];
@@ -200,6 +210,7 @@ export interface CaliforniaDependencies {
       race: CaliforniaRaceTarget;
       member: CaliforniaRaceTarget["members"][number];
       previousDossier?: CandidateEvidenceDossier;
+      researchScope?: "finance_refresh";
     },
     budget: {
       request(): void;
@@ -379,7 +390,11 @@ export async function createCaliforniaDependencies(
     readPublishedCoverage: async (snapshotId, electionDate) => {
       const [
         { readCaliforniaCatalogStatuses },
-        { CandidateRaceRelease, CandidateBriefReviewEvent },
+        {
+          CandidateRaceRelease,
+          CandidateBriefReviewEvent,
+          CandidateBriefRevision,
+        },
         { inArray, eq, and, desc, sql },
       ] = await Promise.all([
         import("@acme/api/lib/california-catalog-status"),
@@ -399,7 +414,7 @@ export async function createCaliforniaDependencies(
       );
       if (!releaseIds.length)
         return { snapshotId: live.snapshot.id, races: [] };
-      const [releases, reviews] = await Promise.all([
+      const [releases, reviews, revisions] = await Promise.all([
         db
           .select({
             id: CandidateRaceRelease.id,
@@ -433,6 +448,13 @@ export async function createCaliforniaDependencies(
             ),
           )
           .orderBy(desc(CandidateBriefReviewEvent.createdAt)),
+        db
+          .select({
+            id: CandidateBriefRevision.id,
+            document: CandidateBriefRevision.document,
+          })
+          .from(CandidateBriefRevision)
+          .where(inArray(CandidateBriefRevision.id, revisionIds)),
       ]);
       return {
         snapshotId: live.snapshot.id,
@@ -458,7 +480,11 @@ export async function createCaliforniaDependencies(
               const reviewer = candidateModelAttestationSchema.safeParse(
                 event?.reviewer,
               );
+              const brief = candidateBriefSchema.safeParse(
+                revisions.find((row) => row.id === member.revisionId)?.document,
+              );
               return {
+                brief: brief.success ? brief.data : null,
                 candidateId: member.candidateId,
                 revisionId: member.revisionId,
                 collectionId: release?.collectionId ?? null,
@@ -647,33 +673,12 @@ export async function createCaliforniaDependencies(
   };
 }
 async function persistRosterObservation(
-  snapshot: CaliforniaRosterSnapshot,
+  observation: CaliforniaRosterObservation,
   deps: Pick<CaliforniaDependencies, "now" | "hasArtifact" | "saveArtifact">,
   sourceEpoch: { key: string; generation: number } | null,
 ) {
-  const sources: ResearchSource[] = [
-    {
-      id: "official-roster",
-      url: snapshot.source.url,
-      publisher: "California Secretary of State",
-      format: "text",
-      text: snapshot.source.text,
-      contentHash: snapshot.source.textHash,
-      byteHash: snapshot.source.byteHash,
-      fetchedAt: snapshot.source.fetchedAt,
-    },
-    {
-      id: "certified-roster",
-      url: snapshot.certification.url,
-      publisher: "California Secretary of State",
-      format: "pdf",
-      text: snapshot.certification.text,
-      contentHash: snapshot.certification.textHash,
-      byteHash: snapshot.certification.byteHash,
-      fetchedAt: snapshot.certification.fetchedAt,
-    },
-    ...(snapshot.additionalSources ?? []),
-  ];
+  const { snapshot } = observation;
+  const sources = observedRosterSources(observation);
   const observations = [];
   for (const source of sources) {
     const archiveKey = `roster-source:${evidenceDigest([source.format, source.contentHash, source.byteHash ?? null])}`;
@@ -713,10 +718,15 @@ async function persistRosterObservation(
       snapshotId: snapshot.id,
       checkedAt: deps.now(),
       sourceEpoch,
+      authority: observation.authority,
+      ...(observation.authority === "ca_sos_certified"
+        ? { raceKeys: observation.raceKeys }
+        : {
+            clarityDerivation: snapshot.localPrimary?.derivation,
+            sourceProjectionProofs:
+              snapshot.localPrimary?.sourceProjectionProofs ?? [],
+          }),
       sources: observations,
-      clarityDerivation: snapshot.localPrimary?.derivation,
-      sourceProjectionProofs:
-        snapshot.localPrimary?.sourceProjectionProofs ?? [],
     },
   });
   return key;
@@ -849,7 +859,11 @@ export async function plan(
         "A combined San José snapshot is active; provide its reviewed local manifest or explicitly select stateScopeOnly before replacing scope",
       );
     await deps.saveSnapshot(snapshot, sourceEpoch ?? undefined);
-    await persistRosterObservation(snapshot, deps, sourceEpoch);
+    await persistRosterObservation(
+      { authority: "composite", snapshot },
+      deps,
+      sourceEpoch,
+    );
   }
   return {
     snapshotId: snapshot.id,
@@ -868,26 +882,19 @@ export async function plan(
 }
 
 function manifest(
-  snapshot: CaliforniaRosterSnapshot,
+  observation: CaliforniaRosterObservation,
   race: CaliforniaRaceTarget,
   briefs: CandidateBrief[],
   sources: ResearchSource[],
   policyVersion: string,
   now: string,
 ): CandidateResearchCollectionDocument {
-  const rosterVerifiedAt = new Date(
-    Math.min(
-      ...[
-        snapshot.source.fetchedAt,
-        snapshot.certification.fetchedAt,
-        ...(snapshot.additionalSources ?? []).map((source) => source.fetchedAt),
-      ].map((value) => Date.parse(value)),
-    ),
-  ).toISOString();
+  const { snapshot } = observation;
+  const verifiedAt = rosterVerifiedAt(observation, race);
   const checkedAt = new Date(
     Math.min(
       Date.parse(now),
-      Date.parse(rosterVerifiedAt),
+      Date.parse(verifiedAt),
       ...sources.map((source) => Date.parse(source.fetchedAt)),
     ),
   ).toISOString();
@@ -913,7 +920,7 @@ function manifest(
       rosterHash: race.sourceProof?.contentHash ?? snapshot.source.textHash,
       rosterSnapshotId: snapshot.id,
       rosterDigest: race.rosterDigest,
-      rosterVerifiedAt,
+      rosterVerifiedAt: verifiedAt,
       rosterVerifiedBy: "ca-sos-certified-roster-decoder-v1",
       members: race.members.map((member) => ({
         candidateId: member.candidateId,
@@ -942,11 +949,16 @@ export async function reconcile(
     includePilotRaces?: boolean;
     raceKeys?: string[];
     refreshCurrent?: boolean;
+    financeOnly?: boolean;
     preparationPolicy?: CaliforniaPreparationPolicy;
   },
   provided?: CaliforniaDependencies,
 ) {
   positiveBounds(input.bounds);
+  if (input.financeOnly && (!input.refreshCurrent || !input.raceKeys?.length))
+    throw new Error(
+      "Finance-only research requires explicit races and --refresh-current",
+    );
   if (input.refreshCurrent && !input.raceKeys?.length)
     throw new Error(
       "Refreshing current research requires explicit operator race keys",
@@ -1038,6 +1050,9 @@ export async function reconcile(
     },
   };
   let fresh: CaliforniaRosterSnapshot;
+  let stateObservation:
+    | Extract<CaliforniaRosterObservation, { authority: "ca_sos_certified" }>
+    | undefined;
   let stateAuthorityChanged = false;
   try {
     fresh = await deps.fetchRoster(
@@ -1045,10 +1060,10 @@ export async function reconcile(
       budget,
       snapshot.source,
     );
-    stateAuthorityChanged =
-      fresh.source.textHash !== snapshot.source.textHash ||
-      fresh.certification.textHash !== snapshot.certification.textHash;
-    if (
+    stateAuthorityChanged = !stateRosterAuthorityUnchanged(snapshot, fresh);
+    stateObservation = qualifyStateRosterObservation(snapshot, fresh, raceKeys);
+    if (stateObservation) fresh = stateObservation.snapshot;
+    else if (
       snapshot.scope === "ca_sos_certified_and_san_jose" &&
       fresh.scope === "ca_sos_certified"
     )
@@ -1097,8 +1112,12 @@ export async function reconcile(
     throw new Error(`Official roster changed; reconcile snapshot ${fresh.id}`);
   }
   snapshot = fresh;
-  const rosterCheckArtifactKey = await persistRosterObservation(
+  const rosterObservation: CaliforniaRosterObservation = stateObservation ?? {
+    authority: "composite",
     snapshot,
+  };
+  const rosterCheckArtifactKey = await persistRosterObservation(
+    rosterObservation,
     deps,
     sourceEpoch,
   );
@@ -1125,21 +1144,19 @@ export async function reconcile(
     throw new Error(
       "Requested race key is absent from the authoritative snapshot",
     );
-  const selectedRaces = snapshot.races.filter((race) =>
-    raceKeys.includes(race.raceKey),
-  );
-  const races = [...selectedRaces].sort(
-    (a, b) =>
-      Number(!checkpoints.get(a.raceKey)?.releaseId) -
-        Number(!checkpoints.get(b.raceKey)?.releaseId) ||
-      due(a) - due(b) ||
-      a.raceKey.localeCompare(b.raceKey),
-  );
+  const races = snapshot.races
+    .filter((race) => raceKeys.includes(race.raceKey))
+    .sort(
+      (a, b) =>
+        Number(!checkpoints.get(a.raceKey)?.releaseId) -
+          Number(!checkpoints.get(b.raceKey)?.releaseId) ||
+        due(a) - due(b) ||
+        a.raceKey.localeCompare(b.raceKey),
+    );
   for (const race of races) {
-    if (
-      input.raceKeys === undefined &&
-      !(await deps.demandedRaceKeys(snapshot)).includes(race.raceKey)
-    ) {
+    const activeKeys =
+      input.raceKeys ?? (await deps.demandedRaceKeys(snapshot));
+    if (!activeKeys.includes(race.raceKey)) {
       outcomes.push({
         raceKey: race.raceKey,
         status: "pending",
@@ -1231,12 +1248,41 @@ export async function reconcile(
               `dossier:${previousDossierDigest}`,
             )) as CandidateEvidenceDossier | null)
           : null;
+        const publishedMember = publicRace?.members.find(
+          (current) => current.candidateId === member.candidateId,
+        );
+        const publishedDossier = publishedMember?.author?.dossierDigest
+          ? ((await deps.artifact(
+              `dossier:${publishedMember.author.dossierDigest}`,
+            )) as CandidateEvidenceDossier | null)
+          : null;
+        if (
+          input.financeOnly &&
+          !(
+            publishedMember &&
+            publishedDossier &&
+            qualifyPublishedFinanceNarrative({
+              member: publishedMember,
+              previousDossier: publishedDossier,
+              dossier: publishedDossier,
+              policyVersion: input.policyVersion,
+            })
+          )
+        )
+          throw new Error(
+            "Finance-only research requires an exact qualified published revision and dossier",
+          );
         const dossier = await deps.investigate(
           {
             snapshot,
             race,
             member,
-            previousDossier: previousDossier ?? undefined,
+            previousDossier: input.financeOnly
+              ? publishedDossier!
+              : (previousDossier ?? undefined),
+            ...(input.financeOnly
+              ? { researchScope: "finance_refresh" as const }
+              : {}),
           },
           budget,
         );
@@ -1269,10 +1315,27 @@ export async function reconcile(
           throw new PendingCandidateResearchGap(
             "The material collected in this attempt does not yet support a substantive candidate brief.",
           );
+        const retainedNarrative =
+          publishedMember && publishedDossier
+            ? qualifyPublishedFinanceNarrative({
+                member: publishedMember,
+                previousDossier: publishedDossier,
+                dossier,
+                policyVersion: input.policyVersion,
+              })
+            : undefined;
+        if (
+          input.financeOnly &&
+          (!retainedNarrative || !dossier.finance?.observation)
+        )
+          throw new Error(
+            "Finance-only refresh changed nonfinancial context or has no financial observation",
+          );
         investigated.push(
           await prepareReviewedCaliforniaCandidate(
             {
               dossier,
+              retainedNarrative,
               policyVersion: input.policyVersion,
               lease,
               raceKey: race.raceKey,
@@ -1321,7 +1384,7 @@ export async function reconcile(
           sourceMap.set(source.id, source);
         }
       const document = manifest(
-        snapshot,
+        rosterObservation,
         race,
         investigated.map((item) => item.authored.brief),
         [...sourceMap.values()],

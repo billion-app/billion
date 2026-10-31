@@ -30,6 +30,11 @@ export const CANDIDATE_FIELDS = [
   "research.promises.*.title",
   "research.financeGap",
   "research.finance.coverageNote",
+  "research.finance.observation.summary.reason",
+  "research.finance.observation.donorSelection.reason",
+  "research.finance.observation.donorSelection.selection",
+  "research.finance.observation.independentExpenditures.reason",
+  "research.finance.observation.filingStatus.reason",
   "evidence.*.shows",
   "evidence.*.limits",
   ...points.flatMap((point) => [

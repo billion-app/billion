@@ -8,6 +8,7 @@ import {
   candidateDossierSemanticProjection,
   candidateDossierSourceProjection,
   candidateEvidenceDossierSchema,
+  candidateFinanceEvidenceIds,
   candidateFinanceSemanticProjection,
   resolveFecIdentityFromSource,
   validateCampaignContactDestination,
@@ -109,11 +110,17 @@ export function validateCaliforniaDossier(
     let matched: ReturnType<typeof resolveFecIdentityFromSource> = null;
     try {
       if (source && district)
-        matched = resolveFecIdentityFromSource(source, {
-          name: dossier.name,
-          district,
-          cycle: Number(dossier.identity.electionDate.slice(0, 4)),
-        });
+        matched = resolveFecIdentityFromSource(
+          source,
+          {
+            name: dossier.name,
+            district,
+            cycle: Number(dossier.identity.electionDate.slice(0, 4)),
+            sourceCandidateId: dossier.identity.candidateId.split(":").at(-1),
+          },
+          proof.bridge,
+          dossier.sources,
+        );
     } catch {
       throw new Error(
         "FEC identity proof must match exactly one archived official index row",
@@ -140,13 +147,7 @@ export function validateCaliforniaDossier(
       throw new Error(
         "Typed finance adapter currently supports federal candidates only",
       );
-    const financeRefs = [
-      ...dossier.finance.filingEvidenceIds,
-      ...dossier.finance.donors.flatMap((donor) => donor.evidenceIds),
-      ...(dossier.finance.outsideSpending?.flatMap(
-        (entry) => entry.evidenceIds,
-      ) ?? []),
-    ];
+    const financeRefs = candidateFinanceEvidenceIds(dossier.finance);
     if (
       financeRefs.some(
         (id) =>
