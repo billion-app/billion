@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import type { CaliforniaRaceTarget, ResearchSource } from "@acme/validators";
 
 import type { CaliforniaFinanceDependencies } from "./california-finance.js";
+import { fetchBoundedCaliforniaSource } from "./california-evidence.js";
 import {
   collectCaliforniaFederalFinance,
   resolveCaliforniaFecCandidate,
@@ -355,4 +357,73 @@ test("a configured API key reuses typed processed totals while rejecting cross-c
     ))
       assert.equal(call.apiKey, "synthetic-key");
   }
+});
+
+test("rate-limited FEC index uses the official master and real public profiles for both House candidates", async () => {
+  const replay = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/fec-bulk-profile-replay.json", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    archiveUrl: string;
+    masterRows: string;
+    profiles: {
+      name: string;
+      source: ResearchSource;
+      expectedReceiptsCents: number;
+    }[];
+  };
+  const calls: string[] = [];
+  const deps: CaliforniaFinanceDependencies = {
+    sharedSources: new Map(),
+    apiKey: "synthetic-key",
+    budget: { request() {} },
+    fetch: async (id, url, _publisher, format) => {
+      calls.push(url);
+      if (url.includes("api.open.fec.gov"))
+        return fetchBoundedCaliforniaSource(
+          id,
+          url,
+          "Federal Election Commission",
+          format,
+          { request() {}, bytes() {} },
+          undefined,
+          {
+            addresses: async () => [{ address: "8.8.8.8", family: 4 }],
+            transport: async () =>
+              new Response("OVER_RATE_LIMIT", { status: 429 }),
+          },
+        );
+      if (url === replay.archiveUrl)
+        return source(id, url, "text", replay.masterRows);
+      const saved = replay.profiles.find((entry) => entry.source.url === url);
+      assert.ok(saved, `Unexpected source ${url}`);
+      return { ...saved.source, id };
+    },
+  };
+  for (const saved of replay.profiles) {
+    const result = await collectCaliforniaFederalFinance(
+      { race, member: { ...member, name: saved.name } },
+      deps,
+    );
+    const expectedId = new URL(saved.source.url).pathname.split("/")[3];
+    assert.equal(result.identityProof?.candidateId, expectedId);
+    assert.equal(
+      result.finance?.receipts?.totalCents,
+      saved.expectedReceiptsCents,
+    );
+    assert.equal(result.finance?.donorCoverage, "unavailable");
+    assert.equal(result.finance?.outsideSpending, null);
+    assert.equal(result.gap, null);
+    assert.equal(
+      result.sources.find((s) => s.id === result.identityProof?.sourceId)?.text,
+      replay.masterRows,
+    );
+  }
+  assert.equal(calls.filter((url) => url === replay.archiveUrl).length, 1);
+  assert.equal(
+    calls.filter((url) => url.includes("api.open.fec.gov")).length,
+    1,
+  );
 });
