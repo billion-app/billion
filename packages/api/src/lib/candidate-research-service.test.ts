@@ -6,10 +6,15 @@ import {
   campaignFinanceSchema,
   candidateDossierSemanticProjection,
   candidateDossierSourceProjection,
+  candidateModelAttestationSchema,
   candidateResearchCollectionSchema,
 } from "@acme/validators";
 
-import { briefDigest, evidenceHashKey } from "./candidate-brief-publication";
+import {
+  briefDigest,
+  evidenceHashKey,
+  ResearchReviewCollectionConflict,
+} from "./candidate-brief-publication";
 import { readCandidateRace } from "./candidate-race-release";
 import { validResearchAttestation } from "./candidate-research-attestation";
 
@@ -749,6 +754,7 @@ void test(
     const snapshotId = hash(randomUUID()),
       rosterDigest = hash(randomUUID());
     const successorSnapshotId = hash(randomUUID());
+    const pairSnapshotId = hash(randomUUID());
     const researchVersion = "ai-fixture-v1";
     brief.authorship = {
       kind: "generated",
@@ -1655,6 +1661,286 @@ void test(
         }),
         /Speaker context must be a full exact archived passage/,
       );
+
+      const pairKey = randomUUID();
+      const pairRosterDigest = hash(randomUUID());
+      const pairElectionDate = "2098-11-03";
+      const pairDocument = structuredClone(document);
+      pairDocument.pilotKey = pairKey;
+      pairDocument.rosterSnapshotId = pairSnapshotId;
+      pairDocument.rosterDigest = pairRosterDigest;
+      pairDocument.sources = [source];
+      const pairBriefs = ["first", "second"].map((suffix) => {
+        const selected = structuredClone(brief);
+        selected.identity = {
+          candidateId: `${pairKey}:${suffix}`,
+          contestId: pairKey,
+          jurisdiction: `fixture:${pairKey}`,
+          electionDate: pairElectionDate,
+        };
+        selected.revisionId = randomUUID();
+        selected.authorId = `pair-author:${randomUUID()}`;
+        delete selected.research;
+        selected.evidence = selected.evidence.filter(
+          (entry) => entry.id === "record",
+        );
+        for (const section of selected.sections)
+          if (section.topic !== "record") section.claims = [];
+        revisionIds.push(selected.revisionId);
+        return selected;
+      });
+      pairDocument.briefs = pairBriefs;
+      pairDocument.manifest.contestId = pairKey;
+      pairDocument.manifest.jurisdiction = `fixture:${pairKey}`;
+      pairDocument.manifest.electionDate = pairElectionDate;
+      pairDocument.manifest.members = pairBriefs.map((selected, index) => ({
+        candidateId: selected.identity.candidateId,
+        revisionId: selected.revisionId,
+        name: `Fixture candidate ${index + 1}`,
+        description: null,
+        ballotStatus: "on_ballot" as const,
+      }));
+      pairDocument.manifest.currentHashes = Object.fromEntries(
+        pairBriefs.map((selected) => [
+          evidenceHashKey(selected.identity, "record"),
+          source.contentHash,
+        ]),
+      );
+      pairDocument.candidateArtifacts = pairBriefs.map((selected, index) => {
+        const selectedDossier = candidateEvidenceDossierSchema.parse({
+          ...dossier,
+          identity: selected.identity,
+          name: `Fixture candidate ${index + 1}`,
+          rosterDigest: pairRosterDigest,
+          finance: null,
+          sources: [source],
+          evidence: dossier.evidence.filter((entry) => entry.id === "record"),
+          sourceSetDigest: hash(candidateDossierSourceProjection([source])),
+          dossierDigest: "0".repeat(64),
+        });
+        selectedDossier.dossierDigest = hash(
+          candidateDossierSemanticProjection(selectedDossier),
+        );
+        const selectedAuthor = {
+          ...author,
+          actorId: selected.authorId,
+          runId: randomUUID(),
+          requestId: `pair-author-request:${randomUUID()}`,
+          revisionDigest: briefDigest(selected),
+          dossierDigest: selectedDossier.dossierDigest,
+          sourceSetDigest: selectedDossier.sourceSetDigest,
+        };
+        return {
+          candidateId: selected.identity.candidateId,
+          dossierDigest: selectedDossier.dossierDigest,
+          sourceSetDigest: selectedDossier.sourceSetDigest,
+          author: selectedAuthor,
+          dossier: selectedDossier,
+        };
+      });
+      const pairSnapshot = californiaRosterSnapshotSchema.parse({
+        ...snapshot,
+        id: pairSnapshotId,
+        electionDate: pairElectionDate,
+        races: [
+          {
+            ...required(snapshot.races[0]),
+            raceKey: pairKey,
+            contestId: pairKey,
+            jurisdiction: `fixture:${pairKey}`,
+            electionDate: pairElectionDate,
+            rosterDigest: pairRosterDigest,
+            members: pairBriefs.map((selected, index) => ({
+              identity: selected.identity,
+              candidateId: selected.identity.candidateId,
+              name: `Fixture candidate ${index + 1}`,
+              sourceCandidateId: `pair-official-${index}`,
+              partyCode: "",
+              party: null,
+              ballotStatus: "on_ballot",
+            })),
+          },
+        ],
+      });
+      await saveCaliforniaRoster(db, pairSnapshot);
+      const pairEpoch = await beginCaliforniaSourceCheck(db, pairElectionDate);
+      assert.ok(pairEpoch);
+      const pairLease = await claimCaliforniaRaceWork(db, {
+        expectedSourceEpoch: pairEpoch,
+        snapshotId: pairSnapshotId,
+        raceKey: pairKey,
+        rosterDigest: pairRosterDigest,
+        policyVersion: version,
+        researchVersion,
+        owner: "pair-fixture-worker",
+      });
+      assert.ok(pairLease);
+      const pairReviews = required(pairDocument.candidateArtifacts).map(
+        (artifact) => ({
+          author: artifact.author,
+          reviewer: {
+            ...candidateModelAttestationSchema.parse(artifact.author),
+            role: "reviewer" as const,
+            actorId: `pair-reviewer:${randomUUID()}`,
+            runId: randomUUID(),
+            requestId: `pair-review-request:${randomUUID()}`,
+            configuredModel: "review-model",
+            actualModel: "review-model",
+          },
+          verdict: "approve" as const,
+          findings: [
+            {
+              claimId: "record-claim",
+              supported: true,
+              reason: "Exact synthetic primary record.",
+            },
+          ],
+        }),
+      );
+      const pairFirst = await saveResearchCollection(pairDocument, db, {
+        workLease: pairLease,
+      });
+      collectionIds.push(pairFirst.collectionId);
+      for (const [index, selected] of pairBriefs.entries())
+        await recordResearchAiReview({
+          collectionId: pairFirst.collectionId,
+          revisionId: selected.revisionId,
+          attestation: pairReviews[index],
+          workLease: pairLease,
+        });
+      releaseIds.push(
+        (
+          await publishResearchCollection({
+            collectionId: pairFirst.collectionId,
+            actorId: "fixture-service",
+            workLease: pairLease,
+          })
+        ).releaseId,
+      );
+      const pairChanged = structuredClone(pairDocument);
+      const changedPairBrief = required(pairChanged.briefs[0]);
+      changedPairBrief.revisionId = randomUUID();
+      changedPairBrief.authorId = `pair-changed-author:${randomUUID()}`;
+      revisionIds.push(changedPairBrief.revisionId);
+      required(pairChanged.manifest.members[0]).revisionId =
+        changedPairBrief.revisionId;
+      const changedPairAuthor = {
+        ...candidateModelAttestationSchema.parse(
+          required(pairChanged.candidateArtifacts?.[0]).author,
+        ),
+        actorId: changedPairBrief.authorId,
+        runId: randomUUID(),
+        requestId: `pair-changed-author-request:${randomUUID()}`,
+        revisionDigest: briefDigest(changedPairBrief),
+      };
+      required(pairChanged.candidateArtifacts[0]).author = changedPairAuthor;
+      assert.deepEqual(pairChanged.briefs[1], pairDocument.briefs[1]);
+      assert.deepEqual(
+        pairChanged.candidateArtifacts[1],
+        pairDocument.candidateArtifacts[1],
+      );
+      const pairNext = await saveResearchCollection(pairChanged, db, {
+        workLease: pairLease,
+      });
+      collectionIds.push(pairNext.collectionId);
+      assert.equal(pairNext.changed, true);
+      assert.notEqual(pairNext.collectionId, pairFirst.collectionId);
+      const changedPairReview = {
+        ...required(pairReviews[0]),
+        author: changedPairAuthor,
+        reviewer: {
+          ...required(pairReviews[0]).reviewer,
+          actorId: `pair-changed-reviewer:${randomUUID()}`,
+          runId: randomUUID(),
+          requestId: `pair-changed-review-request:${randomUUID()}`,
+          revisionDigest: briefDigest(changedPairBrief),
+        },
+      };
+      const partialReview = await recordResearchAiReview({
+        collectionId: pairNext.collectionId,
+        revisionId: changedPairBrief.revisionId,
+        attestation: changedPairReview,
+        workLease: pairLease,
+      });
+      const unchangedPairBrief = required(pairChanged.briefs[1]);
+      const unchangedPairReview = required(pairReviews[1]);
+      await assert.rejects(
+        recordResearchAiReview({
+          collectionId: pairNext.collectionId,
+          revisionId: unchangedPairBrief.revisionId,
+          attestation: unchangedPairReview,
+          workLease: pairLease,
+        }),
+        (error: unknown) => {
+          assert.ok(error instanceof ResearchReviewCollectionConflict);
+          assert.equal(error.collectionId, pairNext.collectionId);
+          assert.equal(error.revisionId, unchangedPairBrief.revisionId);
+          assert.equal(error.reviewerRunId, unchangedPairReview.reviewer.runId);
+          return true;
+        },
+      );
+      const pairResumed = await saveResearchCollection(
+        structuredClone(pairChanged),
+        db,
+        { workLease: pairLease },
+      );
+      assert.equal(pairResumed.changed, false);
+      assert.equal(pairResumed.collectionId, pairNext.collectionId);
+      assert.equal(
+        (
+          await recordResearchAiReview({
+            collectionId: pairResumed.collectionId,
+            revisionId: changedPairBrief.revisionId,
+            attestation: changedPairReview,
+            workLease: pairLease,
+          })
+        ).eventId,
+        partialReview.eventId,
+      );
+      const freshPairReview = {
+        ...unchangedPairReview,
+        reviewer: {
+          ...unchangedPairReview.reviewer,
+          actorId: `pair-fresh-reviewer:${randomUUID()}`,
+          runId: randomUUID(),
+          requestId: `pair-fresh-review-request:${randomUUID()}`,
+        },
+      };
+      const freshPairEvent = await recordResearchAiReview({
+        collectionId: pairResumed.collectionId,
+        revisionId: unchangedPairBrief.revisionId,
+        attestation: freshPairReview,
+        workLease: pairLease,
+      });
+      assert.equal(
+        (
+          await recordResearchAiReview({
+            collectionId: pairResumed.collectionId,
+            revisionId: unchangedPairBrief.revisionId,
+            attestation: freshPairReview,
+            workLease: pairLease,
+          })
+        ).eventId,
+        freshPairEvent.eventId,
+      );
+      releaseIds.push(
+        (
+          await publishResearchCollection({
+            collectionId: pairResumed.collectionId,
+            actorId: "fixture-service",
+            workLease: pairLease,
+          })
+        ).releaseId,
+      );
+      await assert.rejects(
+        recordResearchAiReview({
+          collectionId: pairResumed.collectionId,
+          revisionId: unchangedPairBrief.revisionId,
+          attestation: unchangedPairReview,
+          workLease: pairLease,
+        }),
+        ResearchReviewCollectionConflict,
+      );
     } finally {
       if (releaseIds.length)
         await db.delete(Release).where(inArray(Release.id, releaseIds));
@@ -1670,6 +1956,9 @@ void test(
         .where(eq(Work.key, `source-epoch:${snapshot.electionDate}`));
       await db.delete(Roster).where(eq(Roster.id, snapshotId));
       await db.delete(Roster).where(eq(Roster.id, successorSnapshotId));
+      await db.delete(Work).where(eq(Work.snapshotId, pairSnapshotId));
+      await db.delete(Work).where(eq(Work.key, "source-epoch:2098-11-03"));
+      await db.delete(Roster).where(eq(Roster.id, pairSnapshotId));
       await db.delete(Policy).where(eq(Policy.version, version));
     }
   },
