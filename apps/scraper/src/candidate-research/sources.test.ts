@@ -81,6 +81,33 @@ void test("HTML extraction retains candidate identity but drops executable and n
   );
 });
 
+void test("HTML extraction falls back to body text when main contains only whitespace", () => {
+  assert.equal(
+    htmlText(
+      "<body><nav>menu</nav><main> \n\t </main><p>Candidate identity and documented source text.</p><script>bad</script><footer>footer</footer></body>",
+    ),
+    "Candidate identity and documented source text.",
+  );
+});
+
+void test("HTML extraction falls back when main contains only a page heading", () => {
+  assert.equal(
+    htmlText(
+      "<body><p>Candidate identity and documented source text.</p><main><h1>Home</h1></main></body>",
+    ),
+    "Candidate identity and documented source text.Home",
+  );
+});
+
+void test("HTML extraction prefers meaningful main text over other body text", () => {
+  assert.equal(
+    htmlText(
+      "<body><p>Unrelated body text</p><main> Candidate identity and source text. </main></body>",
+    ),
+    "Candidate identity and source text.",
+  );
+});
+
 void test("derived API evidence retains the fetched URL, not an unfetched PDF", async () => {
   const { rowSource } = await import("./finance.js");
   const parent = source('{"results":[]}');
