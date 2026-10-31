@@ -13,6 +13,7 @@ import type {
   CandidateResearchCollectionDocument,
   ResearchSource,
 } from "@acme/validators";
+import { ResearchReviewCollectionConflict } from "@acme/api/lib/candidate-brief-publication";
 import {
   candidateBriefSchema,
   candidateEvidenceDossierSchema,
@@ -142,6 +143,20 @@ async function fixture() {
     hasArtifact: async (key) => artifacts.has(key),
     reserveDispatch: async (input) => {
       if (artifacts.has(input.key)) return false;
+      if (input.collectionReviewAttempt) {
+        const { key, collectionId, reviewKey } = input.collectionReviewAttempt;
+        const prior = artifacts.get(key) as
+          | { collectionId: string; reviewKey: string }
+          | undefined;
+        if (
+          prior &&
+          (prior.collectionId !== collectionId || prior.reviewKey !== reviewKey)
+        )
+          throw new Error(
+            "Another collection review attempt already owns this revision",
+          );
+        artifacts.set(key, { collectionId, reviewKey });
+      }
       artifacts.set(input.key, input.document);
       return true;
     },
@@ -497,6 +512,134 @@ test("a successor snapshot reuses authors but obtains reviews for its own work s
   assert.equal(rows.size, 2);
   assert.deepEqual(reviewEpochs, [0, 0]);
 });
+test("a saved collection conflict refreshes only reviews and checkpoints the actual publisher invocations", async () => {
+  const f = await fixture();
+  f.snapshot.races.splice(1);
+  const race = f.snapshot.races[0]!;
+  const firstCollection = randomUUID();
+  const secondCollection = randomUUID();
+  let collectionId = firstCollection;
+  const bindings = new Map<string, string>();
+  const published = new Map<string, CandidateModelAttestation>();
+  f.deps.saveCollection = async (document) => ({
+    collectionId,
+    changed: true,
+    checkedAt: document.manifest.sourceCheckedAt,
+  });
+  f.deps.attest = async (input) => {
+    const prior = bindings.get(input.review.attestation.runId);
+    if (prior && prior !== input.collectionId)
+      throw new ResearchReviewCollectionConflict(
+        input.collectionId,
+        input.revisionId,
+        input.review.attestation.runId,
+      );
+    bindings.set(input.review.attestation.runId, input.collectionId);
+    published.set(input.dossier.identity.candidateId, input.review.attestation);
+  };
+  const run = () =>
+    reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds: { ...bounds, maxRaces: 1 },
+      },
+      f.deps,
+    );
+  assert.equal((await run()).completed, 1);
+  const firstReviews = new Map(published);
+  collectionId = secondCollection;
+  const refreshed = await run();
+  assert.equal(refreshed.completed, 1, JSON.stringify(refreshed));
+  assert.equal(refreshed.usage.modelCalls, race.members.length);
+  assert.equal(f.stats.authors, race.members.length);
+  assert.equal(f.stats.reviews, race.members.length * 2);
+  const checkpoint = f.rows.get(race.raceKey)!
+    .checkpoint as CaliforniaWorkCheckpoint;
+  assert.equal(checkpoint.collectionId, secondCollection);
+  for (const member of race.members) {
+    const provenance = checkpoint.candidateProvenance![member.candidateId]!;
+    assert.deepEqual(provenance.reviewer, published.get(member.candidateId));
+    assert.notEqual(
+      provenance.reviewer!.runId,
+      firstReviews.get(member.candidateId)!.runId,
+    );
+    assert.equal(provenance.verdict, "approve");
+    const reviews = provenance
+      .modelArtifactKeys!.filter((key) => key.startsWith("review:"))
+      .map(
+        (key) =>
+          f.artifacts.get(key) as { attestation: CandidateModelAttestation },
+      );
+    assert.ok(
+      reviews.some(
+        (review) => review.attestation.runId === provenance.reviewer!.runId,
+      ),
+    );
+  }
+});
+
+test("an unknown collection review blocks ordinary coordinator retries before attestation or publication", async () => {
+  for (const change of ["cached", "epoch", "configuration"] as const) {
+    const f = await fixture();
+    f.snapshot.races.splice(1);
+    let collectionId = randomUUID();
+    const bindings = new Map<string, string>();
+    let attests = 0;
+    f.deps.saveCollection = async (document) => ({
+      collectionId,
+      changed: true,
+      checkedAt: document.manifest.sourceCheckedAt,
+    });
+    f.deps.attest = async (input) => {
+      attests++;
+      const prior = bindings.get(input.review.attestation.runId);
+      if (prior && prior !== input.collectionId)
+        throw new ResearchReviewCollectionConflict(
+          input.collectionId,
+          input.revisionId,
+          input.review.attestation.runId,
+        );
+      bindings.set(input.review.attestation.runId, input.collectionId);
+    };
+    const run = () =>
+      reconcile(
+        {
+          snapshotId: f.snapshot.id,
+          policyVersion: "policy",
+          bounds: { ...bounds, maxRaces: 1 },
+        },
+        f.deps,
+      );
+    assert.equal((await run()).completed, 1);
+    collectionId = randomUUID();
+    const review = f.deps.review;
+    f.deps.review = async () => {
+      f.stats.reviews++;
+      throw new Error("lost response");
+    };
+    assert.equal((await run()).blocked, 1);
+    const before = { ...f.stats, attests };
+    f.deps.review = review;
+    if (change === "configuration")
+      f.deps.reviewerConfigurationKey = "changed-configuration";
+    if (change === "epoch") {
+      const claim = f.deps.claim;
+      f.deps.claim = async (input) => {
+        const lease = await claim(input);
+        return lease ? { ...lease, reviewEpoch: lease.reviewEpoch + 1 } : lease;
+      };
+    }
+    const resumed = await run();
+    assert.equal(resumed.blocked, 1, JSON.stringify(resumed));
+    assert.equal(resumed.usage.modelCalls, 0, change);
+    assert.equal(f.stats.reviews, before.reviews, change);
+    assert.equal(f.stats.authors, before.authors, change);
+    assert.equal(attests, before.attests, change);
+    assert.equal(f.stats.releases, before.releases, change);
+  }
+});
+
 test("a rejected review stays blocked on retries and cannot publish", async () => {
   const f = await fixture();
   f.snapshot.races.splice(1);

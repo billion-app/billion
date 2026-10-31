@@ -15,6 +15,7 @@ import {
 import {
   PendingCandidateResearchGap,
   prepareReviewedCaliforniaCandidate,
+  reviewPreparedCaliforniaCandidateForCollection,
 } from "./california-candidate-preparation.js";
 import { buildCaliforniaDossier } from "./california-dossier.js";
 import {
@@ -66,8 +67,23 @@ function fixture() {
       if (!artifacts.has(key)) artifacts.set(key, document);
       return artifacts.get(key);
     },
-    reserveDispatch: async ({ key, document }) => {
+    reserveDispatch: async (input) => {
+      const { key, document } = input;
       if (artifacts.has(key)) return false;
+      if (input.collectionReviewAttempt) {
+        const { key, collectionId, reviewKey } = input.collectionReviewAttempt;
+        const prior = artifacts.get(key) as
+          | { collectionId: string; reviewKey: string }
+          | undefined;
+        if (
+          prior &&
+          (prior.collectionId !== collectionId || prior.reviewKey !== reviewKey)
+        )
+          throw new Error(
+            "Another collection review attempt already owns this revision",
+          );
+        artifacts.set(key, { collectionId, reviewKey });
+      }
       artifacts.set(key, document);
       return true;
     },
@@ -1130,4 +1146,267 @@ test("an uncertain substantive correction dispatch never replays after owner or 
   assert.equal(f.calls.length, 1);
   assert.equal(resumed.usage.modelCalls, 0);
   assert.deepEqual(slot(f), plan);
+});
+
+test("collection-bound review uses one fresh invocation and survives lease reclaim", async () => {
+  const f = fixture();
+  const prepared = await prepareReviewedCaliforniaCandidate(f.fresh(), f.deps);
+  const collectionId = randomUUID();
+  const input = { ...f.fresh(), collectionId, prepared };
+  const before = f.calls.length;
+  const reviewed = await reviewPreparedCaliforniaCandidateForCollection(
+    input,
+    f.deps,
+  );
+  assert.equal(f.calls.length, before + 1);
+  assert.notEqual(
+    reviewed.attestation.runId,
+    prepared.reviewed.attestation.runId,
+  );
+  const resumed = await reviewPreparedCaliforniaCandidateForCollection(
+    {
+      ...input,
+      lease: { ...input.lease, owner: randomUUID(), generation: 25 },
+    },
+    f.deps,
+  );
+  assert.deepEqual(resumed, reviewed);
+  assert.equal(f.calls.length, before + 1);
+  const next = await reviewPreparedCaliforniaCandidateForCollection(
+    { ...input, collectionId: randomUUID() },
+    f.deps,
+  );
+  assert.notEqual(next.attestation.runId, reviewed.attestation.runId);
+  assert.equal(f.calls.length, before + 2);
+});
+
+test("a refused collection reservation leaves no attempt and allows its replacement to continue", async () => {
+  const f = fixture();
+  const prepared = await prepareReviewedCaliforniaCandidate(f.fresh(), f.deps);
+  const collectionId = randomUUID();
+  const reserve = f.deps.reserveDispatch;
+  const before = f.calls.length;
+  const artifactKeys = [...f.artifacts.keys()];
+  f.deps.reserveDispatch = async () => false;
+  await assert.rejects(
+    reviewPreparedCaliforniaCandidateForCollection(
+      { ...f.fresh(), collectionId, prepared },
+      f.deps,
+    ),
+    /lease expired/,
+  );
+  assert.equal(f.calls.length, before);
+  assert.deepEqual([...f.artifacts.keys()], artifactKeys);
+  f.deps.reserveDispatch = reserve;
+  const input = f.fresh();
+  input.lease.generation++;
+  const resumed = await prepareReviewedCaliforniaCandidate(input, f.deps);
+  assert.equal(f.calls.length, before);
+  const reviewed = await reviewPreparedCaliforniaCandidateForCollection(
+    { ...input, collectionId, prepared: resumed },
+    f.deps,
+  );
+  assert.equal(reviewed.verdict, "approve");
+  assert.equal(f.calls.length, before + 1);
+});
+
+test("unknown collection reviewer dispatch cannot be replayed after lease reclaim", async () => {
+  const f = fixture();
+  const prepared = await prepareReviewedCaliforniaCandidate(f.fresh(), f.deps);
+  let reviews = 0;
+  f.deps.review = async () => {
+    reviews++;
+    throw new Error("lost response");
+  };
+  const input = { ...f.fresh(), collectionId: randomUUID(), prepared };
+  await assert.rejects(
+    reviewPreparedCaliforniaCandidateForCollection(input, f.deps),
+    /lost response/,
+  );
+  await assert.rejects(
+    reviewPreparedCaliforniaCandidateForCollection(
+      {
+        ...input,
+        lease: { ...input.lease, owner: randomUUID(), generation: 99 },
+      },
+      f.deps,
+    ),
+    /unfinished or rejected collection review/,
+  );
+  await assert.rejects(
+    reviewPreparedCaliforniaCandidateForCollection(
+      { ...input, collectionId: randomUUID() },
+      f.deps,
+    ),
+    /unfinished or rejected collection review/,
+  );
+  assert.equal(reviews, 1);
+});
+
+test("ordinary preparation cannot bypass an unknown collection review with cached approval, epoch or configuration changes", async () => {
+  for (const change of ["cached", "epoch", "configuration"] as const) {
+    const f = fixture();
+    const prepared = await prepareReviewedCaliforniaCandidate(
+      f.fresh(),
+      f.deps,
+    );
+    const review = f.deps.review;
+    f.deps.review = async () => {
+      throw new Error("lost response");
+    };
+    await assert.rejects(
+      reviewPreparedCaliforniaCandidateForCollection(
+        { ...f.fresh(), collectionId: randomUUID(), prepared },
+        f.deps,
+      ),
+      /lost response/,
+    );
+    f.deps.review = review;
+    const calls = f.calls.length;
+    const input = f.fresh();
+    if (change === "epoch") input.lease.reviewEpoch++;
+    if (change === "configuration")
+      f.deps.reviewerConfigurationKey = "new-configuration";
+    await assert.rejects(
+      prepareReviewedCaliforniaCandidate(input, f.deps),
+      /unfinished or rejected collection review/,
+    );
+    assert.equal(f.calls.length, calls, change);
+    assert.equal(input.usage.modelCalls, 0, change);
+  }
+});
+
+test("collection rejection is durable across target changes and uses the existing correction slot", async () => {
+  const f = fixture();
+  const prepared = await prepareReviewedCaliforniaCandidate(f.fresh(), f.deps);
+  const review = f.deps.review;
+  f.deps.review = async (input) => ({
+    ...(await review(input)),
+    verdict: "reject",
+    overallReason: "The claimed plan lacks a supported implementation.",
+    findings: [
+      {
+        claimId: "priorities-1",
+        supported: false,
+        reason: "Unsupported implementation",
+      },
+    ],
+  });
+  const input = { ...f.fresh(), collectionId: randomUUID(), prepared };
+  await assert.rejects(
+    reviewPreparedCaliforniaCandidateForCollection(input, f.deps),
+    /Collection-bound independent review rejected/,
+  );
+  const calls = f.calls.length;
+  await assert.rejects(
+    reviewPreparedCaliforniaCandidateForCollection(
+      { ...input, collectionId: randomUUID() },
+      f.deps,
+    ),
+    /already rejected/,
+  );
+  assert.equal(f.calls.length, calls);
+  f.deps.review = review;
+  await prepareReviewedCaliforniaCandidate(f.fresh(), f.deps);
+  assert.equal(f.calls.filter((call) => call.correction).length, 1);
+  assert.ok(slot(f));
+});
+
+test("collection rejection fences target changes even when saving the review result is interrupted", async () => {
+  const f = fixture();
+  const prepared = await prepareReviewedCaliforniaCandidate(f.fresh(), f.deps);
+  const review = f.deps.review;
+  f.deps.review = async (input) => ({
+    ...(await review(input)),
+    verdict: "reject",
+  });
+  const save = f.deps.saveArtifact;
+  f.deps.saveArtifact = async (input) => {
+    if (input.kind === "review")
+      throw new Error("review result write interrupted");
+    return save(input);
+  };
+  const input = { ...f.fresh(), collectionId: randomUUID(), prepared };
+  await assert.rejects(
+    reviewPreparedCaliforniaCandidateForCollection(input, f.deps),
+    /write interrupted/,
+  );
+  const calls = f.calls.length;
+  await assert.rejects(
+    reviewPreparedCaliforniaCandidateForCollection(
+      { ...input, collectionId: randomUUID() },
+      f.deps,
+    ),
+    /already rejected/,
+  );
+  assert.equal(f.calls.length, calls);
+});
+
+test("a rejected corrected revision cannot be reviewed again by changing epoch or configuration", async () => {
+  const f = fixture();
+  const review = f.deps.review;
+  let count = 0;
+  f.deps.review = async (input) => ({
+    ...(await review(input)),
+    verdict: ++count === 1 ? "reject" : "approve",
+    overallReason: "The claimed plan lacks a supported implementation.",
+    findings: [],
+  });
+  const prepared = await prepareReviewedCaliforniaCandidate(f.fresh(), f.deps);
+  const plan = slot(f);
+  f.deps.review = async (input) => ({
+    ...(await review(input)),
+    verdict: "reject",
+  });
+  await assert.rejects(
+    reviewPreparedCaliforniaCandidateForCollection(
+      { ...f.fresh(), collectionId: randomUUID(), prepared },
+      f.deps,
+    ),
+    /review rejected/,
+  );
+  const calls = f.calls.length;
+  f.deps.review = review;
+  f.deps.reviewerConfigurationKey = "changed-configuration";
+  const input = f.fresh();
+  input.lease.reviewEpoch++;
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(input, f.deps),
+    /bounded correction is exhausted/,
+  );
+  assert.equal(f.calls.length, calls);
+  assert.deepEqual(slot(f), plan);
+});
+
+test("collection reviewer budget prevents dispatch and legacy rejection cannot enter recovery", async () => {
+  const f = fixture();
+  const prepared = await prepareReviewedCaliforniaCandidate(f.fresh(), f.deps);
+  const before = f.calls.length;
+  await assert.rejects(
+    reviewPreparedCaliforniaCandidateForCollection(
+      {
+        ...f.fresh(),
+        collectionId: randomUUID(),
+        prepared,
+        bounds: { maxModelCalls: 0, maxInputTokens: 1_000_000 },
+      },
+      f.deps,
+    ),
+    /model calls or input tokens/,
+  );
+  await assert.rejects(
+    reviewPreparedCaliforniaCandidateForCollection(
+      {
+        ...f.fresh(),
+        collectionId: randomUUID(),
+        prepared: {
+          ...prepared,
+          reviewed: { ...prepared.reviewed, verdict: "reject" },
+        },
+      },
+      f.deps,
+    ),
+    /previously approved/,
+  );
+  assert.equal(f.calls.length, before);
 });

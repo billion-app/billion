@@ -167,24 +167,71 @@ function validationFeedback(value: unknown): CaliforniaAuthorCorrection | null {
   };
 }
 
-export async function prepareReviewedCaliforniaCandidate(
-  input: {
-    dossier: CandidateEvidenceDossier;
-    policyVersion: string;
-    lease: Lease;
-    raceKey: string;
-    candidateId: string;
-    bounds: Pick<CaliforniaBounds, "maxModelCalls" | "maxInputTokens">;
-    usage: ModelUsage;
-    provenance: Provenance;
-  },
+function candidateReviewKey(
+  authored: AuthorResult,
+  input: Parameters<typeof prepareReviewedCaliforniaCandidate>[0],
+  deps: PreparationDependencies,
+  collectionId?: string,
+) {
+  const fields: unknown[] = [
+    authored.attestation.revisionDigest,
+    input.dossier.dossierDigest,
+    input.policyVersion,
+    californiaReviewerPromptVersion,
+    deps.reviewerConfigurationKey ?? deps.modelConfigurationKey ?? "fixture",
+    input.lease.key,
+    input.lease.reviewEpoch,
+  ];
+  if (collectionId) fields.push("collection", collectionId);
+  return `review:${evidenceDigest(fields)}`;
+}
+
+function reviewRevisionKey(
+  authored: AuthorResult,
+  dossier: CandidateEvidenceDossier,
+  policyVersion: string,
+) {
+  return evidenceDigest([
+    authored.attestation.revisionDigest,
+    dossier.dossierDigest,
+    policyVersion,
+  ]);
+}
+
+async function collectionReviewTail(
+  revisionKey: string,
+  deps: PreparationDependencies,
+  remember: (key: string) => void,
+) {
+  let successorKey = `review-collection:${revisionKey}`;
+  const visited = new Set<string>();
+  for (;;) {
+    const successor = (await deps.artifact(successorKey)) as {
+      collectionId: string;
+      reviewKey: string;
+    } | null;
+    if (!successor) return successorKey;
+    remember(successorKey);
+    remember(successor.reviewKey);
+    if (visited.has(successor.reviewKey))
+      throw new Error("Invalid collection review successor cycle");
+    visited.add(successor.reviewKey);
+    const previous = (await deps.artifact(
+      successor.reviewKey,
+    )) as ReviewResult | null;
+    if (previous?.verdict !== "approve")
+      throw new Error(
+        "An unfinished or rejected collection review prevents another review or cached approval",
+      );
+    successorKey = `review-collection:${successor.reviewKey}`;
+  }
+}
+
+function modelDispatch(
+  input: Parameters<typeof prepareReviewedCaliforniaCandidate>[0],
   deps: PreparationDependencies,
 ) {
-  const { dossier, policyVersion, lease, usage, provenance } = input;
-  const configuration =
-    deps.authorConfigurationKey ?? deps.modelConfigurationKey ?? "fixture";
-  const rootAuthorKey = `author:${evidenceDigest([dossier.dossierDigest, policyVersion, californiaResearchVersion, californiaAuthorPromptVersion, configuration])}`;
-  const slotKey = `correction-plan:${rootAuthorKey}:1`;
+  const { lease, usage, provenance } = input;
   const artifactKeys = (provenance.modelArtifactKeys ??= []);
   const remember = (key: string) => {
     if (!artifactKeys.includes(key)) artifactKeys.push(key);
@@ -216,6 +263,9 @@ export async function prepareReviewedCaliforniaCandidate(
     modelInput: Parameters<typeof californiaModelInput>[0],
     call: () => Promise<T>,
     rejectedCorrectionKey?: string,
+    collectionReviewAttempt?: Parameters<
+      PreparationDependencies["reserveDispatch"]
+    >[0]["collectionReviewAttempt"],
   ): Promise<T> {
     let inputTokenReservation: number;
     try {
@@ -240,6 +290,7 @@ export async function prepareReviewedCaliforniaCandidate(
       candidateId: input.candidateId,
       document: { startedAt: deps.now(), costUsd: null },
       workLease: lease,
+      collectionReviewAttempt,
     });
     if (!reserved)
       throw new Error(
@@ -274,6 +325,28 @@ export async function prepareReviewedCaliforniaCandidate(
     }
     return (await save(key, kind, result)) as T;
   }
+  return { remember, save, invoke };
+}
+
+export async function prepareReviewedCaliforniaCandidate(
+  input: {
+    dossier: CandidateEvidenceDossier;
+    policyVersion: string;
+    lease: Lease;
+    raceKey: string;
+    candidateId: string;
+    bounds: Pick<CaliforniaBounds, "maxModelCalls" | "maxInputTokens">;
+    usage: ModelUsage;
+    provenance: Provenance;
+  },
+  deps: PreparationDependencies,
+) {
+  const { dossier, policyVersion, provenance } = input;
+  const configuration =
+    deps.authorConfigurationKey ?? deps.modelConfigurationKey ?? "fixture";
+  const rootAuthorKey = `author:${evidenceDigest([dossier.dossierDigest, policyVersion, californiaResearchVersion, californiaAuthorPromptVersion, configuration])}`;
+  const slotKey = `correction-plan:${rootAuthorKey}:1`;
+  const { remember, save, invoke } = modelDispatch(input, deps);
   async function attempt(
     authorKey: string,
     correction?: CaliforniaAuthorCorrection,
@@ -388,9 +461,29 @@ export async function prepareReviewedCaliforniaCandidate(
         "The authored brief does not yet present a publishable account of this candidate's priorities, record, or campaign finances.",
       );
     }
-    const reviewKey = `review:${evidenceDigest([authored.attestation.revisionDigest, dossier.dossierDigest, policyVersion, californiaReviewerPromptVersion, deps.reviewerConfigurationKey ?? deps.modelConfigurationKey ?? "fixture", lease.key, lease.reviewEpoch])}`;
+    const reviewKey = candidateReviewKey(authored, input, deps);
     remember(reviewKey);
-    let reviewed = (await deps.artifact(reviewKey)) as ReviewResult | null;
+    const rejectedKey = `review-rejected:${reviewRevisionKey(authored, dossier, policyVersion)}`;
+    const rejectedReview = (await deps.artifact(rejectedKey)) as {
+      reviewKey: string;
+      reviewed: ReviewResult;
+    } | null;
+    if (rejectedReview) {
+      remember(rejectedKey);
+      remember(rejectedReview.reviewKey);
+      if (rejectedReview.reviewed.verdict !== "reject")
+        throw new Error("Invalid immutable collection review rejection");
+      await save(rejectedReview.reviewKey, "review", rejectedReview.reviewed);
+    }
+    if (!rejectedReview)
+      await collectionReviewTail(
+        reviewRevisionKey(authored, dossier, policyVersion),
+        deps,
+        remember,
+      );
+    let reviewed =
+      rejectedReview?.reviewed ??
+      ((await deps.artifact(reviewKey)) as ReviewResult | null);
     if (!reviewed) {
       if (await deps.artifact(`failure:${reviewKey}`)) {
         remember(`failure:${reviewKey}`);
@@ -426,7 +519,7 @@ export async function prepareReviewedCaliforniaCandidate(
     )
       return {
         kind: "correction",
-        triggerArtifactKey: reviewKey,
+        triggerArtifactKey: rejectedReview?.reviewKey ?? reviewKey,
         feedback: {
           kind: "review_rejection",
           previousBrief: authored.brief,
@@ -496,4 +589,80 @@ export async function prepareReviewedCaliforniaCandidate(
     authored: corrected.authored,
     reviewed: corrected.reviewed,
   };
+}
+
+export async function reviewPreparedCaliforniaCandidateForCollection(
+  input: Parameters<typeof prepareReviewedCaliforniaCandidate>[0] & {
+    collectionId: string;
+    prepared: Awaited<ReturnType<typeof prepareReviewedCaliforniaCandidate>>;
+  },
+  deps: PreparationDependencies,
+) {
+  const { prepared, dossier, policyVersion, provenance, collectionId } = input;
+  const { authored } = prepared;
+  if (
+    prepared.reviewed.verdict !== "approve" ||
+    authored.attestation.dossierDigest !== dossier.dossierDigest ||
+    authored.attestation.policyVersion !== policyVersion ||
+    prepared.reviewed.attestation.revisionDigest !==
+      authored.attestation.revisionDigest
+  )
+    throw new Error(
+      "Collection review recovery requires an exact previously approved revision",
+    );
+  const { remember, save, invoke } = modelDispatch(input, deps);
+  const revisionKey = reviewRevisionKey(authored, dossier, policyVersion);
+  const rejectedKey = `review-rejected:${revisionKey}`;
+  const knownRejection = (await deps.artifact(rejectedKey)) as {
+    reviewKey: string;
+    reviewed: ReviewResult;
+  } | null;
+  if (knownRejection) {
+    remember(rejectedKey);
+    remember(knownRejection.reviewKey);
+    Object.assign(provenance, {
+      reviewer: knownRejection.reviewed.attestation,
+      verdict: knownRejection.reviewed.verdict,
+    });
+    throw new Error(
+      "A collection-bound review already rejected this exact candidate revision",
+    );
+  }
+  const reviewKey = candidateReviewKey(authored, input, deps, collectionId);
+  const successorKey = await collectionReviewTail(revisionKey, deps, remember);
+  remember(reviewKey);
+  remember(successorKey);
+  let reviewed = (await deps.artifact(reviewKey)) as ReviewResult | null;
+  if (!reviewed) {
+    if (await deps.artifact(`failure:${reviewKey}`)) {
+      remember(`failure:${reviewKey}`);
+      throw new Error("Saved collection reviewer failure cannot be retried");
+    }
+    reviewed = await invoke(
+      reviewKey,
+      "review",
+      { dossier, policyVersion, brief: authored.brief },
+      () =>
+        deps.review({
+          brief: authored.brief,
+          dossier,
+          policyVersion,
+          authorAttestation: authored.attestation,
+        }),
+      rejectedKey,
+      { key: successorKey, collectionId, reviewKey },
+    );
+  }
+  Object.assign(provenance, {
+    reviewer: reviewed.attestation,
+    verdict: reviewed.verdict,
+  });
+  if (reviewed.verdict !== "approve") {
+    remember(rejectedKey);
+    await save(rejectedKey, "model_review_rejection", { reviewKey, reviewed });
+    throw new Error(
+      "Collection-bound independent review rejected this exact candidate revision",
+    );
+  }
+  return reviewed;
 }
