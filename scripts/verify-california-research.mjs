@@ -101,6 +101,15 @@ const renewalReceipt = {
     "f3277611713e1c281d2604dc7cb2349e67551d1149343a5edac16309f1205aea",
   actorId: "ai:gpt-6-astra:san-jose-full-scope-review:2026-10-30",
 };
+const relatedHarvestReceipt = {
+  receiptHash:
+    "199b4e2d264df6f862d087f403e6a66f79f1572f01e7c68c1c843bb28421a39f",
+  scopeDigest:
+    "a04b0dc8a476fb06ed52d9aace451f6564fdaa476a672e751595fcd47c9562b7",
+  reviewedSourceBundleHash:
+    "1b15a619545d5138063f4216ebb297b031a6dfba4f03fdf8d6887dc53e8319c3",
+  actorId: "ai:gpt-6-astra:california-related-harvest-review:2026-10-31",
+};
 const authorityProjections = {
   "cde-item-48870daecfe14c6ab376f6a673491914-telemetry-v1": {
     url: "https://www.arcgis.com/sharing/rest/content/items/48870daecfe14c6ab376f6a673491914?f=json",
@@ -116,6 +125,16 @@ const authorityProjections = {
     canonicalDigest:
       "23e6295294ed84717528e916f9ce5f69ddd4ae22f43adfa27d734ccbd80ee2ff",
   },
+  "cde-data-ca-gov-school-district-areas-2025-26-related-harvest-v1": {
+    url: "https://data.ca.gov/@california-department-of-education/california-school-district-areas-2025-26",
+    publisher: "California Department of Education",
+    reviewedContentHash:
+      "2c63bb63cba2ae9112fe5f94df3af7720262d8f46d58197344207a19575b60b5",
+    canonicalDigest:
+      "07910e6fe6e94dd625e793e9ed08a91108f323283a1d06f9c8170ab806ddca44",
+    receipt: relatedHarvestReceipt,
+    reviewedAt: "2026-10-31T01:06:16Z",
+  },
 };
 const assetTags = [
   '<script src="/js/slick-a11y.js?v=',
@@ -126,7 +145,7 @@ const assetTags = [
   '<script src="/js/general.js?v=',
   '<script src="/js/deviceDetector.js?v=',
 ];
-function strictJson(text) {
+function strictJson(text, onString) {
   let offset = 0;
   const whitespace = () => {
     while (/[ \t\r\n]/.test(text[offset] ?? "") && offset < text.length)
@@ -142,10 +161,15 @@ function strictJson(text) {
     }
     throw new Error("Unterminated JSON string");
   };
-  const value = (depth = 0) => {
+  const value = (depth = 0, path = []) => {
     assert.ok(depth <= 100, "JSON nesting exceeds bound");
     whitespace();
-    if (text[offset] === '"') return string();
+    if (text[offset] === '"') {
+      const start = offset;
+      const result = string();
+      onString?.(path, start, offset, result);
+      return result;
+    }
     if (text[offset] === "{") {
       offset++;
       const result = Object.create(null),
@@ -162,7 +186,7 @@ function strictJson(text) {
         keys.add(name);
         whitespace();
         assert.equal(text[offset++], ":", "Expected JSON colon");
-        result[name] = value(depth + 1);
+        result[name] = value(depth + 1, [...path, name]);
         whitespace();
         const separator = text[offset++];
         if (separator === "}") return result;
@@ -178,7 +202,7 @@ function strictJson(text) {
         return result;
       }
       while (true) {
-        result.push(value(depth + 1));
+        result.push(value(depth + 1, [...path, result.length]));
         whitespace();
         const separator = text[offset++];
         if (separator === "]") return result;
@@ -204,6 +228,93 @@ function strictJson(text) {
   return result;
 }
 
+function relatedHarvestProjection(text) {
+  assert.ok(
+    text.length <= 5_000_000,
+    "Authority source exceeds projection bound",
+  );
+  const opening = '<script id="__NEXT_DATA__" type="application/json">';
+  const scripts = [
+    ...text.matchAll(
+      /<script\b[^>]*\bid\s*=\s*(?:"__NEXT_DATA__"|'__NEXT_DATA__'|__NEXT_DATA__(?=[\s>]))[^>]*>/gi,
+    ),
+  ];
+  assert.equal(scripts.length, 1, "Missing or duplicate NEXT_DATA script");
+  assert.equal(scripts[0][0], opening, "Changed NEXT_DATA wrapper");
+  const start = scripts[0].index + opening.length;
+  const end = text.indexOf("</script>", start);
+  assert.ok(end >= start, "Missing NEXT_DATA closing tag");
+  const json = text.slice(start, end);
+  const spans = new Map();
+  const parsed = strictJson(json, (path, from, to, value) => {
+    if (
+      path.length === 7 &&
+      path[0] === "props" &&
+      path[1] === "pageProps" &&
+      path[2] === "relatedDatasets" &&
+      Number.isInteger(path[3]) &&
+      path[3] >= 0 &&
+      path[3] < 3 &&
+      path[4] === "extras" &&
+      path[5] === 4 &&
+      path[6] === "value"
+    )
+      spans.set(path[3], { from: start + from + 1, to: start + to - 1, value });
+  });
+  const page = parsed?.props?.pageProps;
+  assert.equal(
+    page?.dataset?.id,
+    "9a9f7021-d72d-4bdf-8828-1014fc494561",
+    "Changed primary dataset identity",
+  );
+  const ids = [
+    "6ad5b9d2-58e3-4181-bfb5-851ab41b7fe3",
+    "1c6303ae-ec57-44d2-8268-f114f6c7d084",
+    "383edcbb-fc51-422e-b537-36b48bd9c5be",
+  ];
+  assert.ok(Array.isArray(page.relatedDatasets), "Missing related datasets");
+  assert.deepEqual(
+    page.relatedDatasets.map((dataset) => dataset?.id),
+    ids,
+    "Changed related dataset identities",
+  );
+  const values = new Set(),
+    replacements = [];
+  for (const [index, dataset] of page.relatedDatasets.entries()) {
+    assert.ok(Array.isArray(dataset.extras), "Missing related extras");
+    const extras = dataset.extras.flatMap((extra, position) =>
+      extra?.key === "harvest_object_id" ? [position] : [],
+    );
+    assert.deepEqual(extras, [4], "Missing or ambiguous related harvest field");
+    const span = spans.get(index),
+      value = dataset.extras[4].value;
+    assert.match(
+      value,
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      "Invalid related harvest UUID",
+    );
+    assert.ok(
+      span && span.value === value && text.slice(span.from, span.to) === value,
+      "Escaped or missing related harvest token",
+    );
+    assert.equal(text.split(value).length, 2, "Repeated related harvest UUID");
+    assert.ok(!values.has(value), "Duplicate related harvest UUID");
+    values.add(value);
+    const token = `__RELATED_HARVEST_OBJECT_ID_${index}__`;
+    assert.ok(
+      !text.includes(token),
+      "Reserved related harvest token in source",
+    );
+    replacements.push({ ...span, token });
+  }
+  let projected = text;
+  for (const { from, to, token } of replacements.sort(
+    (a, b) => b.from - a.from,
+  ))
+    projected = projected.slice(0, from) + token + projected.slice(to);
+  return projected;
+}
+
 export function authorityProjectionDigest(projectionId, url, text) {
   const approved = Object.hasOwn(authorityProjections, projectionId)
     ? authorityProjections[projectionId]
@@ -212,6 +323,11 @@ export function authorityProjectionDigest(projectionId, url, text) {
     approved && approved.url === url,
     "Unapproved authority URL or projector",
   );
+  if (
+    projectionId ===
+    "cde-data-ca-gov-school-district-areas-2025-26-related-harvest-v1"
+  )
+    return hash(relatedHarvestProjection(text));
   if (projectionId.startsWith("cde-item-")) {
     const item = strictJson(text);
     assert.equal(
@@ -297,7 +413,14 @@ export function authorityRenewalErrors(
       );
       assert.equal(projection.format, "text");
       assert.ok(nonempty(projection.publisher), "Missing authority publisher");
-      for (const [field, value] of Object.entries(renewalReceipt))
+      if (approved.publisher)
+        assert.equal(
+          projection.publisher,
+          approved.publisher,
+          "Unapproved authority publisher",
+        );
+      const receipt = approved.receipt ?? renewalReceipt;
+      for (const [field, value] of Object.entries(receipt))
         assert.equal(
           projection.approval?.[field],
           value,
@@ -305,12 +428,12 @@ export function authorityRenewalErrors(
         );
       assert.equal(
         scopeDigest,
-        renewalReceipt.scopeDigest,
+        receipt.scopeDigest,
         "Authority renewal belongs to a different reviewed census",
       );
       assert.equal(
         Date.parse(projection.approval.reviewedAt),
-        Date.parse("2026-10-30T20:18:50.276Z"),
+        Date.parse(approved.reviewedAt ?? "2026-10-30T20:18:50.276Z"),
         "Authority approval date differs from the acknowledged receipt",
       );
       assert.ok(
@@ -330,6 +453,19 @@ export function authorityRenewalErrors(
         projection.reviewedContentHash,
         "Reviewed authority archive hash mismatch",
       );
+      if (approved.receipt === relatedHarvestReceipt) {
+        assert.equal(
+          original.contentHash,
+          projection.reviewedContentHash,
+          "Reviewed authority content metadata mismatch",
+        );
+        if (original.byteHash !== undefined)
+          assert.equal(
+            original.byteHash,
+            projection.reviewedRawHash,
+            "Reviewed authority raw metadata mismatch",
+          );
+      }
       assert.equal(
         authorityProjectionDigest(
           projection.projectionId,
@@ -412,7 +548,7 @@ export function authorityRenewalErrors(
       );
       assert.equal(
         proof.approvalReceiptHash,
-        renewalReceipt.receiptHash,
+        receipt.receiptHash,
         "Authority proof receipt mismatch",
       );
       assert.equal(

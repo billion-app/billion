@@ -692,7 +692,7 @@ const clarityLocalPlanManifest = z.object({
   historicalSources: z.array(researchSourceSchema).max(8).optional(),
   sourceRenewalProjections: z
     .array(authorityRenewalProjectionSchema)
-    .max(2)
+    .max(3)
     .optional(),
 });
 const localPlanManifest = z.union([
@@ -1222,7 +1222,7 @@ export async function reconcile(
           throw new PendingCandidateResearchGap(
             "The checked sources do not yet support a publishable account of this candidate's priorities, record, or campaign finances.",
           );
-        const reviewKey = `review:${evidenceDigest([authored.attestation.revisionDigest, dossier.dossierDigest, input.policyVersion, californiaReviewerPromptVersion, deps.reviewerConfigurationKey ?? deps.modelConfigurationKey ?? "fixture", lease.reviewEpoch])}`;
+        const reviewKey = `review:${evidenceDigest([authored.attestation.revisionDigest, dossier.dossierDigest, input.policyVersion, californiaReviewerPromptVersion, deps.reviewerConfigurationKey ?? deps.modelConfigurationKey ?? "fixture", lease.key, lease.reviewEpoch])}`;
         let reviewed = (await deps.artifact(reviewKey)) as Awaited<
           ReturnType<typeof reviewCaliforniaBrief>
         > | null;
