@@ -16,19 +16,18 @@ import {
   candidateModelAttestationSchema,
   candidateResearchCollectionSchema,
   hasSubstantiveCampaignFinance,
-  hasSubstantiveCandidateResearch,
   researchSourceSchema,
 } from "@acme/validators";
 
 import {
   authorCaliforniaBrief,
-  californiaAuthorPromptVersion,
-  californiaModelInput,
-  CaliforniaModelInvocationError,
-  californiaReviewerPromptVersion,
   configuredCaliforniaModels,
   reviewCaliforniaBrief,
 } from "./california-ai.js";
+import {
+  PendingCandidateResearchGap,
+  prepareReviewedCaliforniaCandidate,
+} from "./california-candidate-preparation.js";
 import { appendReviewedClaritySanJoseRoster } from "./california-clarity.js";
 import {
   californiaResearchVersion,
@@ -72,6 +71,7 @@ export interface CaliforniaWorkCheckpoint {
       author?: CandidateModelAttestation;
       reviewer?: CandidateModelAttestation;
       verdict?: "approve" | "reject";
+      modelArtifactKeys?: string[];
     }
   >;
   reason?: string;
@@ -206,7 +206,12 @@ export interface CaliforniaDependencies {
     workLease?: Lease;
   }): Promise<unknown>;
   publish(collectionId: string, lease: Lease): Promise<{ releaseId: string }>;
-  fail(raceKey: string, reason: string, lease?: Lease): Promise<void>;
+  fail(
+    raceKey: string,
+    reason: string,
+    lease?: Lease,
+    attempted?: CaliforniaWorkCheckpoint,
+  ): Promise<void>;
   invalidateElection(input: {
     electionDate: string;
     snapshotId?: string;
@@ -580,8 +585,16 @@ export async function createCaliforniaDependencies(
       }),
     invalidateElection: (input) =>
       collection.invalidateResearchElection(input, db),
-    fail: (key, reason, lease) =>
-      collection.failResearchRefresh(key, reason, db, { workLease: lease }),
+    fail: (key, reason, lease, attempted) =>
+      collection.failResearchRefresh(key, reason, db, {
+        workLease: lease,
+        attempted: attempted
+          ? {
+              attemptedAt: attempted.attemptedAt!,
+              checkpoint: { ...attempted },
+            }
+          : undefined,
+      }),
   };
 }
 async function persistRosterObservation(
@@ -1032,22 +1045,6 @@ export async function reconcile(
       due(a) - due(b) ||
       a.raceKey.localeCompare(b.raceKey),
   );
-  const modelBudget = (
-    dossier: CandidateEvidenceDossier,
-    brief?: CandidateBrief,
-  ) => {
-    const { inputTokenReservation: estimate } = californiaModelInput({
-      dossier,
-      brief,
-      policyVersion: input.policyVersion,
-    });
-    if (
-      usage.modelCalls >= input.bounds.maxModelCalls ||
-      usage.inputTokenReservations + estimate > input.bounds.maxInputTokens
-    )
-      throw new CaliforniaBudgetReached("model calls or input tokens");
-    return estimate;
-  };
   for (const race of races) {
     if (
       !input.includePilotRaces &&
@@ -1106,7 +1103,6 @@ export async function reconcile(
       | CaliforniaWorkCheckpoint
       | undefined;
     let savedCollectionId: string | undefined;
-    let dispatchedModelKey: string | undefined;
     const candidateProvenance: NonNullable<
       CaliforniaWorkCheckpoint["candidateProvenance"]
     > = {};
@@ -1170,113 +1166,21 @@ export async function reconcile(
           throw new PendingCandidateResearchGap(
             "The material collected in this attempt does not yet support a substantive candidate brief.",
           );
-        const authorKey = `author:${evidenceDigest([dossier.dossierDigest, input.policyVersion, californiaResearchVersion, californiaAuthorPromptVersion, deps.authorConfigurationKey ?? deps.modelConfigurationKey ?? "fixture"])}`;
-        let authored = (await deps.artifact(authorKey)) as Awaited<
-          ReturnType<typeof authorCaliforniaBrief>
-        > | null;
-        if (!authored) {
-          const reservation = modelBudget(dossier);
-          const reserved = await deps.reserveDispatch({
-            key: `dispatch:${authorKey}`,
-            raceKey: race.raceKey,
-            candidateId: member.candidateId,
-            document: { startedAt: deps.now(), costUsd: null },
-            workLease: lease,
-          });
-          if (!reserved)
-            throw new Error(
-              "Author dispatch is already reserved or its race lease expired; no invocation was made",
-            );
-          usage.modelCalls++;
-          usage.inputTokenReservations += reservation;
-          dispatchedModelKey = authorKey;
-          authored = await deps.author({
-            dossier,
-            policyVersion: input.policyVersion,
-          });
-          usage.actualInputTokens =
-            usage.actualInputTokens === null ||
-            authored.attestation.usage.inputTokens === null
-              ? null
-              : usage.actualInputTokens +
-                authored.attestation.usage.inputTokens;
-          usage.actualOutputTokens =
-            usage.actualOutputTokens === null ||
-            authored.attestation.usage.outputTokens === null
-              ? null
-              : usage.actualOutputTokens +
-                authored.attestation.usage.outputTokens;
-          authored = (await deps.saveArtifact({
-            key: authorKey,
-            kind: "author",
-            raceKey: race.raceKey,
-            candidateId: member.candidateId,
-            document: authored,
-          })) as typeof authored;
-        }
-        Object.assign(candidateProvenance[member.candidateId]!, {
-          revisionId: authored.brief.revisionId,
-          author: authored.attestation,
-        });
-        if (!hasSubstantiveCandidateResearch(authored.brief, dossier))
-          throw new PendingCandidateResearchGap(
-            "The checked sources do not yet support a publishable account of this candidate's priorities, record, or campaign finances.",
-          );
-        const reviewKey = `review:${evidenceDigest([authored.attestation.revisionDigest, dossier.dossierDigest, input.policyVersion, californiaReviewerPromptVersion, deps.reviewerConfigurationKey ?? deps.modelConfigurationKey ?? "fixture", lease.key, lease.reviewEpoch])}`;
-        let reviewed = (await deps.artifact(reviewKey)) as Awaited<
-          ReturnType<typeof reviewCaliforniaBrief>
-        > | null;
-        if (!reviewed) {
-          const reservation = modelBudget(dossier, authored.brief);
-          const reserved = await deps.reserveDispatch({
-            key: `dispatch:${reviewKey}`,
-            raceKey: race.raceKey,
-            candidateId: member.candidateId,
-            document: { startedAt: deps.now(), costUsd: null },
-            workLease: lease,
-          });
-          if (!reserved)
-            throw new Error(
-              "Reviewer dispatch is already reserved or its race lease expired; no invocation was made",
-            );
-          usage.modelCalls++;
-          usage.inputTokenReservations += reservation;
-          dispatchedModelKey = reviewKey;
-          reviewed = await deps.review({
-            brief: authored.brief,
-            dossier,
-            policyVersion: input.policyVersion,
-            authorAttestation: authored.attestation,
-          });
-          usage.actualInputTokens =
-            usage.actualInputTokens === null ||
-            reviewed.attestation.usage.inputTokens === null
-              ? null
-              : usage.actualInputTokens +
-                reviewed.attestation.usage.inputTokens;
-          usage.actualOutputTokens =
-            usage.actualOutputTokens === null ||
-            reviewed.attestation.usage.outputTokens === null
-              ? null
-              : usage.actualOutputTokens +
-                reviewed.attestation.usage.outputTokens;
-          reviewed = (await deps.saveArtifact({
-            key: reviewKey,
-            kind: "review",
-            raceKey: race.raceKey,
-            candidateId: member.candidateId,
-            document: reviewed,
-          })) as typeof reviewed;
-        }
-        Object.assign(candidateProvenance[member.candidateId]!, {
-          reviewer: reviewed.attestation,
-          verdict: reviewed.verdict,
-        });
-        if (reviewed.verdict !== "approve")
-          throw new Error(
-            "Independent candidate content review rejected this exact revision",
-          );
-        investigated.push({ dossier, authored, reviewed });
+        investigated.push(
+          await prepareReviewedCaliforniaCandidate(
+            {
+              dossier,
+              policyVersion: input.policyVersion,
+              lease,
+              raceKey: race.raceKey,
+              candidateId: member.candidateId,
+              bounds: input.bounds,
+              usage,
+              provenance: candidateProvenance[member.candidateId]!,
+            },
+            deps,
+          ),
+        );
       }
       const sourceMap = new Map<string, ResearchSource>([
         [
@@ -1342,30 +1246,33 @@ export async function reconcile(
           workLease: lease,
         });
       if (input.preparationPolicy) {
-        await deps.checkpoint(lease, "complete", {
-          collectionId: saved.collectionId,
-          rosterCheckArtifactKey,
-          candidateProvenance,
-          dossierReviewEpochs: Object.fromEntries(
-            investigated.map((item) => [
-              item.dossier.identity.candidateId,
-              lease.reviewEpoch,
-            ]),
-          ),
-          sourceCheckedAt: saved.checkedAt,
-          dossierDigests: Object.fromEntries(
-            investigated.map((item) => [
-              item.dossier.identity.candidateId,
-              item.dossier.dossierDigest,
-            ]),
-          ),
-          classification: Object.fromEntries(
-            investigated.map((item) => [
-              item.dossier.identity.candidateId,
-              item.dossier.classification,
-            ]),
-          ),
-        });
+        if (
+          !(await deps.checkpoint(lease, "complete", {
+            collectionId: saved.collectionId,
+            rosterCheckArtifactKey,
+            candidateProvenance,
+            dossierReviewEpochs: Object.fromEntries(
+              investigated.map((item) => [
+                item.dossier.identity.candidateId,
+                lease.reviewEpoch,
+              ]),
+            ),
+            sourceCheckedAt: saved.checkedAt,
+            dossierDigests: Object.fromEntries(
+              investigated.map((item) => [
+                item.dossier.identity.candidateId,
+                item.dossier.dossierDigest,
+              ]),
+            ),
+            classification: Object.fromEntries(
+              investigated.map((item) => [
+                item.dossier.identity.candidateId,
+                item.dossier.classification,
+              ]),
+            ),
+          }))
+        )
+          throw new Error("Race lease expired before preparation checkpoint");
         outcomes.push({
           raceKey: race.raceKey,
           status: "prepared",
@@ -1407,27 +1314,6 @@ export async function reconcile(
         releaseId: release.releaseId,
       });
     } catch (error) {
-      if (
-        error instanceof CaliforniaModelInvocationError &&
-        dispatchedModelKey
-      ) {
-        await deps.saveArtifact({
-          key: `failure:${dispatchedModelKey}`,
-          kind: "model_failure",
-          raceKey: race.raceKey,
-          document: error.diagnostic,
-        });
-        usage.actualInputTokens =
-          usage.actualInputTokens === null ||
-          error.diagnostic.usage.inputTokens === null
-            ? null
-            : usage.actualInputTokens + error.diagnostic.usage.inputTokens;
-        usage.actualOutputTokens =
-          usage.actualOutputTokens === null ||
-          error.diagnostic.usage.outputTokens === null
-            ? null
-            : usage.actualOutputTokens + error.diagnostic.usage.outputTokens;
-      }
       const reason =
         error instanceof Error ? error.message : "Unknown research failure";
       const status =
@@ -1435,12 +1321,7 @@ export async function reconcile(
         error instanceof PendingCandidateResearchGap
           ? "pending"
           : "blocked";
-      if (
-        error instanceof RequiredCaliforniaSourceFailure ||
-        error instanceof CaliforniaCitedSourceFailure
-      )
-        await deps.fail(race.raceKey, reason, lease);
-      await deps.checkpoint(lease, status, {
+      const checkpoint: CaliforniaWorkCheckpoint = {
         ...attemptPrior,
         rosterCheckArtifactKey,
         collectionId: savedCollectionId ?? attemptPrior?.collectionId,
@@ -1477,7 +1358,17 @@ export async function reconcile(
         },
         attemptedAt: deps.now(),
         reason,
-      });
+      };
+      if (
+        error instanceof RequiredCaliforniaSourceFailure ||
+        error instanceof CaliforniaCitedSourceFailure
+      ) {
+        await deps.fail(race.raceKey, reason, lease, checkpoint);
+      } else if (!(await deps.checkpoint(lease, status, checkpoint))) {
+        throw new Error("Race lease expired before failure checkpoint", {
+          cause: error,
+        });
+      }
       outcomes.push({ raceKey: race.raceKey, status, reason });
     }
   }
@@ -1601,4 +1492,3 @@ export async function coverage(
 export const californiaResearch = { plan, reconcile, coverage };
 
 class RequiredCaliforniaSourceFailure extends Error {}
-class PendingCandidateResearchGap extends Error {}

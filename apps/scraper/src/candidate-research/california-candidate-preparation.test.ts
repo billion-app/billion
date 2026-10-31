@@ -1,0 +1,662 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+import type { CandidateEvidenceDossier } from "@acme/validators";
+
+import type { CaliforniaModelFailureDiagnostic } from "./california-ai.js";
+import {
+  authorCaliforniaBrief,
+  californiaModelInput,
+  CaliforniaModelInvocationError,
+} from "./california-ai.js";
+import {
+  PendingCandidateResearchGap,
+  prepareReviewedCaliforniaCandidate,
+} from "./california-candidate-preparation.js";
+import { fixtureDossier } from "./california-dossier.test.js";
+
+type Input = Parameters<typeof prepareReviewedCaliforniaCandidate>[0];
+type Dependencies = Parameters<typeof prepareReviewedCaliforniaCandidate>[1];
+function diagnostic(
+  overrides: Partial<CaliforniaModelFailureDiagnostic> = {},
+): CaliforniaModelFailureDiagnostic {
+  return {
+    role: "author",
+    errorKind: "schema_validation",
+    configuredModel: "fixture",
+    actualModel: "fixture",
+    provider: "fixture",
+    requestId: "terminal-response",
+    rawText: '{"bad":"fact"}',
+    parsedOutput: { bad: "fact" },
+    validationProblems: ["record fact must cite a primary record"],
+    finishReason: "stop",
+    startedAt: "2026-10-30T00:00:00.000Z",
+    completedAt: "2026-10-30T00:00:01.000Z",
+    costUsd: null,
+    usage: {
+      inputTokens: 123,
+      outputTokens: 45,
+      totalTokens: 168,
+      inputTokenDetails: {
+        noCacheTokens: 123,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      },
+      outputTokenDetails: { textTokens: 45, reasoningTokens: 0 },
+    },
+    ...overrides,
+  };
+}
+function fixture() {
+  const dossier = fixtureDossier();
+  const artifacts = new Map<string, unknown>();
+  const calls: { role: string; correction?: unknown }[] = [];
+  const deps: Dependencies = {
+    now: () => "2026-10-30T00:00:00.000Z",
+    artifact: async (key) => artifacts.get(key) ?? null,
+    saveArtifact: async ({ key, document }) => {
+      if (!artifacts.has(key)) artifacts.set(key, document);
+      return artifacts.get(key);
+    },
+    reserveDispatch: async ({ key, document }) => {
+      if (artifacts.has(key)) return false;
+      artifacts.set(key, document);
+      return true;
+    },
+    author: async (input) => {
+      calls.push({ role: "author", correction: input.correction });
+      return authorCaliforniaBrief(input, {
+        now: deps.now,
+        invoke: async () => ({
+          output: {
+            priorities: {
+              claims: [
+                {
+                  kind: "promise",
+                  text: "Morgan Lee proposes funding public libraries.",
+                  evidenceIds: ["platform"],
+                  promiseDetails: null,
+                },
+              ],
+            },
+            record: { claims: [] },
+            mechanisms: { claims: [] },
+            effects: { claims: [] },
+            tradeoffs: { claims: [] },
+            unknowns: { claims: [] },
+            terms: [],
+          },
+          configuredModel: "fixture",
+          actualModel: "fixture",
+          provider: "fixture",
+          requestId: "request",
+          usage: { inputTokens: 100, outputTokens: 50 },
+          costUsd: null,
+        }),
+      });
+    },
+    review: async ({ authorAttestation }) => {
+      calls.push({ role: "reviewer" });
+      return {
+        verdict: "approve",
+        overallReason: "The exact brief is supported by its source context.",
+        findings: [],
+        attestation: {
+          ...authorAttestation,
+          role: "reviewer",
+          actorId: "reviewer",
+          runId: randomUUID(),
+          usage: { inputTokens: 75, outputTokens: 25 },
+        },
+      };
+    },
+  };
+  const fresh = (overrides: Partial<Input> = {}): Input => ({
+    dossier,
+    policyVersion: "policy",
+    raceKey: "race",
+    candidateId: dossier.identity.candidateId,
+    lease: {
+      key: "work",
+      owner: randomUUID(),
+      generation: 1,
+      reviewEpoch: 0,
+      checkpoint: null,
+    },
+    bounds: { maxModelCalls: 10, maxInputTokens: 1_000_000 },
+    usage: {
+      modelCalls: 0,
+      inputTokenReservations: 0,
+      actualInputTokens: 0,
+      actualOutputTokens: 0,
+    },
+    provenance: {
+      dossierDigest: dossier.dossierDigest,
+      classification: dossier.classification,
+      sourceCheckedAt: dossier.createdAt,
+    },
+    ...overrides,
+  });
+  return { deps, artifacts, calls, fresh };
+}
+function failInitial(f: ReturnType<typeof fixture>, value = diagnostic()) {
+  const author = f.deps.author;
+  f.deps.author = async (input) => {
+    if (!input.correction) {
+      f.calls.push({ role: "author" });
+      throw new CaliforniaModelInvocationError(value);
+    }
+    return author(input);
+  };
+}
+function slot(f: ReturnType<typeof fixture>) {
+  const entry = [...f.artifacts.entries()].find(([key]) =>
+    key.startsWith("correction-plan:"),
+  );
+  assert.ok(entry);
+  return {
+    key: entry[0],
+    document: entry[1] as {
+      authorKey: string;
+      feedback: unknown;
+      feedbackDigest: string;
+    },
+  };
+}
+
+test("one rejected correction exhausts the shared slot across reviewer wording, owner, generation and epoch changes", async () => {
+  const f = fixture();
+  const review = f.deps.review;
+  let wording =
+    "The priorities chapter attributes an unsupported implementation to the candidate.";
+  f.deps.review = async (input) => ({
+    ...(await review(input)),
+    verdict: "reject",
+    overallReason: wording,
+  });
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(f.fresh(), f.deps),
+    /bounded correction/,
+  );
+  assert.equal(f.calls.length, 4);
+  const plan = slot(f);
+  wording =
+    "The new reviewer identifies another unsupported sentence in priorities.";
+  const input = f.fresh();
+  input.lease = {
+    ...input.lease,
+    owner: "replacement",
+    generation: 7,
+    reviewEpoch: 8,
+  };
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(input, f.deps),
+    /bounded candidate correction/,
+  );
+  assert.equal(f.calls.length, 4);
+  assert.equal(input.usage.modelCalls, 0);
+  assert.deepEqual(slot(f), plan);
+  assert.equal(
+    [...f.artifacts.keys()].filter((key) =>
+      key.startsWith("author-correction:"),
+    ).length,
+    1,
+  );
+});
+
+test("a terminal schema failure on the correction cannot consume a second schema or review correction", async () => {
+  const f = fixture();
+  f.deps.author = async () => {
+    f.calls.push({ role: "author" });
+    throw new CaliforniaModelInvocationError(diagnostic());
+  };
+  const first = f.fresh();
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(first, f.deps),
+    /schema_validation/,
+  );
+  assert.equal(first.usage.modelCalls, 2);
+  assert.equal(first.usage.actualInputTokens, 246);
+  assert.equal(first.usage.actualOutputTokens, 90);
+  for (const epoch of [0, 1, 5]) {
+    const input = f.fresh();
+    input.lease.reviewEpoch = epoch;
+    input.lease.generation = epoch + 2;
+    await assert.rejects(
+      prepareReviewedCaliforniaCandidate(input, f.deps),
+      /bounded correction is exhausted/,
+    );
+    assert.equal(input.usage.modelCalls, 0);
+    assert.equal(input.usage.actualInputTokens, 0);
+  }
+  assert.equal(f.calls.length, 2);
+  assert.equal(
+    [...f.artifacts.keys()].filter((key) => key.startsWith("correction-plan:"))
+      .length,
+    1,
+  );
+});
+
+for (const point of [
+  "before_plan",
+  "after_plan",
+  "after_dispatch",
+  "after_terminal",
+] as const) {
+  test(`restart at ${point} reuses the immutable correction slot and never replays an uncertain dispatch`, async () => {
+    const f = fixture();
+    failInitial(f);
+    const save = f.deps.saveArtifact,
+      reserve = f.deps.reserveDispatch;
+    let interrupted = false;
+    f.deps.saveArtifact = async (input) => {
+      if (
+        !interrupted &&
+        input.kind === "model_correction" &&
+        point === "before_plan"
+      ) {
+        interrupted = true;
+        throw Error("interrupted before plan");
+      }
+      const result = await save(input);
+      if (
+        !interrupted &&
+        ((input.kind === "model_correction" && point === "after_plan") ||
+          (input.key.startsWith("author-correction:") &&
+            point === "after_terminal"))
+      ) {
+        interrupted = true;
+        throw Error(`interrupted ${point}`);
+      }
+      return result;
+    };
+    f.deps.reserveDispatch = async (input) => {
+      const result = await reserve(input);
+      if (
+        !interrupted &&
+        input.key.startsWith("dispatch:author-correction:") &&
+        point === "after_dispatch"
+      ) {
+        interrupted = true;
+        throw Error("interrupted after dispatch");
+      }
+      return result;
+    };
+    await assert.rejects(
+      prepareReviewedCaliforniaCandidate(f.fresh(), f.deps),
+      /interrupted/,
+    );
+    const resumed = f.fresh();
+    resumed.lease = {
+      ...resumed.lease,
+      owner: "next-owner",
+      generation: 2,
+      reviewEpoch: 3,
+    };
+    if (point === "after_dispatch") {
+      await assert.rejects(
+        prepareReviewedCaliforniaCandidate(resumed, f.deps),
+        /already reserved/,
+      );
+      assert.equal(f.calls.length, 1);
+      assert.equal(resumed.usage.modelCalls, 0);
+    } else {
+      const prepared = await prepareReviewedCaliforniaCandidate(
+        resumed,
+        f.deps,
+      );
+      assert.equal(prepared.reviewed.verdict, "approve");
+      assert.equal(f.calls.length, 3);
+      assert.equal(
+        resumed.usage.modelCalls,
+        point === "after_terminal" ? 1 : 2,
+      );
+    }
+    assert.equal(
+      [...f.artifacts.keys()].filter((key) =>
+        key.startsWith("correction-plan:"),
+      ).length,
+      1,
+    );
+  });
+}
+
+test("insert conflict winner supplies the only child and feedback, including after JSONB key reordering", async () => {
+  const winner = fixture();
+  failInitial(
+    winner,
+    diagnostic({
+      parsedOutput: { persisted: "winner", nested: { a: 1, b: 2 } },
+    }),
+  );
+  const stopped = winner.fresh({
+    bounds: { maxModelCalls: 1, maxInputTokens: 1_000_000 },
+  });
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(stopped, winner.deps),
+    /budget/i,
+  );
+  const winning = slot(winner);
+  const reorder = (value: unknown): unknown =>
+    Array.isArray(value)
+      ? value.map(reorder)
+      : value && typeof value === "object"
+        ? Object.fromEntries(
+            Object.entries(value)
+              .reverse()
+              .map(([key, item]) => [key, reorder(item)]),
+          )
+        : value;
+  const f = fixture();
+  failInitial(f, diagnostic({ parsedOutput: { losing: "local proposal" } }));
+  const save = f.deps.saveArtifact;
+  f.deps.saveArtifact = async (input) =>
+    input.kind === "model_correction"
+      ? (f.artifacts.set(input.key, reorder(winning.document)),
+        f.artifacts.get(input.key))
+      : save(input);
+  const prepared = await prepareReviewedCaliforniaCandidate(f.fresh(), f.deps);
+  assert.equal(prepared.reviewed.verdict, "approve");
+  assert.deepEqual(
+    f.calls.find((call) => call.correction)?.correction,
+    winning.document.feedback,
+  );
+  assert.ok(f.artifacts.has(`dispatch:${winning.document.authorKey}`));
+  assert.equal(
+    [...f.artifacts.keys()].filter((key) =>
+      key.startsWith("dispatch:author-correction:"),
+    ).length,
+    1,
+  );
+});
+
+test("the full correction prompt is budgeted before any dispatch reservation", async () => {
+  const f = fixture();
+  failInitial(
+    f,
+    diagnostic({ parsedOutput: { output: "long response ".repeat(3000) } }),
+  );
+  const first = f.fresh({
+    bounds: { maxModelCalls: 1, maxInputTokens: 1_000_000 },
+  });
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(first, f.deps),
+    /budget/i,
+  );
+  const before = [...f.artifacts.keys()];
+  const base = californiaModelInput({
+    dossier: first.dossier,
+    policyVersion: first.policyVersion,
+  }).inputTokenReservation;
+  const input = f.fresh({
+    bounds: { maxModelCalls: 10, maxInputTokens: base },
+  });
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(input, f.deps),
+    /budget/i,
+  );
+  assert.equal(input.usage.modelCalls, 0);
+  assert.equal(input.usage.inputTokenReservations, 0);
+  assert.equal(f.calls.length, 1);
+  assert.deepEqual([...f.artifacts.keys()], before);
+});
+
+for (const invalid of [
+  { errorKind: "output_limit" },
+  { errorKind: "timeout" },
+  { errorKind: "json_parse" },
+  { errorKind: "provider_error" },
+  { actualModel: null },
+  { finishReason: null, parsedOutput: null },
+  { finishReason: null, requestId: null },
+  { finishReason: null, usage: { ...diagnostic().usage, inputTokens: null } },
+  { validationProblems: [] },
+  { parsedOutput: null, rawText: "not JSON" },
+] satisfies Partial<CaliforniaModelFailureDiagnostic>[]) {
+  test(`untrusted terminal diagnostic ${JSON.stringify(invalid)} never authorizes correction`, async () => {
+    const f = fixture();
+    failInitial(f, diagnostic(invalid));
+    for (let run = 0; run < 2; run++)
+      await assert.rejects(
+        prepareReviewedCaliforniaCandidate(f.fresh(), f.deps),
+      );
+    assert.equal(f.calls.length, 1);
+    assert.equal(
+      [...f.artifacts.keys()].some((key) => key.startsWith("correction-plan:")),
+      false,
+    );
+  });
+}
+
+test("a stale lease cannot reserve an initial or correction call", async () => {
+  for (const correction of [false, true]) {
+    const f = fixture();
+    if (correction) {
+      failInitial(f);
+      await assert.rejects(
+        prepareReviewedCaliforniaCandidate(
+          f.fresh({ bounds: { maxModelCalls: 1, maxInputTokens: 1_000_000 } }),
+          f.deps,
+        ),
+        /budget/i,
+      );
+    }
+    const before = f.calls.length;
+    f.deps.reserveDispatch = async () => false;
+    const input = f.fresh();
+    await assert.rejects(
+      prepareReviewedCaliforniaCandidate(input, f.deps),
+      /lease expired/,
+    );
+    assert.equal(f.calls.length, before);
+    assert.equal(input.usage.modelCalls, 0);
+  }
+});
+
+test("a corrupted persisted plan fails closed before invoking any model", async () => {
+  const f = fixture();
+  failInitial(f);
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(
+      f.fresh({ bounds: { maxModelCalls: 1, maxInputTokens: 1_000_000 } }),
+      f.deps,
+    ),
+    /budget/i,
+  );
+  const plan = slot(f);
+  f.artifacts.set(plan.key, { ...plan.document, feedbackDigest: "changed" });
+  const input = f.fresh();
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(input, f.deps),
+    /immutable author contract/,
+  );
+  assert.equal(input.usage.modelCalls, 0);
+  assert.equal(f.calls.length, 1);
+});
+
+test("oversized correction feedback stays pending without a child dispatch", async () => {
+  const f = fixture();
+  failInitial(
+    f,
+    diagnostic({
+      parsedOutput: { response: "large prior output ".repeat(12000) },
+    }),
+  );
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(f.fresh(), f.deps),
+    (error: unknown) =>
+      error instanceof PendingCandidateResearchGap &&
+      /bounded correction prompt/.test(error.message),
+  );
+  assert.equal(f.calls.length, 1);
+  assert.equal(
+    [...f.artifacts.keys()].some((key) =>
+      key.startsWith("dispatch:author-correction:"),
+    ),
+    false,
+  );
+});
+
+test("a schema correction rejected by review remains exhausted after its terminal rejection write is interrupted", async () => {
+  const f = fixture();
+  failInitial(f);
+  const review = f.deps.review,
+    save = f.deps.saveArtifact;
+  f.deps.review = async (input) => ({
+    ...(await review(input)),
+    verdict: "reject",
+    overallReason:
+      "The replacement still attributes an unsupported promise to the campaign.",
+  });
+  let interrupted = false;
+  f.deps.saveArtifact = async (input) => {
+    const saved = await save(input);
+    if (!interrupted && input.kind === "model_correction_rejection") {
+      interrupted = true;
+      throw Error("interrupted after terminal rejection");
+    }
+    return saved;
+  };
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(f.fresh(), f.deps),
+    /interrupted/,
+  );
+  const input = f.fresh();
+  input.lease.reviewEpoch = 9;
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(input, f.deps),
+    /bounded candidate correction/,
+  );
+  assert.equal(f.calls.length, 3);
+  assert.equal(input.usage.modelCalls, 0);
+  assert.equal(slot(f).document.feedback instanceof Object, true);
+  assert.ok(
+    input.provenance.modelArtifactKeys?.some((key) =>
+      key.startsWith("failure:author:"),
+    ),
+  );
+  assert.ok(
+    input.provenance.modelArtifactKeys?.some((key) =>
+      key.startsWith("correction-rejected:"),
+    ),
+  );
+});
+
+test("a concrete rejected claim finding authorizes the one correction when whole-brief feedback is absent", async () => {
+  const f = fixture();
+  const review = f.deps.review;
+  let rejected = false;
+  f.deps.review = async (input) => {
+    const result = await review(input);
+    if (!rejected) {
+      rejected = true;
+      return {
+        ...result,
+        verdict: "reject",
+        overallReason: undefined,
+        findings: [
+          {
+            claimId: "priorities-1",
+            supported: false,
+            reason:
+              "The source supports library funding but not the claimed budget amount.",
+          },
+        ],
+      };
+    }
+    return result;
+  };
+  const prepared = await prepareReviewedCaliforniaCandidate(f.fresh(), f.deps);
+  assert.equal(prepared.reviewed.verdict, "approve");
+  assert.equal(f.calls.length, 4);
+  assert.deepEqual(
+    (
+      f.calls.find((call) => call.correction)?.correction as {
+        overallReason: unknown;
+      }
+    ).overallReason,
+    null,
+  );
+});
+
+test("the saved Wagner output returned without finish metadata remains a known compiler failure eligible for one correction", async () => {
+  const saved = JSON.parse(
+    await readFile(
+      new URL("./fixtures/wagner-author-origin-failure.json", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    dossier: CandidateEvidenceDossier;
+    output: { record: { claims: { kind: string }[] } };
+    provenance: {
+      configuredModel: string;
+      actualModel: string;
+      provider: string;
+      requestId: string;
+      usage: { inputTokens: number; outputTokens: number };
+    };
+  };
+  const f = fixture();
+  let initialDiagnostic: CaliforniaModelFailureDiagnostic | undefined;
+  f.deps.author = async (input) => {
+    f.calls.push({ role: "author", correction: input.correction });
+    const output = structuredClone(saved.output);
+    if (input.correction) {
+      assert.equal(input.correction.kind, "author_validation");
+      assert.deepEqual(
+        (input.correction as { previousOutput: unknown }).previousOutput,
+        saved.output,
+      );
+      assert.equal(initialDiagnostic?.finishReason, null);
+      output.record.claims[0]!.kind = "analysis";
+    }
+    try {
+      return await authorCaliforniaBrief(input, {
+        now: f.deps.now,
+        invoke: async () => ({ ...saved.provenance, output, costUsd: null }),
+      });
+    } catch (error) {
+      assert.ok(error instanceof CaliforniaModelInvocationError);
+      initialDiagnostic = error.diagnostic;
+      assert.equal(initialDiagnostic.errorKind, "schema_validation");
+      assert.deepEqual(initialDiagnostic.parsedOutput, saved.output);
+      throw error;
+    }
+  };
+  const input = f.fresh({
+    dossier: saved.dossier,
+    candidateId: saved.dossier.identity.candidateId,
+  });
+  const prepared = await prepareReviewedCaliforniaCandidate(input, f.deps);
+  assert.equal(prepared.reviewed.verdict, "approve");
+  assert.equal(f.calls.length, 3);
+  assert.equal(
+    input.usage.actualInputTokens,
+    saved.provenance.usage.inputTokens * 2 + 75,
+  );
+});
+
+test("a corrected author awaiting review never inherits the rejected parent revision's reviewer", async () => {
+  const f = fixture();
+  const review = f.deps.review;
+  f.deps.review = async (input) => ({
+    ...(await review(input)),
+    verdict: "reject",
+    overallReason:
+      "The priorities claim attributes an unsupported budget amount to the candidate.",
+  });
+  const input = f.fresh({
+    bounds: { maxModelCalls: 3, maxInputTokens: 1_000_000 },
+  });
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(input, f.deps),
+    /budget/i,
+  );
+  assert.ok(input.provenance.author);
+  assert.equal(input.provenance.reviewer, undefined);
+  assert.equal(input.provenance.verdict, undefined);
+  assert.equal(input.usage.modelCalls, 3);
+});

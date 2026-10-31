@@ -462,9 +462,34 @@ export async function failResearchRefresh(
   pilotKey: string,
   reason: string,
   database: ResearchDatabase = db,
-  options?: { workLease?: ResearchWorkLease; stagedPolicyVersion?: string },
+  options?: {
+    workLease?: ResearchWorkLease;
+    stagedPolicyVersion?: string;
+    attempted?: {
+      attemptedAt: string;
+      checkpoint: Record<string, unknown>;
+    };
+  },
 ) {
   if (!reason.trim()) throw new Error("Required source failure needs a reason");
+  const attempted = options?.attempted;
+  if (attempted !== undefined) {
+    const timestamp =
+      typeof attempted.attemptedAt === "string"
+        ? Date.parse(attempted.attemptedAt)
+        : NaN;
+    if (!Number.isFinite(timestamp) || timestamp > Date.now())
+      throw new Error("Invalid research attempt timestamp");
+    const checkpoint: unknown = attempted.checkpoint;
+    if (
+      checkpoint === null ||
+      typeof checkpoint !== "object" ||
+      Array.isArray(checkpoint)
+    )
+      throw new Error("Invalid research attempt checkpoint");
+    if (!options?.workLease)
+      throw new Error("Research attempt requires a current work lease");
+  }
   await database.transaction(async (tx) => {
     const [selected] = await tx
       .select()
@@ -476,6 +501,15 @@ export async function failResearchRefresh(
       )
       .limit(1);
     const lease = options?.workLease;
+    const saveAttempt = async () => {
+      if (!attempted || !lease) return;
+      await tx
+        .update(CaliforniaRaceWork)
+        .set({
+          checkpoint: sql`coalesce(${CaliforniaRaceWork.checkpoint}, '{}'::jsonb) || ${JSON.stringify({ ...attempted.checkpoint, attemptedAt: attempted.attemptedAt })}::jsonb`,
+        })
+        .where(eq(CaliforniaRaceWork.key, lease.key));
+    };
     let electionDate = selected?.document.manifest.electionDate;
     if (!electionDate && lease) {
       const [scope] = await tx
@@ -507,6 +541,7 @@ export async function failResearchRefresh(
         throw new Error("Research collection election changed");
       await lockResearchRace(tx, prior.document.manifest);
       await assertResearchWorkLease(tx, lease, prior.document, true);
+      await saveAttempt();
       await invalidateRace(tx, prior.document.manifest, reason);
       await requireFreshResearchReview(tx, prior.pilotKey, reason);
       await tx
@@ -549,6 +584,7 @@ export async function failResearchRefresh(
       );
     await lockResearchRace(tx, race);
     await activeResearchWorkLease(tx, lease, pilotKey);
+    await saveAttempt();
     await requireFreshResearchReview(tx, pilotKey, reason);
   });
 }
