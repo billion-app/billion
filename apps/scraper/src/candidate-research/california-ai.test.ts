@@ -225,6 +225,39 @@ test("strict author rejects cosmetic or financial extras while code preserves fi
     );
 });
 
+for (const hasClaims of [true, false]) {
+  test(`absent finance coverage stays document-scoped ${hasClaims ? "with candidate research" : "without a research object"}`, async () => {
+    const input = dossierInput();
+    const operationalMessage =
+      "An exact official FEC identity was verified, but the public financial summary and bounded API records could not be retrieved and reconciled. Financial totals, donor identities and outside spending remain unavailable, not zero.";
+    input.gaps.push({
+      dimension: "finance",
+      code: "source_unavailable",
+      message: operationalMessage,
+      checkedSourceIds: [],
+      required: false,
+    });
+    const dossier = buildCaliforniaDossier(input);
+    const original = structuredClone(dossier);
+    const output = authorFixture();
+    if (!hasClaims) output.priorities.claims = [];
+    const { brief } = await authorCaliforniaBrief(
+      { dossier, policyVersion: "p1" },
+      dependencies([output]).deps,
+    );
+    const coverage = hasClaims
+      ? brief.research?.financeGap
+      : brief.sections.find((section) => section.topic === "unknowns")
+          ?.missingEvidence;
+    assert.ok(coverage);
+    assert.match(coverage, /No campaign-finance record.*this brief/);
+    assert.match(coverage, /unavailable, not zero/);
+    assert.doesNotMatch(coverage, /identity was verified|API records|reconciled/);
+    assert.deepEqual(dossier, original);
+    assert.equal(brief.research?.finance ?? null, null);
+  });
+}
+
 test("unsupported and omitted reviewer findings never autoapprove", async () => {
   for (const findings of [
     [{ claimId: "priorities-1", supported: false, reason: "Unsupported cost" }],
