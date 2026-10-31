@@ -449,14 +449,17 @@ export function getWebSearchTool() {
   return provider.tools.webSearch_20250305({ maxUses: 5 });
 }
 /** Retry search with the fallback's own native tool so citations survive. */
-export async function generateWebSearch(query: string) {
+export async function generateWebSearch(
+  query: string,
+  engines?: readonly string[],
+) {
   if (process.env.SCRAPER_SEARCH_PROVIDER === "searxng") {
     const baseUrl = process.env.SCRAPER_SEARXNG_BASE_URL?.trim();
     if (!baseUrl)
       throw new Error(
         "SCRAPER_SEARXNG_BASE_URL is required when SCRAPER_SEARCH_PROVIDER=searxng",
       );
-    return searchSearxng(query, baseUrl);
+    return searchSearxng(query, baseUrl, engines);
   }
   const tavilyKey = process.env.TAVILY_API_KEY?.trim();
   if (process.env.SCRAPER_SEARCH_PROVIDER === "tavily") {

@@ -249,10 +249,21 @@ translations and consumes Codex capacity; `--watch` serves the queue continuousl
 San José local snapshot under its explicit automation policy. It runs serially
 every 30 minutes with finite ceilings of 48 races, 96 candidates, 500 source
 requests, 250 MB of response bodies, 192 model calls and 4 million conservative
-input-token reservations. Only this job explicitly selects Tavily, allows at
-most 96 searches per run, and uses Luna with low reasoning for authorship and
-Astra for review. Existing monthly Tavily and provider limits still apply.
-Other jobs and global provider settings retain their existing configuration.
+input-token reservations. This job explicitly selects SearXNG and requires
+`SCRAPER_SEARXNG_BASE_URL` in the supervisor environment. Discovery has no paid
+provider fallback. Candidate discovery explicitly selects the Mwmbl engine with
+name-only queries. The host's SearXNG settings must make that engine available;
+it remains disabled for default searches by other jobs. It uses Luna with low
+reasoning for authorship and Astra
+for review under the same approved automation policy. Search work remains
+bounded by the candidate and source-request ceilings. Other jobs and global
+provider settings retain their existing configuration.
+
+California discovery caches are scoped by generation, provider, SearXNG base
+URL, engine selection and query policy. Switching to the local provider bypasses the old fixed discovery
+cache while preserving fetched source documents for reuse. Restart the
+scraper process after changing provider configuration. See
+[shared research](../../docs/scraper-research.md) for cache behavior.
 
 These bounds remove demonstrated admission bottlenecks in the local sample;
 they do not establish a 24-hour capacity guarantee. The sample consumed more

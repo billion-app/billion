@@ -12,7 +12,11 @@ const responseSchema = z.object({
 });
 
 /** SearXNG discovers URLs; page retrieval and citation validation remain ours. */
-async function requestSearch(query: string, baseUrl: string) {
+async function requestSearch(
+  query: string,
+  baseUrl: string,
+  engines?: readonly string[],
+) {
   const endpoint = new URL("search", `${baseUrl.replace(/\/$/, "")}/`);
   const response = await fetch(endpoint, {
     method: "POST",
@@ -21,7 +25,9 @@ async function requestSearch(query: string, baseUrl: string) {
       q: query,
       format: "json",
       language: "en",
-      categories: "general",
+      ...(engines?.length
+        ? { engines: engines.join(",") }
+        : { categories: "general" }),
     }),
     signal: AbortSignal.timeout(60_000),
   });
@@ -64,12 +70,16 @@ async function requestSearch(query: string, baseUrl: string) {
 // Background jobs can wait: serialize discovery and leave two seconds between starts.
 let queue: Promise<void> = Promise.resolve();
 let lastStarted = 0;
-export function searchSearxng(query: string, baseUrl: string) {
+export function searchSearxng(
+  query: string,
+  baseUrl: string,
+  engines?: readonly string[],
+) {
   const result = queue.then(async () => {
     const delay = Math.max(0, 2000 - (Date.now() - lastStarted));
     if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
     lastStarted = Date.now();
-    return requestSearch(query, baseUrl);
+    return requestSearch(query, baseUrl, engines);
   });
   queue = result.then(
     () => undefined,

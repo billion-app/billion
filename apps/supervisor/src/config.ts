@@ -70,8 +70,7 @@ export const jobs: readonly JobDefinition[] = [
       "1",
     ],
     env: {
-      SCRAPER_SEARCH_PROVIDER: "tavily",
-      SCRAPER_TAVILY_MAX_SEARCHES_PER_RUN: "96",
+      SCRAPER_SEARCH_PROVIDER: "searxng",
       SCRAPER_FALLBACK_PRIORITY: "primary",
       SCRAPER_FALLBACK_MODEL: "gpt-6-luna",
       SCRAPER_FALLBACK_REASONING_EFFORT: "low",
