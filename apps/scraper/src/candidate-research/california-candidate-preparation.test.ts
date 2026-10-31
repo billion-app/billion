@@ -15,7 +15,11 @@ import {
   PendingCandidateResearchGap,
   prepareReviewedCaliforniaCandidate,
 } from "./california-candidate-preparation.js";
-import { fixtureDossier } from "./california-dossier.test.js";
+import { buildCaliforniaDossier } from "./california-dossier.js";
+import {
+  fixtureCampaignMaterialDossier,
+  fixtureDossier,
+} from "./california-dossier.test.js";
 
 type Input = Parameters<typeof prepareReviewedCaliforniaCandidate>[0];
 type Dependencies = Parameters<typeof prepareReviewedCaliforniaCandidate>[1];
@@ -659,4 +663,151 @@ test("a corrected author awaiting review never inherits the rejected parent revi
   assert.equal(input.provenance.reviewer, undefined);
   assert.equal(input.provenance.verdict, undefined);
   assert.equal(input.usage.modelCalls, 3);
+});
+
+function campaignSubjectDossier() {
+  const {
+    schemaVersion: _schema,
+    classification: _classification,
+    sourceSetDigest: _sources,
+    dossierDigest: _digest,
+    ...input
+  } = fixtureDossier();
+  input.evidence[1] = {
+    ...input.evidence[1]!,
+    role: "campaign_material",
+    attribution: {
+      status: "unresolved",
+      context: {
+        excerpt: input.sources[0]!.text,
+        locator: "Campaign account of Morgan Lee's proposals",
+      },
+    },
+  };
+  return buildCaliforniaDossier(input);
+}
+
+function emptyAuthor(f: ReturnType<typeof fixture>) {
+  return async (input: Parameters<Dependencies["author"]>[0]) => {
+    f.calls.push({ role: "author", correction: input.correction });
+    return authorCaliforniaBrief(input, {
+      now: f.deps.now,
+      invoke: async () => ({
+        output: {
+          priorities: { claims: [] },
+          record: { claims: [] },
+          mechanisms: { claims: [] },
+          effects: { claims: [] },
+          tradeoffs: { claims: [] },
+          unknowns: { claims: [] },
+          terms: [],
+        },
+        configuredModel: "fixture",
+        actualModel: "fixture",
+        provider: "fixture",
+        requestId: "empty-completed-response",
+        usage: { inputTokens: 100, outputTokens: 50 },
+        costUsd: null,
+      }),
+    });
+  };
+}
+
+test("a successful empty author on supported campaign material uses one substantive correction before independent review", async () => {
+  const f = fixture();
+  const dossier = campaignSubjectDossier();
+  assert.equal(dossier.classification, "supported");
+  const author = f.deps.author;
+  const empty = emptyAuthor(f);
+  let previousBrief: unknown;
+  f.deps.author = async (input) => {
+    if (!input.correction) {
+      const result = await empty(input);
+      previousBrief = result.brief;
+      return result;
+    }
+    assert.equal(input.correction.kind, "author_validation");
+    if (input.correction.kind === "author_validation") {
+      assert.deepEqual(input.correction.previousOutput, previousBrief);
+      assert.match(
+        input.correction.validationProblems.join(" "),
+        /substantive/i,
+      );
+      assert.match(input.correction.validationProblems.join(" "), /platform/);
+      assert.match(
+        input.correction.validationProblems.join(" "),
+        /unresolved/i,
+      );
+    }
+    return author(input);
+  };
+  const input = f.fresh({ dossier });
+  const prepared = await prepareReviewedCaliforniaCandidate(input, f.deps);
+  assert.equal(prepared.reviewed.verdict, "approve");
+  assert.equal(prepared.authored.brief.priorities.claims.length, 1);
+  assert.deepEqual(
+    f.calls.map((call) => call.role),
+    ["author", "author", "reviewer"],
+  );
+  assert.equal(input.usage.modelCalls, 3);
+  assert.equal(input.usage.actualInputTokens, 275);
+  assert.equal(input.usage.actualOutputTokens, 125);
+  assert.equal(
+    [...f.artifacts.keys()].filter((key) => key.startsWith("correction-plan:"))
+      .length,
+    1,
+  );
+  const plan = slot(f);
+  const resumed = f.fresh({ dossier });
+  resumed.lease = { ...resumed.lease, owner: "replacement", generation: 3 };
+  await prepareReviewedCaliforniaCandidate(resumed, f.deps);
+  assert.equal(resumed.usage.modelCalls, 0);
+  assert.deepEqual(slot(f), plan);
+});
+
+test("an unresolved third-party pledge can stay empty after its single correction and remains unpublished across restarts", async () => {
+  const f = fixture();
+  const dossier = fixtureCampaignMaterialDossier();
+  assert.equal(dossier.classification, "supported");
+  f.deps.author = emptyAuthor(f);
+  for (const epoch of [0, 3, 9]) {
+    const input = f.fresh({ dossier });
+    input.lease = {
+      ...input.lease,
+      owner: `owner-${epoch}`,
+      generation: epoch + 1,
+      reviewEpoch: epoch,
+    };
+    await assert.rejects(
+      prepareReviewedCaliforniaCandidate(input, f.deps),
+      (error: unknown) => error instanceof PendingCandidateResearchGap,
+    );
+    assert.equal(input.provenance.reviewer, undefined);
+    assert.equal(input.provenance.verdict, undefined);
+    assert.equal(input.usage.modelCalls, epoch === 0 ? 2 : 0);
+  }
+  assert.deepEqual(
+    f.calls.map((call) => call.role),
+    ["author", "author"],
+  );
+  assert.equal(
+    [...f.artifacts.keys()].filter((key) => key.startsWith("correction-plan:"))
+      .length,
+    1,
+  );
+});
+
+test("a roster-only evidence gap does not dispatch a substantive correction", async () => {
+  const f = fixture();
+  const dossier = fixtureDossier(false);
+  f.deps.author = emptyAuthor(f);
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(f.fresh({ dossier }), f.deps),
+    (error: unknown) => error instanceof PendingCandidateResearchGap,
+  );
+  assert.equal(f.calls.length, 1);
+  assert.equal(
+    [...f.artifacts.keys()].some((key) => key.startsWith("correction-plan:")),
+    false,
+  );
 });
