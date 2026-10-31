@@ -7,14 +7,20 @@ import test from "node:test";
 import type { ResearchSource } from "@acme/validators";
 
 import { publicSourceAddresses } from "../research/pages.js";
+import { buildCaliforniaDossier } from "./california-dossier.js";
 import {
   CaliforniaBudgetReached,
+  CaliforniaCitedSourceFailure,
   californiaLocalAuthority,
   collectCaliforniaEvidence,
   fetchBoundedCaliforniaSource,
   qualifiedCandidatePage,
 } from "./california-evidence.js";
 import { decodeCaliforniaRoster } from "./california-roster.js";
+import {
+  CaliforniaSourceHttpError,
+  isCaliforniaSourceUnavailable,
+} from "./california-source-availability.js";
 
 const now = "2026-10-30T12:00:00.000Z";
 const source = (id: string, url: string, text: string): ResearchSource => ({
@@ -704,6 +710,81 @@ test("previous dossier finance renewal preserves archive IDs and semantic digest
     first.sources.map((source) => source.id).sort(),
   );
 });
+
+for (const failure of [
+  503,
+  429,
+  "timeout",
+  404,
+  410,
+  "malformed",
+  "changed",
+] as const) {
+  test(`previous cited source refresh preserves availability semantics for ${failure}`, async () => {
+    const { snapshot, race } = await fixture();
+    const member = race.members[0]!;
+    const deps = {
+      now: () => now,
+      sharedSources: new Map<string, Promise<ResearchSource>>(),
+      budget: { request() {}, bytes() {} },
+      search: async () => ({ sources: [] }),
+      fetch: async (id: string, url: string) =>
+        source(id, url, "Official office description."),
+    };
+    const initial = await collectCaliforniaEvidence(
+      { snapshot, race, member },
+      deps,
+    );
+    const cited = source(
+      "candidate-record",
+      "https://fixture.example.gov/record",
+      `${member.name} served on an oversight board.`,
+    );
+    const previousDossier = buildCaliforniaDossier({
+      ...initial,
+      sources: [...initial.sources, cited],
+      evidence: [
+        ...initial.evidence,
+        {
+          id: "candidate-record",
+          sourceId: cited.id,
+          excerpt: cited.text,
+          locator: "Official record",
+          origin: "primary_record",
+          role: "candidate_record",
+          identityQualification: "exact_election_office",
+        },
+      ],
+    });
+    const fetch = deps.fetch;
+    deps.sharedSources.clear();
+    deps.fetch = async (id, url) => {
+      if (url !== cited.url) return fetch(id, url);
+      if (typeof failure === "number")
+        throw new CaliforniaSourceHttpError(failure);
+      if (failure === "timeout")
+        throw Object.assign(new Error("acquisition timeout"), {
+          code: "ETIMEDOUT",
+        });
+      if (failure === "malformed")
+        throw new Error("Malformed authoritative document");
+      return source(id, url, "Changed authoritative document");
+    };
+    await assert.rejects(
+      collectCaliforniaEvidence(
+        { snapshot, race, member, previousDossier },
+        deps,
+      ),
+      (error) => {
+        const transient =
+          failure === 503 || failure === 429 || failure === "timeout";
+        assert.equal(isCaliforniaSourceUnavailable(error), transient);
+        assert.equal(error instanceof CaliforniaCitedSourceFailure, !transient);
+        return true;
+      },
+    );
+  });
+}
 
 async function localCampaignFixture() {
   const { snapshot } = await fixture();

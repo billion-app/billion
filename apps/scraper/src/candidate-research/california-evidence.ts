@@ -32,6 +32,7 @@ import {
 import { collectCaliforniaFederalFinance } from "./california-finance.js";
 import {
   CaliforniaSourceHttpError,
+  isCaliforniaSourceUnavailable,
   sourceAcquisitionFailure,
 } from "./california-source-availability.js";
 import { fetchSource, hash, htmlText } from "./sources.js";
@@ -507,7 +508,6 @@ export async function collectCaliforniaEvidence(
   input: {
     snapshot: CaliforniaRosterSnapshot;
     race: CaliforniaRaceTarget;
-    researchRaces?: CaliforniaRaceTarget[];
     member: CaliforniaRaceTarget["members"][number];
     previousDossier?: CandidateEvidenceDossier;
     supplementalSources?: ResearchSource[];
@@ -649,11 +649,13 @@ export async function collectCaliforniaEvidence(
           `A previously cited source changed: ${priorSource.url}`,
         );
     } catch (error) {
+      const failure = sourceAcquisitionFailure(priorSource.url, error);
       if (
-        error instanceof CaliforniaBudgetReached ||
-        error instanceof CaliforniaCitedSourceFailure
+        failure instanceof CaliforniaBudgetReached ||
+        failure instanceof CaliforniaCitedSourceFailure ||
+        isCaliforniaSourceUnavailable(failure)
       )
-        throw error;
+        throw failure;
       throw new CaliforniaCitedSourceFailure(
         `A previously cited source could not be refreshed: ${priorSource.url}`,
       );
@@ -1121,7 +1123,7 @@ export async function collectCaliforniaEvidence(
   let financeGap =
     "California or local campaign-finance totals and donor records have not been reconciled. Federal FEC records do not apply to this office.";
   if (race.officeFamily === "us_house") {
-    const scope = input.researchRaces ?? [race];
+    const scope = [race];
     const identitySources = [rosterSource];
     if (
       scope.some(

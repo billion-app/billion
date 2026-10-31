@@ -198,7 +198,6 @@ export interface CaliforniaDependencies {
     input: {
       snapshot: CaliforniaRosterSnapshot;
       race: CaliforniaRaceTarget;
-      researchRaces?: CaliforniaRaceTarget[];
       member: CaliforniaRaceTarget["members"][number];
       previousDossier?: CandidateEvidenceDossier;
     },
@@ -1126,22 +1125,18 @@ export async function reconcile(
     throw new Error(
       "Requested race key is absent from the authoritative snapshot",
     );
-  const selectedRaces = snapshot.races.filter((race) =>
-    raceKeys.includes(race.raceKey),
-  );
-  const races = [...selectedRaces].sort(
-    (a, b) =>
-      Number(!checkpoints.get(a.raceKey)?.releaseId) -
-        Number(!checkpoints.get(b.raceKey)?.releaseId) ||
-      due(a) - due(b) ||
-      a.raceKey.localeCompare(b.raceKey),
-  );
+  const races = snapshot.races
+    .filter((race) => raceKeys.includes(race.raceKey))
+    .sort(
+      (a, b) =>
+        Number(!checkpoints.get(a.raceKey)?.releaseId) -
+          Number(!checkpoints.get(b.raceKey)?.releaseId) ||
+        due(a) - due(b) ||
+        a.raceKey.localeCompare(b.raceKey),
+    );
   for (const race of races) {
     const activeKeys =
       input.raceKeys ?? (await deps.demandedRaceKeys(snapshot));
-    const researchRaces = selectedRaces.filter((selected) =>
-      activeKeys.includes(selected.raceKey),
-    );
     if (!activeKeys.includes(race.raceKey)) {
       outcomes.push({
         raceKey: race.raceKey,
@@ -1238,7 +1233,6 @@ export async function reconcile(
           {
             snapshot,
             race,
-            researchRaces,
             member,
             previousDossier: previousDossier ?? undefined,
           },

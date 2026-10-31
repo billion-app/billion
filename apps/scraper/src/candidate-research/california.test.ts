@@ -40,6 +40,10 @@ import {
 } from "./california-evidence.js";
 import { decodeCaliforniaRoster } from "./california-roster.js";
 import {
+  CaliforniaSourceHttpError,
+  isCaliforniaSourceUnavailable,
+} from "./california-source-availability.js";
+import {
   coverage,
   fetchCaliforniaPlan,
   plan,
@@ -361,10 +365,7 @@ test("one demanded race researches all authoritative members without widening to
   f.deps.demandedRaceKeys = async () => [demanded.raceKey];
   const investigate = f.deps.investigate;
   f.deps.investigate = async (input, budget) => {
-    assert.deepEqual(
-      input.researchRaces?.map((race) => race.raceKey),
-      [demanded.raceKey],
-    );
+    assert.equal(input.race.raceKey, demanded.raceKey);
     return investigate(input, budget);
   };
   const result = await reconcile(
@@ -393,10 +394,6 @@ test("expired demand is excluded from the finance batch before investigation", a
   const investigate = f.deps.investigate;
   f.deps.investigate = async (input, budget) => {
     assert.equal(input.race.raceKey, active.raceKey);
-    assert.deepEqual(
-      input.researchRaces?.map((race) => race.raceKey),
-      [active.raceKey],
-    );
     return investigate(input, budget);
   };
   const result = await reconcile(
@@ -1744,6 +1741,227 @@ test("a 23-hour source observation leaves one hour and an unchanged fresh retrie
     now,
   );
 });
+
+for (const failure of [503, 429, "timeout", "changed"] as const) {
+  test(`actual Frese F99 refresh ${failure} preserves publication only for transient acquisition failure`, async () => {
+    const f = await fixture();
+    const race = f.allRaces.find((target) =>
+      target.members.some((member) => member.name === "Jeff Frese"),
+    )!;
+    f.snapshot.races.splice(
+      0,
+      f.snapshot.races.length,
+      ...f.allRaces.filter(
+        (target) =>
+          target.officeFamily === "us_house" &&
+          ["10", "16", "19"].includes(target.district!),
+      ),
+    );
+    const captured = JSON.parse(
+      await readFile(
+        new URL("./fixtures/six-candidate-finance.json", import.meta.url),
+        "utf8",
+      ),
+    ) as {
+      masterProjection: string;
+      profiles: Record<string, { text: string }>;
+      raw: Record<string, { text: string }>;
+      reports: {
+        results: Record<string, unknown>[];
+        pagination: Record<string, unknown>;
+      };
+      outside: {
+        results: Record<string, unknown>[];
+        pagination: Record<string, unknown>;
+      };
+      filingIndex: unknown;
+    };
+    const target = "https://docquery.fec.gov/dcdev/posted/2028712.fec";
+    let refreshing = false;
+    const requested: string[] = [];
+    const evidenceDeps = () => ({
+      now: f.deps.now,
+      sharedSources: new Map<string, Promise<ResearchSource>>(),
+      budget: { request() {}, bytes() {} },
+      search: async () => ({ sources: [] }),
+      fetch: async (
+        id: string,
+        url: string,
+        publisher: string,
+        format: ResearchSource["format"],
+      ) => {
+        requested.push(url);
+        if (refreshing && url === target) {
+          if (typeof failure === "number")
+            throw new CaliforniaSourceHttpError(failure);
+          if (failure === "timeout")
+            throw Object.assign(new Error("F99 acquisition timeout"), {
+              code: "ETIMEDOUT",
+            });
+        }
+        const parsed = new URL(url);
+        let value: unknown =
+          "Official office description. No candidate campaign statement or website listed.";
+        if (url.endsWith("cn26.zip")) value = captured.masterProjection;
+        else if (parsed.hostname === "www.fec.gov") {
+          const candidateId = /\/candidate\/([^/]+)\//.exec(
+            parsed.pathname,
+          )?.[1];
+          assert.ok(candidateId);
+          value = captured.profiles[candidateId]!.text;
+        } else if (parsed.hostname === "api.open.fec.gov") {
+          value = parsed.pathname.includes("/reports/")
+            ? captured.reports
+            : parsed.pathname.includes("/schedule_e/")
+              ? captured.outside
+              : captured.filingIndex;
+          if (
+            parsed.pathname.includes("/schedule_e/") ||
+            parsed.pathname.includes("/reports/")
+          ) {
+            const data = value as typeof captured.reports;
+            const key = parsed.pathname.includes("/schedule_e/")
+              ? "candidate_id"
+              : "committee_id";
+            const ids = parsed.searchParams.getAll(key);
+            const results = data.results.filter((row) =>
+              ids.includes(String(row[key])),
+            );
+            value = {
+              ...data,
+              results,
+              pagination: { ...data.pagination, count: results.length },
+            };
+          }
+        } else if (parsed.hostname === "docquery.fec.gov") {
+          const filing = /\/(\d+)\.fec$/.exec(parsed.pathname)?.[1];
+          assert.ok(filing);
+          value = captured.raw[filing]!.text;
+        }
+        const text =
+          (typeof value === "string" ? value : JSON.stringify(value, null, 2)) +
+          (refreshing && url === target && failure === "changed"
+            ? "\nChanged filed document"
+            : "");
+        return {
+          id,
+          url,
+          publisher,
+          format,
+          text,
+          contentHash: hash(text),
+          fetchedAt: f.deps.now(),
+        };
+      },
+    });
+    const investigate = f.deps.investigate;
+    let refreshError: unknown;
+    f.deps.investigate = async (input, budget) => {
+      if (input.member.name !== "Jeff Frese") return investigate(input, budget);
+      if (refreshing) assert.ok(input.previousDossier?.finance);
+      let dossier: CandidateEvidenceDossier;
+      try {
+        dossier = await collectCaliforniaEvidence(input, evidenceDeps());
+      } catch (error) {
+        refreshError = error;
+        throw error;
+      }
+      assert.ok(dossier.finance?.observation?.filingStatus.evidenceIds.length);
+      assert.ok(
+        dossier.evidence.some((citation) =>
+          dossier.sources.some(
+            (source) =>
+              source.id === citation.sourceId && source.url === target,
+          ),
+        ),
+      );
+      const record = await investigate(input, budget);
+      return buildCaliforniaDossier({
+        ...dossier,
+        sources: [
+          ...dossier.sources,
+          ...record.sources.filter((source) =>
+            source.id.startsWith("candidate-record:"),
+          ),
+        ],
+        evidence: [
+          ...dossier.evidence,
+          ...record.evidence.filter(
+            (citation) => citation.role === "candidate_record",
+          ),
+        ],
+      });
+    };
+    const documents: CandidateResearchCollectionDocument[] = [];
+    f.deps.saveCollection = async (document) => {
+      documents.push(document);
+      return {
+        collectionId: document.manifest.id,
+        changed: true,
+        checkedAt: document.manifest.sourceCheckedAt,
+      };
+    };
+    const input = {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds: {
+        ...bounds,
+        maxRaces: 1,
+        maxCandidates: 2,
+        maxSourceRequests: 100,
+        maxSourceBytes: 25_000_000,
+      },
+    };
+    const initial = await reconcile(input, f.deps);
+    assert.equal(initial.completed, 1, JSON.stringify(initial));
+    assert.equal(initial.usage.candidates, 2);
+    assert.equal(initial.usage.races, 1);
+    for (const url of requested.filter(
+      (url) => new URL(url).hostname === "api.open.fec.gov",
+    )) {
+      const params = new URL(url).searchParams;
+      for (const id of params.getAll("candidate_id"))
+        assert.ok(
+          ["H0CA10073", "H6CA10187"].includes(id),
+          `Unadmitted candidate in finance request ${url}`,
+        );
+    }
+    assert.equal(
+      requested.some(
+        (url) => url.includes("1856505.fec") || url.includes("smcacre.gov"),
+      ),
+      false,
+    );
+    assert.equal(documents.length, 1);
+    const published = structuredClone(documents[0]!);
+    const checkpoint = structuredClone(
+      f.rows.get(race.raceKey)!.checkpoint,
+    ) as CaliforniaWorkCheckpoint;
+    const releases = f.stats.releases;
+    f.deps.now = () => "2026-10-30T13:00:00.000Z";
+    refreshing = true;
+    const result = await reconcile(input, f.deps);
+    assert.equal(result.blocked, 1);
+    assert.equal(
+      isCaliforniaSourceUnavailable(refreshError),
+      failure !== "changed",
+    );
+    assert.equal(
+      refreshError instanceof CaliforniaCitedSourceFailure,
+      failure === "changed",
+    );
+    assert.equal(f.stats.failures, failure === "changed" ? 1 : 0);
+    assert.equal(f.stats.releases, releases);
+    assert.equal(result.usage.modelCalls, 0);
+    assert.deepEqual(documents, [published]);
+    assert.equal(published.manifest.expiresAt, "2026-10-31T12:00:00.000Z");
+    assert.equal(
+      (f.rows.get(race.raceKey)!.checkpoint as CaliforniaWorkCheckpoint)
+        .sourceCheckedAt,
+      checkpoint.sourceCheckedAt,
+    );
+  });
+}
 
 test("checkpoints use the effective checked time returned by the trusted store", async () => {
   const f = await fixture();
