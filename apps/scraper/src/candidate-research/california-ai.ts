@@ -19,7 +19,7 @@ import {
 } from "./california-dossier.js";
 
 // Includes the trusted compiler contract so finance-only changes invalidate cached drafts.
-export const californiaAuthorPromptVersion = "california-author-v15";
+export const californiaAuthorPromptVersion = "california-author-v16";
 export const californiaReviewerPromptVersion = "california-review-v6";
 const topics = [
   "priorities",
@@ -908,8 +908,7 @@ export async function authorCaliforniaBrief(
       .map((gap) => gap.message)
       .join(" ");
     const financeGap =
-      financeMessages ||
-      "No identity-reconciled financial record has been validated for this candidate. Financial totals, named donors and outside spending remain unavailable.";
+      "No campaign-finance record is presented in this brief. Missing totals, donor identities and outside-spending amounts are unavailable, not zero.";
     const promises: NonNullable<CandidateBrief["research"]>["promises"] = [];
     const sections = topics.map((topic) => ({
       topic,

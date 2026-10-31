@@ -87,14 +87,14 @@ function dependencies(outputs: unknown[]) {
   };
   return { deps, calls };
 }
-function dossierInput() {
+function dossierInput(candidateSpecific = true) {
   const {
     schemaVersion: _v,
     classification: _c,
     sourceSetDigest: _s,
     dossierDigest: _d,
     ...input
-  } = fixtureDossier();
+  } = fixtureDossier(candidateSpecific);
   return input;
 }
 
@@ -131,7 +131,7 @@ test("nested promises compile stable links and separate exact reviewer attestati
   assert.notEqual(a.attestation.runId, r.attestation.runId);
   assert.notEqual(a.attestation.actorId, r.attestation.actorId);
   assert.equal(a.attestation.revisionDigest, r.attestation.revisionDigest);
-  assert.equal(a.attestation.promptVersion, "california-author-v15");
+  assert.equal(a.attestation.promptVersion, "california-author-v16");
   assert.equal(r.attestation.actualModel, "actual-fixture-model");
   assert.equal(calls[1]!.excludedConfiguredModel, "fixture:author");
 });
@@ -188,7 +188,7 @@ test("uncorroborated campaign record cannot be labeled an actual dispute", async
       ),
   );
 });
-test("strict author rejects cosmetic or financial extras while code preserves finance gaps", async () => {
+test("strict author rejects cosmetic or financial extras while code scopes absent finance coverage", async () => {
   const input = dossierInput();
   const gap =
     "State finance has not been reconciled. Amounts and donors remain unknown.";
@@ -206,7 +206,8 @@ test("strict author rejects cosmetic or financial extras while code preserves fi
     dependencies([output]).deps,
   );
   assert.equal(good.brief.research!.finance, null);
-  assert.equal(good.brief.research!.financeGap, gap);
+  assert.match(good.brief.research!.financeGap!, /this brief/);
+  assert.equal(dossier.gaps.at(-1)!.message, gap);
   for (const bad of [
     { ...output, finance: { inventedTotal: 123 } },
     {
@@ -224,6 +225,42 @@ test("strict author rejects cosmetic or financial extras while code preserves fi
       CaliforniaModelInvocationError,
     );
 });
+
+for (const hasClaims of [true, false]) {
+  test(`absent finance coverage stays document-scoped ${hasClaims ? "with candidate research" : "without a research object"}`, async () => {
+    const input = dossierInput(hasClaims);
+    const operationalMessage =
+      "An exact official FEC identity was verified, but the public financial summary and bounded API records could not be retrieved and reconciled. Financial totals, donor identities and outside spending remain unavailable, not zero.";
+    input.gaps.push({
+      dimension: "finance",
+      code: "source_unavailable",
+      message: operationalMessage,
+      checkedSourceIds: [],
+      required: false,
+    });
+    const dossier = buildCaliforniaDossier(input);
+    const original = structuredClone(dossier);
+    const output = authorFixture();
+    if (!hasClaims) output.priorities.claims = [];
+    const { brief } = await authorCaliforniaBrief(
+      { dossier, policyVersion: "p1" },
+      dependencies([output]).deps,
+    );
+    const coverage = hasClaims
+      ? brief.research?.financeGap
+      : brief.sections.find((section) => section.topic === "unknowns")
+          ?.missingEvidence;
+    assert.ok(coverage);
+    assert.match(coverage, /No campaign-finance record.*this brief/);
+    assert.match(coverage, /unavailable, not zero/);
+    assert.doesNotMatch(
+      coverage,
+      /identity was verified|API records|could not be retrieved and reconciled/,
+    );
+    assert.deepEqual(dossier, original);
+    assert.equal(brief.research?.finance ?? null, null);
+  });
+}
 
 test("unsupported and omitted reviewer findings never autoapprove", async () => {
   for (const findings of [
@@ -800,7 +837,7 @@ test("v15 author owns claims only and preserves temporal and contextual constrai
     { dossier: fixtureDossier(), policyVersion: "p1" },
     deps,
   );
-  assert.equal(result.attestation.promptVersion, "california-author-v15");
+  assert.equal(result.attestation.promptVersion, "california-author-v16");
   assert.ok(
     calls[0]!.system.includes("Past achievements belong only in Record"),
   );
