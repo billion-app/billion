@@ -9,14 +9,24 @@ import type {
 import {
   campaignFinanceSchema,
   fecCandidateMasterUrl,
+  findFecIdentityBridge,
   resolveFecCandidate,
   resolveFecIdentityFromSource,
 } from "@acme/validators";
 
-import { CaliforniaSourceHttpError } from "./california-evidence.js";
-import { buildFinance } from "./finance.js";
+import {
+  isCaliforniaSourceUnavailable,
+  sourceAcquisitionFailure,
+} from "./california-source-availability.js";
+import { fecScheduleALayout } from "./fec-filing-transactions.js";
+import {
+  applyIndependentExpenditures,
+  applyReportedContributions,
+  collectCommitteeReportingStatus,
+  fecBatchUrl,
+} from "./fec-finance-components.js";
 import { profileFinance } from "./profile.js";
-import { fecRows, field, hash } from "./sources.js";
+import { hash } from "./sources.js";
 
 const fecCandidateSchema = z.object({
   candidate_id: z.string().regex(/^H[A-Z0-9]{8}$/),
@@ -26,15 +36,6 @@ const fecCandidateSchema = z.object({
   district: z.union([z.string(), z.number()]).transform(String),
   cycles: z.array(z.number().int()),
   election_years: z.array(z.number().int()),
-});
-const indexPageSchema = z.object({
-  results: z.array(fecCandidateSchema).max(100),
-  pagination: z.object({
-    count: z.number().int().min(0),
-    pages: z.number().int().min(0).max(2),
-    page: z.number().int().min(1).max(2),
-    is_count_exact: z.boolean().optional(),
-  }),
 });
 type FecCandidate = z.infer<typeof fecCandidateSchema>;
 export interface CaliforniaFinanceDependencies {
@@ -68,6 +69,7 @@ export interface CaliforniaFederalFinance {
     cycle: number;
     sourceId: string;
     sourceHash: string;
+    bridge?: NonNullable<ReturnType<typeof findFecIdentityBridge>>;
   };
 }
 export function resolveCaliforniaFecCandidate(input: {
@@ -88,6 +90,9 @@ export async function collectCaliforniaFederalFinance(
   input: {
     race: CaliforniaRaceTarget;
     member: CaliforniaRaceTarget["members"][number];
+    scope?: CaliforniaRaceTarget[];
+    rosterSource?: ResearchSource;
+    identitySources?: ResearchSource[];
   },
   deps: CaliforniaFinanceDependencies,
 ): Promise<CaliforniaFederalFinance> {
@@ -138,229 +143,193 @@ export async function collectCaliforniaFederalFinance(
       );
       deps.sharedSources.set(url, pending);
     }
-    const source = await pending;
+    let source: ResearchSource;
+    try {
+      source = await pending;
+    } catch (error) {
+      throw sourceAcquisitionFailure(url, error);
+    }
     if (!result.sources.some((existing) => existing.id === source.id))
       result.sources.push(source);
     return source;
   };
-  const api = (path: string, params: Record<string, string> = {}) => {
-    const url = new URL(`https://api.open.fec.gov/v1/${path}`);
-    for (const [key, value] of Object.entries(params))
-      url.searchParams.set(key, value);
-    return get(url.toString(), "json", true);
-  };
-  let candidate: Pick<FecCandidate, "candidate_id" | "name"> | undefined;
-  let apiRateLimited = false;
+  const identitySources = [
+    ...(input.identitySources ?? []),
+    ...(input.rosterSource ? [input.rosterSource] : []),
+  ];
+  for (const source of identitySources)
+    if (!result.sources.some((existing) => existing.id === source.id))
+      result.sources.push(source);
   try {
-    const rows: FecCandidate[] = [];
-    const ids = new Set<string>();
-    const sourcesByCandidate = new Map<string, ResearchSource>();
-    let count = 0;
-    let pages = 1;
-    for (let page = 1; page <= pages; page++) {
-      const source = await api("candidates/search/", {
-        office: "H",
-        state: "CA",
-        cycle: String(cycle),
-        election_year: String(cycle),
-        district: district.padStart(2, "0"),
-        per_page: "100",
-        page: String(page),
-      });
-      const parsed = indexPageSchema.parse(JSON.parse(source.text));
+    const master = await get(fecCandidateMasterUrl(cycle), "text");
+    const resolve = (
+      race: CaliforniaRaceTarget,
+      member: CaliforniaRaceTarget["members"][number],
+    ) => {
       if (
-        parsed.pagination.page !== page ||
-        parsed.pagination.is_count_exact === false ||
-        parsed.pagination.count > 200 ||
-        (page > 1 && parsed.pagination.count !== count)
+        race.officeFamily !== "us_house" ||
+        !race.district ||
+        Number(race.electionDate.slice(0, 4)) !== cycle
       )
-        throw new Error(
-          "FEC candidate index is partial or changed during pagination",
-        );
-      count = parsed.pagination.count;
-      pages = parsed.pagination.pages;
-      for (const row of parsed.results) {
-        if (ids.has(row.candidate_id))
-          throw new Error("Duplicate FEC candidate identity");
-        ids.add(row.candidate_id);
-        rows.push(row);
-        sourcesByCandidate.set(row.candidate_id, source);
-      }
-    }
-    if (rows.length !== count)
-      throw new Error("FEC candidate index was truncated");
-    const matched = resolveCaliforniaFecCandidate({
-      candidates: rows,
-      name: input.member.name,
-      district,
-      cycle,
-    });
-    const identitySource =
-      matched && sourcesByCandidate.get(matched.candidate_id);
-    if (!matched || !identitySource) {
+        return null;
+      const query = {
+        name: member.name,
+        district: race.district,
+        cycle,
+        sourceCandidateId: member.sourceCandidateId,
+      };
+      const bridge = findFecIdentityBridge(master, query, identitySources);
+      const identity = resolveFecIdentityFromSource(
+        master,
+        query,
+        bridge,
+        identitySources,
+      );
+      return identity ? { ...identity, ...(bridge ? { bridge } : {}) } : null;
+    };
+    const identity = resolve(input.race, input.member);
+    if (!identity) {
       result.gap =
-        "The bounded official FEC candidate index did not provide one exact full-name match for this House office, California district and election cycle. Financial totals, donors and outside spending remain unavailable.";
+        "The official candidate master and archived identity bridges did not establish one federal identity for this candidate, district and cycle. Financial amounts are unavailable, not zero.";
       result.gapCode = "identity_unresolved";
       return result;
     }
-    candidate = matched;
     result.identityProof = {
-      candidateId: candidate.candidate_id,
-      name: candidate.name,
-      office: "H",
-      state: "CA",
-      district,
-      cycle,
-      sourceId: identitySource.id,
-      sourceHash: identitySource.contentHash,
+      ...identity,
+      sourceId: master.id,
+      sourceHash: master.contentHash,
     };
-  } catch (error) {
-    if (isRunBudget(error)) throw error;
-    let recovered = false;
-    if (error instanceof CaliforniaSourceHttpError && error.status === 429) {
-      apiRateLimited = true;
+    const scope = input.scope ?? [input.race];
+    const identities = scope.flatMap((race) =>
+      race.members
+        .map((member) => resolve(race, member))
+        .filter((value): value is NonNullable<typeof value> => value !== null),
+    );
+    if (!identities.some((value) => value.candidateId === identity.candidateId))
+      throw new Error("Finance candidate absent from selected race scope");
+    const candidateIds = [
+      ...new Set(identities.map((value) => value.candidateId)),
+    ].sort();
+    const principal = new Map(
+      master.text
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .map((line) => {
+          const fields = line.split("|");
+          return [fields[0]!, fields[9]!] as const;
+        }),
+    );
+    const profiles = new Map<string, CampaignFinance>();
+    const profileEvidence: CandidateBrief["evidence"] = [];
+    const authorized = new Map<string, string[]>();
+    for (const selected of identities) {
       try {
-        const source = await get(fecCandidateMasterUrl(cycle), "text");
-        const matched = resolveFecIdentityFromSource(source, {
-          name: input.member.name,
-          district,
-          cycle,
-        });
-        if (!matched) {
-          result.gap =
-            "The official FEC candidate master did not provide one exact full-name match for this House office, California district and election cycle. Financial amounts remain unavailable, not zero.";
-          result.gapCode = "identity_unresolved";
-          return result;
-        }
-        candidate = { candidate_id: matched.candidateId, name: matched.name };
-        result.identityProof = {
-          ...matched,
-          sourceId: source.id,
-          sourceHash: source.contentHash,
-        };
-        recovered = true;
-      } catch (fallbackError) {
-        if (isRunBudget(fallbackError)) throw fallbackError;
+        const profileSource = await get(
+          `https://www.fec.gov/data/candidate/${selected.candidateId}/?cycle=${cycle}`,
+          "html",
+        );
+        const citations: CandidateBrief["evidence"] = [];
+        const profile = profileFinance(
+          profileSource,
+          {
+            fecId: selected.candidateId,
+            fecName: selected.name,
+            district: selected.district,
+            cycle,
+          },
+          citations,
+        );
+        profiles.set(selected.candidateId, profile);
+        authorized.set(selected.candidateId, profile.committeeId.split(", "));
+        if (selected.candidateId === identity.candidateId)
+          profileEvidence.push(...citations);
+      } catch (error) {
+        if (isRunBudget(error) || isCaliforniaSourceUnavailable(error))
+          throw error;
+      }
+      if (!authorized.has(selected.candidateId)) {
+        const committee = principal.get(selected.candidateId);
+        if (!committee || !/^C\d{8}$/.test(committee))
+          throw new Error("Verified candidate principal committee unavailable");
+        authorized.set(selected.candidateId, [committee]);
       }
     }
-    if (!recovered) {
-      result.gap =
-        "The bounded official FEC candidate-index request or validation failed. No federal identity was inferred from a name alone, and unavailable financial amounts are not zero.";
-      result.gapCode = "source_unavailable";
-      return result;
-    }
-  }
-  if (!candidate)
-    throw new Error("FEC identity recovery did not produce an identity");
-  let profile: CampaignFinance | null = null;
-  const profileEvidence: CandidateBrief["evidence"] = [];
-  try {
-    const source = await get(
-      `https://www.fec.gov/data/candidate/${candidate.candidate_id}/?cycle=${cycle}`,
-      "html",
+    const committeeIds = [...new Set([...authorized.values()].flat())].sort();
+    const ownCommitteeIds = authorized.get(identity.candidateId)!;
+    // Shared scope URLs make three bounded API requests reusable across the race.
+    const reportUrl = new URL(
+      fecBatchUrl("reports/house-senate/", cycle, "committee_id", committeeIds),
     );
-    profile = profileFinance(
-      source,
-      {
-        fecId: candidate.candidate_id,
-        fecName: candidate.name,
-        district,
+    reportUrl.searchParams.set("most_recent", "true");
+    const reports = await get(reportUrl.toString(), "json", true);
+    let finance = profiles.get(identity.candidateId);
+    if (finance) result.evidence.push(...profileEvidence);
+    if (!finance) {
+      if (ownCommitteeIds.length !== 1)
+        throw new Error(
+          "Reporting status needs one verified principal committee",
+        );
+      const filingUrl = new URL(
+        fecBatchUrl("filings/", cycle, "committee_id", ownCommitteeIds),
+      );
+      filingUrl.searchParams.set("most_recent", "true");
+      const index = await get(filingUrl.toString(), "json", true);
+      finance = await collectCommitteeReportingStatus({
+        index,
+        committeeId: ownCommitteeIds[0]!,
+        committeeName: ownCommitteeIds[0]!,
+        candidateId: identity.candidateId,
         cycle,
-      },
-      profileEvidence,
-    );
-  } catch (error) {
-    if (isRunBudget(error)) throw error;
-  }
-  if (apiKey !== "DEMO_KEY" && !apiRateLimited) {
-    try {
-      const metadata = await api(`candidate/${candidate.candidate_id}/`);
-      const identities = z
-        .array(fecCandidateSchema)
-        .parse(fecRows(metadata).results);
-      if (
-        identities.length !== 1 ||
-        identities[0]?.candidate_id !== candidate.candidate_id ||
-        !resolveCaliforniaFecCandidate({
-          candidates: identities,
-          name: input.member.name,
-          district,
-          cycle,
-        })
-      )
-        throw new Error(
-          "FEC metadata no longer matches the official candidate index",
-        );
-      const totals = await api(`candidate/${candidate.candidate_id}/totals/`, {
-        cycle: String(cycle),
+        get,
+        sources: result.sources,
+        evidence: result.evidence,
       });
-      const committees = await api(
-        `candidate/${candidate.candidate_id}/committees/`,
-        { cycle: String(cycle), per_page: "100" },
-      );
-      const committeePage = fecRows(committees);
-      if (committeePage.pagination.count !== committeePage.results.length)
-        throw new Error("FEC committee coverage exceeds the retrieval bound");
-      const authorized = committeePage.results.filter(
-        (row) => row.designation === "P" || row.designation === "A",
-      );
-      if (!authorized.length || authorized.length > 3)
-        throw new Error(
-          "Authorized committee coverage exceeds the retrieval bound",
-        );
-      const total = fecRows(totals).results[0];
-      if (!total) throw new Error("FEC financial totals unavailable");
-      const minDate = field(total, "coverage_start_date").slice(0, 10);
-      const maxDate = field(total, "coverage_end_date").slice(0, 10);
-      const receipts: ResearchSource[] = [];
-      for (const committee of authorized)
-        receipts.push(
-          await api("schedules/schedule_a/", {
-            committee_id: field(committee, "committee_id"),
-            two_year_transaction_period: String(cycle),
-            per_page: "100",
-            sort: "-contribution_receipt_amount",
-            min_date: minDate,
-            max_date: maxDate,
-            min_amount: "0.01",
-          }),
-        );
-      const outside = await api("schedules/schedule_e/", {
-        candidate_id: candidate.candidate_id,
-        cycle: String(cycle),
-        per_page: "100",
-        is_notice: "false",
-        most_recent: "true",
-        min_date: minDate,
-        max_date: maxDate,
+    } else {
+      const selectedReports = await applyReportedContributions({
+        source: reports,
+        committeeIds: ownCommitteeIds,
+        candidateId: identity.candidateId,
+        cycle,
+        finance,
+        get,
+        sources: result.sources,
+        evidence: result.evidence,
+        layout: fecScheduleALayout,
       });
-      const evidence: CandidateBrief["evidence"] = [];
-      result.finance = campaignFinanceSchema.parse(
-        buildFinance({
-          candidateId: candidate.candidate_id,
-          district,
-          cycle,
-          metadata,
-          totals,
-          committees,
-          receipts,
-          outside,
-          sources: result.sources,
-          evidence,
-        }),
-      );
-      result.evidence = evidence;
-      return result;
-    } catch (error) {
-      if (isRunBudget(error)) throw error;
+      if (!selectedReports)
+        throw new Error(
+          "No processed financial report available for donor selection",
+        );
     }
-  }
-  result.finance = profile;
-  if (profile) result.evidence = profileEvidence;
-  else {
+    const outside = await get(
+      fecBatchUrl(
+        "schedules/schedule_e/by_candidate/",
+        cycle,
+        "candidate_id",
+        candidateIds,
+      ),
+      "json",
+      true,
+    );
+    applyIndependentExpenditures({
+      source: outside,
+      candidateId: identity.candidateId,
+      candidateIds,
+      cycle,
+      finance,
+      sources: result.sources,
+      evidence: result.evidence,
+    });
+    finance.coverageNote =
+      "Campaign totals retain their reported coverage. Donors are a bounded selection of individual filing transactions, never combined or ranked by name. Independent expenditures cover the separate cycle window of processed periodic reports. New reports may not yet be processed. Lobbying status and interests are not established.";
+    result.finance = campaignFinanceSchema.parse(finance);
+    return result;
+  } catch (error) {
+    if (isRunBudget(error) || isCaliforniaSourceUnavailable(error)) throw error;
+    if (result.identityProof) throw error;
     result.gap =
-      "An exact official FEC identity was verified, but the public financial summary and bounded API records could not be retrieved and reconciled. Financial totals, donor identities and outside spending remain unavailable, not zero.";
+      "Official finance acquisition or validation did not complete. Missing campaign totals, donor observations and independent expenditures remain unavailable, not zero.";
     result.gapCode = "source_unavailable";
+    return result;
   }
-  return result;
 }

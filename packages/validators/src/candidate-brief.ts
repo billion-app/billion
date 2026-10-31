@@ -1,7 +1,10 @@
 import { z } from "zod/v4";
 
 import type { CandidateRaceManifest } from "./candidate-research";
-import { candidateResearchSchema } from "./candidate-research";
+import {
+  candidateFinanceEvidenceIds,
+  candidateResearchSchema,
+} from "./candidate-research";
 
 const text = z.string().trim().min(1).max(4000);
 const date = z.iso.datetime();
@@ -191,11 +194,7 @@ export const candidateBriefSchema = z
       checkReferences(brief.research);
       const finance = brief.research.finance;
       if (finance) {
-        const financialRefs = [
-          ...finance.filingEvidenceIds,
-          ...finance.donors.flatMap((d) => d.evidenceIds),
-          ...(finance.outsideSpending?.flatMap((d) => d.evidenceIds) ?? []),
-        ];
+        const financialRefs = candidateFinanceEvidenceIds(finance);
         if (
           financialRefs.some(
             (id) => evidence.get(id)?.origin !== "primary_record",

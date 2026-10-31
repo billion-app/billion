@@ -86,7 +86,80 @@ export function profileFinance(
       `${cycle} election; ${dates[0]}`,
     ),
   );
+  const optionalAmount = (label: string) => {
+    try {
+      return amount(label);
+    } catch {
+      return null;
+    }
+  };
+  const summaryFields = {
+    spentCents: optionalAmount("Total disbursements"),
+    cashCents: optionalAmount("Ending cash on hand"),
+    debtCents: optionalAmount("Debts/loans owed by committee"),
+    itemizedIndividualCents: optionalAmount(
+      "Itemized individual contributions",
+    ),
+    unitemizedIndividualCents: optionalAmount(
+      "Unitemized individual contributions",
+    ),
+  };
+  const summaryRefs = [
+    `${candidate.fecId}:summary`,
+    `${candidate.fecId}:refunds`,
+  ];
+  for (const label of [
+    "Total disbursements",
+    "Ending cash on hand",
+    "Debts/loans owed by committee",
+    "Itemized individual contributions",
+    "Unitemized individual contributions",
+  ]) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const quote = new RegExp(`${escaped} \\$[\\d,]+\\.\\d{2}`).exec(
+      section,
+    )?.[0];
+    if (!quote) continue;
+    const id = `${candidate.fecId}:summary:${summaryRefs.length}`;
+    citations.push(
+      evidence(
+        source,
+        id,
+        "FEC campaign financial summary",
+        quote,
+        "primary_record",
+        `${cycle} election; ${dates[0]}`,
+      ),
+    );
+    summaryRefs.push(id);
+  }
+  const unavailable = (reason: string) => ({
+    status: "unavailable" as const,
+    reason,
+    evidenceIds: summaryRefs,
+  });
   return campaignFinanceSchema.parse({
+    observation: {
+      schemaVersion: 1,
+      summary: {
+        status: "available",
+        basis: "reported_campaign_totals",
+        periodStart: `${dates[3]}-${dates[1]}-${dates[2]}`,
+        periodEnd: `${dates[6]}-${dates[4]}-${dates[5]}`,
+        updatedAt: source.fetchedAt,
+        evidenceIds: summaryRefs,
+        ...summaryFields,
+      },
+      donorSelection: unavailable(
+        "Itemized filing transactions have not been retrieved.",
+      ),
+      independentExpenditures: unavailable(
+        "Processed independent expenditures have not been retrieved.",
+      ),
+      filingStatus: unavailable(
+        "The official filing index has not been retrieved.",
+      ),
+    },
     committeeId: committees.map((m) => m[2]).join(", "),
     committeeName: committees.map((m) => m[1]!.trim()).join("; "),
     periodStart: `${dates[3]}-${dates[1]}-${dates[2]}`,
@@ -96,10 +169,7 @@ export function profileFinance(
     coverageNote:
       "Campaign totals come from the FEC public financial summary. Itemized contributions and outside spending could not be retrieved in this run. Donor identities, lobbying roles and interests are not established. Newly filed summaries may take up to 48 hours to appear on the FEC website.",
     updatedAt: source.fetchedAt,
-    filingEvidenceIds: [
-      `${candidate.fecId}:summary`,
-      `${candidate.fecId}:refunds`,
-    ],
+    filingEvidenceIds: summaryRefs,
     receipts: {
       totalCents: amount("Total receipts"),
       refundsCents: amount("Total contribution refunds"),

@@ -628,29 +628,55 @@ test("previous dossier finance renewal preserves archive IDs and semantic digest
   const member = race.members.find((member) => member.name === "Mike McGuire")!;
   let fetchedAt = now;
   const fetcher = async (id: string, url: string) => {
-    const text = url.includes("candidates/search/")
-      ? JSON.stringify({
-          results: [
-            {
-              candidate_id: "H6CA01269",
-              name: "MCGUIRE, MIKE",
-              office: "H",
-              state: "CA",
-              district: "01",
-              cycles: [2026],
-              election_years: [2026],
-            },
-          ],
-          pagination: { count: 1, pages: 1, page: 1 },
-        })
-      : url.includes("www.fec.gov")
-        ? "MCGUIRE, MIKE Candidate for House California - 1 ID: H6CA01269 Data is included from these committees: TEST COMMITTEE (C00503185) Total raised Coverage dates: 01/01/2025 to 06/30/2026 Total receipts $100.00 Total individual contributions $70.00 Party committee contributions $5.00 Other committee contributions $5.00 Candidate contributions $5.00 Transfers from other authorized committees $5.00 Loans made by candidate $5.00 Other loans $1.00 Offsets to operating expenditures $1.00 Other receipts $3.00 Newly filed summary data may not appear for up to 48 hours. Total contribution refunds $2.00"
-        : "Official office responsibilities and powers. No candidate statement or website listed.";
+    const text = url.endsWith("cn26.zip")
+      ? "H6CA01269|MCGUIRE, MIKE|DEM|2026|CA|H|01|C|C|C00503185|||||\n"
+      : url.includes("/reports/house-senate/")
+        ? JSON.stringify({
+            results: [
+              {
+                committee_id: "C00503185",
+                cycle: 2026,
+                file_number: 1234567,
+                most_recent_file_number: 1234567,
+                most_recent: true,
+                is_amended: false,
+                report_form: "Form 3",
+                coverage_start_date: "2026-04-01",
+                coverage_end_date: "2026-06-30",
+              },
+            ],
+            pagination: { count: 1, pages: 1, page: 1, is_count_exact: true },
+          })
+        : url.endsWith("1234567.fec")
+          ? "HDR\u001cFEC\u001c8.5\n" +
+            [
+              "F3N",
+              "C00503185",
+              "TEST COMMITTEE",
+              ...Array.from({ length: 12 }, () => ""),
+              "20260401",
+              "20260630",
+            ].join("\u001c")
+          : url.includes("/schedule_e/by_candidate/")
+            ? JSON.stringify({
+                results: [],
+                pagination: {
+                  count: 0,
+                  pages: 0,
+                  page: 1,
+                  is_count_exact: true,
+                },
+              })
+            : url.includes("www.fec.gov")
+              ? "MCGUIRE, MIKE Candidate for House California - 1 ID: H6CA01269 Data is included from these committees: TEST COMMITTEE (C00503185) Total raised Coverage dates: 01/01/2025 to 06/30/2026 Total receipts $100.00 Total individual contributions $70.00 Party committee contributions $5.00 Other committee contributions $5.00 Candidate contributions $5.00 Transfers from other authorized committees $5.00 Loans made by candidate $5.00 Other loans $1.00 Offsets to operating expenditures $1.00 Other receipts $3.00 Newly filed summary data may not appear for up to 48 hours. Total contribution refunds $2.00"
+              : "Official office responsibilities and powers. No candidate statement or website listed.";
     return {
       ...source(id, url, text),
-      format: url.includes("candidates/search/")
+      format: url.includes("api.open.fec.gov")
         ? ("json" as const)
-        : ("html" as const),
+        : url.endsWith(".fec") || url.endsWith(".zip")
+          ? ("text" as const)
+          : ("html" as const),
       fetchedAt,
     };
   };

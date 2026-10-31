@@ -131,3 +131,54 @@ Once reserved, a missing result blocks further reviews and cached approvals for
 the same revision. Changing the target collection, review epoch or reviewer
 configuration cannot bypass an unknown or rejected attempt. This behavior lives
 in [`california-candidate-preparation.ts`](../apps/scraper/src/candidate-research/california-candidate-preparation.ts).
+
+## Federal finance observations
+
+Federal research resolves each selected House candidate against the official FEC
+candidate master for the election cycle. Exact matching includes the office,
+California district and election year. When a display name differs, the archived
+SOS legal/display row or an official roster domain linked through a candidate's
+Form 1 can establish the identity. The shared validator replays the same proof
+before publication. A nickname or missing middle initial alone is insufficient.
+
+The finance collector in
+[`california-finance.ts`](../apps/scraper/src/candidate-research/california-finance.ts)
+shares bounded queries across the active requested races. It retrieves one
+processed House-report index for their verified authorized committees and one
+candidate-scoped independent-expenditure aggregate query. A committee without a
+financial summary also needs its exact filing index. A configured `FEC_API_KEY`
+is preferred; the existing public demonstration key is subject to a shared
+quota. A transient failure stops acquisition without extending an earlier
+publication's original 24-hour expiry. The collector does not publish a replacement
+summary-only record after a required component fails.
+
+`finance.observation` records four separate outcomes. The campaign summary keeps
+its reported coverage and explicitly supplied spending, cash, debt and individual
+itemization amounts. Donor observations select up to ten positive non-memo
+Schedule A transactions from the latest processed Form 3 for authorized
+committees. Committees are ordered by ID, then transactions by receipt date
+(descending) and transaction ID. The combined bound is ten. The source is a raw
+FEC 8.5 electronic filing, checked against the processed report's committee and
+coverage. Memo conduit rows, loans, refunds and transfers do not become donor
+observations. Repeated contributor names remain separate transactions. A latest
+filing with no selected transactions does not establish an empty donor history.
+
+Independent expenditures use their own two-year election-cycle window. Complete
+support and opposition totals require an exactly exhausted query for every
+requested candidate ID. An empty candidate partition establishes zero only
+inside that verified query scope. Periodic-report aggregates are separate from
+campaign receipts and spending; notices are not added to them. New filings can
+still be awaiting FEC processing.
+
+A filing-status observation can instead cite a committee's Form 99 statement
+that it has not crossed the reporting threshold. The filing index records its
+observed forms and counts. Such a statement supplies neither exact campaign
+amounts nor zero donors. Summary and donor components remain unavailable in that
+case, while independently retrieved outside spending remains usable.
+
+Whole source filings remain in the private archive. Public contribution evidence
+contains the filing number, transaction ID, contributor name, entity type, date
+and amount. Home addresses, employer and occupation fields are excluded from
+those excerpts. Donor industry, lobbying status and influence are never inferred
+from a contribution. The optional observation field has no parsing default, so
+older approved revisions retain their original digest.
