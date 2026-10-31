@@ -3,6 +3,135 @@
 import type { Catalog } from "./types";
 
 export const pageStrings = {
+  "Official spending reports": {
+    en: "Official spending reports",
+    es: "Informes oficiales de gastos",
+    zh: "官方支出报告",
+  },
+  "Includes independent spending in processed periodic reports for this period. Excludes 24-hour and 48-hour notices to avoid counting spending twice.":
+    {
+      en: "Includes independent spending in processed periodic reports for this period. Excludes 24-hour and 48-hour notices to avoid counting spending twice.",
+      es: "Incluye el gasto independiente de los informes periódicos procesados para este período. Excluye los avisos de 24 y 48 horas para evitar contar gastos dos veces.",
+      zh: "包括此期间已处理的定期报告中的独立支出。不包括24小时和48小时通知，以免重复计算支出。",
+    },
+  "Opposing the candidate": {
+    en: "Opposing the candidate",
+    es: "En contra del candidato",
+    zh: "反对该候选人",
+  },
+  "Supporting the candidate": {
+    en: "Supporting the candidate",
+    es: "A favor del candidato",
+    zh: "支持该候选人",
+  },
+  "Receipt totals have not been filed in a financial report.": {
+    en: "Receipt totals have not been filed in a financial report.",
+    es: "Los ingresos totales no se han declarado en un informe financiero.",
+    zh: "尚未在财务报告中申报收入总额。",
+  },
+  "Receipt breakdown": {
+    en: "Receipt breakdown",
+    es: "Desglose de ingresos",
+    zh: "收入明细",
+  },
+  "Selection sources": {
+    en: "Selection sources",
+    es: "Fuentes de la selección",
+    zh: "选取来源",
+  },
+  "Selected contributions": {
+    en: "Selected contributions",
+    es: "Aportes seleccionados",
+    zh: "所选捐款",
+  },
+  "This is a selection of contributions from these filings, not a list of every donor or the largest donors for the election cycle.":
+    {
+      en: "This is a selection of contributions from these filings, not a list of every donor or the largest donors for the election cycle.",
+      es: "Esta es una selección de aportes de estas declaraciones, no una lista de todos los donantes ni de los mayores donantes del ciclo electoral.",
+      zh: "这些是从上述申报中选取的捐款，并非本选举周期所有捐款人或最大捐款人的名单。",
+    },
+  "Donor availability": {
+    en: "Donor availability",
+    es: "Disponibilidad de datos de donantes",
+    zh: "捐款人资料情况",
+  },
+  "Exact amounts raised, spent, cash on hand and debt have not been filed in a financial report.":
+    {
+      en: "Exact amounts raised, spent, cash on hand and debt have not been filed in a financial report.",
+      es: "No se han declarado en un informe financiero los importes exactos recaudados, gastados, del efectivo disponible ni de la deuda.",
+      zh: "尚未在财务报告中申报筹款、支出、现金余额和债务的确切金额。",
+    },
+  "Itemized contributions include donor details in the filing. Unitemized contributions are reported together. Both are included in total raised.":
+    {
+      en: "Itemized contributions include donor details in the filing. Unitemized contributions are reported together. Both are included in total raised.",
+      es: "Los aportes detallados incluyen los datos del donante en la declaración. Los no detallados se declaran en conjunto. Ambos se incluyen en el total recaudado.",
+      zh: "逐笔申报的捐款在申报中包含捐款人详情。汇总申报的捐款合并报告。两者均计入筹款总额。",
+    },
+  "Individuals · unitemized": {
+    en: "Individuals · unitemized",
+    es: "Personas · aportes no detallados",
+    zh: "个人捐款 · 汇总申报",
+  },
+  "Individuals · itemized": {
+    en: "Individuals · itemized",
+    es: "Personas · aportes detallados",
+    zh: "个人捐款 · 逐笔申报",
+  },
+  Debt: {
+    en: "Debt",
+    es: "Deuda",
+    zh: "债务",
+  },
+  "Cash on hand": {
+    en: "Cash on hand",
+    es: "Efectivo disponible",
+    zh: "现金余额",
+  },
+  Spent: {
+    en: "Spent",
+    es: "Gastado",
+    zh: "支出",
+  },
+  "Total raised": {
+    en: "Total raised",
+    es: "Total recaudado",
+    zh: "筹款总额",
+  },
+  "Campaign totals": {
+    en: "Campaign totals",
+    es: "Totales de campaña",
+    zh: "竞选财务总额",
+  },
+  "Official filing history": {
+    en: "Official filing history",
+    es: "Historial oficial de declaraciones",
+    zh: "官方申报记录",
+  },
+  "Filings listed: {value1}": {
+    en: "Filings listed: {value1}",
+    es: "Declaraciones enumeradas: {value1}",
+    zh: "所列申报：{value1}",
+  },
+  "The committee states: {value1}": {
+    en: "The committee states: {value1}",
+    es: "El comité declara: {value1}",
+    zh: "委员会声明：{value1}",
+  },
+  "Latest filing: {value1}": {
+    en: "Latest filing: {value1}",
+    es: "Última declaración: {value1}",
+    zh: "最新申报：{value1}",
+  },
+  "Filing status": {
+    en: "Filing status",
+    es: "Estado de las declaraciones",
+    zh: "申报状态",
+  },
+  "Checked {value1}": {
+    en: "Checked {value1}",
+    es: "Consultado el {value1}",
+    zh: "核查于 {value1}",
+  },
   "Good Morning": {
     en: "Good Morning",
     es: "Buenos días",
