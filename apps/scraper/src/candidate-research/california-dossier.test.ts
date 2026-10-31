@@ -583,3 +583,124 @@ test("official candidate-statement status requires its known official submission
     "official_candidate_statement",
   );
 });
+
+test("official candidate master proof remains valid through dossier and financial publication qualification", async () => {
+  const { deriveCandidateResearchQuality } = await import("@acme/validators");
+  const {
+    schemaVersion: _v,
+    classification: _c,
+    sourceSetDigest: _s,
+    dossierDigest: _d,
+    ...input
+  } = fixtureDossier(false);
+  input.officeKind = "federal_legislative";
+  input.officeFamily = "us_house";
+  input.identity.jurisdiction = "ocd-division/country:us/state:ca/cd:1";
+  const text = "H0CA01001|LEE, MORGAN|DEM|2026|CA|H|01|C|C|C00000001|||||\n";
+  const contentHash = createHash("sha256").update(text).digest("hex");
+  input.sources.push({
+    id: "fec-master",
+    url: "https://www.fec.gov/files/bulk-downloads/2026/cn26.zip",
+    publisher: "FEC fixture",
+    format: "text",
+    text,
+    contentHash,
+    fetchedAt: input.createdAt,
+  });
+  const filingText = "Total receipts $100.00";
+  input.sources.push({
+    id: "filing",
+    url: "https://www.fec.gov/data/candidate/H0CA01001/?cycle=2026",
+    publisher: "FEC fixture",
+    format: "html",
+    text: filingText,
+    contentHash: createHash("sha256").update(filingText).digest("hex"),
+    fetchedAt: input.createdAt,
+  });
+  input.evidence.push({
+    id: "finance",
+    sourceId: "filing",
+    excerpt: filingText,
+    locator: "Processed financial summary",
+    origin: "primary_record",
+    role: "finance",
+    identityQualification: "exact_election_office",
+  });
+  input.financeIdentityProof = {
+    candidateId: "H0CA01001",
+    name: "LEE, MORGAN",
+    office: "H",
+    state: "CA",
+    district: "1",
+    cycle: 2026,
+    sourceId: "fec-master",
+    sourceHash: contentHash,
+  };
+  input.finance = {
+    committeeId: "C00000001",
+    committeeName: "Fixture committee",
+    periodStart: "2025-01-01",
+    periodEnd: "2026-09-30",
+    currency: "USD",
+    coverage: "partial",
+    coverageNote: "Fixture processed summary",
+    updatedAt: input.createdAt,
+    filingEvidenceIds: ["finance"],
+    receipts: {
+      totalCents: 10000,
+      breakdown: {
+        individuals: 10000,
+        committees: 0,
+        self_contributions: 0,
+        candidate_loans: 0,
+        transfers: 0,
+        other: 0,
+      },
+      refundsCents: null,
+    },
+    donors: [],
+    donorCoverage: "unavailable",
+    outsideSpending: null,
+  };
+  const dossier = buildCaliforniaDossier(input);
+  const brief = {
+    sections: [],
+    evidence: [{ id: "finance" }],
+    research: { finance: dossier.finance },
+  } as unknown as import("@acme/validators").CandidateBrief;
+  assert.equal(
+    deriveCandidateResearchQuality(brief, dossier)?.basis,
+    "reconciled_finance",
+  );
+  for (const change of [
+    { url: "https://evil.example/files/bulk-downloads/2026/cn26.zip" },
+    { url: "https://www.fec.gov/files/bulk-downloads/2024/cn24.zip" },
+    { text: text + text },
+    { text: text.replace("2026", "2024") },
+  ]) {
+    const changed = {
+      ...input,
+      sources: input.sources.map((s) =>
+        s.id === "fec-master"
+          ? {
+              ...s,
+              ...change,
+              contentHash: createHash("sha256")
+                .update(change.text ?? s.text)
+                .digest("hex"),
+            }
+          : s,
+      ),
+    };
+    changed.financeIdentityProof = {
+      ...input.financeIdentityProof,
+      sourceHash: changed.sources.find((s) => s.id === "fec-master")!
+        .contentHash,
+    };
+    assert.throws(() => buildCaliforniaDossier(changed));
+    assert.equal(
+      deriveCandidateResearchQuality(brief, { ...dossier, ...changed }),
+      null,
+    );
+  }
+});
