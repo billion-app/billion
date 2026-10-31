@@ -215,6 +215,25 @@ export function Finance({
           ? !d.interests.length
           : d.interests.some((i) => i.area === area))),
   );
+  const outsideSpendingCards = finance.outsideSpending?.map((item) => (
+    <View key={item.id} style={s.rule}>
+      <Text style={s.eyebrow}>
+        {item.direction === "support"
+          ? tx("SUPPORTING")
+          : item.direction === "oppose"
+            ? tx("OPPOSING")
+            : tx("POSITION UNSPECIFIED")}
+      </Text>
+      <Text style={s.body}>{item.spender}</Text>
+      <Text style={s.heading}>{money(item.amountCents, appLocale)}</Text>
+      <EvidenceAction
+        ids={item.evidenceIds}
+        title={item.spender}
+        label={tx("Spending report")}
+        open={open}
+      />
+    </View>
+  ));
   return (
     <>
       <CandidateDisclosure
@@ -612,6 +631,7 @@ export function Finance({
                     "Includes independent spending in processed periodic reports for this period. Excludes 24-hour and 48-hour notices to avoid counting spending twice.",
                   )}
                 </Text>
+                {outsideSpendingCards}
               </>
             ) : (
               <Text style={s.body}>{independentExpenditures.reason}</Text>
@@ -628,27 +648,7 @@ export function Finance({
             {tx("Outside spending records are unavailable.")}
           </Text>
         ) : finance.outsideSpending.length ? (
-          finance.outsideSpending.map((item) => (
-            <View key={item.id} style={s.rule}>
-              <Text style={s.eyebrow}>
-                {item.direction === "support"
-                  ? tx("SUPPORTING")
-                  : item.direction === "oppose"
-                    ? tx("OPPOSING")
-                    : tx("POSITION UNSPECIFIED")}
-              </Text>
-              <Text style={s.body}>{item.spender}</Text>
-              <Text style={s.heading}>
-                {money(item.amountCents, appLocale)}
-              </Text>
-              <EvidenceAction
-                ids={item.evidenceIds}
-                title={item.spender}
-                label={tx("Spending report")}
-                open={open}
-              />
-            </View>
-          ))
+          outsideSpendingCards
         ) : (
           <Text style={s.body}>
             {tx(
