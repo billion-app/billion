@@ -1,0 +1,177 @@
+#!/bin/zsh
+set -euo pipefail
+export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.orbstack/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+readonly checkout="$HOME/.local/share/billion/autodeploy"
+readonly image_repo="ghcr.io/billion-app/billion-scraper"
+readonly pause_record="$HOME/.local/state/billion/autodeploy-paused-container"
+resume_container=""
+readonly inspect_jobs='
+const fs = require("node:fs");
+const phase = process.argv[1];
+function schedulerState() {
+  const state = /^State:\s+([A-Za-z])/m.exec(fs.readFileSync("/proc/1/status", "utf8"))?.[1];
+  if (!state) throw new Error("Cannot read the supervisor state");
+  return state;
+}
+async function check() {
+  if (phase === "running") {
+    for (let attempts = 0; ["T", "t"].includes(schedulerState()); attempts++) {
+      if (attempts === 100) throw new Error("Supervisor CONT was not confirmed");
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    return 0;
+  }
+  if (phase === "stopped") {
+    for (let attempts = 0; schedulerState() !== "T"; attempts++) {
+      if (attempts === 100) throw new Error("Supervisor STOP was not confirmed");
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+  } else if (["T", "t"].includes(schedulerState())) return 75;
+  if (fs.readFileSync("/proc/1/task/1/children", "utf8").trim()) return 75;
+  for (const pid of fs.readdirSync("/proc").filter(value => /^\d+$/.test(value))) {
+    if (Number(pid) === 1 || Number(pid) === process.pid) continue;
+    try {
+      const args = fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0").filter(Boolean);
+      if (args.some(arg => /(?:^|\/)dist\/[^\0 ]+\.m?js$/.test(arg))) return 75;
+      if (!/(?:^|\/)node(?:js)?$/.test(args[0] ?? "")) continue;
+      if (args.length === 2 && args[1] === "/var/lib/billion/cortese-import/controller.mjs") {
+        const parent = /^PPid:\s+(\d+)/m.exec(fs.readFileSync(`/proc/${pid}/status`, "utf8"))?.[1];
+        if (parent === "0") continue;
+      }
+      return 75;
+    } catch (error) {
+      if (error.code !== "ENOENT" && error.code !== "ESRCH") throw error;
+    }
+  }
+  return 0;
+}
+check().then(code => { process.exitCode = code; }, error => {
+  console.error(`Cannot establish scraper idleness: ${error.message}`);
+  process.exitCode = 1;
+});
+'
+
+clear_pause_record() {
+  if [[ "$(cat "$pause_record")" != "$resume_container" ]]; then
+    print -u2 "Automatic deployment pause ownership changed."
+    return 1
+  fi
+  if ! rm "$pause_record"; then
+    return 1
+  fi
+  resume_container=""
+}
+
+verify_supervisor() {
+  local service_label
+  if ! service_label=$(docker inspect --format '{{index .Config.Labels "com.billion.service"}}' "$1") || [[ "$service_label" != supervisor ]]; then
+    print -u2 "The owned container is not a verified scraper supervisor."
+    return 1
+  fi
+}
+
+resume_scheduler() {
+  if [[ -z "$resume_container" ]]; then
+    return 0
+  fi
+  local remaining_id
+  if ! remaining_id=$(docker ps --all --filter "id=$resume_container" --format '{{.ID}}'); then
+    print -u2 "Cannot inspect the owned supervisor pause."
+    return 1
+  fi
+  if [[ -z "$remaining_id" ]]; then
+    clear_pause_record
+    return
+  fi
+  if ! verify_supervisor "$resume_container"; then
+    return 1
+  fi
+  if ! docker kill --signal=CONT "$resume_container" >/dev/null 2>&1 || \
+     ! docker exec "$resume_container" node -e "$inspect_jobs" running; then
+    print -u2 "Could not resume the old supervisor container $resume_container."
+    return 1
+  fi
+  clear_pause_record
+}
+
+finish() {
+  local operation_result=$?
+  if ! resume_scheduler; then
+    if (( operation_result == 0 )); then
+      operation_result=1
+    fi
+  fi
+  trap - EXIT
+  exit "$operation_result"
+}
+trap finish EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+if [[ -e "$pause_record" ]]; then
+  recovered_id=$(cat "$pause_record")
+  if [[ ! "$recovered_id" =~ '^[0-9a-f]{64}$' ]]; then
+    print -u2 "Invalid automatic deployment pause record."
+    exit 1
+  fi
+  resume_container="$recovered_id"
+  if ! resume_scheduler; then
+    exit 1
+  fi
+fi
+
+if [[ ! -d "$checkout/.git" ]]; then
+  mkdir -p "${checkout:h}"
+  git clone --quiet https://github.com/billion-app/billion.git "$checkout"
+fi
+git -C "$checkout" fetch --quiet origin main
+sha=$(git -C "$checkout" rev-parse origin/main)
+readonly sha
+readonly image="$image_repo:$sha"
+readonly pin="$HOME/.config/billion/deploy.env"
+if [[ -r "$pin" ]] && [[ "$(cat "$pin")" == "SCRAPER_IMAGE=$image" ]] && \
+   [[ "$(docker ps --filter name=^/billion-supervisor$ --format '{{.Image}}')" == "$image" ]]; then
+  exit 0
+fi
+
+if ! docker pull --quiet "$image"; then
+  print -u2 "Waiting for CI image $sha; leaving the current deployment running."
+  exit 1
+fi
+
+check_worker() {
+  local guard_result=0
+  docker exec "$old_container" node -e "$inspect_jobs" "$1" || guard_result=$?
+  if (( guard_result == 75 )); then
+    print "Scraper work or an existing operator pause is active; deferring $sha."
+    exit 0
+  fi
+  if (( guard_result != 0 )); then
+    exit "$guard_result"
+  fi
+}
+
+running_id=$(docker ps --filter name=^/billion-supervisor$ --format '{{.ID}}')
+readonly running_id
+if [[ -n "$running_id" ]]; then
+  old_container=$(docker inspect --format '{{.Id}}' "$running_id")
+  readonly old_container
+  if [[ ! "$old_container" =~ '^[0-9a-f]{64}$' ]]; then
+    print -u2 "Cannot identify the running supervisor; leaving it unchanged."
+    exit 1
+  fi
+  if ! verify_supervisor "$old_container"; then
+    exit 1
+  fi
+  check_worker idle
+  mkdir -p "${pause_record:h}"
+  (umask 077; print -r -- "$old_container" > "$pause_record.tmp.$$")
+  mv "$pause_record.tmp.$$" "$pause_record"
+  resume_container="$old_container"
+  docker kill --signal=STOP "$old_container" >/dev/null
+  check_worker stopped
+fi
+
+git -C "$checkout" reset --hard "$sha"
+BILLION_DEPLOY_REPO="$checkout" node "$HOME/.local/bin/billion-deploy-scraper.mjs" --local "$sha"
