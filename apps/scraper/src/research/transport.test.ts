@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import https from "node:https";
 import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
+import { setImmediate } from "node:timers/promises";
 import type { LookupFunction } from "node:net";
 
 import { requestPublicSource } from "./transport.js";
@@ -27,6 +28,33 @@ test("source transport uses the pinned address without resolving the source host
     `nonexistent-source.invalid:${address.port}`,
   );
 });
+
+for (const abortBeforeRequest of [true, false]) {
+  test(`source transport handles cancellation ${abortBeforeRequest ? "before request creation" : "before deferred lookup completes"}`, async (t) => {
+    let connections = 0;
+    const server = createServer();
+    server.on("connection", () => connections++);
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    t.after(
+      () => new Promise<void>((resolve) => server.close(() => resolve())),
+    );
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const controller = new AbortController();
+    if (abortBeforeRequest) controller.abort();
+    const response = requestPublicSource(
+      `http://nonexistent-source.invalid:${address.port}/`,
+      [{ address: "127.0.0.1", family: 4 }],
+      controller.signal,
+    );
+    controller.abort();
+    await assert.rejects(response, { name: "AbortError" });
+    await setImmediate();
+    assert.equal(connections, 0);
+  });
+}
 
 for (const scenario of [
   {
