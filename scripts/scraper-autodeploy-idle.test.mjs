@@ -6,6 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 const sha = "a".repeat(40);
+const oldId = "c".repeat(64);
 const image = `ghcr.io/billion-app/billion-scraper:${sha}`;
 const baseline = new URL(
   "./scraper-autodeploy-idle.baseline.zsh",
@@ -26,6 +27,14 @@ async function run(options = {}) {
     await mkdir(join(fixture, ".config/billion"), { recursive: true });
     await mkdir(join(fixture, ".local/bin"), { recursive: true });
     await mkdir(bin);
+    const record = join(
+      fixture,
+      ".local/state/billion/autodeploy-paused-container",
+    );
+    if (options.receipt) {
+      await mkdir(join(fixture, ".local/state/billion"), { recursive: true });
+      await writeFile(record, options.receipt + "\n");
+    }
     const statePath = join(fixture, "state.json");
     await writeFile(
       statePath,
@@ -60,6 +69,7 @@ if (command === "git") {
     record("deploy");
     if (state.deployFailure) process.exit(1);
     state.currentImage = "${image}";
+    state.noContainer = false;
     state.paused = false;
     state.originalRemoved = true;
     fs.writeFileSync(path.join(path.dirname(statePath), ".config/billion/deploy.env"), "SCRAPER_IMAGE=${image}\n");
@@ -69,7 +79,12 @@ if (command === "git") {
     process.exit(result.status ?? 1);
   }
 } else if (command === "docker") {
-  if (args[0] === "ps") console.log(state.currentImage);
+  if (args[0] === "ps") {
+    if (state.listFailure) process.exit(1);
+    if (args.includes("--all")) {
+      if (!state.originalRemoved) console.log("${oldId}");
+    } else if (!state.noContainer) console.log(args.includes("{{.ID}}") ? "${oldId}" : state.currentImage);
+  }
   else if (args[0] === "pull") { record("pull"); if (state.unpublished) process.exit(1); }
   else if (args[0] === "kill") {
     state.signalTargets = [...(state.signalTargets ?? []), args.at(-1)];
@@ -77,19 +92,23 @@ if (command === "git") {
       state.paused = true;
       if (state.spawnRace) state.raced = true;
       record("stop");
+      if (state.interruptSignal) process.kill(process.ppid, state.interruptSignal);
       if (state.stopFailure) process.exit(1);
     } else if (args.includes("--signal=CONT") || args.includes("CONT")) {
       record("continue");
-      if (state.originalRemoved) process.exit(1);
+      if (state.originalRemoved || state.resumeFailure) process.exit(1);
       state.paused = false;
       save();
     } else throw new Error("Unexpected Docker signal");
   }
-  else if (args[0] === "inspect") console.log("container-original");
+  else if (args[0] === "inspect") {
+    if (state.inspectFailure) process.exit(1);
+    console.log(args.some(arg => arg.includes("com.billion.service")) ? (state.foreignContainer ? "another-service" : "supervisor") : "${oldId}");
+  }
   else if (args[0] === "exec") {
     const code = args[args.indexOf("-e") + 1];
     const error = (code) => Object.assign(new Error(code), { code });
-    const processes = () => ["1", "17", "999", ...(state.active || state.raced ? ["201"] : []), ...(state.manual ? ["202"] : [])];
+    const processes = () => ["1", "17", "999", ...(state.active || state.raced ? ["201"] : []), ...(state.manual ? ["202"] : []), ...(state.unknownSibling ? ["203"] : [])];
     const fakeFs = {
       readdirSync(name) {
         if (name === "/proc") return processes();
@@ -105,7 +124,9 @@ if (command === "git") {
           return "Name:\tnode\nState:\t" + (stopped ? "T (stopped)" : "S (sleeping)") + "\n";
         }
         if (name === "/proc/1/cmdline") return "node\0dist/supervisor.js\0";
-        if (name === "/proc/17/cmdline") return "node\0/opt/runtime/controller.mjs\0";
+        if (name === "/proc/17/cmdline") return "node\0/var/lib/billion/cortese-import/controller.mjs\0";
+        if (name === "/proc/17/status") return "State:\tS (sleeping)\nPPid:\t0\n";
+        if (name === "/proc/203/cmdline") return "node\0/tmp/manual-research.mjs\0";
         if (name === "/proc/201/cmdline") return "node\0/app/dist/california-research.js\0reconcile\0";
         if (name === "/proc/202/cmdline") {
           if (state.unreadable) throw error("EACCES");
@@ -123,13 +144,17 @@ if (command === "git") {
       },
       process: {
         pid: 999,
+        argv: ["node", args[args.indexOf("-e") + 2]],
         kill() { throw new Error("The scheduler signal must come from host Docker"); },
         exit(status) { throw Object.assign(new Error("guard exit"), { exitStatus: status }); },
       },
       console,
       setTimeout,
     };
-    Promise.resolve().then(() => vm.runInNewContext(code, context, { timeout: 1000 })).then(save).catch((error) => {
+    Promise.resolve().then(() => vm.runInNewContext(code, context, { timeout: 1000 })).then(() => {
+      save();
+      if (context.process.exitCode) process.exit(context.process.exitCode);
+    }).catch((error) => {
       save();
       if (typeof error.exitStatus === "number") process.exit(error.exitStatus);
       console.error(error.message);
@@ -178,16 +203,27 @@ if (command === "git") {
         output,
         state: JSON.parse(await readFile(statePath, "utf8")),
         pin: await readFile(pin, "utf8"),
+        receipt: await readFile(record, "utf8").catch((error) => {
+          if (error.code === "ENOENT") return null;
+          throw error;
+        }),
         oldPin,
       };
       attempts.push(result);
       return result;
     }
     let result = await launch();
-    if (options.finishAndRetry) {
+    if (options.finishAndRetry || options.recoverAndRetry) {
       await writeFile(
         statePath,
-        JSON.stringify({ ...result.state, active: false }),
+        JSON.stringify({
+          ...result.state,
+          active: false,
+          spawnRace: false,
+          raced: false,
+          resumeFailure: false,
+          interruptSignal: undefined,
+        }),
       );
       await launch();
       result = await launch();
@@ -213,6 +249,13 @@ test("manual scraper entrypoints also defer automatic deployment", async () => {
   assert.equal(result.state.paused, false);
 });
 
+test("an unknown sibling Node process defers automatic deployment", async () => {
+  const result = await run({ unknownSibling: true });
+  assert.equal(result.code, 0, result.output);
+  assert.ok(!result.state.events.includes("deploy"));
+  assert.equal(result.state.paused, false);
+});
+
 test("a scheduler spawn before the pause defers deployment and resumes scheduling", async () => {
   const result = await run({ spawnRace: true });
   assert.equal(result.code, 0, result.output);
@@ -229,11 +272,7 @@ test("an idle supervisor deploys once without mistaking infrastructure for a scr
   assert.ok(
     result.state.events.indexOf("stop") < result.state.events.indexOf("deploy"),
   );
-  assert.ok(
-    result.state.signalTargets.every(
-      (target) => target === "container-original",
-    ),
-  );
+  assert.ok(result.state.signalTargets.every((target) => target === oldId));
   assert.equal(result.state.paused, false);
 });
 
@@ -289,12 +328,8 @@ test("a STOP confirmation failure resumes the captured old container without dep
   const result = await run({ neverStops: true });
   assert.notEqual(result.code, 0);
   assert.ok(!result.state.events.includes("deploy"));
-  assert.equal(result.state.paused, false);
-  assert.ok(
-    result.state.signalTargets.every(
-      (target) => target === "container-original",
-    ),
-  );
+  assert.equal(result.state.paused, false, JSON.stringify(result));
+  assert.ok(result.state.signalTargets.every((target) => target === oldId));
 });
 
 test("an ambiguous STOP failure still attempts cleanup on the captured container", async () => {
@@ -305,6 +340,80 @@ test("an ambiguous STOP failure still attempts cleanup on the captured container
   assert.equal(result.state.paused, false);
 });
 
+test("failed cleanup of a still-present old container is reported as a failure", async () => {
+  const result = await run({ spawnRace: true, resumeFailure: true });
+  assert.equal(result.code, 1, result.output);
+  assert.ok(!result.state.events.includes("deploy"));
+  assert.ok(result.output.includes("Could not resume the old supervisor"));
+  assert.equal(result.state.paused, true);
+  assert.equal(result.receipt, `${oldId}\n`);
+});
+
+test("the next interval recovers a failed owned CONT before deploying", async () => {
+  const result = await run({
+    spawnRace: true,
+    resumeFailure: true,
+    recoverAndRetry: true,
+  });
+  assert.equal(result.attempts[0].code, 1);
+  assert.equal(result.attempts[0].receipt, `${oldId}\n`);
+  assert.equal(result.attempts[0].state.paused, true);
+  assert.equal(result.code, 0, result.output);
+  assert.equal(result.state.events.filter((x) => x === "deploy").length, 1);
+  assert.equal(result.state.paused, false);
+  assert.equal(result.receipt, null);
+});
+
+test("an untrappable interruption leaves an owned pause that the next interval recovers", async () => {
+  const result = await run({
+    interruptSignal: "SIGKILL",
+    recoverAndRetry: true,
+  });
+  assert.equal(result.attempts[0].code, null);
+  assert.equal(result.attempts[0].receipt, `${oldId}\n`);
+  assert.equal(result.attempts[0].state.paused, true);
+  assert.equal(result.code, 0, result.output);
+  assert.equal(result.state.paused, false);
+  assert.equal(result.receipt, null);
+});
+
+test("owned pause recovery runs before the current-image shortcut", async () => {
+  const result = await run({
+    current: true,
+    alreadyStopped: true,
+    receipt: oldId,
+  });
+  assert.equal(result.code, 0, result.output);
+  assert.equal(result.state.paused, false);
+  assert.deepEqual(result.state.events, ["continue"]);
+  assert.equal(result.receipt, null);
+});
+
+test("a removed owned container clears its record without resuming a replacement", async () => {
+  const result = await run({
+    current: true,
+    alreadyStopped: true,
+    receipt: oldId,
+    originalRemoved: true,
+  });
+  assert.equal(result.code, 0, result.output);
+  assert.equal(result.state.paused, true);
+  assert.deepEqual(result.state.events, []);
+  assert.equal(result.receipt, null);
+});
+
+for (const options of [
+  { receipt: "bad-record" },
+  { receipt: oldId, foreignContainer: true },
+])
+  test(`invalid pause ownership is not used for signaling ${JSON.stringify(options)}`, async () => {
+    const result = await run(options);
+    assert.equal(result.code, 1, result.output);
+    assert.ok(!result.state.events.includes("continue"));
+    assert.ok(!result.state.events.includes("deploy"));
+    assert.equal(result.receipt, `${options.receipt}\n`);
+  });
+
 test("an independently stopped supervisor is deferred without releasing its pause", async () => {
   const result = await run({ alreadyStopped: true });
   assert.equal(result.code, 0, result.output);
@@ -312,3 +421,31 @@ test("an independently stopped supervisor is deferred without releasing its paus
   assert.ok(!result.state.events.includes("continue"));
   assert.equal(result.state.paused, true);
 });
+
+test("a positively absent running container permits initial deployment", async () => {
+  const result = await run({ noContainer: true });
+  assert.equal(result.code, 0, result.output);
+  assert.equal(result.state.events.filter((x) => x === "deploy").length, 1);
+  assert.ok(!result.state.events.includes("stop"));
+});
+
+for (const options of [{ listFailure: true }, { inspectFailure: true }])
+  test(`container inspection failure does not imply absence ${JSON.stringify(options)}`, async () => {
+    const result = await run(options);
+    assert.notEqual(result.code, 0);
+    assert.ok(!result.state.events.includes("deploy"));
+    assert.ok(!result.state.events.includes("stop"));
+  });
+
+for (const [interruptSignal, exitCode] of [
+  ["SIGHUP", 129],
+  ["SIGINT", 130],
+  ["SIGTERM", 143],
+])
+  test(`${interruptSignal} resumes the old scheduler and exits before deployment`, async () => {
+    const result = await run({ interruptSignal });
+    assert.equal(result.code, exitCode, result.output);
+    assert.ok(result.state.events.includes("stop"));
+    assert.ok(!result.state.events.includes("deploy"));
+    assert.equal(result.state.paused, false);
+  });
