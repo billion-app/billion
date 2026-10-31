@@ -103,7 +103,8 @@ for (const withCollection of [false, true])
         countyCoverage: [],
       });
       const collectionId = randomUUID(),
-        releaseId = randomUUID();
+        releaseId = randomUUID(),
+        siblingWorkKey = randomUUID();
       const attemptedAt = new Date(Date.now() - 1000).toISOString();
       const oldAttemptedAt = "2000-01-01T00:00:00.000Z";
       const reason = "A previously cited candidate page changed";
@@ -113,7 +114,7 @@ for (const withCollection of [false, true])
           attemptedAt,
           kind: "source_failure",
           reason: "Worker diagnostic must not override required review reason",
-          dossierDigests: { [identity.candidateId]: dossierKeyForAttempt() },
+          dossierDigests: { [identity.candidateId]: `failed-dossier:${id}` },
           dossierReviewEpochs: { [identity.candidateId]: 0 },
           sourceFailure: {
             url: "https://example.gov/changed",
@@ -121,9 +122,6 @@ for (const withCollection of [false, true])
           },
         },
       };
-      function dossierKeyForAttempt() {
-        return `failed-dossier:${id}`;
-      }
       const dossierKey = `dossier:${randomUUID()}`,
         oldDispatch = `dispatch:review:${randomUUID()}:0`,
         newDispatch = `dispatch:review:${randomUUID()}:1`,
@@ -221,15 +219,13 @@ for (const withCollection of [false, true])
               currentHashes: {},
             },
           });
-          await db
-            .insert(Collection)
-            .values({
-              id: collectionId,
-              pilotKey: raceKey,
-              sourceDigest: id,
-              document,
-              checkedAt: new Date(now),
-            });
+          await db.insert(Collection).values({
+            id: collectionId,
+            pilotKey: raceKey,
+            sourceDigest: id,
+            document,
+            checkedAt: new Date(now),
+          });
           await db
             .insert(Release)
             .values({ id: releaseId, document: document.manifest });
@@ -325,6 +321,44 @@ for (const withCollection of [false, true])
           ).length,
           withCollection ? 1 : 0,
         );
+        for (const invalid of [
+          { attemptedAt: "not-a-timestamp", checkpoint: {} },
+          {
+            attemptedAt: new Date(Date.now() + 60_000).toISOString(),
+            checkpoint: {},
+          },
+          {
+            attemptedAt,
+            checkpoint: null as unknown as Record<string, unknown>,
+          },
+          { attemptedAt, checkpoint: [] as unknown as Record<string, unknown> },
+        ]) {
+          await assert.rejects(
+            failResearchRefresh(raceKey, reason, db, {
+              workLease: retryLease,
+              attempted: invalid,
+            }),
+            /attempt timestamp|attempt checkpoint/,
+          );
+        }
+        await assert.rejects(
+          failResearchRefresh(raceKey, reason, db, { attempted: attempt }),
+          /attempt requires a current work lease/,
+        );
+        const [beforeFailure] = await db
+          .select()
+          .from(Work)
+          .where(eq(Work.key, providerRetry.key));
+        assert.deepEqual(beforeFailure, providerRetry);
+        await db.insert(Work).values({
+          key: siblingWorkKey,
+          snapshotId: id,
+          raceKey,
+          rosterDigest: id,
+          policyVersion: "older-policy",
+          researchVersion: "fixture-v1",
+          checkpoint: { attemptedAt: oldAttemptedAt, sibling: true },
+        });
         await failResearchRefresh(raceKey, reason, db, {
           workLease: retryLease,
           attempted: attempt,
@@ -343,6 +377,19 @@ for (const withCollection of [false, true])
           (fenced.checkpoint as { dossierReviewEpochs: unknown })
             .dossierReviewEpochs,
           { [identity.candidateId]: 0 },
+        );
+        const [sibling] = await db
+          .select()
+          .from(Work)
+          .where(eq(Work.key, siblingWorkKey));
+        assert.ok(sibling);
+        assert.equal(
+          (sibling.checkpoint as Record<string, unknown>).attemptedAt,
+          oldAttemptedAt,
+        );
+        assert.equal(
+          (sibling.checkpoint as Record<string, unknown>).sourceFailure,
+          undefined,
         );
         const checkpoint = fenced.checkpoint as Record<string, unknown>;
         assert.equal(checkpoint.attemptedAt, attemptedAt);
