@@ -9,6 +9,7 @@ import {
 import type {
   CaliforniaAuthorCorrection,
   CaliforniaModelFailureDiagnostic,
+  CaliforniaRetainedNarrative,
 } from "./california-ai.js";
 import type {
   CaliforniaBounds,
@@ -16,10 +17,10 @@ import type {
   CaliforniaWorkCheckpoint,
 } from "./california.js";
 import {
-  californiaAuthorPromptVersion,
   californiaModelInput,
   CaliforniaModelInvocationError,
   californiaReviewerPromptVersion,
+  californiaSelectedAuthorPromptVersion,
 } from "./california-ai.js";
 import {
   californiaResearchVersion,
@@ -331,6 +332,7 @@ function modelDispatch(
 export async function prepareReviewedCaliforniaCandidate(
   input: {
     dossier: CandidateEvidenceDossier;
+    retainedNarrative?: CaliforniaRetainedNarrative;
     policyVersion: string;
     lease: Lease;
     raceKey: string;
@@ -341,10 +343,11 @@ export async function prepareReviewedCaliforniaCandidate(
   },
   deps: PreparationDependencies,
 ) {
-  const { dossier, policyVersion, provenance } = input;
+  const { dossier, policyVersion, provenance, retainedNarrative } = input;
+  const authorPromptVersion = californiaSelectedAuthorPromptVersion(input);
   const configuration =
     deps.authorConfigurationKey ?? deps.modelConfigurationKey ?? "fixture";
-  const rootAuthorKey = `author:${evidenceDigest([dossier.dossierDigest, policyVersion, californiaResearchVersion, californiaAuthorPromptVersion, configuration])}`;
+  const rootAuthorKey = `author:${evidenceDigest([dossier.dossierDigest, policyVersion, californiaResearchVersion, authorPromptVersion, configuration, ...(retainedNarrative ? [retainedNarrative.semanticDigest] : [])])}`;
   const slotKey = `correction-plan:${rootAuthorKey}:1`;
   const { remember, save, invoke } = modelDispatch(input, deps);
   async function attempt(
@@ -394,8 +397,14 @@ export async function prepareReviewedCaliforniaCandidate(
         authored = await invoke(
           authorKey,
           "author",
-          { dossier, policyVersion, correction },
-          () => deps.author({ dossier, policyVersion, correction }),
+          { dossier, policyVersion, correction, retainedNarrative },
+          () =>
+            deps.author({
+              dossier,
+              policyVersion,
+              correction,
+              retainedNarrative,
+            }),
         );
       } catch (error) {
         const feedback =
@@ -532,12 +541,12 @@ export async function prepareReviewedCaliforniaCandidate(
     );
   }
   const childKey = (feedbackDigest: string) =>
-    `author-correction:${evidenceDigest([rootAuthorKey, 1, feedbackDigest, californiaAuthorPromptVersion, configuration])}`;
+    `author-correction:${evidenceDigest([rootAuthorKey, 1, feedbackDigest, authorPromptVersion, configuration])}`;
   function parsePlan(value: unknown): CorrectionPlan {
     const plan = planSchema.parse(value);
     if (
       plan.rootAuthorKey !== rootAuthorKey ||
-      plan.authorPromptVersion !== californiaAuthorPromptVersion ||
+      plan.authorPromptVersion !== authorPromptVersion ||
       plan.authorConfiguration !== configuration ||
       plan.feedbackDigest !== feedbackHash(plan.feedback) ||
       plan.authorKey !== childKey(plan.feedbackDigest) ||
@@ -569,7 +578,7 @@ export async function prepareReviewedCaliforniaCandidate(
         version: 1,
         rootAuthorKey,
         ordinal: 1,
-        authorPromptVersion: californiaAuthorPromptVersion,
+        authorPromptVersion,
         authorConfiguration: configuration,
         feedbackDigest,
         feedback,

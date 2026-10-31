@@ -157,9 +157,6 @@ export async function collectCaliforniaFederalFinance(
     ...(input.identitySources ?? []),
     ...(input.rosterSource ? [input.rosterSource] : []),
   ];
-  for (const source of identitySources)
-    if (!result.sources.some((existing) => existing.id === source.id))
-      result.sources.push(source);
   try {
     const master = await get(fecCandidateMasterUrl(cycle), "text");
     const resolve = (
@@ -199,6 +196,18 @@ export async function collectCaliforniaFederalFinance(
       sourceId: master.id,
       sourceHash: master.contentHash,
     };
+    const identitySourceIds = new Set<string>();
+    if (identity.bridge?.kind === "official_domain_v1") {
+      identitySourceIds.add(identity.bridge.rosterSourceId);
+      identitySourceIds.add(identity.bridge.filingSourceId);
+    }
+    if (identity.bridge?.kind === "sos_legal_name_v1")
+      identitySourceIds.add(identity.bridge.sourceId);
+    for (const source of identitySources.filter((source) =>
+      identitySourceIds.has(source.id),
+    ))
+      if (!result.sources.some((existing) => existing.id === source.id))
+        result.sources.push(source);
     const scope = input.scope ?? [input.race];
     const identities = scope.flatMap((race) =>
       race.members

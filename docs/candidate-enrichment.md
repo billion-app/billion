@@ -89,12 +89,18 @@ records are labelled operator requests, not address-verified personal ballots.
 They expire after the California election day and do not widen the automatic
 worker to unrelated races.
 
-Automatic California research refreshes the authoritative roster and the reviewed
-San José source bundle before claiming races or generating new briefs. A typed
-network outage or transient HTTP response stops that run without withdrawing
-still-fresh published research. Its original source observations, approvals and
-24-hour expiry remain unchanged; a failed refresh cannot extend them. The next
-scheduled run must fetch the sources again before publishing new research.
+Automatic California research refreshes the authority for the selected races
+before claiming work or generating new briefs. When every selected race matches
+the unchanged SOS-certified roster, the worker checks fresh SOS text and PDF
+observations. It preserves the combined snapshot and its historical San José
+metadata without claiming a new local observation. Local or mixed selections
+still refresh the reviewed San José source bundle. Changed statewide authority
+still requires full snapshot reconciliation.
+
+A typed network outage or transient HTTP response stops that run without
+withdrawing still-fresh published research. Its original source observations,
+approvals and 24-hour expiry remain unchanged. A failed refresh cannot extend
+them. The next scheduled run must fetch the sources again before publishing.
 
 Invalid or changed authority remains a hard failure. Retrieval validates each
 territorial proof before requesting the next one, including approved telemetry
@@ -183,3 +189,30 @@ and amount. Home addresses, employer and occupation fields are excluded from
 those excerpts. Donor industry, lobbying status and influence are never inferred
 from a contribution. The optional observation field has no parsing default, so
 older approved revisions retain their original digest.
+
+## Finance refreshes of published research
+
+A targeted finance refresh preserves reviewed political narrative when its
+nonfinancial evidence remains unchanged. The worker resolves the exact published
+revision and its author and reviewer attestations. It fetches every retained
+nonfinancial archive again. Candidate, primary, linked and gap-referenced source
+content must remain unchanged before it collects current finance. Unused
+third-party discovery pages may change without becoming evidence for a claim.
+Their actual fresh archives remain in the dossier. Source identity, qualification
+and membership stay fixed. Binary proofs remain strict. Nonbinary comparisons
+use extracted text rather than volatile HTML bytes or historical redirect chains.
+
+The author receives the qualified published narrative through the existing output
+schema. Its actual first response must reproduce that narrative exactly. The
+compiler regenerates financial records, evidence observations and coverage text
+from the current dossier. A fresh independent reviewer assesses the complete new
+profile. Historical approval cannot approve a new financial revision. The existing
+single correction can repair reviewer findings, and rejected or unknown attempts
+remain terminal for the same input.
+
+The finance-refresh prompt has its own version. Cache keys include the current
+semantic dossier and retained narrative, but exclude historical publication run
+IDs. Repeating the same refresh cannot obtain a new attempt merely because the
+previous publication changed those IDs. Ordinary research still discovers new
+campaign material. The targeted operator command is documented in the
+[scraper CLI guide](../apps/scraper/README.md#candidate-research-demand).

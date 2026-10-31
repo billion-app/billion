@@ -9,6 +9,8 @@ import { hasSubstantiveCandidateResearch } from "@acme/validators";
 import type { CaliforniaModelFailureDiagnostic } from "./california-ai.js";
 import {
   authorCaliforniaBrief,
+  californiaAuthorEvidence,
+  californiaAuthorOutputSchema,
   californiaModelInput,
   CaliforniaModelInvocationError,
 } from "./california-ai.js";
@@ -1409,4 +1411,94 @@ test("collection reviewer budget prevents dispatch and legacy rejection cannot e
     /previously approved/,
   );
   assert.equal(f.calls.length, before);
+});
+
+function retainedFixture(dossier: CandidateEvidenceDossier) {
+  const narrative = californiaAuthorOutputSchema(
+    californiaAuthorEvidence(dossier),
+  ).parse({
+    priorities: {
+      claims: [
+        {
+          kind: "promise" as const,
+          text: "Morgan Lee proposes funding public libraries.",
+          evidenceIds: ["platform"],
+          promiseDetails: null,
+        },
+      ],
+    },
+    record: { claims: [] },
+    mechanisms: { claims: [] },
+    effects: { claims: [] },
+    tradeoffs: { claims: [] },
+    unknowns: { claims: [] },
+    terms: [],
+  });
+  return {
+    dossierDigest: dossier.dossierDigest,
+    narrative,
+    semanticDigest: createHash("sha256")
+      .update(JSON.stringify(narrative))
+      .digest("hex"),
+    publication: {
+      revisionId: randomUUID(),
+      authorRunId: randomUUID(),
+      reviewerRunId: randomUUID(),
+    },
+  };
+}
+test("finance refresh cache binds narrative rather than changing publication run IDs", async () => {
+  const f = fixture();
+  const input = f.fresh();
+  const retainedNarrative = retainedFixture(input.dossier);
+  const first = await prepareReviewedCaliforniaCandidate(
+    { ...input, retainedNarrative },
+    f.deps,
+  );
+  assert.equal(
+    first.authored.attestation.promptVersion,
+    "california-finance-refresh-v1",
+  );
+  const count = f.calls.length;
+  const second = await prepareReviewedCaliforniaCandidate(
+    {
+      ...f.fresh(),
+      retainedNarrative: {
+        ...retainedNarrative,
+        publication: {
+          revisionId: randomUUID(),
+          authorRunId: randomUUID(),
+          reviewerRunId: randomUUID(),
+        },
+      },
+    },
+    f.deps,
+  );
+  assert.equal(f.calls.length, count);
+  assert.equal(
+    first.authored.attestation.runId,
+    second.authored.attestation.runId,
+  );
+});
+test("unknown finance refresh dispatch remains terminal for identical semantic content", async () => {
+  const f = fixture();
+  const input = f.fresh();
+  const retainedNarrative = retainedFixture(input.dossier);
+  let dispatches = 0;
+  f.deps.author = async () => {
+    dispatches++;
+    throw new Error("Unknown transport outcome");
+  };
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate({ ...input, retainedNarrative }, f.deps),
+    /Unknown transport outcome/,
+  );
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate(
+      { ...f.fresh(), retainedNarrative },
+      f.deps,
+    ),
+    /Saved author failure|already reserved/,
+  );
+  assert.equal(dispatches, 1);
 });

@@ -2106,3 +2106,80 @@ test("a current campaign redirect cannot switch to another HTTPS service on the 
     false,
   );
 });
+
+test("explicit finance refresh rechecks uncited nonfinancial archives without repeating discovery", async () => {
+  const f = await capturedHouseCampaign("Jeff Frese");
+  const original = await collectCaliforniaEvidence(f, f.deps);
+  const uncited = source(
+    "uncited-context",
+    "https://example.org/context",
+    "Previously checked context.",
+  );
+  const feedUrl = "https://news.example.org/feed";
+  const feed = {
+    ...source(
+      `source-${createHash("sha256").update(feedUrl).digest("hex").slice(0, 24)}`,
+      feedUrl,
+      "Old unrelated feed.",
+    ),
+    publisher: "news.example.org",
+  };
+  const previousDossier = buildCaliforniaDossier({
+    ...original,
+    sources: [...original.sources, uncited, feed],
+  });
+  const fetched: string[] = [];
+  const refreshed = await collectCaliforniaEvidence(
+    { ...f, previousDossier, researchScope: "finance_refresh" },
+    {
+      ...f.deps,
+      sharedSources: new Map(),
+      search: async () => {
+        throw new Error("Finance refresh must not repeat campaign discovery");
+      },
+      fetch: async (id, url) => {
+        fetched.push(url);
+        const prior = previousDossier.sources.find((s) => s.url === url);
+        if (prior) {
+          const observed =
+            url === feedUrl ? source(id, url, "Fresh unrelated feed.") : prior;
+          return { ...observed, id, fetchedAt: "2026-10-31T00:00:00.000Z" };
+        }
+        return f.deps.fetch(id, url);
+      },
+      now: () => "2026-10-31T00:00:00.000Z",
+    },
+  );
+  assert(fetched.includes(uncited.url));
+  assert.equal(
+    refreshed.sources.find((s) => s.id === feed.id)?.text,
+    "Fresh unrelated feed.",
+  );
+  assert.equal(
+    refreshed.sources.find((s) => s.id === uncited.id)?.fetchedAt,
+    "2026-10-31T00:00:00.000Z",
+  );
+  assert.deepEqual(
+    refreshed.evidence.filter((e) => e.role !== "finance"),
+    previousDossier.evidence.filter((e) => e.role !== "finance"),
+  );
+  assert.deepEqual(refreshed.sourceLinks, previousDossier.sourceLinks);
+  await assert.rejects(
+    collectCaliforniaEvidence(
+      { ...f, previousDossier, researchScope: "finance_refresh" },
+      {
+        ...f.deps,
+        sharedSources: new Map(),
+        fetch: async (id, url) => {
+          const prior = previousDossier.sources.find((s) => s.url === url);
+          if (prior)
+            return url === uncited.url
+              ? source(id, url, "Changed contextual archive.")
+              : { ...prior, id };
+          return f.deps.fetch(id, url);
+        },
+      },
+    ),
+    CaliforniaCitedSourceFailure,
+  );
+});
