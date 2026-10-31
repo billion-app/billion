@@ -1922,3 +1922,52 @@ test("source failure atomically preserves attempted provenance before fencing an
   assert.equal(second.completed, 1, JSON.stringify(second));
   assert.ok(investigated.every((key) => key !== race.raceKey));
 });
+
+test("a recovered first candidate cannot publish an incomplete race", async () => {
+  const f = await fixture();
+  f.snapshot.races.splice(1);
+  const review = f.deps.review;
+  let rejected = false;
+  f.deps.review = async (input) => {
+    const result = await review(input);
+    if (!rejected) {
+      rejected = true;
+      return {
+        ...result,
+        verdict: "reject",
+        overallReason:
+          "The record chapter assigns the committee's action to the candidate without source support.",
+      };
+    }
+    return result;
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds: { ...bounds, maxModelCalls: 4 },
+    },
+    f.deps,
+  );
+  assert.equal(f.stats.authors, 2);
+  assert.equal(f.stats.reviews, 2);
+  assert.equal(result.remaining, 1);
+  assert.equal(result.completed, 0);
+  assert.equal(f.stats.releases, 0);
+});
+
+test("an ordinary failed checkpoint surfaces lease loss instead of claiming a saved failure", async () => {
+  const f = await fixture();
+  f.deps.author = async () => {
+    throw Error("Unknown transport failure");
+  };
+  f.deps.checkpoint = async () => false;
+  await assert.rejects(
+    reconcile(
+      { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+      f.deps,
+    ),
+    /lease expired before failure checkpoint/,
+  );
+  assert.equal(f.stats.releases, 0);
+});
