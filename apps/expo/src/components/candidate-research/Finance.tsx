@@ -29,16 +29,19 @@ function FinancePeriod({
   periodStart,
   periodEnd,
   updatedAt,
+  cycleLabel,
 }: {
   periodStart: string;
   periodEnd: string;
   updatedAt: string;
+  cycleLabel?: string;
 }) {
   const { t: tx, locale } = useAppTranslation();
   return (
     <View style={s.point}>
       <Text style={s.muted}>
-        {displayDate(periodStart, locale)} – {displayDate(periodEnd, locale)}
+        {cycleLabel ??
+          `${displayDate(periodStart, locale)} – ${displayDate(periodEnd, locale)}`}
       </Text>
       <Text style={s.muted}>
         {tx("Checked {value1}", {
@@ -553,7 +556,13 @@ export function Finance({
           <>
             {independentExpenditures.status === "available" ? (
               <>
-                <FinancePeriod {...independentExpenditures} />
+                <FinancePeriod
+                  {...independentExpenditures}
+                  cycleLabel={tx("{value1}–{value2} election cycle", {
+                    value1: independentExpenditures.periodStart.slice(0, 4),
+                    value2: independentExpenditures.periodEnd.slice(0, 4),
+                  })}
+                />
                 {(
                   [
                     [

@@ -3,6 +3,11 @@
 import type { Catalog } from "./types";
 
 export const pageStrings = {
+  "{value1}–{value2} election cycle": {
+    en: "{value1}–{value2} election cycle",
+    es: "Ciclo electoral {value1}–{value2}",
+    zh: "{value1}–{value2}年选举周期",
+  },
   "Official spending reports": {
     en: "Official spending reports",
     es: "Informes oficiales de gastos",
