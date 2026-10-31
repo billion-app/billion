@@ -293,7 +293,24 @@ export function candidateFinanceSemanticProjection(
   // JSONB may reorder keys; compare schema-normalized semantic values.
   const { updatedAt: _observedAt, ...content } =
     campaignFinanceSchema.parse(finance);
-  return content;
+  if (!content.observation) return content;
+  const component = <T extends { status: string }>(value: T) => {
+    if (!("updatedAt" in value)) return value;
+    const { updatedAt: _componentObservedAt, ...semantic } = value;
+    return semantic;
+  };
+  return {
+    ...content,
+    observation: {
+      ...content.observation,
+      summary: component(content.observation.summary),
+      donorSelection: component(content.observation.donorSelection),
+      independentExpenditures: component(
+        content.observation.independentExpenditures,
+      ),
+      filingStatus: component(content.observation.filingStatus),
+    },
+  };
 }
 export function candidateDossierSemanticProjection(
   dossier: CandidateEvidenceDossier,

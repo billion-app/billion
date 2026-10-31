@@ -291,6 +291,73 @@ test("finance observation timestamps preserve semantic dossier and dispatch keys
     buildCaliforniaDossier(changed).dossierDigest,
     a.dossierDigest,
   );
+  const observedInput = structuredClone(input);
+  const window = {
+    periodStart: "2025-01-01",
+    periodEnd: "2026-09-30",
+    updatedAt: input.createdAt,
+    evidenceIds: ["finance"],
+  };
+  observedInput.finance!.observation = {
+    schemaVersion: 1,
+    summary: {
+      status: "available",
+      ...window,
+      basis: "reported_campaign_totals",
+      spentCents: 100,
+      cashCents: 9900,
+      debtCents: 0,
+      itemizedIndividualCents: 10000,
+      unitemizedIndividualCents: 0,
+    },
+    donorSelection: {
+      status: "available",
+      ...window,
+      basis: "selected_filing_transactions",
+      selection: "Fixture transaction selection",
+      filingNumbers: [1],
+      limit: 20,
+    },
+    independentExpenditures: {
+      status: "available",
+      ...window,
+      basis: "processed_periodic_reports",
+      completeness: "complete",
+      supportCents: 0,
+      opposeCents: 0,
+      transactionCount: 0,
+    },
+    filingStatus: {
+      status: "available",
+      ...window,
+      basis: "official_filing_index",
+      kind: "financial_reports",
+      latestForm: "F3",
+      observedForms: ["F3"],
+      statement: null,
+    },
+  };
+  observedInput.finance!.donorCoverage = "selected";
+  observedInput.finance!.donorAmounts = "contribution";
+  observedInput.finance!.outsideSpending = [];
+  const observed = buildCaliforniaDossier(observedInput);
+  const renewedObservedInput = structuredClone(observedInput);
+  for (const part of Object.values(
+    renewedObservedInput.finance!.observation!,
+  )) {
+    if (typeof part === "object" && part.status === "available")
+      part.updatedAt = renewedInput.createdAt;
+  }
+  assert.equal(
+    buildCaliforniaDossier(renewedObservedInput).dossierDigest,
+    observed.dossierDigest,
+  );
+  const summary = renewedObservedInput.finance!.observation!.summary;
+  if (summary.status === "available") summary.cashCents = 9901;
+  assert.notEqual(
+    buildCaliforniaDossier(renewedObservedInput).dossierDigest,
+    observed.dossierDigest,
+  );
   const changedSource = structuredClone(input);
   changedSource.sources[0]!.text += " Updated source record";
   changedSource.sources[0]!.contentHash = createHash("sha256")
