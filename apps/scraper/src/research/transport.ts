@@ -12,13 +12,16 @@ export function requestPublicSource(
   headers?: Record<string, string>,
 ): Promise<Response> {
   const pinnedLookup: LookupFunction = (_hostname, options, callback) => {
-    if (options.all) callback(null, addresses);
-    else {
-      const address =
-        addresses.find((a) => !options.family || a.family === options.family) ??
-        addresses[0]!;
-      callback(null, address.address, address.family);
-    }
+    process.nextTick(() => {
+      if (options.all) callback(null, addresses);
+      else {
+        const address =
+          addresses.find(
+            (a) => !options.family || a.family === options.family,
+          ) ?? addresses[0]!;
+        callback(null, address.address, address.family);
+      }
+    });
   };
   return new Promise((resolve, reject) => {
     const request = (
