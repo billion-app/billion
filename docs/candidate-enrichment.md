@@ -120,3 +120,14 @@ worker uses its existing single correction attempt to reassess those passages.
 This does not require invented claims: if the context still cannot establish
 candidate research, an accurately sourced finance-only brief remains eligible
 for independent review. The original draft and correction slot remain immutable.
+
+An approved review belongs to its saved collection. If replacing one candidate's
+draft creates a new collection, an unchanged opponent needs a review for that
+collection too. The worker reuses the author and obtains a collection-scoped
+review after the publication service identifies the binding conflict. It records
+the immutable successor and model dispatch reservation together under the current
+work lease. An expired lease records neither, so its replacement can continue.
+Once reserved, a missing result blocks further reviews and cached approvals for
+the same revision. Changing the target collection, review epoch or reviewer
+configuration cannot bypass an unknown or rejected attempt. This behavior lives
+in [`california-candidate-preparation.ts`](../apps/scraper/src/candidate-research/california-candidate-preparation.ts).

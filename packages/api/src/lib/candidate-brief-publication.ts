@@ -108,3 +108,15 @@ export function publishableRace(
   }
   return { status: "published" as const, briefs };
 }
+
+export class ResearchReviewCollectionConflict extends Error {
+  constructor(
+    readonly collectionId: string,
+    readonly revisionId: string,
+    readonly reviewerRunId: string,
+  ) {
+    super(
+      "A superseded collection's reviewer invocation cannot approve a new source generation",
+    );
+  }
+}

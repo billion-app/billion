@@ -28,7 +28,11 @@ import type {
   ResearchWorkLease,
 } from "./candidate-research-store";
 import { verifyStoredCampaignContactProof } from "./california-campaign-contact";
-import { briefDigest, briefIdentityKey } from "./candidate-brief-publication";
+import {
+  briefDigest,
+  briefIdentityKey,
+  ResearchReviewCollectionConflict,
+} from "./candidate-brief-publication";
 import { readCandidateRace } from "./candidate-race-release";
 import {
   researchAutomationPolicySchema,
@@ -275,8 +279,10 @@ export async function recordResearchAiReview(
             ?.collectionId !== row.id,
       )
     )
-      throw new Error(
-        "A superseded collection's reviewer invocation cannot approve a new source generation",
+      throw new ResearchReviewCollectionConflict(
+        row.id,
+        brief.revisionId,
+        attestation.reviewer.runId,
       );
     const prior = reused.find((event) => {
       const parsed = researchReviewAttestationSchema.safeParse(

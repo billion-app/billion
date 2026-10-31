@@ -10,7 +10,10 @@ import type {
   CandidateResearchCollectionDocument,
   ResearchSource,
 } from "@acme/validators";
-import { evidenceHashKey } from "@acme/api/lib/candidate-brief-publication";
+import {
+  evidenceHashKey,
+  ResearchReviewCollectionConflict,
+} from "@acme/api/lib/candidate-brief-publication";
 import {
   authorityRenewalProjectionSchema,
   candidateModelAttestationSchema,
@@ -27,6 +30,7 @@ import {
 import {
   PendingCandidateResearchGap,
   prepareReviewedCaliforniaCandidate,
+  reviewPreparedCaliforniaCandidateForCollection,
 } from "./california-candidate-preparation.js";
 import { appendReviewedClaritySanJoseRoster } from "./california-clarity.js";
 import {
@@ -177,6 +181,11 @@ export interface CaliforniaDependencies {
     candidateId?: string;
     document: unknown;
     workLease: Lease;
+    collectionReviewAttempt?: {
+      key: string;
+      collectionId: string;
+      reviewKey: string;
+    };
   }): Promise<boolean>;
   saveArtifact(input: {
     key: string;
@@ -1330,15 +1339,45 @@ export async function reconcile(
       }));
       const saved = await deps.saveCollection(document, lease);
       savedCollectionId = saved.collectionId;
-      for (const item of investigated)
-        await deps.attest({
-          collectionId: saved.collectionId,
-          revisionId: item.authored.brief.revisionId,
-          author: item.authored.attestation,
-          review: item.reviewed,
-          dossier: item.dossier,
-          workLease: lease,
-        });
+      for (const item of investigated) {
+        const attest = () =>
+          deps.attest({
+            collectionId: saved.collectionId,
+            revisionId: item.authored.brief.revisionId,
+            author: item.authored.attestation,
+            review: item.reviewed,
+            dossier: item.dossier,
+            workLease: lease,
+          });
+        try {
+          await attest();
+        } catch (error) {
+          if (
+            !(error instanceof ResearchReviewCollectionConflict) ||
+            error.collectionId !== saved.collectionId ||
+            error.revisionId !== item.authored.brief.revisionId ||
+            error.reviewerRunId !== item.reviewed.attestation.runId
+          )
+            throw error;
+          item.reviewed = await reviewPreparedCaliforniaCandidateForCollection(
+            {
+              dossier: item.dossier,
+              policyVersion: input.policyVersion,
+              lease,
+              raceKey: race.raceKey,
+              candidateId: item.dossier.identity.candidateId,
+              bounds: input.bounds,
+              usage,
+              provenance:
+                candidateProvenance[item.dossier.identity.candidateId]!,
+              collectionId: saved.collectionId,
+              prepared: item,
+            },
+            deps,
+          );
+          await attest();
+        }
+      }
       if (input.preparationPolicy) {
         if (
           !(await deps.checkpoint(lease, "complete", {

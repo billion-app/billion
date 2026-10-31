@@ -354,6 +354,11 @@ export async function claimCaliforniaModelDispatch(
     raceKey: string;
     candidateId?: string;
     document: unknown;
+    collectionReviewAttempt?: {
+      key: string;
+      collectionId: string;
+      reviewKey: string;
+    };
     workLease: {
       key: string;
       owner: string;
@@ -404,7 +409,38 @@ export async function claimCaliforniaModelDispatch(
       })
       .onConflictDoNothing()
       .returning({ key: CaliforniaResearchArtifact.key });
-    return inserted.length === 1;
+    if (!inserted.length) return false;
+    const attempt = input.collectionReviewAttempt;
+    if (attempt) {
+      await tx
+        .insert(CaliforniaResearchArtifact)
+        .values({
+          key: attempt.key,
+          kind: "model_review_collection_attempt",
+          raceKey: input.raceKey,
+          candidateId: input.candidateId,
+          document: {
+            collectionId: attempt.collectionId,
+            reviewKey: attempt.reviewKey,
+          },
+        })
+        .onConflictDoNothing();
+      const [stored] = await tx
+        .select({ document: CaliforniaResearchArtifact.document })
+        .from(CaliforniaResearchArtifact)
+        .where(eq(CaliforniaResearchArtifact.key, attempt.key));
+      const document = stored?.document as
+        | { collectionId?: string; reviewKey?: string }
+        | undefined;
+      if (
+        document?.collectionId !== attempt.collectionId ||
+        document.reviewKey !== attempt.reviewKey
+      )
+        throw new Error(
+          "Another collection review attempt already owns this revision",
+        );
+    }
+    return true;
   });
 }
 export async function hasCaliforniaResearchArtifact(
