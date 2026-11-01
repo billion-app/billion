@@ -43,6 +43,7 @@ import {
   propositionDetailRoute,
   splitOfficialTitle,
 } from "~/utils/proposition-explainers";
+import { regionalMeasureRoute } from "~/utils/regional-measures";
 import { CandidatePortrait } from "./CandidatePortrait";
 import { GuidePollResult } from "./GuidePollResult";
 import { GuideVoteResult, useGuideVoteLabel } from "./GuideVoteResult";
@@ -330,6 +331,12 @@ export function CaliforniaGuidePreview({
     trpc.civic.getCaliforniaGuide.queryOptions(undefined, { enabled: focused }),
   );
   const guide = query.isError ? undefined : query.data;
+  const regionalQuery = useQuery(
+    trpc.civic.getCaliforniaRegionalMeasures.queryOptions(undefined, {
+      enabled: focused,
+    }),
+  );
+  const regional = regionalQuery.isError ? undefined : regionalQuery.data;
   const resultsQuery = useQuery(
     trpc.civic.getCaliforniaGuideStandings.queryOptions(undefined, {
       enabled: focused && !!guide,
@@ -502,30 +509,92 @@ export function CaliforniaGuidePreview({
               </View>
             )}
 
+            {(guide ?? regional) && (
+              <Segmented<GuideTab>
+                value={tab}
+                onChange={(next) => {
+                  if (next === tab) return;
+                  setVisibleNumbers([]);
+                  setTab(next);
+                }}
+                options={[
+                  {
+                    id: "candidates",
+                    label: tx("Candidates"),
+                    icon: "vote",
+                  },
+                  {
+                    id: "measures",
+                    label: tx("Measures {count}", {
+                      count:
+                        (guide?.measures.length ?? 0) +
+                        (regional?.measures.length ?? 0),
+                    }),
+                    icon: "scale",
+                  },
+                ]}
+              />
+            )}
+            {tab === "measures" && regionalQuery.isError && (
+              <View style={s.officeGroup}>
+                <Text style={s.note}>
+                  {tx("Regional measure information could not load.")}
+                </Text>
+                <SourceLink
+                  label={tx("Bay Area regional measure")}
+                  url="https://mtc.ca.gov/about-mtc/authorities/public-transit-revenue-measure-district"
+                />
+              </View>
+            )}
+            {tab === "measures" && regional && (
+              <View style={s.officeGroup}>
+                <Text accessibilityRole="header" style={s.officeName}>
+                  {tx("Bay Area regional measure")}
+                </Text>
+                <Text style={s.regionalScope}>
+                  {tx(
+                    "Alameda, Contra Costa, San Francisco, San Mateo and Santa Clara counties. Check your county ballot.",
+                  )}
+                </Text>
+                {regional.measures.map((measure) => (
+                  <TouchableOpacity
+                    key={measure.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${tx("Measure")} ${measure.designation}. ${measure.title}. ${tx("Bay Area regional measure")}`}
+                    onPress={() =>
+                      router.push(
+                        regionalMeasureRoute(measure, regional.electionDate),
+                      )
+                    }
+                    style={s.row}
+                    activeOpacity={0.8}
+                  >
+                    <View style={s.tile} accessible={false}>
+                      <Icon name="pin" size={17} color={P.primary} />
+                    </View>
+                    <View style={s.rowCopy}>
+                      <Text style={s.rowTitle}>
+                        {tx("Measure")} {measure.designation}
+                      </Text>
+                      <Text style={s.officialTitle}>{measure.title}</Text>
+                    </View>
+                    <Icon name="chevR" size={18} color={P.primary} />
+                  </TouchableOpacity>
+                ))}
+                {language !== "en" && (
+                  <Text style={s.note}>
+                    {tx("Official measure text is shown as published.")}
+                  </Text>
+                )}
+                {guide && (
+                  <Text accessibilityRole="header" style={s.officeName}>
+                    {tx("Statewide propositions")}
+                  </Text>
+                )}
+              </View>
+            )}
             {guide && (
               <>
-                <Segmented<GuideTab>
-                  value={tab}
-                  onChange={(next) => {
-                    if (next === tab) return;
-                    setVisibleNumbers([]);
-                    setTab(next);
-                  }}
-                  options={[
-                    {
-                      id: "candidates",
-                      label: tx("Candidates"),
-                      icon: "vote",
-                    },
-                    {
-                      id: "measures",
-                      label: tx("Measures {count}", {
-                        count: guide.measures.length,
-                      }),
-                      icon: "scale",
-                    },
-                  ]}
-                />
                 {tab === "candidates" ? (
                   <View style={s.list}>
                     {showPolls && results?.governor.kind === "poll" && (
@@ -722,6 +791,12 @@ export function CaliforniaGuidePreview({
 }
 
 const s = StyleSheet.create({
+  regionalScope: {
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    lineHeight: 21,
+    color: P.inkOnNight,
+  },
   pollToggle: {
     flexDirection: "row",
     alignItems: "center",
