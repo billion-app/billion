@@ -633,9 +633,12 @@ test("previous dossier finance renewal preserves archive IDs and semantic digest
   )!;
   const member = race.members.find((member) => member.name === "Mike McGuire")!;
   let fetchedAt = now;
+  const selectedRow =
+    "H6CA01269|MCGUIRE, MIKE|DEM|2026|CA|H|01|C|C|C00503185|||||";
+  let masterText = `${selectedRow}\n`;
   const fetcher = async (id: string, url: string) => {
     const text = url.endsWith("cn26.zip")
-      ? "H6CA01269|MCGUIRE, MIKE|DEM|2026|CA|H|01|C|C|C00503185|||||\n"
+      ? masterText
       : url.includes("/reports/house-senate/")
         ? JSON.stringify({
             results: [
@@ -709,6 +712,120 @@ test("previous dossier finance renewal preserves archive IDs and semantic digest
     second.sources.map((source) => source.id).sort(),
     first.sources.map((source) => source.id).sort(),
   );
+  masterText += "H6CA99999|OTHER, PERSON|REP|2026|CA|H|02|C|C|C00999999|||||\n";
+  const renewed = await collectCaliforniaEvidence(
+    { snapshot, race, member, previousDossier: first },
+    deps(),
+  );
+  const master = renewed.sources.find((entry) =>
+    entry.url.endsWith("cn26.zip"),
+  )!;
+  assert.equal(master.text, masterText);
+  assert.equal(
+    master.contentHash,
+    createHash("sha256").update(masterText).digest("hex"),
+  );
+  assert.notEqual(master.contentHash, first.financeIdentityProof!.sourceHash);
+  assert.equal(renewed.financeIdentityProof?.sourceHash, master.contentHash);
+  for (const [column, value] of [
+    [0, "H6CA01999"],
+    [1, "MCGUIRE, OTHER"],
+    [2, "REP"],
+    [3, "2024"],
+    [4, "NV"],
+    [5, "S"],
+    [6, "02"],
+    [7, "I"],
+    [8, "N"],
+    [9, "C00999999"],
+  ] as const) {
+    const fields = selectedRow.split("|");
+    fields[column] = value;
+    masterText = `${fields.join("|")}\n`;
+    await assert.rejects(
+      collectCaliforniaEvidence(
+        { snapshot, race, member, previousDossier: first },
+        deps(),
+      ),
+      CaliforniaCitedSourceFailure,
+    );
+  }
+  for (const changed of [
+    "",
+    `${selectedRow}\n${selectedRow}\n`,
+    `${selectedRow}\n${selectedRow.replace("H6CA01269", "H6CA01999")}\n`,
+  ]) {
+    masterText = changed;
+    await assert.rejects(
+      collectCaliforniaEvidence(
+        { snapshot, race, member, previousDossier: first },
+        deps(),
+      ),
+      CaliforniaCitedSourceFailure,
+    );
+  }
+  masterText = `${selectedRow}\nH6CA99999|OTHER, PERSON|REP|2026|CA|H|02|C|C|C00999999|||||\n`;
+  const identityEvidence = first.evidence.find(
+    (entry) => entry.sourceId === first.financeIdentityProof!.sourceId,
+  )!;
+  for (const previousDossier of [
+    {
+      ...first,
+      evidence: first.evidence.map((entry) =>
+        entry === identityEvidence
+          ? { ...entry, role: "candidate_record" as const }
+          : entry,
+      ),
+    },
+    {
+      ...first,
+      evidence: first.evidence.map((entry) =>
+        entry === identityEvidence
+          ? { ...entry, excerpt: "Changed cited passage" }
+          : entry,
+      ),
+    },
+    {
+      ...first,
+      gaps: [
+        ...first.gaps,
+        {
+          dimension: "record" as const,
+          code: "not_found_in_checked_sources" as const,
+          message: "Missing record",
+          checkedSourceIds: [identityEvidence.sourceId],
+          required: false,
+        },
+      ],
+    },
+    {
+      ...first,
+      financeIdentityProof: {
+        ...first.financeIdentityProof!,
+        sourceHash: "0".repeat(64),
+      },
+    },
+    {
+      ...first,
+      sourceLinks: [
+        {
+          fromSourceId: identityEvidence.sourceId,
+          toSourceId: "official-roster",
+          url: snapshot.source.url,
+          anchorText: "Official roster",
+          relation: "official_contact" as const,
+        },
+      ],
+    },
+  ]) {
+    await assert.rejects(
+      collectCaliforniaEvidence(
+        { snapshot, race, member, previousDossier },
+        deps(),
+      ),
+      CaliforniaCitedSourceFailure,
+    );
+  }
 });
 
 for (const failure of [

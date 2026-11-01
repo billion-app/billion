@@ -155,6 +155,14 @@ citations remain visible when the model input drops optional surrounding context
 to meet its byte limit. Retaining the full private archive alone does not supply
 readable evidence to a bounded review.
 
+Renewal compares the selected candidate's complete master row and replays the
+unique identity proof. A change elsewhere in the statewide master does not
+withdraw an unchanged candidate identity. This exception applies only when the
+master supports financial identity citations alone. Changed candidate rows,
+ambiguous identities, missing cited passages and nonfinancial uses retain the
+ordinary source-change failure behavior. The new full archive keeps its actual
+hash and observation time.
+
 The finance collector in
 [`california-finance.ts`](../apps/scraper/src/candidate-research/california-finance.ts)
 shares bounded queries between the members of the current race. It retrieves
@@ -263,3 +271,12 @@ Derived rows, incomplete responses, invalid hashes and stale observations are no
 reused. The ordinary publication expiry still starts at the oldest actual source
 observation. Reusing a query does not adopt a rejected model output or clear a
 review failure.
+
+If a release expires before a finance-only restart, a private baseline reader can
+recover its reviewed narrative. It selects the latest release before checking
+revocation, current policy, roster membership and the exact approved revisions.
+An expired unrevoked release supplies historical narrative only. It remains
+unavailable to public readers until fresh evidence and new independent reviews
+produce a current release. A newer revoked release cannot revive an older
+approval. Retained nonfinancial evidence still requires fresh qualification, and
+the twelve-hour query cache limit remains unchanged.

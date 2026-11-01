@@ -23,6 +23,7 @@ import {
   researchSourceSchema,
 } from "@acme/validators";
 
+import type { CaliforniaReviewedNarrativeCoverage } from "./california-finance-baseline.js";
 import type { CaliforniaRosterObservation } from "./california-roster-observation.js";
 import {
   authorCaliforniaBrief,
@@ -45,6 +46,7 @@ import {
   collectCaliforniaEvidence,
   fetchBoundedCaliforniaSource,
 } from "./california-evidence.js";
+import { readFinanceNarrativeBaselines } from "./california-finance-baseline.js";
 import { qualifyPublishedFinanceNarrative } from "./california-finance-refresh.js";
 import {
   observedRosterSources,
@@ -148,6 +150,11 @@ export interface CaliforniaDependencies {
     snapshotId: string,
     electionDate: string,
   ): Promise<CaliforniaPublishedCoverage>;
+  readFinanceNarrativeBaselines?(
+    snapshotId: string,
+    electionDate: string,
+    raceKeys: string[],
+  ): Promise<CaliforniaReviewedNarrativeCoverage>;
   modelConfigurationKey?: string;
   authorConfigurationKey?: string;
   reviewerConfigurationKey?: string;
@@ -496,6 +503,22 @@ export async function createCaliforniaDependencies(
           };
         }),
       };
+    },
+    readFinanceNarrativeBaselines: async (
+      snapshotId,
+      electionDate,
+      raceKeys,
+    ) => {
+      const snapshot = await store.getCaliforniaRoster(db, snapshotId);
+      if (!snapshot || snapshot.electionDate !== electionDate)
+        return { snapshotId, races: [] };
+      return readFinanceNarrativeBaselines({
+        database: db,
+        snapshot,
+        raceKeys,
+        policy: preparationPolicy ?? (await collection.activeResearchPolicy()),
+        now: new Date().toISOString(),
+      });
     },
     now: () => new Date().toISOString(),
     authorizedPolicy: async (version) => {
@@ -1123,9 +1146,16 @@ export async function reconcile(
     sourceEpoch,
   );
 
-  const [work, liveCoverage] = await Promise.all([
+  const [work, liveCoverage, narrativeCoverage] = await Promise.all([
     deps.listWork(snapshot.id),
     deps.readPublishedCoverage(snapshot.id, snapshot.electionDate),
+    input.financeOnly && deps.readFinanceNarrativeBaselines
+      ? deps.readFinanceNarrativeBaselines(
+          snapshot.id,
+          snapshot.electionDate,
+          raceKeys,
+        )
+      : Promise.resolve(undefined),
   ]);
   const checkpoints = new Map(
     work.map((row) => [
@@ -1180,6 +1210,15 @@ export async function reconcile(
         current.jurisdiction === race.jurisdiction &&
         current.electionDate === race.electionDate,
     );
+    const narrativeRace =
+      input.financeOnly && narrativeCoverage
+        ? narrativeCoverage.races.find(
+            (current) =>
+              current.contestId === race.contestId &&
+              current.jurisdiction === race.jurisdiction &&
+              current.electionDate === race.electionDate,
+          )
+        : publicRace;
     if (
       !input.refreshCurrent &&
       prior?.releaseId &&
@@ -1249,7 +1288,7 @@ export async function reconcile(
               `dossier:${previousDossierDigest}`,
             )) as CandidateEvidenceDossier | null)
           : null;
-        const publishedMember = publicRace?.members.find(
+        const publishedMember = narrativeRace?.members.find(
           (current) => current.candidateId === member.candidateId,
         );
         const publishedDossier = publishedMember?.author?.dossierDigest

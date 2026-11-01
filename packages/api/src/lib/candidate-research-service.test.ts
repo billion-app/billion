@@ -1347,9 +1347,19 @@ void test(
         generation: resumed.generation,
         reviewEpoch: resumed.reviewEpoch,
       };
+      const [withdrawnBeforeRecovery] = await db
+        .select()
+        .from(Release)
+        .where(eq(Release.id, required(releaseIds[0])));
+      assert.ok(withdrawnBeforeRecovery?.revokedReason);
       const recovered = await saveResearchCollection(observedDocument, db, {
         workLease: lease,
       });
+      const [withdrawnAfterRecovery] = await db
+        .select()
+        .from(Release)
+        .where(eq(Release.id, required(releaseIds[0])));
+      assert.deepEqual(withdrawnAfterRecovery, withdrawnBeforeRecovery);
       collectionIds.push(recovered.collectionId);
       await assert.rejects(
         recordResearchAiReview({

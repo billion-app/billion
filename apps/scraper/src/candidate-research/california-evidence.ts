@@ -11,7 +11,11 @@ import {
   officeSlug,
   officeUrl,
 } from "@acme/api/lib/candidate-sources/ca-sos-voterguide";
-import { isOfficialFecCandidateMasterUrl } from "@acme/validators";
+import {
+  fecCandidateMasterUrl,
+  isOfficialFecCandidateMasterUrl,
+  resolveFecIdentityFromSource,
+} from "@acme/validators";
 
 import {
   canonicalSourceUrl,
@@ -512,6 +516,104 @@ export function qualifiedCandidatePage(
       new RegExp(`(?:district|district no) ${race.district}(?: |$)`).test(body))
   );
 }
+function unchangedCitedFecIdentity(
+  dossier: CandidateEvidenceDossier | undefined,
+  prior: ResearchSource,
+  fresh: ResearchSource,
+  race: CaliforniaRaceTarget,
+  member: CaliforniaRaceTarget["members"][number],
+): boolean {
+  const proof = dossier?.financeIdentityProof;
+  if (!dossier || !proof || race.officeFamily !== "us_house" || !race.district)
+    return false;
+  const cycle = Number(race.electionDate.slice(0, 4));
+  if (
+    dossier.identity.candidateId !== member.candidateId ||
+    dossier.identity.electionDate !== race.electionDate ||
+    dossier.identity.jurisdiction !== race.jurisdiction ||
+    dossier.name !== member.name ||
+    proof.sourceId !== prior.id ||
+    proof.sourceHash !== prior.contentHash ||
+    prior.url !== fecCandidateMasterUrl(cycle) ||
+    prior.format !== "text" ||
+    fresh.id !== prior.id ||
+    fresh.url !== prior.url ||
+    fresh.format !== prior.format ||
+    fresh.publisher !== prior.publisher ||
+    hash(prior.text) !== prior.contentHash ||
+    hash(fresh.text) !== fresh.contentHash
+  )
+    return false;
+  const citations = dossier.evidence.filter(
+    (entry) => entry.sourceId === prior.id,
+  );
+  if (
+    !citations.length ||
+    citations.some(
+      (entry) =>
+        entry.role !== "finance" ||
+        entry.id !== `${proof.candidateId}:candidate-committee` ||
+        entry.origin !== "primary_record" ||
+        !prior.text.includes(entry.excerpt) ||
+        !fresh.text.includes(entry.excerpt),
+    ) ||
+    dossier.sourceLinks?.some(
+      (link) => link.fromSourceId === prior.id || link.toSourceId === prior.id,
+    ) ||
+    dossier.gaps.some(
+      (gap) =>
+        gap.dimension !== "finance" && gap.checkedSourceIds.includes(prior.id),
+    )
+  )
+    return false;
+  const rows = (source: ResearchSource) =>
+    source.text
+      .split(/\r?\n/)
+      .filter((line) => line.split("|")[0] === proof.candidateId);
+  const oldRows = rows(prior);
+  const newRows = rows(fresh);
+  if (
+    oldRows.length !== 1 ||
+    newRows.length !== 1 ||
+    oldRows[0] !== newRows[0] ||
+    citations.some(
+      (entry) =>
+        entry.excerpt !== oldRows[0]!.split("|").slice(0, 10).join("|"),
+    )
+  )
+    return false;
+  const query = {
+    name: member.name,
+    district: race.district,
+    cycle,
+    sourceCandidateId: member.sourceCandidateId,
+  };
+  try {
+    const oldIdentity = resolveFecIdentityFromSource(
+      prior,
+      query,
+      proof.bridge,
+      dossier.sources,
+    );
+    const newIdentity = resolveFecIdentityFromSource(
+      fresh,
+      query,
+      proof.bridge,
+      dossier.sources,
+    );
+    return [oldIdentity, newIdentity].every(
+      (identity) =>
+        identity?.candidateId === proof.candidateId &&
+        identity.name === proof.name &&
+        identity.office === proof.office &&
+        identity.state === proof.state &&
+        identity.district === proof.district &&
+        identity.cycle === proof.cycle,
+    );
+  } catch {
+    return false;
+  }
+}
 export async function collectCaliforniaEvidence(
   input: {
     snapshot: CaliforniaRosterSnapshot;
@@ -677,6 +779,13 @@ export async function collectCaliforniaEvidence(
       );
       if (
         fresh.contentHash !== priorSource.contentHash &&
+        !unchangedCitedFecIdentity(
+          input.previousDossier,
+          priorSource,
+          fresh,
+          race,
+          member,
+        ) &&
         !(
           financeRefresh &&
           refreshableUnusedDiscoverySource(financeRefresh, priorSource)
