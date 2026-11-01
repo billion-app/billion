@@ -3111,100 +3111,176 @@ test("changed state authority cannot retain composite identity during state-only
   assert.equal(f.stats.investigations, 0);
 });
 
-test("finance-only recovery separates latest acquisition from the published narrative base", async () => {
-  const f = await fixture();
-  const race = f.allRaces.find((entry) => entry.officeFamily === "us_house")!;
-  f.snapshot.races = [race];
-  const investigate = f.deps.investigate;
-  f.deps.investigate = async (...args) =>
-    buildCaliforniaDossier({
-      ...(await investigate(...args)),
-      officeKind: "federal_legislative",
-    });
-  const author = f.deps.author;
-  const briefs = new Map<string, CandidateBrief>();
-  f.deps.author = async (input) => {
-    const result = await author(input);
-    result.attestation.actualModel = "fixture";
-    briefs.set(input.dossier.identity.candidateId, result.brief);
-    return result;
-  };
-  const input = {
-    snapshotId: f.snapshot.id,
-    policyVersion: "policy",
-    bounds: { ...bounds, maxRaces: 1 },
-    raceKeys: [race.raceKey],
-  };
-  const first = await reconcile(input, f.deps);
-  assert.equal(first.completed, 1);
-  const saved = structuredClone(
-    f.rows.get(race.raceKey)!.checkpoint,
-  ) as CaliforniaWorkCheckpoint;
-  const member = race.members[0]!;
-  const published = saved.candidateProvenance![member.candidateId]!;
-  const oldDossier = f.artifacts.get(
-    `dossier:${published.dossierDigest}`,
-  ) as CandidateEvidenceDossier;
-  const acquired = buildCaliforniaDossier({
-    ...oldDossier,
-    gaps: [
-      {
-        dimension: "finance",
-        code: "source_unavailable",
-        message: "Later acquisition attempt.",
-        checkedSourceIds: [],
-        required: false,
-      },
-    ],
-  });
-  f.artifacts.set(`dossier:${acquired.dossierDigest}`, acquired);
-  const current = structuredClone(saved);
-  current.candidateProvenance![member.candidateId]!.dossierDigest =
-    acquired.dossierDigest;
-  f.rows.set(race.raceKey, {
-    raceKey: race.raceKey,
+for (const scenario of [
+  {
+    name: "pending acquisition",
+    status: "pending",
+    cache: "distinct",
+    financeOnly: true,
+  },
+  {
+    name: "blocked acquisition",
     status: "blocked",
-    checkpoint: current,
-  });
-  f.deps.readPublishedCoverage = async () => ({
-    snapshotId: f.snapshot.id,
-    races: [
-      {
-        contestId: race.contestId,
-        jurisdiction: race.jurisdiction,
-        electionDate: race.electionDate,
-        releaseId: saved.releaseId!,
-        sourceCheckedAt: saved.sourceCheckedAt!,
-        policyVersion: "policy",
-        members: race.members.map((candidate) => {
-          const p = saved.candidateProvenance![candidate.candidateId]!;
-          return {
-            candidateId: candidate.candidateId,
-            revisionId: p.revisionId!,
-            collectionId: saved.collectionId!,
-            brief: briefs.get(candidate.candidateId),
-            author: p.author!,
-            reviewer: p.reviewer!,
-          };
-        }),
-      },
-    ],
-  });
-  let calls = 0;
-  f.deps.investigate = async (request) => {
-    calls++;
+    cache: "distinct",
+    financeOnly: true,
+  },
+  {
+    name: "complete preparation",
+    status: "complete",
+    cache: "distinct",
+    financeOnly: true,
+  },
+  {
+    name: "published dossier exclusion",
+    status: "pending",
+    cache: "published",
+    financeOnly: true,
+  },
+  {
+    name: "missing provenance exclusion",
+    status: "pending",
+    cache: "missing_provenance",
+    financeOnly: true,
+  },
+  {
+    name: "missing artifact exclusion",
+    status: "pending",
+    cache: "missing_artifact",
+    financeOnly: true,
+  },
+  {
+    name: "ordinary research exclusion",
+    status: "blocked",
+    cache: "ordinary",
+    financeOnly: false,
+  },
+] as const)
+  test(`finance-only recovery separates latest acquisition from the published narrative base for ${scenario.name}`, async () => {
+    const f = await fixture();
+    const race = f.allRaces.find((entry) => entry.officeFamily === "us_house")!;
+    f.snapshot.races = [race];
+    const investigate = f.deps.investigate;
+    f.deps.investigate = async (...args) =>
+      buildCaliforniaDossier({
+        ...(await investigate(...args)),
+        officeKind: "federal_legislative",
+      });
+    const author = f.deps.author;
+    const briefs = new Map<string, CandidateBrief>();
+    f.deps.author = async (input) => {
+      const result = await author(input);
+      result.attestation.actualModel = "fixture";
+      briefs.set(input.dossier.identity.candidateId, result.brief);
+      return result;
+    };
+    const input = {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds: { ...bounds, maxRaces: 1 },
+      raceKeys: [race.raceKey],
+    };
+    const first = await reconcile(input, f.deps);
+    assert.equal(first.completed, 1);
+    const saved = structuredClone(
+      f.rows.get(race.raceKey)!.checkpoint,
+    ) as CaliforniaWorkCheckpoint;
+    const member = race.members[0]!;
+    const published = saved.candidateProvenance![member.candidateId]!;
+    const oldDossier = f.artifacts.get(
+      `dossier:${published.dossierDigest}`,
+    ) as CandidateEvidenceDossier;
+    const acquired = buildCaliforniaDossier({
+      ...oldDossier,
+      gaps: [
+        {
+          dimension: "finance",
+          code: "source_unavailable",
+          message: "Later acquisition attempt.",
+          checkedSourceIds: [],
+          required: false,
+        },
+      ],
+    });
+    f.artifacts.set(`dossier:${acquired.dossierDigest}`, acquired);
+    const current = structuredClone(saved);
+    current.candidateProvenance![member.candidateId]!.dossierDigest =
+      scenario.cache === "published"
+        ? published.dossierDigest
+        : acquired.dossierDigest;
+    if (scenario.cache === "missing_provenance")
+      delete current.candidateProvenance![member.candidateId];
+    if (scenario.cache === "missing_artifact")
+      f.artifacts.delete(`dossier:${acquired.dossierDigest}`);
+    f.rows.set(race.raceKey, {
+      raceKey: race.raceKey,
+      status: scenario.status,
+      checkpoint: current,
+    });
+    f.deps.readPublishedCoverage = async () => ({
+      snapshotId: f.snapshot.id,
+      races: [
+        {
+          contestId: race.contestId,
+          jurisdiction: race.jurisdiction,
+          electionDate: race.electionDate,
+          releaseId: saved.releaseId!,
+          sourceCheckedAt: saved.sourceCheckedAt!,
+          policyVersion: "policy",
+          members: race.members.map((candidate) => {
+            const p = saved.candidateProvenance![candidate.candidateId]!;
+            return {
+              candidateId: candidate.candidateId,
+              revisionId: p.revisionId!,
+              collectionId: saved.collectionId!,
+              brief: briefs.get(candidate.candidateId),
+              author: p.author!,
+              reviewer: p.reviewer!,
+            };
+          }),
+        },
+      ],
+    });
+    const before = {
+      authors: f.stats.authors,
+      reviews: f.stats.reviews,
+      releases: f.stats.releases,
+    };
+    let calls = 0;
+    let investigated:
+      | Parameters<CaliforniaDependencies["investigate"]>[0]
+      | undefined;
+    f.deps.investigate = async (request) => {
+      calls++;
+      investigated = request;
+      throw new Error("Stop after acquisition input inspection");
+    };
+    await reconcile(
+      { ...input, financeOnly: scenario.financeOnly, refreshCurrent: true },
+      f.deps,
+    );
+    assert.equal(calls, 1);
     assert.equal(
-      request.previousDossier?.dossierDigest,
+      investigated!.previousDossier?.dossierDigest,
       published.dossierDigest,
     );
-    assert.equal(request.cachedFinanceDossier?.digest, acquired.dossierDigest);
-    assert.deepEqual(request.cachedFinanceDossier?.document, acquired);
-    assert.equal(request.researchScope, "finance_refresh");
-    throw new Error("Stop after acquisition input inspection");
-  };
-  await reconcile(
-    { ...input, financeOnly: true, refreshCurrent: true },
-    f.deps,
-  );
-  assert.equal(calls, 1);
-});
+    if (scenario.cache === "distinct") {
+      assert.equal(
+        investigated!.cachedFinanceDossier?.digest,
+        acquired.dossierDigest,
+      );
+      assert.deepEqual(investigated!.cachedFinanceDossier?.document, acquired);
+    } else assert.equal(investigated!.cachedFinanceDossier, undefined);
+    assert.equal(
+      investigated!.researchScope,
+      scenario.financeOnly ? "finance_refresh" : undefined,
+    );
+
+    assert.deepEqual(
+      {
+        authors: f.stats.authors,
+        reviews: f.stats.reviews,
+        releases: f.stats.releases,
+      },
+      before,
+    );
+  });

@@ -236,7 +236,8 @@ campaign material. The targeted operator command is documented in the
 [scraper CLI guide](../apps/scraper/README.md#candidate-research-demand).
 
 A finance-only restart can reuse full official FEC query responses from its latest
-saved acquisition dossier for up to 12 hours. The political narrative still comes
+saved acquisition dossier for up to 12 hours. These source checks apply when
+preparation is pending, blocked or complete. The political narrative still comes
 from the exact published revision. Cached queries retain their original text,
 hashes and observation times. Fresh identity resolution determines the exact
 requested URL, so a changed candidate or committee scope misses the cache.

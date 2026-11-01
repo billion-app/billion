@@ -1273,14 +1273,10 @@ export async function reconcile(
           throw new Error(
             "Finance-only research requires an exact qualified published revision and dossier",
           );
-        const acquisitionDigest =
-          input.financeOnly &&
-          work.some(
-            (row) => row.raceKey === race.raceKey && row.status === "blocked",
-          )
-            ? attemptPrior?.candidateProvenance?.[member.candidateId]
-                ?.dossierDigest
-            : undefined;
+        const acquisitionDigest = input.financeOnly
+          ? attemptPrior?.candidateProvenance?.[member.candidateId]
+              ?.dossierDigest
+          : undefined;
         const acquisitionDossier = acquisitionDigest
           ? acquisitionDigest === publishedDossier?.dossierDigest
             ? null
