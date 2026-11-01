@@ -93,7 +93,8 @@ const statewide: Record<string, OfficeAuthoritySource> = {
   },
   Controller: {
     url: "https://www.sco.ca.gov/eo_about_func.html",
-    marker: /As the chief fiscal officer of California/,
+    marker:
+      /As the chief fiscal officer of California, the [^.]{1,120}, Controller [\p{L} .’'-]{1,120} is responsible for accountability and disbursement of the state[’']s financial resources\./u,
   },
   Treasurer: {
     url: "https://www.treasurer.ca.gov/inside/functions",

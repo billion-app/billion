@@ -2407,6 +2407,7 @@ test("captured statewide authority pages require their office provision and reje
       ...(page.office === "Superintendent of Public Instruction"
         ? ["candidate-quotation"]
         : []),
+      ...(page.office === "Controller" ? ["fragment"] : []),
     ];
     for (const variant of variants) {
       const dossier = await collectCaliforniaEvidence(
@@ -2431,11 +2432,13 @@ test("captured statewide authority pages require their office provision and reje
                 ? actual
                 : variant === "wrong-office"
                   ? "<html><main>The mayor administers the city budget and oversees municipal departments.</main></html>"
-                  : variant === "soft404"
-                    ? `<html><main>The page you requested is not found. ${page.text ?? ""}</main></html>`
-                    : variant === "candidate-quotation"
-                      ? `<html><main>${member.name} says: ${page.text ?? ""}</main></html>`
-                      : `<html><main>${(page.text ?? "").slice(0, 150)}</main></html>`;
+                  : variant === "fragment"
+                    ? "<html><main>As the chief fiscal officer of California, this page is unavailable while maintenance continues.</main></html>"
+                    : variant === "soft404"
+                      ? `<html><main>The page you requested is not found. ${page.text ?? ""}</main></html>`
+                      : variant === "candidate-quotation"
+                        ? `<html><main>${member.name} says: ${page.text ?? ""}</main></html>`
+                        : `<html><main>${(page.text ?? "").slice(0, 150)}</main></html>`;
             return fetchBoundedCaliforniaSource(
               id,
               url,
