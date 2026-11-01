@@ -237,12 +237,15 @@ test("one rejected correction exhausts the shared slot across reviewer wording, 
   );
 });
 
-test("unchanged rejected content cannot obtain another review through new metadata or a cached approval", async () => {
+test("unchanged rejected content cannot obtain another review through new metadata, prompt-version metadata or a cached approval", async () => {
   const f = fixture();
   const author = f.deps.author;
   let corrected: Awaited<ReturnType<Dependencies["author"]>> | undefined;
   f.deps.author = async (input) => {
     const result = await author(input);
+    result.attestation.promptVersion = input.correction
+      ? "california-author-v18"
+      : "california-author-v17";
     if (input.correction?.kind === "review_rejection") {
       const previous = input.correction.previousBrief;
       result.brief = {
@@ -297,6 +300,9 @@ test("unchanged rejected content cannot obtain another review through new metada
   assert.equal(f.calls.filter((call) => call.role === "author").length, 2);
   assert.equal(f.calls.filter((call) => call.role === "reviewer").length, 1);
   assert.equal(correctedReviewReads, 0);
+  assert.equal(corrected!.attestation.promptVersion, "california-author-v18");
+  const plan = slot(f);
+  const retainedArtifacts = structuredClone([...f.artifacts.entries()]);
   const calls = f.calls.length;
   const input = f.fresh();
   input.lease.owner = "replacement";
@@ -309,6 +315,8 @@ test("unchanged rejected content cannot obtain another review through new metada
   assert.equal(f.calls.length, calls);
   assert.equal(input.usage.modelCalls, 0);
   assert.equal(correctedReviewReads, 0);
+  assert.deepEqual(slot(f), plan);
+  assert.deepEqual([...f.artifacts.entries()], retainedArtifacts);
 });
 
 test("a changed correction can remove an unsupported assertion and obtain fresh review", async () => {

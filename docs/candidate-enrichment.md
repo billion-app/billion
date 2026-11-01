@@ -60,6 +60,32 @@ ballot candidate. Other candidates load background immediately, even when the
 unused guide query has never fetched. A supplied ballot biography still avoids
 the background request.
 
+## California research sources and chapters
+
+The [California evidence collector](../apps/scraper/src/candidate-research/california-evidence.ts)
+checks official office responsibilities separately from candidate claims.
+Controller and Treasurer use their official functions pages. Governor and
+Superintendent use the official voter guide's institutional introduction,
+ending before the candidate statements. A missing-page response or a page
+without the required office provision leaves a required authority gap; a
+successful HTTP response alone does not qualify it.
+
+Campaign publisher disclosures establish who publishes a page, not who made
+every statement on it. The collector retains the surrounding footer context
+and rejects quoted disclosures and third-party reporting. Word-internal
+apostrophes in ordinary contractions do not turn a genuine disclosure into a
+quotation. Candidate statements and same-origin campaign pages still retain
+their own attribution and citations.
+
+The [author contract](../apps/scraper/src/candidate-research/california-ai.ts)
+places each proposition in one chapter. Proposed goals belong in Priorities;
+implementation steps and proposed investments belong in Mechanisms. Effects
+and Tradeoffs require separate evidence for consequences or competing costs
+and constraints. Those chapters remain empty when the sources do not support
+them. A changed prompt version cannot obtain another approval for unchanged
+rejected reader content. Substantively corrected revisions still require a new
+complete independent review.
+
 ## California research refresh failures
 
 California research is scheduled by complete race demand, not by the full
