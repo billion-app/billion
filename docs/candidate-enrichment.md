@@ -147,6 +147,14 @@ SOS legal/display row or an official roster domain linked through a candidate's
 Form 1 can establish the identity. The shared validator replays the same proof
 before publication. A nickname or missing middle initial alone is insufficient.
 
+The financial evidence also exposes the candidate-to-committee relationship to
+readers and reviewers. The profile summary citation includes the verified
+candidate heading and committee names and IDs. A separate exact candidate-master
+excerpt ends at the principal committee ID, before every address field. These
+citations remain visible when the model input drops optional surrounding context
+to meet its byte limit. Retaining the full private archive alone does not supply
+readable evidence to a bounded review.
+
 The finance collector in
 [`california-finance.ts`](../apps/scraper/src/candidate-research/california-finance.ts)
 shares bounded queries between the members of the current race. It retrieves

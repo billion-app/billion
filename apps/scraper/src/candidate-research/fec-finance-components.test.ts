@@ -595,6 +595,7 @@ test("actual five FEC summaries retain reported spending cash debt and itemizati
       ...source(captured.url, captured.text),
       format: "html" as const,
     };
+    const citations: CandidateBrief["evidence"] = [];
     const finance = profileFinance(
       s,
       {
@@ -603,8 +604,22 @@ test("actual five FEC summaries retain reported spending cash debt and itemizati
         district: identity.district,
         cycle: 2026,
       },
-      [],
+      citations,
     );
+    const identitySummary = citations.find(
+      (entry) => entry.id === `${id}:summary`,
+    )!;
+    assert(identitySummary.excerpt.includes(identity.name));
+    assert(identitySummary.excerpt.includes(`ID: ${id}`));
+    assert(
+      identitySummary.excerpt.includes(
+        "Data is included from these committees:",
+      ),
+    );
+    assert(identitySummary.excerpt.includes(finance.committeeId));
+    assert(identitySummary.excerpt.includes(finance.committeeName));
+    assert(s.text.includes(identitySummary.excerpt));
+    assert(identitySummary.excerpt.length <= 4000);
     assert.equal(finance.periodEnd, "2026-10-14");
     const summary = finance.observation!.summary;
     assert.equal(summary.status, "available");
@@ -632,6 +647,88 @@ test("actual five FEC summaries retain reported spending cash debt and itemizati
       [],
     ),
   );
+});
+
+test("profile identity is established by its own bounded heading before financial coverage", () => {
+  const captured = fixture.profiles.H6CA20152!;
+  const selected = {
+    fecId: "H6CA20152",
+    fecName: "PANETTA, JIMMY",
+    district: "19",
+    cycle: 2026,
+  };
+  const boundary = captured.text.indexOf(
+    "Data is included from these committees:",
+  );
+  const header = captured.text.slice(0, boundary);
+  const tail = captured.text.slice(boundary);
+  for (const change of [
+    (text: string) => text.replaceAll("PANETTA, JIMMY", "PANETTA, JAMES"),
+    (text: string) => text.replace("ID: H6CA20152", "ID: H6CA19154"),
+    (text: string) =>
+      text.replace("Candidate for House", "Candidate for Senate"),
+    (text: string) => text.replace("California - 19", "Nevada - 19"),
+    (text: string) => text.replace("California - 19", "California - 18"),
+    (text: string) => text.replace("Election 2026", "Election 2024"),
+  ])
+    assert.throws(
+      () =>
+        profileFinance(
+          {
+            ...source(
+              captured.url,
+              change(header) +
+                tail +
+                " PANETTA, JIMMY ID: H6CA20152 Candidate for House California - 19 Election 2026",
+            ),
+            format: "html",
+          },
+          selected,
+          [],
+        ),
+      /does not match/,
+    );
+  for (const url of [
+    "https://example.com/data/candidate/H6CA20152/?cycle=2026",
+    captured.url.replace("H6CA20152", "H6CA19154"),
+    captured.url.replace("cycle=2026", "cycle=2024"),
+  ])
+    assert.throws(
+      () =>
+        profileFinance(
+          { ...source(url, captured.text), format: "html" },
+          selected,
+          [],
+        ),
+      /does not match/,
+    );
+  const citations: CandidateBrief["evidence"] = [];
+  const parsed = profileFinance(
+    { ...source(captured.url, captured.text), format: "html" },
+    selected,
+    citations,
+  );
+  const summary = parsed.observation!.summary;
+  assert.equal(summary.status, "available");
+  if (summary.status === "available") {
+    const proof = summary.evidenceIds
+      .map((id) => citations.find((entry) => entry.id === id)!.excerpt)
+      .join(" ");
+    assert(proof.includes("Itemized individual contributions $1,529,701.39"));
+    assert(proof.includes("Unitemized individual contributions $106,748.10"));
+    assert.equal(
+      citations.filter((entry) =>
+        entry.excerpt.startsWith("Itemized individual contributions"),
+      ).length,
+      0,
+    );
+    assert.equal(
+      citations.filter((entry) =>
+        entry.excerpt.startsWith("Unitemized individual contributions"),
+      ).length,
+      0,
+    );
+  }
 });
 
 test("six actual source observations replay through one collector with only three shared API requests", async () => {
@@ -770,6 +867,28 @@ test("six actual source observations replay through one collector with only thre
       assert(result.identityProof);
       assert(result.sources.length <= 40);
       assert(result.evidence.length <= 100);
+      const identityProofId = `${result.identityProof.candidateId}:candidate-committee`;
+      const identityCitation = result.evidence.find(
+        (entry) => entry.id === identityProofId,
+      )!;
+      assert(identityCitation);
+      assert.equal(identityCitation.excerpt.split("|").length, 10);
+      assert(
+        identityCitation.excerpt.startsWith(
+          `${result.identityProof.candidateId}|${result.identityProof.name}|`,
+        ),
+      );
+      assert(
+        result.finance.committeeId
+          .split(", ")
+          .includes(identityCitation.excerpt.split("|")[9]!),
+      );
+      assert(result.finance.filingEvidenceIds.includes(identityProofId));
+      assert(
+        !/PO BOX|STREET|CARMEL VALLEY|\|\d{5}(?:-\d{4})?$/.test(
+          identityCitation.excerpt,
+        ),
+      );
       const observation = result.finance.observation!;
       assert.equal(observation.independentExpenditures.status, "available");
       assert.equal(observation.filingStatus.status, "available");
@@ -872,6 +991,10 @@ test("six actual source observations replay through one collector with only thre
           };
         };
         const requiredProofIds = [
+          identityProofId,
+          ...(member.name === "Jeff Frese"
+            ? []
+            : [`${result.identityProof.candidateId}:summary`]),
           `${result.identityProof.candidateId}:outside:scope`,
           ...(member.name === "Jeff Frese"
             ? []
@@ -900,6 +1023,104 @@ test("six actual source observations replay through one collector with only thre
     3,
   );
   assert.equal(new Set(calls).size, calls.length);
+  const selectedRace = scope.find((entry) => entry.district === "19")!;
+  const selectedMember = selectedRace.members.find(
+    (entry) => entry.name === "Jimmy Panetta",
+  )!;
+  const masterLine = rawFixture.masterProjection
+    .split(/\r?\n/)
+    .find((entry) => entry.startsWith("H6CA20152|"))!;
+  const fields = masterLine.split("|");
+  for (const [fieldIndex, replacement] of [
+    [1, "PANETTA, JAMES"],
+    [3, "2024"],
+    [4, "NV"],
+    [5, "S"],
+    [6, "18"],
+  ] as const) {
+    const changed = [...fields];
+    changed[fieldIndex] = replacement;
+    const changedMaster = rawFixture.masterProjection.replace(
+      masterLine,
+      changed.join("|"),
+    );
+    let sourceCalls = 0;
+    const result = await collectCaliforniaFederalFinance(
+      {
+        race: selectedRace,
+        member: selectedMember,
+        scope: [selectedRace],
+        identitySources,
+      },
+      {
+        ...deps,
+        sharedSources: new Map(),
+        fetch: async (_id, url, _publisher, format) => {
+          sourceCalls++;
+          assert.equal(url, fecCandidateMasterUrl(2026));
+          return { ...source(url, changedMaster), format };
+        },
+      },
+    );
+    assert.equal(result.finance, null);
+    assert.equal(sourceCalls, 1);
+    assert.equal(result.identityProof, undefined);
+  }
+  const duplicate = await collectCaliforniaFederalFinance(
+    {
+      race: selectedRace,
+      member: selectedMember,
+      scope: [selectedRace],
+      identitySources,
+    },
+    {
+      ...deps,
+      sharedSources: new Map(),
+      fetch: async (_id, url, _publisher, format) => {
+        assert.equal(url, fecCandidateMasterUrl(2026));
+        return {
+          ...source(
+            url,
+            `${rawFixture.masterProjection.trimEnd()}\n${masterLine}\n`,
+          ),
+          format,
+        };
+      },
+    },
+  );
+  assert.equal(duplicate.finance, null);
+  assert.equal(duplicate.identityProof, undefined);
+  const wrongCommittee = [...fields];
+  wrongCommittee[9] = "C00000001";
+  await assert.rejects(
+    collectCaliforniaFederalFinance(
+      {
+        race: selectedRace,
+        member: selectedMember,
+        scope: [selectedRace],
+        identitySources,
+      },
+      {
+        ...deps,
+        sharedSources: new Map(),
+        fetch: async (...args) => {
+          if (args[1] === fecCandidateMasterUrl(2026))
+            return {
+              ...source(
+                args[1],
+                rawFixture.masterProjection.replace(
+                  masterLine,
+                  wrongCommittee.join("|"),
+                ),
+              ),
+              format: args[3],
+            };
+          return deps.fetch(...args);
+        },
+      },
+    ),
+    /omits the verified principal committee/,
+  );
 });
 
 test("memo conduit entries preserve earmarked individuals and conflicting transaction duplicates reject", () => {

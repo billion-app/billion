@@ -25,6 +25,7 @@ import {
   collectCommitteeReportingStatus,
   fecBatchUrl,
 } from "./fec-finance-components.js";
+import { evidence } from "./finance.js";
 import { profileFinance } from "./profile.js";
 import { hash } from "./sources.js";
 
@@ -225,7 +226,13 @@ export async function collectCaliforniaFederalFinance(
         .filter(Boolean)
         .map((line) => {
           const fields = line.split("|");
-          return [fields[0]!, fields[9]!] as const;
+          return [
+            fields[0]!,
+            {
+              committeeId: fields[9]!,
+              excerpt: fields.slice(0, 10).join("|"),
+            },
+          ] as const;
         }),
     );
     const profiles = new Map<string, CampaignFinance>();
@@ -257,7 +264,7 @@ export async function collectCaliforniaFederalFinance(
           throw error;
       }
       if (!authorized.has(selected.candidateId)) {
-        const committee = principal.get(selected.candidateId);
+        const committee = principal.get(selected.candidateId)?.committeeId;
         if (!committee || !/^C\d{8}$/.test(committee))
           throw new Error("Verified candidate principal committee unavailable");
         authorized.set(selected.candidateId, [committee]);
@@ -265,6 +272,11 @@ export async function collectCaliforniaFederalFinance(
     }
     const committeeIds = [...new Set([...authorized.values()].flat())].sort();
     const ownCommitteeIds = authorized.get(identity.candidateId)!;
+    const principalRow = principal.get(identity.candidateId);
+    if (!principalRow || !ownCommitteeIds.includes(principalRow.committeeId))
+      throw new Error(
+        "Public FEC coverage omits the verified principal committee",
+      );
     const reportUrl = new URL(
       fecBatchUrl("reports/house-senate/", cycle, "committee_id", committeeIds),
     );
@@ -309,6 +321,18 @@ export async function collectCaliforniaFederalFinance(
           "No processed financial report available for donor selection",
         );
     }
+    const identityEvidenceId = `${identity.candidateId}:candidate-committee`;
+    result.evidence.push(
+      evidence(
+        master,
+        identityEvidenceId,
+        "FEC candidate and principal committee",
+        principalRow.excerpt,
+        "primary_record",
+        "Candidate master columns 1–10: candidate ID, name, party, election year, state, office, district, incumbency, status, principal committee ID",
+      ),
+    );
+    finance.filingEvidenceIds.push(identityEvidenceId);
     const outside = await get(
       fecBatchUrl(
         "schedules/schedule_e/by_candidate/",
