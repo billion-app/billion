@@ -13,6 +13,15 @@ export const RTM_DISTRICT_URL =
   "https://mtc.ca.gov/about-mtc/authorities/public-transit-revenue-measure-district";
 export const RTM_COUNTY_URL =
   "https://smcacre.gov/elections/november-3-2026-statewide-general-election";
+// Reviewed against the resolution PDF page 8, printed page 7. Its text layer
+// misreads the commas after "everyone" and "workers" as periods.
+const REVIEWED_BALLOT_QUESTION =
+  "To prevent major service cuts to BART and other transit, avoid increased traffic, and reduce pollution by: Preserving BART, Caltrain, VTA, SamTrans, AC Transit, Muni, other transit for everyone, including workers, students, seniors, persons with disabilities; Supporting transit safety, cleanliness, affordability, reliability; Repairing targeted roads/potholes; Requiring financial transparency, oversight, accountability; shall the measure enacting a 0.5% (Alameda, Contra Costa, San Mateo, Santa Clara counties), and 1% (San Francisco) sales tax for 14 years generating approximately $980,000,000 annually, be adopted?";
+const EXTRACTED_BALLOT_QUESTION = REVIEWED_BALLOT_QUESTION.replace(
+  "everyone, including workers, students",
+  "everyone. including workers. students",
+);
+
 const normalize = (value: string) => value.replace(/\s+/g, " ").trim();
 
 export function regionalDocumentLinks(html: string) {
@@ -79,6 +88,12 @@ export function parseRegionalMeasure(
     !fullText.includes("November 3, 2026")
   )
     throw new Error("Regional legal text or ballot question missing");
+  const extractedQuestion = normalize(question);
+  if (
+    extractedQuestion !== REVIEWED_BALLOT_QUESTION &&
+    extractedQuestion !== EXTRACTED_BALLOT_QUESTION
+  )
+    throw new Error("Regional ballot question changed; source review required");
   return regionalMeasuresPayloadSchema.parse({
     electionDate: "2026-11-03",
     fetchedAt: fetchedAt.toISOString(),
@@ -93,7 +108,7 @@ export function parseRegionalMeasure(
         sourceName: "Public Transit Revenue Measure District",
         sourceUrl: RTM_DISTRICT_URL,
         officialOverview: normalize(overview.text()),
-        ballotQuestion: normalize(question),
+        ballotQuestion: REVIEWED_BALLOT_QUESTION,
         fullText,
         ...regionalDocumentLinks(countyHtml),
       },

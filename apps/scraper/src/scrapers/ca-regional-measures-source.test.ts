@@ -16,6 +16,7 @@ const fixture = (name: string) =>
 const district = fixture("district.html");
 const county = fixture("county.html");
 const legal = fixture("resolution-excerpt.txt");
+const reviewedQuestion = fixture("ballot-question.txt").trim();
 
 test("official regional record keeps five-county scope, ballot question and source identities", () => {
   const payload = parseRegionalMeasure(
@@ -34,6 +35,8 @@ test("official regional record keeps five-county scope, ballot question and sour
     "San Mateo",
     "Santa Clara",
   ]);
+  assert.equal(measure.ballotQuestion, reviewedQuestion);
+  assert.match(measure.fullText, /everyone\. including workers\. students/);
   assert.match(measure.ballotQuestion, /0.5%/);
   assert.match(measure.ballotQuestion, /1%.*San Francisco/);
   assert.match(measure.ballotQuestion, /14 years/);
@@ -44,6 +47,34 @@ test("official regional record keeps five-county scope, ballot question and sour
   );
   assert.match(measure.analysisUrl, /ImpartialAnalysis/);
   assert.notEqual(measure.argumentForUrl, measure.argumentAgainstUrl);
+});
+
+test("a clean PDF question matches the reviewed transcription and keeps raw legal text", () => {
+  const cleanLegal = legal.replace(
+    "everyone. including workers. students",
+    "everyone, including workers, students",
+  );
+  const measure = parseRegionalMeasure(district, county, cleanLegal)
+    .measures[0]!;
+  assert.equal(measure.ballotQuestion, reviewedQuestion);
+  assert.equal(measure.fullText, cleanLegal);
+});
+
+test("changed ballot words, tax terms or unreviewed punctuation require source review", () => {
+  for (const [before, after] of [
+    ["0.5%", "0.75%"],
+    ["1% (San Francisco)", "2% (San Francisco)"],
+    ["14 years", "15 years"],
+    ["$980,000,000", "$990,000,000"],
+    ["Preserving BART", "Expanding BART"],
+    ["safety, cleanliness", "safety. cleanliness"],
+  ] as const) {
+    assert.throws(
+      () =>
+        parseRegionalMeasure(district, county, legal.replace(before, after)),
+      /ballot question changed.*source review/i,
+    );
+  }
 });
 
 test("wrong election, missing question or changed source sections cannot replace the cache", () => {

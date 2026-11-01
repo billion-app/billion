@@ -328,7 +328,13 @@ requires an explicit output path, and production apply requires `--yes`.
 `ca-regional-measures` collects the November 3, 2026 Regional Transit Measure
 from the Public Transit Revenue Measure District and San Mateo County Elections.
 It preserves the official district overview, ballot question and extracted legal
-text in a separate `ca-regional-measures-v1` cache. It also records official PDF
+text in a separate `ca-regional-measures-v1` cache. The ballot question uses a
+transcription reviewed against the resolution PDF page 8, printed page 7. The
+PDF text layer misreads the commas after "everyone" and "workers" as periods.
+The parser accepts only the reviewed question or that exact extraction variant,
+after whitespace normalization. Any other question change requires source review
+and fails the refresh before a cache write. The full legal text remains exactly
+as extracted. It also records official PDF
 links for the impartial analysis and primary arguments. Those scanned documents
 are linked, not summarized. The collector makes no model calls. `CA_REGIONAL_MEASURES_MAX_ITEMS` defaults
 to 1, the only supported collection size. `--max-items` overrides this value.
