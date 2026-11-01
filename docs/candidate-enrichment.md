@@ -77,15 +77,6 @@ apostrophes in ordinary contractions do not turn a genuine disclosure into a
 quotation. Candidate statements and same-origin campaign pages still retain
 their own attribution and citations.
 
-The [author contract](../apps/scraper/src/candidate-research/california-ai.ts)
-places each proposition in one chapter. Proposed goals belong in Priorities;
-implementation steps and proposed investments belong in Mechanisms. Effects
-and Tradeoffs require separate evidence for consequences or competing costs
-and constraints. Those chapters remain empty when the sources do not support
-them. A changed prompt version cannot obtain another approval for unchanged
-rejected reader content. Substantively corrected revisions still require a new
-complete independent review.
-
 ## California research refresh failures
 
 California research is scheduled by complete race demand, not by the full

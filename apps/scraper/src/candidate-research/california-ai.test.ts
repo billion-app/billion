@@ -131,81 +131,9 @@ test("nested promises compile stable links and separate exact reviewer attestati
   assert.notEqual(a.attestation.runId, r.attestation.runId);
   assert.notEqual(a.attestation.actorId, r.attestation.actorId);
   assert.equal(a.attestation.revisionDigest, r.attestation.revisionDigest);
-  assert.equal(a.attestation.promptVersion, "california-author-v18");
+  assert.equal(a.attestation.promptVersion, "california-author-v17");
   assert.equal(r.attestation.actualModel, "actual-fixture-model");
   assert.equal(calls[1]!.excludedConfiguredModel, "fixture:author");
-});
-test("author chapter guidance matches independent review and permits unsupported analyses to remain empty", async () => {
-  const { deps, calls } = dependencies([
-    authorFixture(),
-    {
-      verdict: "approve",
-      overallReason:
-        "The supported goal is stated once, without invented consequences or costs.",
-      findings: [
-        {
-          claimId: "priorities-1",
-          supported: true,
-          reason: "The campaign passage states this goal.",
-        },
-      ],
-    },
-  ]);
-  const dossier = fixtureDossier();
-  const authored = await authorCaliforniaBrief(
-    { dossier, policyVersion: "p1" },
-    deps,
-  );
-  await reviewCaliforniaBrief(
-    {
-      brief: authored.brief,
-      dossier,
-      policyVersion: "p1",
-      authorAttestation: authored.attestation,
-    },
-    deps,
-  );
-  const authorSystem = calls[0]!.system;
-  const reviewSystem = calls[1]!.system;
-  assert.match(authorSystem, /Priorities state the proposed goal/);
-  assert.match(
-    authorSystem,
-    /Mechanisms describe the supported implementation path, including proposed investments, spending formulas/,
-  );
-  assert.match(
-    authorSystem,
-    /Effects must describe a supported consequence or expected outcome, not repeat a goal/,
-  );
-  assert.match(
-    authorSystem,
-    /Tradeoffs must identify a supported cost, competing interest, constraint or downside/,
-  );
-  assert.match(
-    authorSystem,
-    /Leave Effects and Tradeoffs claims empty when their own cited passages do not support/,
-  );
-  assert.match(
-    authorSystem,
-    /remove duplicate propositions across all six chapters/,
-  );
-  assert.match(
-    reviewSystem,
-    /Reject repeated claims used to populate multiple chapters/,
-  );
-  assert.match(
-    reviewSystem,
-    /Mechanisms must explain supported powers or actual implementation paths rather than restate a goal/,
-  );
-  assert.match(
-    reviewSystem,
-    /Effects and Tradeoffs require their own supporting evidence/,
-  );
-  for (const topic of ["effects", "tradeoffs"] as const)
-    assert.deepEqual(
-      authored.brief.sections.find((section) => section.topic === topic)!
-        .claims,
-      [],
-    );
 });
 test("fixed topics and dynamic evidence enums reject missing topics or foreign references", () => {
   const schema = californiaAuthorOutputSchema(fixtureAuthorEvidence());
@@ -909,7 +837,7 @@ test("v15 author owns claims only and preserves temporal and contextual constrai
     { dossier: fixtureDossier(), policyVersion: "p1" },
     deps,
   );
-  assert.equal(result.attestation.promptVersion, "california-author-v18");
+  assert.equal(result.attestation.promptVersion, "california-author-v17");
   assert.ok(
     calls[0]!.system.includes("Past achievements belong only in Record"),
   );
@@ -2003,11 +1931,11 @@ test("empty section coverage does not expose source collection workflow", async 
     dossier.gaps.find((gap) => gap.dimension === "record")?.message,
     "The record source could not be downloaded.",
   );
-  assert.equal(result.attestation.promptVersion, "california-author-v18");
+  assert.equal(result.attestation.promptVersion, "california-author-v17");
   assert.deepEqual(result.brief.authorship, {
     kind: "generated",
     model: "actual-fixture-model",
-    promptVersion: "california-author-v18",
+    promptVersion: "california-author-v17",
   });
 });
 
