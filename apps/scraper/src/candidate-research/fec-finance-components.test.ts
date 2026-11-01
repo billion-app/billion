@@ -23,6 +23,7 @@ import {
   applyReportedContributions,
   collectCommitteeReportingStatus,
   exactFecRows,
+  extractElectronicFilingIndex,
   fecBatchUrl,
 } from "./fec-finance-components.js";
 import { profileFinance } from "./profile.js";
@@ -72,12 +73,19 @@ function statusReports(): ResearchSource {
     pagination: { count: 0, page: 1, pages: 0, is_count_exact: true },
   });
 }
-function electronicIndex(text = electronicIndexHtml): ResearchSource {
+function rawElectronicIndex(text = electronicIndexHtml): ResearchSource {
   return {
     ...source("https://docquery.fec.gov/cgi-bin/forms/C00929612/", text),
     format: "text",
     byteHash: hash(text),
   };
+}
+function electronicIndex(text = electronicIndexHtml): ResearchSource {
+  return extractElectronicFilingIndex(
+    rawElectronicIndex(text),
+    "C00929612",
+    2026,
+  );
 }
 function source(url: string, value: unknown): ResearchSource {
   const text =
@@ -663,10 +671,15 @@ for (const [name, change] of Object.entries({
     text.replace("<H1>", "<a href='?page=2'>continue</a><H1>"),
   cells: (text: string) =>
     text.replace("<td align='left'>FEC-2028712</td>", ""),
+  coverage: (text: string) =>
+    text.replace(
+      "<td align='left'>&nbsp;</td>",
+      "<td align='left'>10/01/2026</td>",
+    ),
 })) {
   test(`electronic filing index rejects ${name} before retrieving a statement`, async () => {
     await assert.rejects(
-      () =>
+      async () =>
         collectCommitteeReportingStatus({
           index: electronicIndex(change(electronicIndexHtml)),
           processedReports: statusReports(),
@@ -692,7 +705,7 @@ test("electronic index rejects changed hashes and raw statement identity or date
     { ...electronicIndex(), url: electronicIndex().url + "?page=1" },
   ]) {
     await assert.rejects(
-      () =>
+      async () =>
         collectCommitteeReportingStatus({
           index,
           processedReports: statusReports(),
@@ -706,7 +719,7 @@ test("electronic index rejects changed hashes and raw statement identity or date
           sources: [],
           evidence: [],
         }),
-      /source identity mismatch/,
+      /source identity mismatch|extraction requires|archive hash|complete recognized table/,
     );
   }
   for (const text of [
@@ -714,7 +727,7 @@ test("electronic index rejects changed hashes and raw statement identity or date
     raw(2028712).text.replace("FRESE FOR CONGRESS", "OTHER COMMITTEE"),
   ]) {
     await assert.rejects(
-      () =>
+      async () =>
         collectCommitteeReportingStatus({
           index: electronicIndex(),
           processedReports: statusReports(),
@@ -763,12 +776,71 @@ test("electronic threshold status requires an exhausted processed query with no 
     },
   ]) {
     await assert.rejects(
-      () =>
+      async () =>
         collectCommitteeReportingStatus({
           ...base,
           processedReports: source(query.url, value),
         }),
       /contradict|not exactly exhausted/,
+    );
+  }
+});
+
+test("electronic extraction retains actual bytes while generated-page clocks do not change filing identity", () => {
+  const changedClock = electronicIndexHtml.replace("16:27:21", "16:27:22");
+  assert.notEqual(changedClock, electronicIndexHtml);
+  const first = electronicIndex();
+  const second = electronicIndex(changedClock);
+  assert.equal(first.text, second.text);
+  assert.equal(first.contentHash, second.contentHash);
+  assert.equal(first.fetchedAt, second.fetchedAt);
+  assert.notEqual(first.byteHash, second.byteHash);
+  assert.notEqual(first.binaryBase64, second.binaryBase64);
+  assert.equal(
+    Buffer.from(first.binaryBase64!, "base64").toString("utf8"),
+    electronicIndexHtml,
+  );
+  assert(!first.text.includes("Generated"));
+  assert(!first.text.includes("SCHOOL STREET"));
+  const changedFiling = electronicIndex(
+    electronicIndexHtml.replaceAll("2017049", "2017050"),
+  );
+  assert.notEqual(first.contentHash, changedFiling.contentHash);
+});
+
+test("electronic index extraction must replay exactly from its original binary archive", async () => {
+  const original = electronicIndex();
+  const changedHtml = electronicIndexHtml.replaceAll("2017049", "2017050");
+  for (const index of [
+    { ...original, binaryBase64: Buffer.from(changedHtml).toString("base64") },
+    {
+      ...original,
+      binaryBase64: Buffer.from(changedHtml).toString("base64"),
+      byteHash: hash(changedHtml),
+    },
+    {
+      ...original,
+      text: original.text + " ",
+      contentHash: hash(original.text + " "),
+    },
+    { ...original, binaryBase64: undefined },
+  ]) {
+    await assert.rejects(
+      () =>
+        collectCommitteeReportingStatus({
+          index,
+          processedReports: statusReports(),
+          committeeId: "C00929612",
+          committeeName: "FRESE FOR CONGRESS",
+          candidateId: "H6CA10187",
+          cycle: 2026,
+          get: async () => {
+            assert.fail("Unbound extraction must stop before acquisition");
+          },
+          sources: [],
+          evidence: [],
+        }),
+      /archive|extraction/,
     );
   }
 });
@@ -1053,7 +1125,7 @@ test("six actual source observations replay through one collector with two share
             "No-summary collection must use the official electronic index",
           );
       }
-      if (url === electronicIndex().url) return electronicIndex();
+      if (url === electronicIndex().url) return rawElectronicIndex();
       if (u.hostname === "docquery.fec.gov")
         return raw(Number(/\/(\d+)\.fec$/.exec(url)![1]));
       throw new Error(`Unexpected source ${url}`);
@@ -1069,6 +1141,21 @@ test("six actual source observations replay through one collector with two share
       assert(result.identityProof);
       assert(result.sources.length <= 40);
       assert(result.evidence.length <= 100);
+      if (member.name === "Jeff Frese") {
+        const indexes = result.sources.filter(
+          (source) => source.url === electronicIndex().url,
+        );
+        assert.equal(indexes.length, 2);
+        assert.equal(new Set(indexes.map((source) => source.id)).size, 2);
+        assert(
+          indexes.every(
+            (source) =>
+              source.format === "html" &&
+              source.binaryBase64 &&
+              !source.text.includes("Generated"),
+          ),
+        );
+      }
       const identityProofId = `${result.identityProof.candidateId}:candidate-committee`;
       const identityCitation = result.evidence.find(
         (entry) => entry.id === identityProofId,

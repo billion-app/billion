@@ -207,6 +207,12 @@ zero activity. Direct filings do not call or substitute a response for the API's
 filing endpoint. Report and independent-expenditure queries keep their existing
 scope, source-age and completeness checks.
 
+The extracted index text contains only verified committee and filing fields. The
+full HTML remains in its binary archive with the actual byte hash and observation
+time. Replaying that archive must reproduce the extraction exactly. FEC's page
+generation clock and layout do not change research attempt identity; an actual
+filing change does. Existing rejected and unknown attempts remain terminal.
+
 Whole source filings remain in the private archive. Public contribution evidence
 contains the filing number, transaction ID, contributor name, entity type, date
 and amount. Home addresses, employer and occupation fields are excluded from

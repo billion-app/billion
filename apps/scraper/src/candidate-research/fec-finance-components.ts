@@ -479,6 +479,7 @@ function electronicStatusFilings(
         !Number.isSafeInteger(fileNumber) ||
         fileNumber <= 0 ||
         seen.has(fileNumber) ||
+        [2, 3, 4].some((column) => normalize(cells.eq(column).text()) !== "") ||
         new URL(link.attr("href")!, expected).href !==
           `${expected}${fileNumber}/` ||
         !["F1", "F1N", "F1A", "F99"].includes(formType) ||
@@ -502,6 +503,73 @@ function electronicStatusFilings(
   if (rows[0]?.formType !== "F99")
     throw new Error("Latest electronic filing is not a threshold statement");
   return { rows, committeeName };
+}
+
+function electronicIndexText(
+  index: ReturnType<typeof electronicStatusFilings>,
+  committeeId: string,
+  cycle: number,
+) {
+  return JSON.stringify(
+    {
+      kind: "fec_electronic_filing_index_v1",
+      committeeId,
+      committeeName: index.committeeName,
+      cycle,
+      scope: "all_listed_electronic_filings",
+      filings: index.rows,
+    },
+    null,
+    2,
+  );
+}
+
+export function extractElectronicFilingIndex(
+  raw: ResearchSource,
+  committeeId: string,
+  cycle: number,
+): ResearchSource {
+  const index = electronicStatusFilings(raw, committeeId, cycle);
+  const text = electronicIndexText(index, committeeId, cycle);
+  return {
+    ...raw,
+    format: "html",
+    text,
+    contentHash: hash(text),
+    binaryBase64: Buffer.from(raw.text, "utf8").toString("base64"),
+  };
+}
+
+function replayElectronicFilingIndex(
+  source: ResearchSource,
+  committeeId: string,
+  cycle: number,
+) {
+  if (
+    source.format !== "html" ||
+    !source.binaryBase64 ||
+    source.contentHash !== hash(source.text)
+  )
+    throw new Error(
+      "Electronic index extraction requires its original archive",
+    );
+  const bytes = Buffer.from(source.binaryBase64, "base64");
+  if (
+    bytes.toString("base64") !== source.binaryBase64 ||
+    hash(bytes) !== source.byteHash
+  )
+    throw new Error("Electronic index archive hash differs");
+  const html = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  const index = electronicStatusFilings(
+    { ...source, format: "text", text: html, contentHash: hash(html) },
+    committeeId,
+    cycle,
+  );
+  if (source.text !== electronicIndexText(index, committeeId, cycle))
+    throw new Error(
+      "Electronic index extraction differs from its original archive",
+    );
+  return index;
 }
 
 export async function collectCommitteeReportingStatus(input: {
@@ -528,7 +596,7 @@ export async function collectCommitteeReportingStatus(input: {
       "Filing status index scope differs from verified committee",
     );
   const htmlIndex = electronic
-    ? electronicStatusFilings(input.index, input.committeeId, input.cycle)
+    ? replayElectronicFilingIndex(input.index, input.committeeId, input.cycle)
     : null;
   let processedIndexId: string | null = null;
   if (htmlIndex) {
