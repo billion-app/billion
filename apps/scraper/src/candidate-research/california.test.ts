@@ -1835,9 +1835,16 @@ for (const failure of [503, 429, "timeout", "changed"] as const) {
             };
           }
         } else if (parsed.hostname === "docquery.fec.gov") {
-          const filing = /\/(\d+)\.fec$/.exec(parsed.pathname)?.[1];
-          assert.ok(filing);
-          value = captured.raw[filing]!.text;
+          if (parsed.pathname === "/cgi-bin/forms/C00929612/") {
+            value = await readFile(
+              new URL("./fixtures/fec-electronic-index.html", import.meta.url),
+              "utf8",
+            );
+          } else {
+            const filing = /\/(\d+)\.fec$/.exec(parsed.pathname)?.[1];
+            assert.ok(filing);
+            value = captured.raw[filing]!.text;
+          }
         }
         const text =
           (typeof value === "string" ? value : JSON.stringify(value, null, 2)) +
@@ -1851,6 +1858,7 @@ for (const failure of [503, 429, "timeout", "changed"] as const) {
           format,
           text,
           contentHash: hash(text),
+          byteHash: hash(text),
           fetchedAt: f.deps.now(),
         };
       },

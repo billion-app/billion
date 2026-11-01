@@ -289,13 +289,13 @@ export async function collectCaliforniaFederalFinance(
         throw new Error(
           "Reporting status needs one verified principal committee",
         );
-      const filingUrl = new URL(
-        fecBatchUrl("filings/", cycle, "committee_id", ownCommitteeIds),
+      const index = await get(
+        `https://docquery.fec.gov/cgi-bin/forms/${ownCommitteeIds[0]!}/`,
+        "text",
       );
-      filingUrl.searchParams.set("most_recent", "true");
-      const index = await get(filingUrl.toString(), "json", true);
       finance = await collectCommitteeReportingStatus({
         index,
+        processedReports: reports,
         committeeId: ownCommitteeIds[0]!,
         committeeName: ownCommitteeIds[0]!,
         candidateId: identity.candidateId,
