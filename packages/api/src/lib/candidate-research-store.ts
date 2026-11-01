@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import type { CandidateResearchCollectionDocument } from "@acme/validators";
-import { and, desc, eq, inArray, sql } from "@acme/db";
+import { and, desc, eq, inArray, isNull, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   CaliforniaRaceWork,
@@ -154,6 +154,7 @@ export function invalidateRace(
     .set({ revokedReason: reason })
     .where(
       and(
+        isNull(CandidateRaceRelease.revokedReason),
         sql`${CandidateRaceRelease.document}->>'contestId' = ${manifest.contestId}`,
         sql`${CandidateRaceRelease.document}->>'jurisdiction' = ${manifest.jurisdiction}`,
         sql`${CandidateRaceRelease.document}->>'electionDate' = ${manifest.electionDate}`,

@@ -18,6 +18,7 @@ import { ResearchReviewCollectionConflict } from "@acme/api/lib/candidate-brief-
 import {
   candidateBriefSchema,
   candidateEvidenceDossierSchema,
+  deriveCandidateResearchQuality,
 } from "@acme/validators";
 
 import type {
@@ -39,6 +40,10 @@ import {
   collectCaliforniaEvidence,
   fetchBoundedCaliforniaSource,
 } from "./california-evidence.js";
+import {
+  qualifyFinanceNarrativeBaseline,
+  readFinanceNarrativeBaselines,
+} from "./california-finance-baseline.js";
 import { decodeCaliforniaRoster } from "./california-roster.js";
 import {
   CaliforniaSourceHttpError,
@@ -3292,3 +3297,259 @@ for (const scenario of [
       before,
     );
   });
+
+async function reviewedHistoricalFinanceFixture() {
+  const f = await fixture();
+  const race = f.allRaces.find((entry) => entry.officeFamily === "us_house")!;
+  f.snapshot.races = [race];
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (...args) =>
+    buildCaliforniaDossier({
+      ...(await investigate(...args)),
+      officeKind: "federal_legislative",
+    });
+  const author = f.deps.author;
+  f.deps.author = async (input) => {
+    const result = await author(input);
+    result.attestation.actualModel = "fixture";
+    return result;
+  };
+  let collection!: CandidateResearchCollectionDocument;
+  const save = f.deps.saveCollection;
+  f.deps.saveCollection = async (document, lease) => {
+    collection = structuredClone(document);
+    return save(document, lease);
+  };
+  const events: Parameters<
+    typeof qualifyFinanceNarrativeBaseline
+  >[0]["events"] = [];
+  f.deps.attest = async (input) => {
+    const brief = collection.briefs.find(
+      (entry) => entry.revisionId === input.revisionId,
+    )!;
+    events.push({
+      revisionId: input.revisionId,
+      action: "approve",
+      actorId: input.review.attestation.actorId,
+      policyVersion: "policy",
+      createdAt: new Date(f.deps.now()),
+      attestation: {
+        collectionId: input.collectionId,
+        author: input.author,
+        reviewer: input.review.attestation,
+        quality: deriveCandidateResearchQuality(brief, input.dossier),
+        verdict: "approve",
+        findings: brief.sections.flatMap((section) =>
+          section.claims.map((claim) => ({
+            claimId: claim.id,
+            supported: true,
+            reason: "Fixture primary source supports this exact claim.",
+          })),
+        ),
+      },
+    });
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      raceKeys: [race.raceKey],
+    },
+    f.deps,
+  );
+  assert.equal(result.completed, 1);
+  const manifest = structuredClone(collection.manifest);
+  manifest.collectionId = collection.manifest.id;
+  manifest.reviewedDossiers = Object.fromEntries(
+    collection.candidateArtifacts!.map((artifact) => {
+      const author = artifact.author as CandidateModelAttestation;
+      const brief = collection.briefs.find(
+        (entry) => entry.identity.candidateId === artifact.candidateId,
+      )!;
+      return [
+        artifact.candidateId,
+        {
+          dossierDigest: artifact.dossierDigest,
+          sourceSetDigest: artifact.sourceSetDigest,
+          authorRunId: author.runId,
+          quality: deriveCandidateResearchQuality(
+            brief,
+            artifact.dossier as CandidateEvidenceDossier,
+          )!,
+        },
+      ];
+    }),
+  );
+  const input: Parameters<typeof qualifyFinanceNarrativeBaseline>[0] = {
+    release: {
+      id: manifest.id,
+      document: manifest,
+      revokedReason: null,
+      createdAt: new Date(f.deps.now()),
+    },
+    collection: {
+      id: manifest.collectionId,
+      document: collection,
+      failure: null,
+    },
+    revisions: collection.briefs.map((brief) => ({
+      id: brief.revisionId,
+      document: brief,
+      revisionDigest: evidenceDigest(brief),
+    })),
+    events,
+    snapshotId: f.snapshot.id,
+    race,
+    policy: {
+      approved: true,
+      version: "policy",
+      automation: {
+        serviceActorId: "california-research-service",
+        allowedAuthorModels: ["fixture"],
+        allowedReviewerModels: ["reviewer"],
+        researchVersion: collection.researchVersion,
+      },
+    },
+    now: new Date(Date.parse(manifest.expiresAt) + 60_000).toISOString(),
+  };
+  return { f, input, manifest };
+}
+
+test("expired reviewed narrative is private finance input while public coverage remains unavailable", async () => {
+  const { f, input, manifest } = await reviewedHistoricalFinanceFixture();
+  const qualified = qualifyFinanceNarrativeBaseline(input);
+  assert.ok(qualified);
+  assert.ok(Date.parse(manifest.expiresAt) < Date.parse(input.now));
+  f.deps.now = () => input.now;
+  f.deps.readFinanceNarrativeBaselines = async (_snapshot, _date, raceKeys) => {
+    assert.deepEqual(raceKeys, [input.race.raceKey]);
+    return { snapshotId: f.snapshot.id, races: [qualified] };
+  };
+  let investigated = 0;
+  f.deps.investigate = async (request) => {
+    investigated++;
+    assert.equal(request.researchScope, "finance_refresh");
+    assert.ok(request.previousDossier);
+    throw new Error("Stop before fresh acquisition");
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      raceKeys: [input.race.raceKey],
+      financeOnly: true,
+      refreshCurrent: true,
+    },
+    f.deps,
+  );
+  assert.equal(investigated, 1);
+  assert.equal(result.completed, 0);
+  assert.equal(f.stats.releases, 1);
+  assert.deepEqual(
+    (await f.deps.readPublishedCoverage(f.snapshot.id, f.snapshot.electionDate))
+      .races,
+    [],
+  );
+});
+
+for (const mutation of [
+  "revoked",
+  "rejected",
+  "withdrawn",
+  "policy",
+  "roster",
+  "source",
+  "model",
+  "author",
+  "collection",
+  "future",
+] as const)
+  test(`historical finance narrative rejects ${mutation} provenance`, async () => {
+    const { input } = await reviewedHistoricalFinanceFixture();
+    assert.ok(qualifyFinanceNarrativeBaseline(input));
+    if (mutation === "revoked") input.release.revokedReason = "Source changed";
+    if (mutation === "rejected" || mutation === "withdrawn")
+      input.events.push({
+        ...input.events[0]!,
+        action: mutation === "rejected" ? "reject" : "withdraw",
+      });
+    if (mutation === "policy") input.policy.version = "new-policy";
+    if (mutation === "roster") input.race.rosterDigest = "f".repeat(64);
+    if (mutation === "source")
+      (
+        input.collection.document as CandidateResearchCollectionDocument
+      ).sources[0]!.text += "Changed";
+    if (mutation === "model")
+      (
+        input.policy.automation as { allowedReviewerModels: string[] }
+      ).allowedReviewerModels = ["other-model"];
+    if (mutation === "author")
+      (
+        input.collection.document as CandidateResearchCollectionDocument
+      ).candidateArtifacts![0]!.author = {
+        ...((input.collection.document as CandidateResearchCollectionDocument)
+          .candidateArtifacts![0]!.author as CandidateModelAttestation),
+        runId: randomUUID(),
+      };
+    if (mutation === "collection") input.collection.id = randomUUID();
+    if (mutation === "future")
+      input.events[0]!.createdAt = new Date(Date.parse(input.now) + 1);
+    assert.equal(qualifyFinanceNarrativeBaseline(input), null);
+  });
+
+test("historical reader selects a newer revoked release before considering an older approved narrative", async () => {
+  const { f, input } = await reviewedHistoricalFinanceFixture();
+  let selects = 0;
+  const database = {
+    transaction: async (run: (tx: unknown) => Promise<unknown>) =>
+      run({
+        select: () => {
+          selects++;
+          return {
+            from: () => ({
+              where: () => ({
+                orderBy: async () => [
+                  {
+                    ...input.release,
+                    id: randomUUID(),
+                    document: input.release.document,
+                    revokedReason: "Newer source withdrawal",
+                    createdAt: new Date(input.now),
+                  },
+                  input.release,
+                ],
+              }),
+            }),
+          };
+        },
+      }),
+  } as unknown as Parameters<
+    typeof readFinanceNarrativeBaselines
+  >[0]["database"];
+  const result = await readFinanceNarrativeBaselines({
+    database,
+    snapshot: f.snapshot,
+    raceKeys: [input.race.raceKey],
+    policy: input.policy,
+    now: input.now,
+  });
+  assert.deepEqual(result.races, []);
+  assert.equal(selects, 1);
+});
+
+test("historical narrative preserves exact author values regardless JSONB object key order", async () => {
+  const { input } = await reviewedHistoricalFinanceFixture();
+  const artifacts = (
+    input.collection.document as CandidateResearchCollectionDocument
+  ).candidateArtifacts!;
+  for (const artifact of artifacts)
+    artifact.author = Object.fromEntries(
+      Object.entries(artifact.author as Record<string, unknown>).reverse(),
+    );
+  assert.ok(qualifyFinanceNarrativeBaseline(input));
+  (artifacts[0]!.author as Record<string, unknown>).unexpectedProof =
+    "not in signed attestation";
+  assert.equal(qualifyFinanceNarrativeBaseline(input), null);
+});
