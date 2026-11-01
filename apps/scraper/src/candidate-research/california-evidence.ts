@@ -74,16 +74,45 @@ const authority: Record<string, string> = {
   judicial_retention:
     "https://supreme.courts.ca.gov/about-court/court-and-judicial-branch",
 };
-const statewide: Record<string, string> = {
-  Governor:
-    "https://voterguide.sos.ca.gov/candidates/governor-candidate-statements.htm",
-  "Lieutenant Governor": "https://ltg.ca.gov/about-the-office-of-lt-governor/",
-  "Secretary of State": "https://www.sos.ca.gov/administration/about-agency",
-  Controller: "https://www.sco.ca.gov/about_us.html",
-  Treasurer: "https://www.treasurer.ca.gov/about.asp",
-  "Attorney General": "https://oag.ca.gov/about",
-  "Insurance Commissioner": "https://www.insurance.ca.gov/0500-about-us/",
-  "Superintendent of Public Instruction": "https://www.cde.ca.gov/eo/",
+const statewide: Record<string, OfficeAuthoritySource> = {
+  Governor: {
+    url: "https://voterguide.sos.ca.gov/candidates/governor-candidate-statements.htm",
+    marker:
+      /As the state[’']s chief executive officer, oversees most state departments and agencies, and appoints judges\. Proposes new laws, approves or vetoes legislation, and submits the annual state budget to the Legislature\. Mobilizes and directs state resources during emergencies\./,
+    exactMatch: true,
+    beforeCandidates: true,
+  },
+  "Lieutenant Governor": {
+    url: "https://ltg.ca.gov/about-the-office-of-lt-governor/",
+    marker:
+      /Under California[’']s Constitution, the Lieutenant Governor serves as Acting Governor/,
+  },
+  "Secretary of State": {
+    url: "https://www.sos.ca.gov/administration/about-agency",
+    marker: /.*/,
+  },
+  Controller: {
+    url: "https://www.sco.ca.gov/eo_about_func.html",
+    marker:
+      /As the chief fiscal officer of California, the [^.]{1,120}, Controller [\p{L} .’'-]{1,120} is responsible for accountability and disbursement of the state[’']s financial resources\./u,
+  },
+  Treasurer: {
+    url: "https://www.treasurer.ca.gov/inside/functions",
+    marker:
+      /The office of California State Treasurer has broad responsibilities and authority in the areas of investment and finance/,
+  },
+  "Attorney General": { url: "https://oag.ca.gov/about", marker: /.*/ },
+  "Insurance Commissioner": {
+    url: "https://www.insurance.ca.gov/0500-about-us/",
+    marker: /.*/,
+  },
+  "Superintendent of Public Instruction": {
+    url: "https://voterguide.sos.ca.gov/candidates/superintendent-candidate-statements.htm",
+    marker:
+      /Superintendent of Public Instruction Candidate Statements \(Nonpartisan Office\) Serves as the state[’']s independently elected nonpartisan voice for the public interest in the governance of the state[’']s educational systems\. Represents the public interest through advocacy with the Legislature and the Governor on areas of high public concern and recommendations for addressing identified challenges\. Serves as a voting member of governing boards of the state[’']s transitional kindergarten through higher education systems\./,
+    exactMatch: true,
+    beforeCandidates: true,
+  },
 };
 const kinds = {
   us_house: "federal_legislative",
@@ -100,6 +129,7 @@ interface OfficeAuthoritySource {
   format?: ResearchSource["format"];
   maxExcerpt?: number;
   exactMatch?: boolean;
+  beforeCandidates?: boolean;
 }
 interface LocalAuthorityCapability extends OfficeAuthoritySource {
   id: string;
@@ -837,7 +867,7 @@ export async function collectCaliforniaEvidence(
   } else {
     let authorityUrl = localCapability?.url ?? authority[race.officeFamily];
     if (race.officeFamily === "statewide")
-      authorityUrl = statewide[race.office];
+      authorityUrl = statewide[race.office]?.url;
     if (
       race.officeFamily === "judicial_retention" &&
       race.sourceContestId.startsWith("15")
@@ -848,25 +878,13 @@ export async function collectCaliforniaEvidence(
         const requiredAuthoritySources: OfficeAuthoritySource[] =
           localCapability
             ? [localCapability, ...(localCapability.supporting ?? [])]
-            : race.officeFamily === "statewide" &&
-                race.office === "Lieutenant Governor"
-              ? [
-                  {
-                    url: authorityUrl,
-                    marker:
-                      /Under California[’']s Constitution, the Lieutenant Governor serves as Acting Governor/,
-                  },
-                ]
-              : race.officeFamily === "statewide" && race.office === "Governor"
-                ? [
-                    {
-                      url: authorityUrl,
-                      marker:
-                        /As the state[’']s chief executive officer, oversees most state departments and agencies, and appoints judges\. Proposes new laws, approves or vetoes legislation, and submits the annual state budget to the Legislature\. Mobilizes and directs state resources during emergencies\./,
-                      exactMatch: true,
-                    },
-                  ]
-                : [{ url: authorityUrl, marker: /.*/ }];
+            : [
+                (race.officeFamily === "statewide" &&
+                  statewide[race.office]) || {
+                  url: authorityUrl,
+                  marker: /.*/,
+                },
+              ];
         const checkedAuthoritySourceIds: string[] = [];
         for (const [index, descriptor] of requiredAuthoritySources.entries()) {
           const source = await get(
@@ -875,8 +893,26 @@ export async function collectCaliforniaEvidence(
             descriptor.format ?? "html",
           );
           const body = substantiveSourceText(source);
+          if (
+            /\b(?:page (?:you requested (?:is |was )?)?not found|404 (?:error|not found)|error 404|page cannot be found|requested page (?:could not|cannot) be found)\b/i.test(
+              body,
+            )
+          )
+            throw new Error(
+              "Official authority source returned a missing-page response",
+            );
           const match = descriptor.marker.exec(body);
-          if (!match)
+          if (
+            !match ||
+            (descriptor.beforeCandidates &&
+              race.members.some(
+                (candidate) =>
+                  candidateNamePosition(
+                    body.slice(0, match.index),
+                    candidate.name,
+                  ) >= 0,
+              ))
+          )
             throw new Error(
               "Official authority source does not contain the required office provision",
             );
@@ -1599,7 +1635,7 @@ export async function fetchBoundedCaliforniaSource(
           )?.index;
         if (
           offset === undefined ||
-          /["“”'‘’]|\b(?:says?|said|reports?|quoted?|according to)\b/i.test(
+          /["“”]|(?<![\p{L}\p{N}])['‘’]|['‘’](?![\p{L}\p{N}])|\b(?:says?|said|reports?|quoted?|according to)\b/iu.test(
             value.slice(0, offset),
           )
         )

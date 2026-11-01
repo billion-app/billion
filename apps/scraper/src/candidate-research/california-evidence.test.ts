@@ -1241,6 +1241,24 @@ test("only unquoted legal publisher disclosures qualify filed destinations", asy
   for (const [disclosure, accepted] of [
     ["<footer>Paid for by Anne J. Kepner for Trustee.</footer>", true],
     [
+      "<footer>If you've saved your payment information, you can donate. Paid for by Anne J. Kepner for Trustee.</footer>",
+      true,
+    ],
+    [
+      "<footer>If you’ve saved your payment information, you can donate. Paid for by Anne J. Kepner for Trustee.</footer>",
+      true,
+    ],
+    [
+      "<footer>The candidate's campaign. Paid for by Anne J. Kepner for Trustee.</footer>",
+      true,
+    ],
+    ["<footer>‘Paid for by Anne J. Kepner for Trustee.’</footer>", false],
+    [
+      "<footer><div>According to the campaign, Paid for by Anne J. Kepner for Trustee.</div></footer>",
+      false,
+    ],
+    ["<footer>Paid for by Some Other Person for Trustee.</footer>", false],
+    [
       '<div class="legal-disclaimer">Authorized and paid for by Anne J. Kepner for Trustee.</div>',
       true,
     ],
@@ -2329,4 +2347,140 @@ test("failed transport diagnostics identify only the public resource and numeric
       return true;
     },
   );
+});
+
+test("captured Bonta footer preserves a genuine disclosure after a contraction", async () => {
+  const footer = await readFile(
+    new URL("./fixtures/bonta-campaign-footer.html", import.meta.url),
+    "utf8",
+  );
+  assert.match(footer, /you(?:'|’)ve/);
+  const archive = await fetchBoundedCaliforniaSource(
+    "campaign",
+    "https://robbonta.com/",
+    "robbonta.com",
+    "html",
+    { request() {}, bytes() {} },
+    undefined,
+    {
+      addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+      transport: async () =>
+        new Response(
+          `<html><body><main>Rob Bonta</main>${footer}</body></html>`,
+        ),
+    },
+  );
+  const [substantive, disclosure] = archive.text.split(
+    "\nCampaign publisher disclosure (identity only):\n",
+  );
+  assert.match(
+    disclosure!,
+    /Paid for by Rob Bonta for CA Attorney General 2026/,
+  );
+  assert.equal(
+    substantive!
+      .split("\nLinked source navigation (discovery only):\n")[0]!
+      .includes("Paid for by"),
+    false,
+  );
+});
+
+test("captured statewide authority pages require their office provision and reject missing-page content", async () => {
+  const pages = JSON.parse(
+    await readFile(
+      new URL("./fixtures/statewide-authority-pages.json", import.meta.url),
+      "utf8",
+    ),
+  ) as { office: string; url: string; text?: string; html?: string }[];
+  const { snapshot } = await fixture();
+  for (const page of pages) {
+    const race = snapshot.races.find(
+      (target) => target.office === page.office,
+    )!;
+    assert.ok(race, page.office);
+    const member = race.members[0]!;
+    const variants = [
+      "actual",
+      "wrong-office",
+      "soft404",
+      "truncated",
+      ...(page.office === "Superintendent of Public Instruction"
+        ? ["candidate-quotation"]
+        : []),
+      ...(page.office === "Controller" ? ["fragment"] : []),
+    ];
+    for (const variant of variants) {
+      const dossier = await collectCaliforniaEvidence(
+        { snapshot, race, member },
+        {
+          now: () => now,
+          sharedSources: new Map(),
+          budget: { request() {}, bytes() {} },
+          search: async () => ({ sources: [] }),
+          fetch: async (id, url, publisher, format) => {
+            if (url !== page.url)
+              return source(
+                id,
+                url,
+                "Official source without a listed candidate statement or campaign website.",
+              );
+            const actual =
+              page.html ??
+              `<html><body><main>${page.text}</main></body></html>`;
+            const html =
+              variant === "actual"
+                ? actual
+                : variant === "wrong-office"
+                  ? "<html><main>The mayor administers the city budget and oversees municipal departments.</main></html>"
+                  : variant === "fragment"
+                    ? "<html><main>As the chief fiscal officer of California, this page is unavailable while maintenance continues.</main></html>"
+                    : variant === "soft404"
+                      ? `<html><main>The page you requested is not found. ${page.text ?? ""}</main></html>`
+                      : variant === "candidate-quotation"
+                        ? `<html><main>${member.name} says: ${page.text ?? ""}</main></html>`
+                        : `<html><main>${(page.text ?? "").slice(0, 150)}</main></html>`;
+            return fetchBoundedCaliforniaSource(
+              id,
+              url,
+              publisher,
+              format,
+              { request() {}, bytes() {} },
+              undefined,
+              {
+                addresses: async () => [
+                  { address: "93.184.216.34", family: 4 },
+                ],
+                transport: async () => new Response(html),
+              },
+            ).then((archive) => ({ ...archive, fetchedAt: now }));
+          },
+        },
+      );
+      const authority = dossier.evidence.find(
+        (entry) => entry.role === "office_authority",
+      );
+      if (variant === "actual") {
+        assert.ok(authority, page.office);
+        const observed = dossier.sources.find(
+          (entry) => entry.id === authority.sourceId,
+        )!;
+        assert.ok(observed.text.includes(authority.excerpt));
+        assert.doesNotMatch(
+          authority.excerpt,
+          /page you requested is not found/i,
+        );
+        if (page.office === "Superintendent of Public Instruction") {
+          assert.match(authority.excerpt, /governing boards/);
+          assert.doesNotMatch(authority.excerpt, /Richard Barrera|Sonja Shaw/);
+        }
+      } else {
+        assert.equal(authority, undefined, `${page.office}: ${variant}`);
+        assert.ok(
+          dossier.gaps.some(
+            (gap) => gap.dimension === "mechanisms" && gap.required,
+          ),
+        );
+      }
+    }
+  }
 });
