@@ -295,8 +295,6 @@ export async function readFinanceNarrativeBaselines(input: {
             eq(CandidateResearchCollection.id, release.document.collectionId),
           );
         if (!collection || collection.pilotKey !== race.raceKey) continue;
-        const { researchSourceDigest } =
-          await import("@acme/api/lib/candidate-research-store");
         if (
           release.document.sourceDigest !== collection.sourceDigest ||
           researchSourceDigest(collection.document) !== collection.sourceDigest
