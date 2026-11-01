@@ -68,6 +68,34 @@ Editorial guarantees are encoded in the schema rather than trusted to a prompt:
   law. A funding eligibility condition is described with its covered recipients
   and scope; it is not expanded into a blanket ban on the underlying activity.
 
+### Editorial voice
+
+Briefs use direct, declarative headlines and familiar descriptions of what would change. The writer assumes no prior interest in politics: bill numbers, agency acronyms, and legislative mechanisms do not substitute for an explanation. A short source does not need a long article; optional deep dives normally aim for 150–350 words, with less when the subject needs less.
+
+Plain text is valid. The writer no longer regenerates a brief because each paragraph lacks a bold phrase. Excess emphasis in short fields can trigger the existing bounded retry; quotations stay untouched. The prompt also forbids a manufactured twist and warns against treating deleted or superseded amendment language as an additional operative provision.
+
+These are writing-guidance changes within the existing v8 shape. They apply when ordinary generation next runs. They do not invalidate existing caches, rewrite published records, or initiate a backfill. A local editorial draft is review evidence, not a production content update.
+
+### No assumed subject knowledge
+
+The opening is written for someone who knows nothing about the bill or its subject. Naming a program is not explaining it. The headline supplies a familiar idea; the visible summary explains what people actually do in the program. An unavoidable term must be defined at first use: a bill credit is a deduction from an electricity bill, and generating capacity is how much power projects can produce at one time. A credit does not establish savings after all charges, and capacity is not electricity actually generated. Preserve source scope and uncertainty. Keep definitions short and place legal machinery in fuller explanations rather than requiring a glossary tap for basic understanding.
+
+The shared design follows the same rule: one lead figure, with the remaining figures on demand, and optional navigation after the basic idea is visible. Definition notes containing words such as “means” or “measures” remain beside their values rather than being hidden as supplementary prose. This is an editorial and interaction rule; it does not silently rewrite existing cached content or certify generated claims.
+
+### Standalone article headlines
+
+Newly generated briefs include a dedicated `headline` that names the actual program, service or action before any deck is read. A short provision label is not the article headline. Read each headline in isolation: “Half the program” fails because it never identifies the program, and rounding “at least 51% of capacity” to “half” loses both a minimum and the measured share. Program descriptions must retain source scope: eligible renewable energy is not automatically solar-only.
+
+The canonical field is optional for older cached records; generation requires it. It participates in the loaded-language, jargon and emphasis checks and the translation allowlist. It uses no bold markup. The opening uses this headline and falls back to the existing article title for old records, rather than an isolated provision title. This compatible v8 extension does not write or refresh stored content. A local editorial draft can demonstrate corrected copy without a paid generation or public content update.
+
+### Short introductions to individual changes
+
+Newly generated changes include a `reader` object with `summary`, `question` and `answer`. The summary explains one recognizable consequence in one or two short sentences, usually 20–35 words, before asking for any interest in legislative procedure. The question names a useful next step; the answer must resolve it from the source. Asking about three conditions requires explaining all three, including limitations. Essential scope and proposed/enacted tense remain in the short summary. These are writing targets, not permission to clip qualifications or invent a personal benefit.
+
+The story presentation shows this introduction and one question first. Opening the question reveals the answer and access to the original before/after comparison and source quotation. The comparison is a deliberate deeper reading step. The existing legal fields are retained rather than overwritten with a shortened paraphrase. Quote verification still checks only the verbatim passage; it does not certify the generated summary or answer.
+
+The three new prose fields participate in loaded-language, jargon and emphasis checks and in the existing translation field allowlist. Quotations, locators and URLs remain unchanged. The shared schema accepts the object optionally so cached briefs remain readable; the generated-output schema requires it for new changes. This is a compatible extension to v8, with no cache invalidation, paid generation, database repair or automatic backfill. Existing stored wording changes only after an explicit refresh. A source-bound local editorial draft can exercise the new reader without publishing a content update.
+
 ### Where the debate lives
 
 Briefs describe mechanism. They deliberately contain no "supporters say /
@@ -103,11 +131,13 @@ into more depth.
 
 ### 3. Verify quotes and research links (deterministic)
 
-Every `quote.text` is checked against the **whole** source document, not just
+Every `quote.text`, including an optional answer-specific `changes[].reader.quote`, is checked against the **whole** source document, not just
 the window the model saw. Matching normalizes away formatting — casing, smart
 quotes, em dashes, hyphenation across line breaks, and the erratic whitespace
 of scraped legislative text — while staying strict about words, so a dropped or
 reordered word still fails.
+
+A question may offer Source only when its own `reader.quote` directly supports the answer. It never inherits a provision quote merely about the same topic. An uncertainty or absence claim may have no such passage; omit the quote in that case. Matching establishes that the quoted words occur in the record, not that they prove the generated interpretation. Translation preserves these quotations and locators.
 
 Unverified quotes are **stripped, and the surrounding claim is kept**. A brief
 may end up saying less than the model wrote, but it never puts words in a
