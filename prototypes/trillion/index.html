@@ -574,6 +574,15 @@
       border-radius: 99px;
       background: var(--rel, var(--quiet));
     }
+    .relchip.plain {
+      padding: 2px 0;
+      background: none;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .relchip.plain::before {
+      content: none;
+    }
     .relchip.static {
       cursor: default;
     }
@@ -987,7 +996,7 @@
         <span style="--c: var(--rel-against)"
           ><i></i>challenges · leans no</span
         >
-        <span style="--c: var(--rel-mixed)"><i></i>qualifies · both ways</span>
+        <span style="--c: var(--rel-mixed)"><i></i>qualifies</span>
         <span style="--c: var(--rel-question)"><i></i>asks</span>
       </div>
       <div class="map-tools">
@@ -1079,13 +1088,22 @@
       const LEAN = {
         for: "Leans yes",
         against: "Leans no",
-        mixed: "Cuts both ways",
+        mixed: "",
       };
-      const tone = (e) => (e.type === "weighs" ? e.stance : TONE[e.type]);
+      const tone = (e) =>
+        e.type === "weighs"
+          ? e.stance === "mixed"
+            ? "neutral"
+            : e.stance
+          : TONE[e.type];
       const inLabel = (e) =>
         e.type === "weighs" ? LEAN[e.stance] : IN[e.type];
       const outLabel = (e) =>
-        e.type === "weighs" ? `${LEAN[e.stance]} on` : OUT[e.type];
+        e.type === "weighs"
+          ? LEAN[e.stance]
+            ? `${LEAN[e.stance]} on`
+            : ""
+          : OUT[e.type];
       const short = (e) =>
         e.type === "weighs" ? LEAN[e.stance].toLowerCase() : SHORT[e.type];
       const DISPUTE = {
@@ -1330,11 +1348,14 @@
           dir === "in" && rank(otherId) === 0
             ? `<span class="badge-open">Unanswered</span>`
             : "";
-        const chip = KIDS.has(e.type)
-          ? dir === "out"
-            ? `<span class="relchip static">${esc(rel)}</span>`
-            : ""
-          : `<button class="relchip" type="button" data-edge="${e.id}" aria-label="${esc(rel)}. Open this link">${esc(rel)} ›</button>`;
+        const chip =
+          !rel && !KIDS.has(e.type)
+            ? `<button class="relchip plain" type="button" data-edge="${e.id}">Open this link ›</button>`
+            : KIDS.has(e.type)
+              ? dir === "out"
+                ? `<span class="relchip static">${esc(rel)}</span>`
+                : ""
+              : `<button class="relchip" type="button" data-edge="${e.id}" aria-label="${esc(rel)}. Open this link">${esc(rel)} ›</button>`;
         return `<div class="row r-${tone(e)}${o.kind === "global" ? " is-global" : ""}">
       ${chip}
       <button class="go" type="button" data-node="${otherId}">
@@ -1440,8 +1461,9 @@
             : `<span>${esc(e.by)}</span><span class="example">Prototype example</span>`;
         const card = (id) =>
           `<div class="row r-neutral"><button class="go" type="button" data-node="${id}"><span class="t">${esc(titleOf(id))}</span><span class="src">${esc(srcLabel(N[id]))}</span></button></div>`;
-        const heading =
-          e.type === "weighs"
+        const heading = !short(e)
+          ? "Link"
+          : e.type === "weighs"
             ? `Why does this ${esc(short(e))}?`
             : `Why does this ${esc(short(e))} that?`;
         return `<article class="focus r-${tone(e)}">
@@ -1472,7 +1494,9 @@
           .map((p, i) => {
             const label =
               p.t === "edge"
-                ? `Link: ${short(E[p.id])}`
+                ? short(E[p.id])
+                  ? `Link: ${short(E[p.id])}`
+                  : "Link"
                 : i === 0
                   ? "Main case"
                   : titleOf(p.id);
@@ -2145,7 +2169,7 @@
         const c = cur();
         const targetText =
           c.t === "edge"
-            ? `The link: “${titleOf(E[c.id].from)}” ${short(E[c.id])} “${titleOf(E[c.id].to)}”`
+            ? `The link: “${titleOf(E[c.id].from)}” ${short(E[c.id]) || "→"} “${titleOf(E[c.id].to)}”`
             : titleOf(c.id);
         openSheet(`<div class="sheet-head"><h2 id="sheet-title">Add to the argument</h2><button class="close" type="button" data-close>Cancel</button></div>
       <div class="field"><span>You're responding to</span><div class="target">${esc(targetText)}</div></div>
