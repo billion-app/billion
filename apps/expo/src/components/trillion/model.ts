@@ -108,7 +108,7 @@ export const leanLabel = (
   measure: string,
 ) =>
   stance === "mixed"
-    ? "Cuts both ways"
+    ? ""
     : `Argues ${stance === "for" ? "Yes" : "No"} on ${measure}`;
 export const DISPUTE_LABEL = {
   facts: "Disputed facts",
@@ -127,7 +127,11 @@ export const TONE_COLOR: Record<Tone, string> = {
 };
 
 export const tone = (e: TrillionEdge): Tone =>
-  e.type === "weighs" && e.stance ? e.stance : TONE[e.type];
+  e.type === "weighs" && e.stance
+    ? e.stance === "mixed"
+      ? "neutral"
+      : e.stance
+    : TONE[e.type];
 export const inLabel = (e: TrillionEdge, measure: string) =>
   e.type === "weighs" && e.stance
     ? leanLabel(e.stance, measure)

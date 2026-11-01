@@ -589,6 +589,15 @@ a {
   border-radius: 99px;
   background: var(--rel, var(--quiet));
 }
+.relchip.plain {
+  padding: 2px 0;
+  background: none;
+  color: var(--text);
+  font-weight: 600;
+}
+.relchip.plain::before {
+  content: none;
+}
 .relchip.static {
   cursor: default;
 }
@@ -1090,6 +1099,9 @@ textarea {
   font-weight: 600;
   color: var(--tone);
   margin-bottom: 6px;
+}
+.peek .rel.plain {
+  color: var(--text);
 }
 .peek .rel::before {
   content: "";

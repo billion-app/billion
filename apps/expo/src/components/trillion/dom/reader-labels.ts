@@ -230,10 +230,6 @@ export const labels: Record<string, { zh: string; es: string }> = {
     zh: "质疑 · 倾向反对",
     es: "cuestiona · a favor del no",
   },
-  "qualifies · both ways": {
-    zh: "附带条件 · 双方观点",
-    es: "matiza · ambas posturas",
-  },
   "Zoom in": { zh: "放大", es: "Acercar" },
   "Zoom out": { zh: "缩小", es: "Alejar" },
   "Fit map": { zh: "显示完整关系图", es: "Ajustar mapa" },
@@ -293,10 +289,6 @@ export const labels: Record<string, { zh: string; es: string }> = {
   "Conflicts with": { zh: "冲突于", es: "Entra en conflicto con" },
   "Part of": { zh: "属于", es: "Forma parte de" },
   "Disputed under": { zh: "争议所属", es: "Se debate en" },
-  "Cuts both ways": {
-    zh: "双方均有利弊",
-    es: "Tiene efectos en ambos sentidos",
-  },
   "Disputed facts": { zh: "有争议的事实", es: "Hechos en disputa" },
   "Values debate": { zh: "价值观分歧", es: "Debate de valores" },
   "Disputed reading of the text": {
