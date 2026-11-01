@@ -2,6 +2,7 @@ import type { Scraper } from "./utils/types.js";
 import { caElectionLogistics } from "./scrapers/ca-election-logistics.js";
 import { caElectionPolling } from "./scrapers/ca-election-polling.js";
 import { caOfficialGuide } from "./scrapers/ca-official-guide.js";
+import { caRegionalMeasures } from "./scrapers/ca-regional-measures.js";
 import { caSosStatements } from "./scrapers/ca-sos-statements.js";
 import { candidateResearch } from "./scrapers/candidate-research.js";
 import { congress } from "./scrapers/congress.js";
@@ -33,6 +34,7 @@ export const scrapers: readonly Scraper[] = [
   caSosStatements,
   candidateResearch,
   caOfficialGuide,
+  caRegionalMeasures,
   caElectionLogistics,
   caElectionPolling,
   santaCruzLocations,

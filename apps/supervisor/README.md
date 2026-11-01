@@ -76,6 +76,7 @@ supervisor job uses it.
 | `court-image-smoke`                          | manual            | Generates and reviews at most one real court-case image for production verification       |
 | `backfill-content-images`                    | manual            | Drains missing or style-stale header art across all retained content                      |
 | `scc-cvig-weekly`                            | Sundays 03:15     | Santa Clara County voter guide                                                            |
+| `ca-regional-measures-daily`                 | daily 04:35 local | Refreshes one official regional measure with zero generation budget                       |
 | `ca-official-guide-daily`                    | daily 04:30 local | Date-scoped California official guide                                                     |
 | `ca-election-logistics-daily`                | daily 04:45 local | Official statewide election dates and guidance                                            |
 | `santa-cruz-locations-daily`                 | daily 05:00 local | Published Santa Cruz vote centers for the configured election                             |
