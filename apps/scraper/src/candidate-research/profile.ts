@@ -19,18 +19,23 @@ export function profileFinance(
   const district = String(Number(candidate.district ?? "17"));
   const cycle = candidate.cycle ?? 2026;
   const url = new URL(source.url);
+  const coverageMarker = "Data is included from these committees:";
+  const coverageStart = text.indexOf(coverageMarker);
+  const header = text.slice(0, coverageStart);
   if (
     url.protocol !== "https:" ||
     url.hostname !== "www.fec.gov" ||
     url.pathname !== `/data/candidate/${candidate.fecId}/` ||
-    !text.includes(candidate.fecName) ||
-    !text.includes(`ID: ${candidate.fecId}`) ||
-    !text.includes("Candidate for House") ||
-    !new RegExp(`California\\s*-\\s*0?${district}(?!\\d)`).test(text) ||
+    coverageStart < 0 ||
+    !header.includes(candidate.fecName) ||
+    !header.includes(`ID: ${candidate.fecId}`) ||
+    !header.includes("Candidate for House") ||
+    !new RegExp(`California\\s*-\\s*0?${district}(?!\\d)`).test(header) ||
+    !new RegExp(`Election\\s+${cycle}(?!\\d)`).test(header) ||
     url.searchParams.get("cycle") !== String(cycle)
   )
     throw new Error("Public FEC profile does not match the selected identity");
-  const section = text.split("Data is included from these committees:")[1];
+  const section = text.slice(coverageStart + coverageMarker.length);
   const committeeText = section?.split("Total raised")[0];
   const committees = [
     ...(committeeText ?? "").matchAll(/([^()]+) \((C\d{8})\)/g),
@@ -61,7 +66,12 @@ export function profileFinance(
   const end = section.indexOf("Newly filed summary data", start);
   if (start < 0 || end < start)
     throw new Error("FEC summary structure changed");
-  const quote = section.slice(start, end).trim();
+  const quote = text
+    .slice(
+      header.indexOf(candidate.fecName),
+      coverageStart + coverageMarker.length + end,
+    )
+    .trim();
   const refundQuote = /Total contribution refunds \$[\d,]+\.\d{2}/.exec(
     section,
   )?.[0];
@@ -112,8 +122,6 @@ export function profileFinance(
     "Total disbursements",
     "Ending cash on hand",
     "Debts/loans owed by committee",
-    "Itemized individual contributions",
-    "Unitemized individual contributions",
   ]) {
     const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const quote = new RegExp(`${escaped} \\$[\\d,]+\\.\\d{2}`).exec(

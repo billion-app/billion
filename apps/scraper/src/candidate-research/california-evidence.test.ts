@@ -674,7 +674,7 @@ test("previous dossier finance renewal preserves archive IDs and semantic digest
                 },
               })
             : url.includes("www.fec.gov")
-              ? "MCGUIRE, MIKE Candidate for House California - 1 ID: H6CA01269 Data is included from these committees: TEST COMMITTEE (C00503185) Total raised Coverage dates: 01/01/2025 to 06/30/2026 Total receipts $100.00 Total individual contributions $70.00 Party committee contributions $5.00 Other committee contributions $5.00 Candidate contributions $5.00 Transfers from other authorized committees $5.00 Loans made by candidate $5.00 Other loans $1.00 Offsets to operating expenditures $1.00 Other receipts $3.00 Newly filed summary data may not appear for up to 48 hours. Total contribution refunds $2.00"
+              ? "MCGUIRE, MIKE Candidate for House California - 1 ID: H6CA01269 Financial summary Election 2026 Data is included from these committees: TEST COMMITTEE (C00503185) Total raised Coverage dates: 01/01/2025 to 06/30/2026 Total receipts $100.00 Total individual contributions $70.00 Party committee contributions $5.00 Other committee contributions $5.00 Candidate contributions $5.00 Transfers from other authorized committees $5.00 Loans made by candidate $5.00 Other loans $1.00 Offsets to operating expenditures $1.00 Other receipts $3.00 Newly filed summary data may not appear for up to 48 hours. Total contribution refunds $2.00"
               : "Official office responsibilities and powers. No candidate statement or website listed.";
     return {
       ...source(id, url, text),

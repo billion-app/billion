@@ -16,7 +16,7 @@ const source = (text: string): ResearchSource => ({
   fetchedAt: new Date().toISOString(),
 });
 const summary =
-  "KHANNA, ROHIT Candidate for House California - 17 ID: H4CA12055 Data is included from these committees: TEST COMMITTEE (C00503185) Total raised Coverage dates: 01/01/2025 to 06/30/2026 Total receipts $100.00 Total individual contributions $70.00 Party committee contributions $5.00 Other committee contributions $5.00 Candidate contributions $5.00 Transfers from other authorized committees $5.00 Loans made by candidate $5.00 Other loans $1.00 Offsets to operating expenditures $1.00 Other receipts $3.00 Newly filed summary data may not appear for up to 48 hours. Total contribution refunds $2.00";
+  "KHANNA, ROHIT Candidate for House California - 17 ID: H4CA12055 Financial summary Election 2026 Data is included from these committees: TEST COMMITTEE (C00503185) Total raised Coverage dates: 01/01/2025 to 06/30/2026 Total receipts $100.00 Total individual contributions $70.00 Party committee contributions $5.00 Other committee contributions $5.00 Candidate contributions $5.00 Transfers from other authorized committees $5.00 Loans made by candidate $5.00 Other loans $1.00 Offsets to operating expenditures $1.00 Other receipts $3.00 Newly filed summary data may not appear for up to 48 hours. Total contribution refunds $2.00";
 const person = { fecId: "H4CA12055", fecName: "KHANNA, ROHIT" };
 void test("public FEC fallback reconciles totals and keeps unavailable detail unknown", () => {
   const citations: Parameters<typeof profileFinance>[2] = [];
