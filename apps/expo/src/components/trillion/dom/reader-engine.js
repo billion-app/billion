@@ -216,7 +216,7 @@ export function mountTrillionReader(root, graph, options = {}) {
               ><i></i>${tr("challenges · favors no")}</span
             >
             <span style="--c: var(--rel-mixed)"
-              ><i></i>${tr("qualifies · both ways")}</span
+              ><i></i>${tr("qualifies")}</span
             >
             <span style="--c: var(--rel-question)"><i></i>${tr("asks")}</span>
           </div>
@@ -431,11 +431,11 @@ export function mountTrillionReader(root, graph, options = {}) {
   const LEAN = {
     for: tr("Argues Yes on {number}", { number: graph.measure.number }),
     against: tr("Argues No on {number}", { number: graph.measure.number }),
-    mixed: tr("Cuts both ways"),
+    mixed: "",
   };
   // Leans toward the vote have their own colors, so green and red only ever
   // mean backing up or challenging another card.
-  const VOTE_TONE = { for: "yes", against: "no", mixed: "mixed" };
+  const VOTE_TONE = { for: "yes", against: "no", mixed: "neutral" };
   const tone = (e) =>
     e.type === "weighs" ? VOTE_TONE[e.stance] : TONE[e.type];
   const inLabel = (e) => (e.type === "weighs" ? LEAN[e.stance] : IN[e.type]);
@@ -842,13 +842,16 @@ export function mountTrillionReader(root, graph, options = {}) {
         ? `<span class="badge-open">${tr("Unanswered")}</span>`
         : "";
     const about = measureLink(otherId);
-    const chip = KIDS.has(e.type)
-      ? dir === "out"
-        ? `<span class="relchip static">${esc(rel)}</span>`
-        : about
-          ? `<span class="relchip static r-mixed">${esc(about)}</span>`
-          : ""
-      : `<button class="relchip" type="button" data-edge="${e.id}" aria-label="${esc(tr("{label}. Open this link", { label: rel }))}">${esc(rel)} ›</button>`;
+    const chip =
+      !rel && !KIDS.has(e.type)
+        ? `<button class="relchip plain" type="button" data-edge="${e.id}">${tr("Open this link")} ›</button>`
+        : KIDS.has(e.type)
+          ? dir === "out"
+            ? `<span class="relchip static">${esc(rel)}</span>`
+            : about
+              ? `<span class="relchip static r-mixed">${esc(about)}</span>`
+              : ""
+          : `<button class="relchip" type="button" data-edge="${e.id}" aria-label="${esc(tr("{label}. Open this link", { label: rel }))}">${esc(rel)} ›</button>`;
     return `<div class="row r-${tone(e)}${o.kind === "global" ? " is-global" : ""}">
       <div class="rowhead">${chip}<span class="src">${esc(srcLabel(o))}${o.context ? ` · ${esc(o.context.period)}` : ""}</span></div>
       <button class="go" type="button" data-node="${otherId}">
@@ -1077,8 +1080,9 @@ export function mountTrillionReader(root, graph, options = {}) {
         : `<span>${esc(e.by)}</span><span class="example">${tr("Prototype example")}</span>`;
     const card = (id) =>
       `<div class="row r-neutral"><button class="go" type="button" data-node="${id}"><span class="t">${cardTitle(id)}</span><span class="src">${esc(srcLabel(N[id]))}</span></button></div>`;
-    const heading =
-      e.type === "weighs"
+    const heading = !short(e)
+      ? esc(tr("Link"))
+      : e.type === "weighs"
         ? esc(tr("Why does this {relation}?", { relation: short(e) }))
         : esc(tr("Why does this {relation} that?", { relation: short(e) }));
     return `<article class="focus r-${tone(e)}">
@@ -1110,7 +1114,9 @@ export function mountTrillionReader(root, graph, options = {}) {
       .map((p, i) => {
         const label =
           p.t === "edge"
-            ? tr("Link: {relation}", { relation: short(E[p.id]) })
+            ? short(E[p.id])
+              ? tr("Link: {relation}", { relation: short(E[p.id]) })
+              : tr("Link")
             : i === 0
               ? `← ${tr("Main case")}`
               : titleOf(p.id);
@@ -1483,7 +1489,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     const e = F.edges.find(
       (x) => (x.from === id && x.to === f) || (x.from === f && x.to === id),
     );
-    if (!e || KIDS.has(e.type)) return null;
+    if (!e || KIDS.has(e.type) || !short(e)) return null;
     return {
       text: e.from === id ? inLabel(e) : outLabel(e),
       tone: TONE_HEX[tone(e)],
@@ -2282,7 +2288,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       outgoing(id).find((x) => x.to === f) ||
       outgoing(id).find((x) => visible(x.to) && !KIDS.has(x.type)) ||
       outgoing(id).find((x) => visible(x.to));
-    if (!e) return "";
+    if (!e || !outLabel(e)) return "";
     const label =
       e.to === f
         ? inLabel(e)
@@ -2344,8 +2350,8 @@ export function mountTrillionReader(root, graph, options = {}) {
     const label = e.type === "weighs" ? LEAN[e.stance] : OUT[e.type];
     const why = e.why || STRUCTURE[e.type] || "";
     openSheet(
-      `<div class="rel" style="--tone:${TONE_HEX[tone(e)]}">${esc(tr("The link · {label}", { label }))}</div>
-          <h2 id="sheet-title">${esc(label)} “${esc(N[e.to].label || titleOf(e.to))}”</h2>
+      `<div class="rel${label ? "" : " plain"}" style="--tone:${TONE_HEX[tone(e)]}">${esc(label ? tr("The link · {label}", { label }) : tr("Link"))}</div>
+          <h2 id="sheet-title">${label ? `${esc(label)} ` : ""}“${esc(N[e.to].label || titleOf(e.to))}”</h2>
           <div class="ends">${endCard(e.from, tr("From"))}<span class="end-arrow" style="color:${TONE_HEX[tone(e)]}" aria-hidden="true">↓ ${esc(label)}</span>${endCard(e.to, tr("To"))}</div>
           ${why ? `<p class="why"><strong>${tr(e.why ? "Why the link holds" : "What this link means")}</strong>${esc(why)}</p>` : ""}
           ${e.why ? `<p class="counts">${tr("A link is its own claim: it can be challenged even if both cards are true.")}</p>` : ""}
@@ -2400,7 +2406,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       c.t === "edge"
         ? tr("The link: “{from}” {relation} “{to}”", {
             from: titleOf(E[c.id].from),
-            relation: short(E[c.id]),
+            relation: short(E[c.id]) || "→",
             to: titleOf(E[c.id].to),
           })
         : titleOf(c.id);
