@@ -653,6 +653,12 @@ for (const [name, change] of Object.entries({
   generated: (text: string) => text.replace("Generated Sun", "Missing Sun"),
   pagination: (text: string) =>
     text.replace("Generated Sun", "Next page Generated Sun"),
+  filter: (text: string) =>
+    text.replace("<H1>", "<select><option>F99</option></select><H1>"),
+  loadMore: (text: string) =>
+    text.replace("Generated Sun", "<button>Load more</button>Generated Sun"),
+  missingFooter: (text: string) =>
+    text.slice(0, text.indexOf('<div id="footer">')),
   extraLink: (text: string) =>
     text.replace("<H1>", "<a href='?page=2'>continue</a><H1>"),
   cells: (text: string) =>

@@ -427,14 +427,19 @@ function electronicStatusFilings(
     normalize($("h3").text()) !==
       "The Following FEC Electronic Filings are Available:" ||
     table.length !== 1 ||
+    $("form,select,input,button,textarea").length !== 0 ||
     headers.join("|") !==
       "Form Type|FEC ID|Coverage Start Date|Coverage End Date|Report Type|Filed Date" ||
     !/Generated [A-Z][a-z]{2} [A-Z][a-z]{2}\s+\d{1,2} \d{2}:\d{2}:\d{2} \d{4}/.test(
       $("body").text(),
     ) ||
-    /\b(next|previous|truncated|more results|limited to|page \d+)\b/i.test(
+    /\b(next|previous|truncated|more results|load more|show more|limited to|page \d+)\b/i.test(
       $("body").text(),
     ) ||
+    !/<\/tbody>\s*<\/table>/i.test(source.text) ||
+    !/<\/div>\s*<\/body>\s*<\/html>\s*$/i.test(source.text) ||
+    $("#footer .footerInfo").length !== 1 ||
+    source.text.indexOf("Generated ") > source.text.indexOf('id="footer"') ||
     $("#mainContent a[href]").length !== table.find("a[href]").length
   )
     throw new Error(
