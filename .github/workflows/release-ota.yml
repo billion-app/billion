@@ -92,6 +92,11 @@ jobs:
         shell: bash
         run: cp .env.example .env
 
+      - name: Install deployment test shell
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends zsh
+
       - name: Run repository checks
         working-directory: source
         run: |
