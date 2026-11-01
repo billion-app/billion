@@ -23,6 +23,7 @@ import {
   applyIndependentExpenditures,
   applyReportedContributions,
   collectCommitteeReportingStatus,
+  extractElectronicFilingIndex,
   fecBatchUrl,
 } from "./fec-finance-components.js";
 import { evidence } from "./finance.js";
@@ -289,13 +290,21 @@ export async function collectCaliforniaFederalFinance(
         throw new Error(
           "Reporting status needs one verified principal committee",
         );
-      const filingUrl = new URL(
-        fecBatchUrl("filings/", cycle, "committee_id", ownCommitteeIds),
+      const rawIndex = await get(
+        `https://docquery.fec.gov/cgi-bin/forms/${ownCommitteeIds[0]!}/`,
+        "text",
       );
-      filingUrl.searchParams.set("most_recent", "true");
-      const index = await get(filingUrl.toString(), "json", true);
+      const index = extractElectronicFilingIndex(
+        rawIndex,
+        ownCommitteeIds[0]!,
+        cycle,
+      );
+      result.sources[
+        result.sources.findIndex((source) => source.id === rawIndex.id)
+      ] = index;
       finance = await collectCommitteeReportingStatus({
         index,
+        processedReports: reports,
         committeeId: ownCommitteeIds[0]!,
         committeeName: ownCommitteeIds[0]!,
         candidateId: identity.candidateId,

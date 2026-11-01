@@ -23,6 +23,7 @@ import {
   applyReportedContributions,
   collectCommitteeReportingStatus,
   exactFecRows,
+  extractElectronicFilingIndex,
   fecBatchUrl,
 } from "./fec-finance-components.js";
 import { profileFinance } from "./profile.js";
@@ -58,6 +59,34 @@ const candidateIds = [
   "H6CA20152",
 ];
 const now = "2026-10-31T20:00:00.000Z";
+const electronicIndexHtml = readFileSync(
+  new URL("./fixtures/fec-electronic-index.html", import.meta.url),
+  "utf8",
+);
+function statusReports(): ResearchSource {
+  const url = new URL(
+    fecBatchUrl("reports/house-senate/", 2026, "committee_id", ["C00929612"]),
+  );
+  url.searchParams.set("most_recent", "true");
+  return source(url.toString(), {
+    results: [],
+    pagination: { count: 0, page: 1, pages: 0, is_count_exact: true },
+  });
+}
+function rawElectronicIndex(text = electronicIndexHtml): ResearchSource {
+  return {
+    ...source("https://docquery.fec.gov/cgi-bin/forms/C00929612/", text),
+    format: "text",
+    byteHash: hash(text),
+  };
+}
+function electronicIndex(text = electronicIndexHtml): ResearchSource {
+  return extractElectronicFilingIndex(
+    rawElectronicIndex(text),
+    "C00929612",
+    2026,
+  );
+}
 function source(url: string, value: unknown): ResearchSource {
   const text =
     typeof value === "string" ? value : JSON.stringify(value, null, 2);
@@ -574,6 +603,248 @@ test("actual Frese filing status preserves no financial totals and no donor assu
   );
 });
 
+test("official electronic index binds every listed filing to the original threshold statement", async () => {
+  const citations: CandidateBrief["evidence"] = [];
+  const sources: ResearchSource[] = [];
+  const result = await collectCommitteeReportingStatus({
+    index: electronicIndex(),
+    processedReports: statusReports(),
+    committeeId: "C00929612",
+    committeeName: "FRESE FOR CONGRESS",
+    candidateId: "H6CA10187",
+    cycle: 2026,
+    get: async (url) => {
+      assert.equal(url, "https://docquery.fec.gov/dcdev/posted/2028712.fec");
+      return raw(2028712);
+    },
+    sources,
+    evidence: citations,
+  });
+  assert.equal(result.receipts, null);
+  assert.deepEqual(result.donors, []);
+  assert.equal(result.observation!.filingStatus.status, "available");
+  const status = result.observation!.filingStatus;
+  if (status.status === "available")
+    assert.deepEqual(status.observedForms, [
+      "F1N (1 filing)",
+      "F99 (3 filings)",
+    ]);
+  const index = sources.find((entry) => entry.id.endsWith(":filing-index"))!;
+  assert.equal(index.url, electronicIndex().url);
+  assert.equal(index.byteHash, hash(electronicIndexHtml));
+  assert.equal(JSON.parse(index.text).exact_count, 4);
+  assert.match(
+    citations.find((entry) => entry.id.endsWith(":filing-index"))!.locator,
+    /electronic submissions only/,
+  );
+  assert(!citations.some((entry) => entry.excerpt.includes("SCHOOL STREET")));
+});
+
+for (const [name, change] of Object.entries({
+  committee: (text: string) => text.replace(" - C00929612", " - C00000001"),
+  base: (text: string) =>
+    text.replace(
+      'href="/cgi-bin/forms/C00929612/"',
+      'href="/cgi-bin/forms/C00000001/"',
+    ),
+  link: (text: string) =>
+    text.replace("HREF='2028712/'", "HREF='https://example.com/2028712/'"),
+  id: (text: string) => text.replace("FEC-2028712", "FEC-2028713"),
+  duplicate: (text: string) => text.replaceAll("2017049", "2028712"),
+  form: (text: string) => text.replace(">F99<", ">F3N<"),
+  unknown: (text: string) => text.replace(">F99<", ">F99A<"),
+  date: (text: string) => text.replace("10/16/2026", "02/30/2026"),
+  future: (text: string) => text.replace("10/16/2026", "12/31/2026"),
+  cycle: (text: string) => text.replace("12/05/2025", "12/05/2024"),
+  latest: (text: string) => text.replace("12/05/2025", "10/30/2026"),
+  header: (text: string) => text.replace("Filed Date", "Updated Date"),
+  generated: (text: string) => text.replace("Generated Sun", "Missing Sun"),
+  pagination: (text: string) =>
+    text.replace("Generated Sun", "Next page Generated Sun"),
+  filter: (text: string) =>
+    text.replace("<H1>", "<select><option>F99</option></select><H1>"),
+  loadMore: (text: string) =>
+    text.replace("Generated Sun", "<button>Load more</button>Generated Sun"),
+  missingFooter: (text: string) =>
+    text.slice(0, text.indexOf('<div id="footer">')),
+  extraLink: (text: string) =>
+    text.replace("<H1>", "<a href='?page=2'>continue</a><H1>"),
+  cells: (text: string) =>
+    text.replace("<td align='left'>FEC-2028712</td>", ""),
+  coverage: (text: string) =>
+    text.replace(
+      "<td align='left'>&nbsp;</td>",
+      "<td align='left'>10/01/2026</td>",
+    ),
+})) {
+  test(`electronic filing index rejects ${name} before retrieving a statement`, async () => {
+    await assert.rejects(
+      async () =>
+        collectCommitteeReportingStatus({
+          index: electronicIndex(change(electronicIndexHtml)),
+          processedReports: statusReports(),
+          committeeId: "C00929612",
+          committeeName: "FRESE FOR CONGRESS",
+          candidateId: "H6CA10187",
+          cycle: 2026,
+          get: async () => {
+            assert.fail("Invalid index must stop before raw acquisition");
+          },
+          sources: [],
+          evidence: [],
+        }),
+      /Electronic|Latest electronic/,
+    );
+  });
+}
+
+test("electronic index rejects changed hashes and raw statement identity or date", async () => {
+  for (const index of [
+    { ...electronicIndex(), contentHash: "0".repeat(64) },
+    { ...electronicIndex(), byteHash: "0".repeat(64) },
+    { ...electronicIndex(), url: electronicIndex().url + "?page=1" },
+  ]) {
+    await assert.rejects(
+      async () =>
+        collectCommitteeReportingStatus({
+          index,
+          processedReports: statusReports(),
+          committeeId: "C00929612",
+          committeeName: "FRESE FOR CONGRESS",
+          candidateId: "H6CA10187",
+          cycle: 2026,
+          get: async () => {
+            assert.fail("Invalid source must stop");
+          },
+          sources: [],
+          evidence: [],
+        }),
+      /source identity mismatch|extraction requires|archive hash|complete recognized table/,
+    );
+  }
+  for (const text of [
+    raw(2028712).text.replace("20261016", "20261015"),
+    raw(2028712).text.replace("FRESE FOR CONGRESS", "OTHER COMMITTEE"),
+  ]) {
+    await assert.rejects(
+      async () =>
+        collectCommitteeReportingStatus({
+          index: electronicIndex(),
+          processedReports: statusReports(),
+          committeeId: "C00929612",
+          committeeName: "FRESE FOR CONGRESS",
+          candidateId: "H6CA10187",
+          cycle: 2026,
+          get: async () => ({ ...raw(2028712), text, contentHash: hash(text) }),
+          sources: [],
+          evidence: [],
+        }),
+      /differs from electronic index/,
+    );
+  }
+});
+
+test("electronic threshold status requires an exhausted processed query with no committee report", async () => {
+  const base = {
+    index: electronicIndex(),
+    committeeId: "C00929612",
+    committeeName: "FRESE FOR CONGRESS",
+    candidateId: "H6CA10187",
+    cycle: 2026,
+    sources: [],
+    evidence: [],
+    get: async () => {
+      assert.fail(
+        "Contradictory reports must stop before statement acquisition",
+      );
+    },
+  };
+  await assert.rejects(
+    () => collectCommitteeReportingStatus(base),
+    /needs the complete processed/,
+  );
+  const report = { ...fixture.reports.results[0]!, committee_id: "C00929612" };
+  const query = statusReports();
+  for (const value of [
+    {
+      results: [report],
+      pagination: { count: 1, page: 1, pages: 1, is_count_exact: true },
+    },
+    {
+      results: [],
+      pagination: { count: 1, page: 1, pages: 2, is_count_exact: true },
+    },
+  ]) {
+    await assert.rejects(
+      async () =>
+        collectCommitteeReportingStatus({
+          ...base,
+          processedReports: source(query.url, value),
+        }),
+      /contradict|not exactly exhausted/,
+    );
+  }
+});
+
+test("electronic extraction retains actual bytes while generated-page clocks do not change filing identity", () => {
+  const changedClock = electronicIndexHtml.replace("16:27:21", "16:27:22");
+  assert.notEqual(changedClock, electronicIndexHtml);
+  const first = electronicIndex();
+  const second = electronicIndex(changedClock);
+  assert.equal(first.text, second.text);
+  assert.equal(first.contentHash, second.contentHash);
+  assert.equal(first.fetchedAt, second.fetchedAt);
+  assert.notEqual(first.byteHash, second.byteHash);
+  assert.notEqual(first.binaryBase64, second.binaryBase64);
+  assert.equal(
+    Buffer.from(first.binaryBase64!, "base64").toString("utf8"),
+    electronicIndexHtml,
+  );
+  assert(!first.text.includes("Generated"));
+  assert(!first.text.includes("SCHOOL STREET"));
+  const changedFiling = electronicIndex(
+    electronicIndexHtml.replaceAll("2017049", "2017050"),
+  );
+  assert.notEqual(first.contentHash, changedFiling.contentHash);
+});
+
+test("electronic index extraction must replay exactly from its original binary archive", async () => {
+  const original = electronicIndex();
+  const changedHtml = electronicIndexHtml.replaceAll("2017049", "2017050");
+  for (const index of [
+    { ...original, binaryBase64: Buffer.from(changedHtml).toString("base64") },
+    {
+      ...original,
+      binaryBase64: Buffer.from(changedHtml).toString("base64"),
+      byteHash: hash(changedHtml),
+    },
+    {
+      ...original,
+      text: original.text + " ",
+      contentHash: hash(original.text + " "),
+    },
+    { ...original, binaryBase64: undefined },
+  ]) {
+    await assert.rejects(
+      () =>
+        collectCommitteeReportingStatus({
+          index,
+          processedReports: statusReports(),
+          committeeId: "C00929612",
+          committeeName: "FRESE FOR CONGRESS",
+          candidateId: "H6CA10187",
+          cycle: 2026,
+          get: async () => {
+            assert.fail("Unbound extraction must stop before acquisition");
+          },
+          sources: [],
+          evidence: [],
+        }),
+      /archive|extraction/,
+    );
+  }
+});
+
 test("legacy finance parsing preserves absent observation fields and its exact JSON", () => {
   const value = finance();
   delete value.observation;
@@ -731,7 +1002,7 @@ test("profile identity is established by its own bounded heading before financia
   }
 });
 
-test("six actual source observations replay through one collector with only three shared API requests", async () => {
+test("six actual source observations replay through one collector with two shared API requests and one direct electronic index", async () => {
   const { collectCaliforniaFederalFinance } =
     await import("./california-finance.js");
   const { fecCandidateMasterUrl } = await import("@acme/validators");
@@ -850,8 +1121,11 @@ test("six actual source observations replay through one collector with only thre
         if (u.pathname.includes("/schedule_e/"))
           return source(url, fixture.outside);
         if (u.pathname.includes("/filings/"))
-          return source(url, fixture.filingIndex);
+          assert.fail(
+            "No-summary collection must use the official electronic index",
+          );
       }
+      if (url === electronicIndex().url) return rawElectronicIndex();
       if (u.hostname === "docquery.fec.gov")
         return raw(Number(/\/(\d+)\.fec$/.exec(url)![1]));
       throw new Error(`Unexpected source ${url}`);
@@ -867,6 +1141,21 @@ test("six actual source observations replay through one collector with only thre
       assert(result.identityProof);
       assert(result.sources.length <= 40);
       assert(result.evidence.length <= 100);
+      if (member.name === "Jeff Frese") {
+        const indexes = result.sources.filter(
+          (source) => source.url === electronicIndex().url,
+        );
+        assert.equal(indexes.length, 2);
+        assert.equal(new Set(indexes.map((source) => source.id)).size, 2);
+        assert(
+          indexes.every(
+            (source) =>
+              source.format === "html" &&
+              source.binaryBase64 &&
+              !source.text.includes("Generated"),
+          ),
+        );
+      }
       const identityProofId = `${result.identityProof.candidateId}:candidate-committee`;
       const identityCitation = result.evidence.find(
         (entry) => entry.id === identityProofId,
@@ -1020,8 +1309,9 @@ test("six actual source observations replay through one collector with only thre
     }
   assert.equal(
     calls.filter((url) => new URL(url).hostname === "api.open.fec.gov").length,
-    3,
+    2,
   );
+  assert(calls.includes(electronicIndex().url));
   assert.equal(new Set(calls).size, calls.length);
   const selectedRace = scope.find((entry) => entry.district === "19")!;
   const selectedMember = selectedRace.members.find(

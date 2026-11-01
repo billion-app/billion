@@ -195,6 +195,24 @@ observed forms and counts. Such a statement supplies neither exact campaign
 amounts nor zero donors. Summary and donor components remain unavailable in that
 case, while independently retrieved outside spending remains usable.
 
+For a committee without a usable financial summary, the collector reads the
+official FEC electronic-filing index directly from `docquery.fec.gov`. It retains
+the original HTML and checks the committee heading, complete table, filing links,
+IDs, forms and dates before fetching the newest listed Form 99. Unknown forms,
+financial reports, pagination and malformed rows stop this threshold-only path.
+The statement's committee name and filed date must match the index. The citation
+identifies the electronic-only scope, and a separate exhausted processed Form 3
+query must contain no report for that committee. Neither source alone establishes
+zero activity. Direct filings do not call or substitute a response for the API's
+filing endpoint. Report and independent-expenditure queries keep their existing
+scope, source-age and completeness checks.
+
+The extracted index text contains only verified committee and filing fields. The
+full HTML remains in its binary archive with the actual byte hash and observation
+time. Replaying that archive must reproduce the extraction exactly. FEC's page
+generation clock and layout do not change research attempt identity; an actual
+filing change does. Existing rejected and unknown attempts remain terminal.
+
 Whole source filings remain in the private archive. Public contribution evidence
 contains the filing number, transaction ID, contributor name, entity type, date
 and amount. Home addresses, employer and occupation fields are excluded from

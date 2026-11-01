@@ -27,6 +27,7 @@ import {
   fixtureCampaignMaterialDossier,
   fixtureDossier,
 } from "./california-dossier.test.js";
+import { extractElectronicFilingIndex } from "./fec-finance-components.js";
 
 type Input = Parameters<typeof prepareReviewedCaliforniaCandidate>[0];
 type Dependencies = Parameters<typeof prepareReviewedCaliforniaCandidate>[1];
@@ -1624,3 +1625,82 @@ test("unknown finance refresh dispatch remains terminal for identical semantic c
   );
   assert.equal(dispatches, 1);
 });
+
+for (const outcome of ["unknown", "rejected"] as const) {
+  test(`an electronic-index page clock cannot reroll a ${outcome} preparation`, async () => {
+    const f = fixture();
+    const input = f.fresh();
+    const html = await readFile(
+      new URL("./fixtures/fec-electronic-index.html", import.meta.url),
+      "utf8",
+    );
+    const changed = html.replace("16:27:21", "16:27:22");
+    assert.notEqual(html, changed);
+    const digest = (text: string) =>
+      createHash("sha256").update(text).digest("hex");
+    const dossier = (text: string) =>
+      buildCaliforniaDossier({
+        ...input.dossier,
+        sources: [
+          ...input.dossier.sources,
+          extractElectronicFilingIndex(
+            {
+              id: "fec-electronic-index",
+              url: "https://docquery.fec.gov/cgi-bin/forms/C00929612/",
+              publisher: "Federal Election Commission",
+              format: "text",
+              text,
+              contentHash: digest(text),
+              byteHash: digest(text),
+              fetchedAt: input.dossier.createdAt,
+            },
+            "C00929612",
+            2026,
+          ),
+        ],
+      });
+    const first = dossier(html);
+    const second = dossier(changed);
+    assert.equal(first.sourceSetDigest, second.sourceSetDigest);
+    assert.equal(first.dossierDigest, second.dossierDigest);
+    assert.notEqual(
+      dossier(html.replaceAll("2017049", "2017050")).dossierDigest,
+      first.dossierDigest,
+    );
+    let reservations = 0;
+    const reserve = f.deps.reserveDispatch;
+    f.deps.reserveDispatch = async (args) => {
+      const reserved = await reserve(args);
+      if (reserved) reservations++;
+      return reserved;
+    };
+    if (outcome === "unknown") {
+      f.deps.author = async () => {
+        f.calls.push({ role: "author" });
+        throw new Error("Unknown transport outcome");
+      };
+    } else {
+      const review = f.deps.review;
+      f.deps.review = async (args) => ({
+        ...(await review(args)),
+        verdict: "reject",
+        overallReason: "The implementation is unsupported.",
+      });
+    }
+    await assert.rejects(() =>
+      prepareReviewedCaliforniaCandidate({ ...input, dossier: first }, f.deps),
+    );
+    const calls = f.calls.length;
+    const reserved = reservations;
+    const artifacts = JSON.stringify([...f.artifacts]);
+    const retry = f.fresh({ dossier: second });
+    await assert.rejects(() =>
+      prepareReviewedCaliforniaCandidate(retry, f.deps),
+    );
+    assert.equal(f.calls.length, calls);
+    assert.equal(reservations, reserved);
+    assert.equal(retry.usage.modelCalls, 0);
+    assert.equal(retry.usage.inputTokenReservations, 0);
+    assert.equal(JSON.stringify([...f.artifacts]), artifacts);
+  });
+}

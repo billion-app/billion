@@ -1,3 +1,5 @@
+import { load } from "cheerio";
+
 import type {
   CampaignFinance,
   CandidateBrief,
@@ -7,7 +9,7 @@ import { campaignFinanceSchema } from "@acme/validators";
 
 import { selectFecFilingContributions } from "./fec-filing-transactions.js";
 import { evidence, rowSource } from "./finance.js";
-import { field, hash, money } from "./sources.js";
+import { field, hash, money, normalize } from "./sources.js";
 
 type Get = (
   url: string,
@@ -170,16 +172,10 @@ export function applyIndependentExpenditures(input: {
   };
 }
 
-export async function applyReportedContributions(input: {
+function processedReportRows(input: {
   source: ResearchSource;
   committeeIds: string[];
-  candidateId: string;
   cycle: number;
-  finance: CampaignFinance;
-  get: Get;
-  sources: ResearchSource[];
-  evidence: CandidateBrief["evidence"];
-  layout: readonly string[];
 }) {
   const url = new URL(input.source.url);
   const scopedCommittees = url.searchParams.getAll("committee_id");
@@ -221,6 +217,21 @@ export async function applyReportedContributions(input: {
       );
     filings.add(key);
   }
+  return { rows, scopedCommittees };
+}
+
+export async function applyReportedContributions(input: {
+  source: ResearchSource;
+  committeeIds: string[];
+  candidateId: string;
+  cycle: number;
+  finance: CampaignFinance;
+  get: Get;
+  sources: ResearchSource[];
+  evidence: CandidateBrief["evidence"];
+  layout: readonly string[];
+}) {
+  const { rows, scopedCommittees } = processedReportRows(input);
   const selected = rows.filter((row) =>
     input.committeeIds.includes(String(row.committee_id)),
   );
@@ -378,8 +389,192 @@ export async function applyReportedContributions(input: {
   return true;
 }
 
+interface StatusFiling {
+  fileNumber: number;
+  formType: string;
+  receiptDate: string;
+}
+
+function electronicStatusFilings(
+  source: ResearchSource,
+  committeeId: string,
+  cycle: number,
+): { rows: StatusFiling[]; committeeName: string } {
+  const expected = `https://docquery.fec.gov/cgi-bin/forms/${committeeId}/`;
+  if (
+    source.url !== expected ||
+    source.publisher !== "Federal Election Commission" ||
+    source.format !== "text" ||
+    source.contentHash !== hash(source.text) ||
+    source.byteHash !== hash(source.text) ||
+    source.retrievalUrls?.some((url) => url !== expected)
+  )
+    throw new Error("Electronic filing index source identity mismatch");
+  const $ = load(source.text);
+  const heading = normalize($("h1").text());
+  const suffix = ` - ${committeeId}`;
+  const table = $("table");
+  const headers = table
+    .find("thead th")
+    .map((_, el) => normalize($(el).text()))
+    .get();
+  if (
+    $("h1").length !== 1 ||
+    !heading.startsWith("Filings by ") ||
+    !heading.endsWith(suffix) ||
+    $("base").length !== 1 ||
+    $("base").attr("href") !== new URL(expected).pathname ||
+    normalize($("h3").text()) !==
+      "The Following FEC Electronic Filings are Available:" ||
+    table.length !== 1 ||
+    $("form,select,input,button,textarea").length !== 0 ||
+    headers.join("|") !==
+      "Form Type|FEC ID|Coverage Start Date|Coverage End Date|Report Type|Filed Date" ||
+    !/Generated [A-Z][a-z]{2} [A-Z][a-z]{2}\s+\d{1,2} \d{2}:\d{2}:\d{2} \d{4}/.test(
+      $("body").text(),
+    ) ||
+    /\b(next|previous|truncated|more results|load more|show more|limited to|page \d+)\b/i.test(
+      $("body").text(),
+    ) ||
+    !/<\/tbody>\s*<\/table>/i.test(source.text) ||
+    !/<\/div>\s*<\/body>\s*<\/html>\s*$/i.test(source.text) ||
+    $("#footer .footerInfo").length !== 1 ||
+    source.text.indexOf("Generated ") > source.text.indexOf('id="footer"') ||
+    $("#mainContent a[href]").length !== table.find("a[href]").length
+  )
+    throw new Error(
+      "Electronic filing index is not a complete recognized table",
+    );
+  const committeeName = heading.slice("Filings by ".length, -suffix.length);
+  if (!committeeName)
+    throw new Error("Electronic filing committee name missing");
+  const bodyRows = table.find("tbody tr");
+  if (
+    !bodyRows.length ||
+    bodyRows.length > 100 ||
+    table.find("tr").length !== bodyRows.length + 1
+  )
+    throw new Error(
+      "Electronic filing index rows are incomplete or exceed bounds",
+    );
+  const seen = new Set<number>();
+  const rows = bodyRows
+    .map((_, el) => {
+      const cells = $(el).children("td");
+      const link = cells.eq(0).find("a[href]");
+      const fileNumber = Number(
+        /^FEC-(\d+)$/.exec(normalize(cells.eq(1).text()))?.[1],
+      );
+      const formType = normalize(cells.eq(0).text());
+      const dateText = normalize(cells.eq(5).text());
+      const dateParts = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dateText);
+      const receiptDate = dateParts
+        ? `${dateParts[3]}-${dateParts[1]}-${dateParts[2]}`
+        : "";
+      const parsed = new Date(receiptDate + "T00:00:00.000Z");
+      if (
+        cells.length !== 6 ||
+        link.length !== 1 ||
+        $(el).find("a").length !== 1 ||
+        !Number.isSafeInteger(fileNumber) ||
+        fileNumber <= 0 ||
+        seen.has(fileNumber) ||
+        [2, 3, 4].some((column) => normalize(cells.eq(column).text()) !== "") ||
+        new URL(link.attr("href")!, expected).href !==
+          `${expected}${fileNumber}/` ||
+        !["F1", "F1N", "F1A", "F99"].includes(formType) ||
+        !Number.isFinite(parsed.getTime()) ||
+        parsed.toISOString().slice(0, 10) !== receiptDate ||
+        receiptDate < `${cycle - 1}-01-01` ||
+        receiptDate > `${cycle}-12-31` ||
+        receiptDate > source.fetchedAt.slice(0, 10)
+      )
+        throw new Error(
+          "Electronic filing row identity, form or date is invalid",
+        );
+      seen.add(fileNumber);
+      return { fileNumber, formType, receiptDate };
+    })
+    .get();
+  rows.sort(
+    (a, b) =>
+      b.receiptDate.localeCompare(a.receiptDate) || b.fileNumber - a.fileNumber,
+  );
+  if (rows[0]?.formType !== "F99")
+    throw new Error("Latest electronic filing is not a threshold statement");
+  return { rows, committeeName };
+}
+
+function electronicIndexText(
+  index: ReturnType<typeof electronicStatusFilings>,
+  committeeId: string,
+  cycle: number,
+) {
+  return JSON.stringify(
+    {
+      kind: "fec_electronic_filing_index_v1",
+      committeeId,
+      committeeName: index.committeeName,
+      cycle,
+      scope: "all_listed_electronic_filings",
+      filings: index.rows,
+    },
+    null,
+    2,
+  );
+}
+
+export function extractElectronicFilingIndex(
+  raw: ResearchSource,
+  committeeId: string,
+  cycle: number,
+): ResearchSource {
+  const index = electronicStatusFilings(raw, committeeId, cycle);
+  const text = electronicIndexText(index, committeeId, cycle);
+  return {
+    ...raw,
+    format: "html",
+    text,
+    contentHash: hash(text),
+    binaryBase64: Buffer.from(raw.text, "utf8").toString("base64"),
+  };
+}
+
+function replayElectronicFilingIndex(
+  source: ResearchSource,
+  committeeId: string,
+  cycle: number,
+) {
+  if (
+    source.format !== "html" ||
+    !source.binaryBase64 ||
+    source.contentHash !== hash(source.text)
+  )
+    throw new Error(
+      "Electronic index extraction requires its original archive",
+    );
+  const bytes = Buffer.from(source.binaryBase64, "base64");
+  if (
+    bytes.toString("base64") !== source.binaryBase64 ||
+    hash(bytes) !== source.byteHash
+  )
+    throw new Error("Electronic index archive hash differs");
+  const html = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  const index = electronicStatusFilings(
+    { ...source, format: "text", text: html, contentHash: hash(html) },
+    committeeId,
+    cycle,
+  );
+  if (source.text !== electronicIndexText(index, committeeId, cycle))
+    throw new Error(
+      "Electronic index extraction differs from its original archive",
+    );
+  return index;
+}
+
 export async function collectCommitteeReportingStatus(input: {
   index: ResearchSource;
+  processedReports?: ResearchSource;
   committeeId: string;
   committeeName: string;
   candidateId: string;
@@ -389,45 +584,114 @@ export async function collectCommitteeReportingStatus(input: {
   evidence: CandidateBrief["evidence"];
 }): Promise<CampaignFinance> {
   const url = new URL(input.index.url);
+  const electronic = url.origin === "https://docquery.fec.gov";
   if (
-    url.origin !== "https://api.open.fec.gov" ||
-    url.pathname !== "/v1/filings/" ||
-    url.searchParams.getAll("committee_id").join() !== input.committeeId ||
-    url.searchParams.get("cycle") !== String(input.cycle)
+    !electronic &&
+    (url.origin !== "https://api.open.fec.gov" ||
+      url.pathname !== "/v1/filings/" ||
+      url.searchParams.getAll("committee_id").join() !== input.committeeId ||
+      url.searchParams.get("cycle") !== String(input.cycle))
   )
     throw new Error(
       "Filing status index scope differs from verified committee",
     );
-  const rows = exactFecRows(input.index);
-  if (
-    !rows.length ||
-    rows.some(
-      (row) =>
+  const htmlIndex = electronic
+    ? replayElectronicFilingIndex(input.index, input.committeeId, input.cycle)
+    : null;
+  let processedIndexId: string | null = null;
+  if (htmlIndex) {
+    if (!input.processedReports)
+      throw new Error(
+        "Electronic threshold status needs the complete processed report query",
+      );
+    const { rows: reports, scopedCommittees } = processedReportRows({
+      source: input.processedReports,
+      committeeIds: [input.committeeId],
+      cycle: input.cycle,
+    });
+    if (reports.some((row) => row.committee_id === input.committeeId))
+      throw new Error(
+        "Processed financial reports contradict threshold-only status",
+      );
+    processedIndexId = `${input.candidateId}:processed-report-absence`;
+    const proof = rowSource(
+      input.processedReports,
+      {
+        query: {
+          cycle: input.cycle,
+          committee_ids: scopedCommittees,
+          most_recent: true,
+        },
+        pagination: (
+          JSON.parse(input.processedReports.text) as { pagination: unknown }
+        ).pagination,
+        reporting_committee_ids: [
+          ...new Set(reports.map((row) => String(row.committee_id))),
+        ].sort(),
+        committee_id: input.committeeId,
+        financial_report_count: 0,
+      },
+      processedIndexId,
+    );
+    input.sources.push(proof);
+    const citation = evidence(
+      proof,
+      processedIndexId,
+      "Processed financial report coverage",
+      proof.text,
+      "primary_record",
+      "Exactly exhausted processed Form 3 query; no report for this committee in the requested cycle",
+    );
+    citation.limits =
+      "Processed reports can lag new filings. The separate official electronic index lists electronic submissions only.";
+    input.evidence.push(citation);
+  }
+  const rows: StatusFiling[] =
+    htmlIndex?.rows ??
+    exactFecRows(input.index).map((row) => {
+      if (
         !["F1", "F99"].includes(String(row.form_type)) ||
-        row.most_recent !== true,
-    )
-  )
+        row.most_recent !== true
+      )
+        throw new Error(
+          "Filing index does not establish a committee without financial reports",
+        );
+      return {
+        fileNumber: Number(row.file_number),
+        formType: String(row.form_type),
+        receiptDate: String(row.receipt_date),
+      };
+    });
+  if (!rows.length || rows.some((row) => !Number.isSafeInteger(row.fileNumber)))
     throw new Error(
       "Filing index does not establish a committee without financial reports",
     );
   const statements = rows
-    .filter((row) => row.form_type === "F99")
+    .filter((row) => row.formType === "F99")
     .sort(
       (a, b) =>
-        String(b.receipt_date).localeCompare(String(a.receipt_date)) ||
-        Number(b.file_number) - Number(a.file_number),
+        b.receiptDate.localeCompare(a.receiptDate) ||
+        b.fileNumber - a.fileNumber,
     );
   const latest = statements[0];
-  if (!latest || !Number.isSafeInteger(latest.file_number))
+  if (!latest || !Number.isSafeInteger(latest.fileNumber))
     throw new Error("No latest committee statement");
   const raw = await input.get(
-    `https://docquery.fec.gov/dcdev/posted/${String(latest.file_number)}.fec`,
+    `https://docquery.fec.gov/dcdev/posted/${latest.fileNumber}.fec`,
     "text",
   );
   const lines = raw.text.split(/\r?\n/);
   const form = lines[1]?.split("\u001c");
   if (form?.[0] !== "F99" || form[1] !== input.committeeId)
     throw new Error("Committee statement identity mismatch");
+  if (
+    htmlIndex &&
+    (normalize(form[2] ?? "") !== htmlIndex.committeeName ||
+      form[13] !== latest.receiptDate.replaceAll("-", ""))
+  )
+    throw new Error(
+      "Committee statement differs from electronic index name or date",
+    );
   const statement = /\[BEGINTEXT\]\s*([\s\S]*?)\s*\[ENDTEXT\]/.exec(
     raw.text,
   )?.[1];
@@ -449,7 +713,8 @@ export async function collectCommitteeReportingStatus(input: {
   const periodEnd = parsed.toISOString().slice(0, 10);
   if (
     periodEnd < `${input.cycle - 1}-01-01` ||
-    periodEnd > `${input.cycle}-12-31`
+    periodEnd > `${input.cycle}-12-31` ||
+    (htmlIndex && periodEnd > latest.receiptDate)
   )
     throw new Error("Committee statement outside cycle");
   const id = `${input.candidateId}:reporting-status`;
@@ -459,9 +724,9 @@ export async function collectCommitteeReportingStatus(input: {
     "Committee reporting-threshold statement",
     statement,
     "primary_record",
-    `Form 99, file ${String(latest.file_number)}; committee statement, not a financial total`,
+    `Form 99, file ${latest.fileNumber}; committee statement, not a financial total`,
   );
-  citation.documentDate = String(latest.receipt_date).slice(0, 10);
+  citation.documentDate = latest.receiptDate.slice(0, 10);
   citation.shows =
     "The committee states that it had not crossed the reporting threshold through the stated date.";
   citation.limits =
@@ -474,9 +739,9 @@ export async function collectCommitteeReportingStatus(input: {
       committee_id: input.committeeId,
       exact_count: rows.length,
       filings: rows.map((row) => ({
-        file_number: row.file_number,
-        form_type: row.form_type,
-        receipt_date: row.receipt_date,
+        file_number: row.fileNumber,
+        form_type: row.formType,
+        receipt_date: row.receiptDate,
       })),
     },
     indexId,
@@ -489,13 +754,20 @@ export async function collectCommitteeReportingStatus(input: {
       "Official committee filing index",
       indexSource.text,
       "primary_record",
-      "Exactly exhausted committee-scoped FEC filing index; observed forms only",
+      electronic
+        ? "All rows in the official committee electronic-filing index; electronic submissions only, not a paper-filing search"
+        : "Exactly exhausted committee-scoped FEC filing index; observed forms only",
     ),
   );
+  const statusEvidenceIds = [
+    id,
+    indexId,
+    ...(processedIndexId ? [processedIndexId] : []),
+  ];
   const unavailable = (reason: string) => ({
     status: "unavailable" as const,
     reason,
-    evidenceIds: [id, indexId],
+    evidenceIds: statusEvidenceIds,
   });
   return campaignFinanceSchema.parse({
     committeeId: input.committeeId,
@@ -505,9 +777,9 @@ export async function collectCommitteeReportingStatus(input: {
     currency: "USD",
     coverage: "partial",
     coverageNote:
-      "The committee's official Form 99 describes its reporting status. No financial report was present in the exactly exhausted filing index. Exact campaign totals and donors remain unavailable; they are not zero.",
+      "The committee's official Form 99 describes its reporting status. No financial report was present in the observed official filing index. Exact campaign totals and donors remain unavailable; they are not zero.",
     updatedAt: raw.fetchedAt,
-    filingEvidenceIds: [id, indexId],
+    filingEvidenceIds: statusEvidenceIds,
     receipts: null,
     donors: [],
     donorCoverage: "unavailable",
@@ -529,17 +801,17 @@ export async function collectCommitteeReportingStatus(input: {
         basis: "official_filing_index",
         kind: "committee_threshold_statement",
         latestForm: "F99",
-        observedForms: [...new Set(rows.map((row) => String(row.form_type)))]
+        observedForms: [...new Set(rows.map((row) => row.formType))]
           .sort()
           .map((form) => {
-            const count = rows.filter((row) => row.form_type === form).length;
+            const count = rows.filter((row) => row.formType === form).length;
             return `${form} (${count} ${count === 1 ? "filing" : "filings"})`;
           }),
         statement,
         periodStart: `${input.cycle - 1}-01-01`,
         periodEnd,
         updatedAt: raw.fetchedAt,
-        evidenceIds: [id, indexId],
+        evidenceIds: statusEvidenceIds,
       },
     },
   });
