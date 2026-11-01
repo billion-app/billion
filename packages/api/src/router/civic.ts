@@ -16,6 +16,7 @@ import {
   getCaliforniaGuide,
   getCaliforniaGuideResults,
   getCaliforniaGuideStandings,
+  getCaliforniaRegionalMeasures,
   getDistrictElectionResults,
   getElectionResults,
   getElections,
@@ -106,6 +107,10 @@ export const civicRouter = {
         });
       }
     }),
+
+  getCaliforniaRegionalMeasures: publicProcedure.query(() =>
+    getCaliforniaRegionalMeasures(),
+  ),
 
   getCaliforniaGuideStandings: publicProcedure.query(() =>
     getCaliforniaGuideStandings(),

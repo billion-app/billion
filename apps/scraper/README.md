@@ -36,6 +36,7 @@ Source limits and generation budgets are different. `--max-items` limits source 
 | `open-states`           | State legislation through Open States                       | `bill`                                         |
 | `scc-cvig`              | Santa Clara County voter-guide PDFs                         | Candidate statements in `civic_api_cache`      |
 | `santa-cruz-locations`  | Election-specific Santa Cruz vote-center lists              | County locations in `civic_api_cache`          |
+| `ca-regional-measures`  | Official five-county Regional Transit Measure RTM           | Regional source records in `civic_api_cache`   |
 | `ca-official-guide`     | Date-scoped California official measure and candidate guide | Official guide records in `civic_api_cache`    |
 | `ca-election-logistics` | California SOS election-specific key dates                  | Statewide voting guidance in `civic_api_cache` |
 | `ca-sos-statements`     | California candidate-statement pages and PDF fallback       | Candidate statements in `civic_api_cache`      |
@@ -323,6 +324,25 @@ requires an explicit output path, and production apply requires `--yes`.
 [Maintenance and reprocessing](../../docs/scraper.md#maintenance-backfill--reprocessing-scripts) explains write gates, source recovery, and retention behavior. The source hash and each asset's cache determine whether a rerun needs generation. `SCRAPER_FORCE_AI_REGEN=1` bypasses reuse, so use it only for an intentional regeneration.
 
 ## Ballot source collection
+
+`ca-regional-measures` collects the November 3, 2026 Regional Transit Measure
+from the Public Transit Revenue Measure District and San Mateo County Elections.
+It preserves the official district overview, ballot question and extracted legal
+text in a separate `ca-regional-measures-v1` cache. It also records official PDF
+links for the impartial analysis and primary arguments. Those scanned documents
+are linked, not summarized. The collector makes no model calls. `CA_REGIONAL_MEASURES_MAX_ITEMS` defaults
+to 1, the only supported collection size. `--max-items` overrides this value.
+
+Check the selected database host before this bounded write:
+
+```bash
+SCRAPER_MAX_NEW_ITEMS_PER_RUN=0 pnpm --filter @acme/scraper start ca-regional-measures --max-items 1 --concurrency 1
+```
+
+The collection fails if the district scope, election date, ballot question or
+required document links cannot be verified. A failure preserves the previous
+cache. The daily supervisor job refreshes this separate seven-day cache.
+Registering the job does not deploy it.
 
 `ca-official-guide` discovers the linked measure and candidate pages in the
 California Secretary of State guide. It preserves official summaries, Yes/No

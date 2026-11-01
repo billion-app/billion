@@ -35,11 +35,12 @@ import {
   planes,
   sp,
 } from "~/styles";
+import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { ballotIdentityFromRoute } from "~/utils/ballot-translation";
 import { parseRouteArray } from "~/utils/route-array";
 
 export default function MeasureDetailScreen() {
-  const { t: tx } = useAppTranslation();
+  const { t: tx, language } = useAppTranslation();
 
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
@@ -48,6 +49,11 @@ export default function MeasureDetailScreen() {
     translationReference?: string;
     translationIdentity?: string;
     translationTitleField?: string;
+    measureScope?: string;
+    electionDate?: string;
+    analysisUrl?: string;
+    argumentForUrl?: string;
+    argumentAgainstUrl?: string;
     referendumTitle: string;
     referendumSubtitle: string;
     referendumProStatement: string;
@@ -178,6 +184,26 @@ export default function MeasureDetailScreen() {
         <Text accessibilityRole="header" style={s.title}>
           {params.referendumTitle}
         </Text>
+        {original.measureScope && (
+          <View style={{ gap: 8 }}>
+            <Text style={s.secondary}>{tx("Bay Area regional measure")}</Text>
+            {original.electionDate && (
+              <Text style={s.secondary}>
+                {ballotElectionDate(original.electionDate, language)}
+              </Text>
+            )}
+            <Text style={s.secondary}>
+              {tx(
+                "Alameda, Contra Costa, San Francisco, San Mateo and Santa Clara counties. Check your county ballot.",
+              )}
+            </Text>
+            {language !== "en" && (
+              <Text style={s.secondary}>
+                {tx("Official measure text is shown as published.")}
+              </Text>
+            )}
+          </View>
+        )}
         {params.referendumText && hasOverview && (
           <BallotReadingMode
             value={showingOriginal ? "original" : "overview"}
@@ -208,13 +234,25 @@ export default function MeasureDetailScreen() {
             {summary ? (
               <BallotReadingCard
                 inset
-                title={tx("Measure overview")}
+                title={
+                  original.measureScope
+                    ? tx("Official ballot question")
+                    : tx("Measure overview")
+                }
                 icon={summaryIsAi ? "sparkle" : "book"}
                 accent
-                text={summary}
-                extendedText={params.summaryLong || params.summary}
+                text={original.measureScope ? undefined : summary}
+                extendedText={
+                  original.measureScope
+                    ? undefined
+                    : params.summaryLong || params.summary
+                }
                 label={summaryIsAi ? <BallotAiDisclosure /> : undefined}
-              />
+              >
+                {original.measureScope && (
+                  <BallotReadingText text={summary} collapsible={false} />
+                )}
+              </BallotReadingCard>
             ) : (
               <Text style={s.secondary}>
                 {tx("A summary is unavailable to Billion.")}
@@ -264,6 +302,28 @@ export default function MeasureDetailScreen() {
               text={params.referendumText}
             />
           </>
+        )}
+        {original.measureScope && (
+          <View style={{ gap: 12 }}>
+            {webUrl(original.analysisUrl) && (
+              <SourceLink
+                label={tx("Official impartial analysis")}
+                url={original.analysisUrl}
+              />
+            )}
+            {webUrl(original.argumentForUrl) && (
+              <SourceLink
+                label={tx("Official argument in favor")}
+                url={original.argumentForUrl}
+              />
+            )}
+            {webUrl(original.argumentAgainstUrl) && (
+              <SourceLink
+                label={tx("Official argument against")}
+                url={original.argumentAgainstUrl}
+              />
+            )}
+          </View>
         )}
         <BallotDetailEvidence
           citations={citations}

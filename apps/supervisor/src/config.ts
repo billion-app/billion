@@ -301,6 +301,17 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 12,
   },
   {
+    id: "ca-regional-measures-daily",
+    description: "Refresh the official November 2026 regional transit measure",
+    script: "main.js",
+    args: ["ca-regional-measures", "--max-items", "1", "--concurrency", "1"],
+    env: { SCRAPER_MAX_NEW_ITEMS_PER_RUN: "0" },
+    schedule: { kind: "daily", hour: 4, minute: 35 },
+    priority: 14,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
+  },
+  {
     id: "ca-election-polling-daily",
     description: "Refresh PPIC November 2026 California statewide polling",
     script: "main.js",

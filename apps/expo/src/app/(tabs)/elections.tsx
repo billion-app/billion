@@ -274,6 +274,12 @@ function CaliforniaElectionEntry({
     trpc.civic.getCaliforniaGuide.queryOptions(undefined, { enabled: focused }),
   );
   const guide = query.isError ? undefined : query.data;
+  const regionalQuery = useQuery(
+    trpc.civic.getCaliforniaRegionalMeasures.queryOptions(undefined, {
+      enabled: focused,
+    }),
+  );
+  const regional = regionalQuery.isError ? undefined : regionalQuery.data;
 
   return (
     <TabScreen title={t("elections.tabTitle")}>
@@ -338,14 +344,16 @@ function CaliforniaElectionEntry({
           </View>
           <Text style={s.entryBody}>{t("elections.entry.guideBody")}</Text>
           <Text style={s.entryNoteText}>{t("elections.entry.guideNote")}</Text>
-          {query.isPending ? (
+          {!guide &&
+          !regional &&
+          (query.isPending || regionalQuery.isPending) ? (
             <View style={s.entryButton}>
               <Text accessibilityLiveRegion="polite" style={s.entryButtonText}>
                 {t("elections.entry.loading")}
               </Text>
               <ActivityIndicator color={colors.bill} />
             </View>
-          ) : guide ? (
+          ) : guide || regional ? (
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel={t("elections.entry.exploreA11y")}

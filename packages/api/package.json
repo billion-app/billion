@@ -63,6 +63,10 @@
       "types": "./dist/lib/measure-sources/disabled/vig-archive.d.ts",
       "default": "./src/lib/measure-sources/disabled/vig-archive.ts"
     },
+    "./lib/regional-measures-cache": {
+      "types": "./dist/lib/regional-measures-cache.d.ts",
+      "default": "./src/lib/regional-measures-cache.ts"
+    },
     "./lib/official-guide-cache": {
       "types": "./dist/lib/official-guide-cache.d.ts",
       "default": "./src/lib/official-guide-cache.ts"

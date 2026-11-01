@@ -91,6 +91,11 @@ const scraperCostDefinitions = [
 ] as const;
 const scraperSourceLimitDefinitions = [
   [
+    "CA_REGIONAL_MEASURES_MAX_ITEMS",
+    "California regional measure collections per run (must be 1).",
+    "1",
+  ],
+  [
     "CA_POLLING_MAX_ITEMS",
     "California statewide polling reports per run (1–4).",
     "4",

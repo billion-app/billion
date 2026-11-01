@@ -244,3 +244,17 @@ amount. These cannot become exact numeric shares; absent a supported matched
 comparison they use the explicit unavailable path. Available shares require a
 known gross/net basis. The shared presentation helper returns separate amount,
 comparison, scope and reason lines so both readers use the same calculation.
+
+## Regional transit measure
+
+The California guide also reads `civic.getCaliforniaRegionalMeasures`, independently
+of the statewide guide. Its regional section identifies Measure RTM and all five
+participating counties. Opening RTM shows the official ballot question and links
+to the legal text, impartial analysis and both primary arguments. These are
+published source documents, not Billion explanations.
+
+The [regional collector](../apps/scraper/src/scrapers/ca-regional-measures-source.ts)
+keeps the full extracted legal text server-side. The app receives the ballot
+question and document links. Regional records do not enter statewide polling,
+results, Trillion generation or proposition translation. The source and bounded
+write command are in the [scraper guide](../apps/scraper/README.md#ballot-source-collection).
