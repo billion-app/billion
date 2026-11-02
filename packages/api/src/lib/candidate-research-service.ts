@@ -1,6 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 
-import type { CandidateRaceManifest } from "@acme/validators";
+import type {
+  CandidateEvidenceDossier,
+  CandidateRaceManifest,
+  ResearchSource,
+} from "@acme/validators";
 import { and, desc, eq, inArray, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
@@ -106,6 +111,43 @@ async function currentRoster(
     throw new Error("Race roster changed");
   return roster;
 }
+export function researchSourceMatchesArchive(
+  archived: ResearchSource,
+  source: ResearchSource,
+  proofs: Pick<
+    CandidateEvidenceDossier,
+    "campaignContactProof" | "campaignOwnershipProof"
+  >,
+) {
+  return (
+    archived.id === source.id &&
+    archived.url === source.url &&
+    archived.contentHash === source.contentHash &&
+    archived.text === source.text &&
+    archived.format === source.format &&
+    (source.id !== proofs.campaignContactProof?.destinationSourceId ||
+      JSON.stringify(archived.retrievalUrls ?? null) ===
+        JSON.stringify(source.retrievalUrls ?? null)) &&
+    isDeepStrictEqual(
+      archived.acquisition ?? null,
+      source.acquisition ?? null,
+    ) &&
+    (!(
+      source.format === "image" ||
+      source.acquisition !== undefined ||
+      proofs.campaignOwnershipProof !== undefined
+    ) ||
+      (archived.byteHash === source.byteHash &&
+        archived.binaryBase64 === source.binaryBase64 &&
+        (!proofs.campaignOwnershipProof ||
+          (isDeepStrictEqual(
+            archived.httpObservation ?? null,
+            source.httpObservation ?? null,
+          ) &&
+            JSON.stringify(archived.retrievalUrls ?? null) ===
+              JSON.stringify(source.retrievalUrls ?? null)))))
+  );
+}
 export async function recordResearchAiReview(
   input: {
     collectionId: string;
@@ -160,31 +202,8 @@ export async function recordResearchAiReview(
       briefIdentityKey(dossier.identity) !== briefIdentityKey(brief.identity) ||
       dossier.sources.some(
         (source) =>
-          !row.document.sources.some(
-            (archived) =>
-              archived.id === source.id &&
-              archived.url === source.url &&
-              archived.contentHash === source.contentHash &&
-              archived.text === source.text &&
-              archived.format === source.format &&
-              (source.id !==
-                dossier.campaignContactProof?.destinationSourceId ||
-                JSON.stringify(archived.retrievalUrls ?? null) ===
-                  JSON.stringify(source.retrievalUrls ?? null)) &&
-              JSON.stringify(archived.acquisition ?? null) ===
-                JSON.stringify(source.acquisition ?? null) &&
-              (!(
-                source.format === "image" ||
-                source.acquisition !== undefined ||
-                dossier.campaignOwnershipProof !== undefined
-              ) ||
-                (archived.byteHash === source.byteHash &&
-                  archived.binaryBase64 === source.binaryBase64 &&
-                  (!dossier.campaignOwnershipProof ||
-                    (JSON.stringify(archived.httpObservation ?? null) ===
-                      JSON.stringify(source.httpObservation ?? null) &&
-                      JSON.stringify(archived.retrievalUrls ?? null) ===
-                        JSON.stringify(source.retrievalUrls ?? null))))),
+          !row.document.sources.some((archived) =>
+            researchSourceMatchesArchive(archived, source, dossier),
           ),
       )
     )

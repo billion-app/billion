@@ -1,0 +1,200 @@
+{
+  "note": "Author-contract test projection of immutable actual 2026-11-02 Governor rejection. Source bodies are exact cited context projections with recomputed fixture hashes, not production dossiers or fresh acquisition. No approvals are imported.",
+  "actualDossierDigest": "7f77dba26e691659bcf5a5be9183f3d81e99ecf2e5f20ce20fb935a6d8278a61",
+  "actualRevisionDigest": "78ef6315f2165310222fbef190107bf754a3b718bc1c0e3f56de8a000c8d69ff",
+  "dossierInput": {
+    "researchVersion": "california-dossier-v1",
+    "createdAt": "2026-11-02T02:19:14.790Z",
+    "identity": {
+      "contestId": "ca-sos:2026-11-03:020000000000",
+      "candidateId": "ca-sos:2026-11-03:020000000000:3654",
+      "electionDate": "2026-11-03",
+      "jurisdiction": "ocd-division/country:us/state:ca"
+    },
+    "name": "Xavier Becerra",
+    "officeKind": "state_executive",
+    "officeFamily": "statewide",
+    "rosterDigest": "6879be4c5efbe4f567c5e1d03254a8d91762b94f08020c49416866f683319402",
+    "sources": [
+      {
+        "id": "official-roster",
+        "url": "https://media.sos.ca.gov/media/C26GG.txt",
+        "publisher": "California Secretary of State",
+        "format": "text",
+        "text": "[C|CAS|3|020000000000|3654||Becerra|Xavier||01|Xavier Becerra|]",
+        "contentHash": "ace00b68ca7660c6d1913fe76b5afb50106e4c65760e9eae5d734d5f87b0d200",
+        "fetchedAt": "2026-11-02T02:18:27.640Z"
+      },
+      {
+        "id": "source-0adc75f3506cf755b1c17028",
+        "url": "https://voterguide.sos.ca.gov/candidates/governor-candidate-statements.htm",
+        "publisher": "Official office responsibilities",
+        "format": "text",
+        "text": "As the state's chief executive officer, oversees most state departments and agencies, and appoints judges. Proposes new laws, approves or vetoes legislation, and submits the annual state budget to the Legislature. Mobilizes and directs state resources during emergencies.",
+        "contentHash": "c6b74cfe39abcdc9b5c4813576d0e7b2920f2b257cfd702a8c8247cd9824a19a",
+        "fetchedAt": "2026-11-02T02:18:32.224Z"
+      },
+      {
+        "id": "source-60e3a92dabc8ee3eae5ea2a7",
+        "url": "https://www.xavierbecerra2026.com/bio/",
+        "publisher": "www.xavierbecerra2026.com",
+        "format": "text",
+        "text": "Volunteer Contribute Bio Meet Xavier Xavier Becerra is the son of Mexican-American immigrants who came to America with $12 in their pockets. He grew up in the home that his father, a Union man, built himself. Following in their footsteps of hard work and giving back, Xavier was the first in his family to graduate from a four-year university. Becerra and his wife, Dr. Carolina Reyes, raised their three girls in Los Angeles. Like their parents before them, they’ve taught their daughters that hard work and dedication to community is the best way to create and improve opportunity. Becerra has spent 35 years serving California– from the State Assembly to the U.S. Congress, as California’s Attorney General, and the United States Secretary of Health and Human Services. Throughout his career, he has focused on one thing: Doing what’s right and building lasting change for Californians. As a member of Congress, Becerra saw how many families lacked access to quality, affordable healthcare, so he worked hard to help pass the Affordable Care Act (ACA), extending coverage to millions of Californians. As Attorney General, Becerra led the charge against the Trump Administration’s unlawful actions as they threatened our rights and freedoms. Becerra took Trump to court 122 times and won, never shying away from the hard fights and delivering time and again for Californians. And as United States Secretary of Health and Human Services, Becerra lowered Californians’ costs by negotiating down prescription drug prices for the first time in American history. Now, he’s running for Governor to defend and build upon the California Dream: where every family can prosper in a safe and welcoming community, afford healthcare and basic needs, and retire with dignity. Up Next Endorsements",
+        "contentHash": "e8ab3e19570be685ca1c869c6ae48c5491c1de3032ee933418616f3aa9808d3a",
+        "fetchedAt": "2026-11-02T02:19:14.399Z"
+      },
+      {
+        "id": "source-8221044063720d88b272c189",
+        "url": "https://www.xavierbecerra2026.com/priorities/",
+        "publisher": "www.xavierbecerra2026.com",
+        "format": "text",
+        "text": "Volunteer Contribute Xavier's Priorities On the Issues Priorities We have to fight to make it possible for all of us to have the California Dream, and that’s why I’m running for Governor. Care for All. Care We Can Afford. Health care is a human right, and as California’s Health Care Governor I will deliver affordable care without debt or delays, strengthen Medi-Cal, close racial and economic gaps, and build toward a universal single-payer system that puts people before profits. Fighting Donald Trump I vow to protect and lead our state against Trump and his attacks as Governor to ensure California keeps moving forward and building together. I have a proven record of facing and winning against Donald Trump, 122 times in fact as California’s Attorney General, and I am ready to get back in the ring again as Governor. Housing Build More Affordable Housing. Make the California Dream possible. I believe that everyone benefits when there are enough homes, when costs stop rising out of control, and when everyone has a safe, stable place to call home. As governor, I will treat housing like the essential infrastructure it is. Economy and Affordability Lower Costs. Raise Stability. Put Families First. Californians are being squeezed by rising costs—from insurance and childcare to groceries—and too many families are falling behind even while working hard. As governor, I will take on the cost of living head-on by standing up to price gouging and unjustified rate hikes, expanding help with childcare and essential costs, and using the power of the state to lower prices where the market has failed. Energy and Utilities Clean Energy. Lower Bills. Shared Benefits. I believe that by treating clean energy and grid resilience as public investments—and ensuring renters, low-income households, and workers share in the benefits—California can fight climate change, strengthen reliability, and make energy more affordable for everyone. California Disaster Preparedness & Resilience Protect People. Prevent Harm. Recover Fairly and Fast. As Governor, I will ensure that disaster preparedness in California is not just about infrastructure, but about dignity, equity, and keeping people in their homes and communities. Innovation That Works for Everyone Artificial Intelligence California built this technology, and California should benefit from it. AI should broaden opportunity, not concentrate it. A Moral Emergency and Policy Failure Homelessness We have spent billions, and the results are not good enough. That is not a reason to give up; it is a reason to govern differently. Build More, Build Faster Protecting our Families & Communities from the Next Wildfire Disaster Too many families across California know what it means to lose everything in a wildfire. We need a plan as big as the problem. Up Next Action Center",
+        "contentHash": "7a2baa8ff61d3ebc420faa55df6739df1304bc67faba04ce5d7a1c98bc8ceaa2",
+        "fetchedAt": "2026-11-02T02:19:14.453Z"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "roster",
+        "role": "roster",
+        "origin": "primary_record",
+        "excerpt": "[C|CAS|3|020000000000|3654||Becerra|Xavier||01|Xavier Becerra|]",
+        "locator": "SOS contest 020000000000; candidate 3654",
+        "sourceId": "official-roster",
+        "identityQualification": "official_roster"
+      },
+      {
+        "id": "office-authority",
+        "role": "office_authority",
+        "origin": "primary_record",
+        "excerpt": "As the state's chief executive officer, oversees most state departments and agencies, and appoints judges. Proposes new laws, approves or vetoes legislation, and submits the annual state budget to the Legislature. Mobilizes and directs state resources during emergencies.",
+        "locator": "Official responsibilities and institutional constraints",
+        "sourceId": "source-0adc75f3506cf755b1c17028",
+        "identityQualification": "exact_election_office"
+      },
+      {
+        "id": "candidate-3",
+        "role": "campaign_material",
+        "origin": "candidate",
+        "excerpt": "Xavier Becerra is the son of Mexican-American immigrants who came to America with $12 in their pockets. He grew up in the home that his father, a Union man, built himself. Following in their footsteps of hard work and giving back, Xavier was the first in his family to graduate from a four-year university. Becerra and his wife, Dr. Carolina Reyes, raised their three girls in Los Angeles. Like their parents before them, they’ve taught their daughters that hard work and dedication to community is the best way to create and improve opportunity. Becerra has spent 35 years serving California– from the State Assembly to the U.S. Congress, as California’s Attorney General, and the United States Secretary of Health and Human Services. Throughout his career, he has focused on one thing: Doing what’s right and building lasting change for Californians. As a member of Congress, Becerra saw how many families lacked access to quality, affordable healthcare, so he worked hard to help pass the Affordable Care Act (ACA), extending coverage to millions of Californians. As Attorney General, Becerra led the charge against the Trump Administration’s unlawful actions as they threatened our rights and freedoms. Becerra took Trump to court 122 times and won, never shying away from the hard fights and delivering time and again for Californians. And as United States Secretary of Health and Human Services, Becerra lowered Californians’ costs by negotiating down prescription drug prices for the first time in American history. Now, he’s running for Governor to defend and build upon the California Dream: where every family can prosper in a safe and welcoming community, afford healthcare and basic needs, and retire with dignity. Up Next Endorsements",
+        "locator": "Candidate-specific passage for Xavier Becerra",
+        "sourceId": "source-60e3a92dabc8ee3eae5ea2a7",
+        "attribution": {
+          "status": "unresolved",
+          "context": {
+            "excerpt": "Volunteer Contribute Bio Meet Xavier Xavier Becerra is the son of Mexican-American immigrants who came to America with $12 in their pockets. He grew up in the home that his father, a Union man, built himself. Following in their footsteps of hard work and giving back, Xavier was the first in his family to graduate from a four-year university. Becerra and his wife, Dr. Carolina Reyes, raised their three girls in Los Angeles. Like their parents before them, they’ve taught their daughters that hard work and dedication to community is the best way to create and improve opportunity. Becerra has spent 35 years serving California– from the State Assembly to the U.S. Congress, as California’s Attorney General, and the United States Secretary of Health and Human Services. Throughout his career, he has focused on one thing: Doing what’s right and building lasting change for Californians. As a member of Congress, Becerra saw how many families lacked access to quality, affordable healthcare, so he worked hard to help pass the Affordable Care Act (ACA), extending coverage to millions of Californians. As Attorney General, Becerra led the charge against the Trump Administration’s unlawful actions as they threatened our rights and freedoms. Becerra took Trump to court 122 times and won, never shying away from the hard fights and delivering time and again for Californians. And as United States Secretary of Health and Human Services, Becerra lowered Californians’ costs by negotiating down prescription drug prices for the first time in American history. Now, he’s running for Governor to defend and build upon the California Dream: where every family can prosper in a safe and welcoming community, afford healthcare and basic needs, and retire with dignity. Up Next Endorsements",
+            "locator": "Complete bounded substantive campaign page; publisher identity does not establish the speaker."
+          }
+        },
+        "identityQualification": "qualified_party_discovery"
+      },
+      {
+        "id": "candidate-4",
+        "role": "campaign_material",
+        "origin": "candidate",
+        "excerpt": "Volunteer Contribute Xavier's Priorities On the Issues Priorities We have to fight to make it possible for all of us to have the California Dream, and that’s why I’m running for Governor. Care for All. Care We Can Afford. Health care is a human right, and as California’s Health Care Governor I will deliver affordable care without debt or delays, strengthen Medi-Cal, close racial and economic gaps, and build toward a universal single-payer system that puts people before profits. Fighting Donald Trump I vow to protect and lead our state against Trump and his attacks as Governor to ensure California keeps moving forward and building together. I have a proven record of facing and winning against Donald Trump, 122 times in fact as California’s Attorney General, and I am ready to get back in the ring again as Governor. Housing Build More Affordable Housing. Make the California Dream possible. I believe that everyone benefits when there are enough homes, when costs stop rising out of control, and when everyone has a safe, stable place to call home. As governor, I will treat housing like the essential infrastructure it is. Economy and Affordability Lower Costs. Raise Stability. Put Families First. Californians are being squeezed by rising costs—from insurance and childcare to groceries—and too many families are falling behind even while working hard. As governor, I will take on the cost of living head-on by standing up to price gouging and unjustified rate hikes, expanding help with childcare and essential costs, and using the power of the state to lower prices where the market has failed. Energy and Utilities Clean Energy. Lower Bills. Shared Benefits. I believe that by treating clean energy and grid resilience as public investments—and ensuring renters, low-income households, and workers share in the benefits—California can fight climate change, strengthen reliability, and make energy more affordable for everyone. California Disaster Preparedness & Resilience Protect People. Prevent Harm. Recover Fairly and Fast. As Governor, I will ensure that disaster preparedness in California is not just about infrastructure, but about dignity, equity, and keeping people in their homes and communities. Innovation That Works for Everyone Artificial Intelligence California built this technology, and California should benefit from it. AI should broaden opportunity, not concentrate it. A Moral Emergency and Policy Failure Homelessness We have spent billions, and the results are not good enough. That is not a reason to give up; it is a reason to govern differently. Build More, Build Faster Protecting our Families & Communities from the Next Wildfire Disaster Too many families across California know what it means to lose everything in a wildfire. We need a plan as big as the",
+        "locator": "Candidate-specific passage for Xavier Becerra",
+        "sourceId": "source-8221044063720d88b272c189",
+        "attribution": {
+          "status": "unresolved",
+          "context": {
+            "excerpt": "Volunteer Contribute Xavier's Priorities On the Issues Priorities We have to fight to make it possible for all of us to have the California Dream, and that’s why I’m running for Governor. Care for All. Care We Can Afford. Health care is a human right, and as California’s Health Care Governor I will deliver affordable care without debt or delays, strengthen Medi-Cal, close racial and economic gaps, and build toward a universal single-payer system that puts people before profits. Fighting Donald Trump I vow to protect and lead our state against Trump and his attacks as Governor to ensure California keeps moving forward and building together. I have a proven record of facing and winning against Donald Trump, 122 times in fact as California’s Attorney General, and I am ready to get back in the ring again as Governor. Housing Build More Affordable Housing. Make the California Dream possible. I believe that everyone benefits when there are enough homes, when costs stop rising out of control, and when everyone has a safe, stable place to call home. As governor, I will treat housing like the essential infrastructure it is. Economy and Affordability Lower Costs. Raise Stability. Put Families First. Californians are being squeezed by rising costs—from insurance and childcare to groceries—and too many families are falling behind even while working hard. As governor, I will take on the cost of living head-on by standing up to price gouging and unjustified rate hikes, expanding help with childcare and essential costs, and using the power of the state to lower prices where the market has failed. Energy and Utilities Clean Energy. Lower Bills. Shared Benefits. I believe that by treating clean energy and grid resilience as public investments—and ensuring renters, low-income households, and workers share in the benefits—California can fight climate change, strengthen reliability, and make energy more affordable for everyone. California Disaster Preparedness & Resilience Protect People. Prevent Harm. Recover Fairly and Fast. As Governor, I will ensure that disaster preparedness in California is not just about infrastructure, but about dignity, equity, and keeping people in their homes and communities. Innovation That Works for Everyone Artificial Intelligence California built this technology, and California should benefit from it. AI should broaden opportunity, not concentrate it. A Moral Emergency and Policy Failure Homelessness We have spent billions, and the results are not good enough. That is not a reason to give up; it is a reason to govern differently. Build More, Build Faster Protecting our Families & Communities from the Next Wildfire Disaster Too many families across California know what it means to lose everything in a wildfire. We need a plan as big as the problem. Up Next Action Center",
+            "locator": "Complete bounded substantive campaign page; publisher identity does not establish the speaker."
+          }
+        },
+        "identityQualification": "qualified_party_discovery"
+      }
+    ],
+    "gaps": [
+      {
+        "code": "source_unavailable",
+        "message": "Campaign-finance research is still pending for this candidate.",
+        "required": false,
+        "dimension": "finance",
+        "checkedSourceIds": []
+      }
+    ]
+  },
+  "rejectedOutput": {
+    "priorities": {
+      "claims": [
+        {
+          "kind": "promise",
+          "text": "The campaign’s stated health-care priorities include affordable care, strengthening Medi-Cal, closing racial and economic gaps, and building toward a universal single-payer system.",
+          "evidenceIds": ["candidate-4"],
+          "promiseDetails": null
+        },
+        {
+          "kind": "promise",
+          "text": "The campaign proposes treating housing as essential infrastructure and building more affordable housing.",
+          "evidenceIds": ["candidate-4"],
+          "promiseDetails": null
+        },
+        {
+          "kind": "promise",
+          "text": "The campaign proposes lowering living costs by addressing price gouging and unjustified rate hikes, expanding help with childcare and essential costs, and using state power to lower prices where markets have failed.",
+          "evidenceIds": ["candidate-4"],
+          "promiseDetails": null
+        },
+        {
+          "kind": "promise",
+          "text": "The campaign prioritizes disaster preparedness that protects people, prevents harm, and supports fair and fast recovery while keeping people in their homes and communities.",
+          "evidenceIds": ["candidate-4"],
+          "promiseDetails": null
+        },
+        {
+          "kind": "promise",
+          "text": "The campaign says AI should broaden opportunity rather than concentrate it.",
+          "evidenceIds": ["candidate-4"],
+          "promiseDetails": null
+        }
+      ]
+    },
+    "record": {
+      "claims": [
+        {
+          "kind": "analysis",
+          "text": "The campaign bio says Becerra served in the State Assembly, U.S. Congress, as California Attorney General, and as U.S. Secretary of Health and Human Services; it also credits him with helping pass the Affordable Care Act and negotiating lower prescription drug prices.",
+          "evidenceIds": ["candidate-3"]
+        },
+        {
+          "kind": "analysis",
+          "text": "The campaign reports that Becerra took the Trump administration to court 122 times as California Attorney General and won.",
+          "evidenceIds": ["candidate-3"]
+        }
+      ]
+    },
+    "mechanisms": {
+      "claims": [
+        {
+          "kind": "promise",
+          "text": "The campaign proposes treating clean energy and grid resilience as public investments, with renters, low-income households, and workers sharing in the benefits.",
+          "evidenceIds": ["candidate-4"],
+          "promiseDetails": null
+        }
+      ]
+    },
+    "effects": {
+      "claims": []
+    },
+    "tradeoffs": {
+      "claims": []
+    },
+    "unknowns": {
+      "claims": []
+    },
+    "terms": []
+  },
+  "firstInvestmentFinding": {
+    "reason": "candidate-4 supports the proposed public-investment approach and named beneficiaries.",
+    "claimId": "mechanisms-1",
+    "supported": true
+  },
+  "secondInvestmentFinding": {
+    "reason": "The proposal is accurately attributed, but candidate-4 provides no implementation path or supported office power. This belongs among priorities, not mechanisms.",
+    "claimId": "mechanisms-1",
+    "supported": false
+  },
+  "firstOverallReason": "The campaign-attributed claims are supported by their cited contexts, but mechanisms-2 repeats priorities-3 rather than supplying an implementation path. mechanisms-3 (“protect and lead California against Trump’s attacks”) is a goal, not a supported mechanism. The Mechanisms section therefore fails the required distinction between priorities and implementation. Finance coverage disclosures accurately describe the brief’s omissions.",
+  "secondOverallReason": "The campaign-attributed priorities and record are supported, and the finance disclosure accurately describes missing brief coverage. However, mechanisms-1 merely restates a public-investment proposal; its cited passage supplies no actual implementation path or governing power to support presenting it as a mechanism."
+}

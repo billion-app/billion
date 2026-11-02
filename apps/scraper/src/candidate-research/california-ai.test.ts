@@ -131,7 +131,7 @@ test("nested promises compile stable links and separate exact reviewer attestati
   assert.notEqual(a.attestation.runId, r.attestation.runId);
   assert.notEqual(a.attestation.actorId, r.attestation.actorId);
   assert.equal(a.attestation.revisionDigest, r.attestation.revisionDigest);
-  assert.equal(a.attestation.promptVersion, "california-author-v18");
+  assert.equal(a.attestation.promptVersion, "california-author-v19");
   assert.equal(r.attestation.actualModel, "actual-fixture-model");
   assert.equal(calls[1]!.excludedConfiguredModel, "fixture:author");
 });
@@ -170,7 +170,7 @@ test("author chapter guidance matches independent review and permits unsupported
   assert.match(authorSystem, /Priorities state the proposed goal/);
   assert.match(
     authorSystem,
-    /Mechanisms describe the supported implementation path, including proposed investments, spending formulas/,
+    /Mechanisms require a cited implementation path or a supported office power/,
   );
   assert.match(
     authorSystem,
@@ -909,7 +909,7 @@ test("v15 author owns claims only and preserves temporal and contextual constrai
     { dossier: fixtureDossier(), policyVersion: "p1" },
     deps,
   );
-  assert.equal(result.attestation.promptVersion, "california-author-v18");
+  assert.equal(result.attestation.promptVersion, "california-author-v19");
   assert.ok(
     calls[0]!.system.includes("Past achievements belong only in Record"),
   );
@@ -2003,11 +2003,11 @@ test("empty section coverage does not expose source collection workflow", async 
     dossier.gaps.find((gap) => gap.dimension === "record")?.message,
     "The record source could not be downloaded.",
   );
-  assert.equal(result.attestation.promptVersion, "california-author-v18");
+  assert.equal(result.attestation.promptVersion, "california-author-v19");
   assert.deepEqual(result.brief.authorship, {
     kind: "generated",
     model: "actual-fixture-model",
-    promptVersion: "california-author-v18",
+    promptVersion: "california-author-v19",
   });
 });
 
@@ -2410,4 +2410,84 @@ test("documented facts need an eligible primary record while mixed references re
   assert.equal(kinds("record").includes("fact"), false);
   assert.equal(kinds("mechanisms").includes("fact"), true);
   assert.equal(JSON.stringify(json).includes('"oneOf"'), false);
+});
+
+test("actual Becerra investment goal can remain a priority with an honest empty Mechanisms chapter", async () => {
+  const fixture = JSON.parse(
+    await readFile(
+      new URL("./fixtures/becerra-mechanism-rejection.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const dossier = buildCaliforniaDossier(fixture.dossierInput);
+  const output = structuredClone(fixture.rejectedOutput);
+  const investment = output.mechanisms.claims[0];
+  assert.equal(fixture.firstInvestmentFinding.supported, true);
+  assert.equal(fixture.secondInvestmentFinding.supported, false);
+  assert.equal(
+    investment.text,
+    "The campaign proposes treating clean energy and grid resilience as public investments, with renters, low-income households, and workers sharing in the benefits.",
+  );
+  assert.deepEqual(investment.evidenceIds, ["candidate-4"]);
+  output.priorities.claims.push(investment);
+  output.mechanisms.claims = [];
+  const rejected = await authorCaliforniaBrief(
+    { dossier, policyVersion: "p1" },
+    dependencies([fixture.rejectedOutput]).deps,
+  );
+  const { candidatePublicContentProjection } = await import("@acme/validators");
+  const versionOnly = structuredClone(rejected.brief);
+  versionOnly.authorship = {
+    kind: "generated",
+    model: "actual-fixture-model",
+    promptVersion: "california-author-v18",
+  };
+  assert.deepEqual(
+    candidatePublicContentProjection(rejected.brief),
+    candidatePublicContentProjection(versionOnly),
+    "prompt metadata cannot turn unchanged rejected public content into a new revision",
+  );
+  const { deps, calls } = dependencies([output]);
+  const authored = await authorCaliforniaBrief(
+    { dossier, policyVersion: "p1" },
+    deps,
+  );
+  const mechanisms = authored.brief.sections.find(
+    (section) => section.topic === "mechanisms",
+  )!;
+  const priorities = authored.brief.sections.find(
+    (section) => section.topic === "priorities",
+  )!;
+  assert.deepEqual(mechanisms.claims, []);
+  assert.equal(
+    mechanisms.missingEvidence,
+    "This section does not present a separate account of implementation or office authority.",
+  );
+  assert.ok(
+    priorities.claims.some(
+      (claim) =>
+        claim.text === investment.text &&
+        claim.evidenceIds.includes("candidate-4"),
+    ),
+  );
+  assert.equal(
+    authored.brief.sections.find((section) => section.topic === "record")!
+      .claims.length,
+    2,
+  );
+  assert.notDeepEqual(
+    candidatePublicContentProjection(authored.brief),
+    candidatePublicContentProjection(rejected.brief),
+    "moving the goal to Priorities and removing unsupported Mechanisms changes actual reader content",
+  );
+  assert.equal(calls.length, 1);
+  assert.match(
+    calls[0]!.system,
+    /A promise, proposed investment, named beneficiary or desired outcome alone is a Priority/,
+  );
+  assert.match(calls[0]!.system, /Leave Mechanisms claims empty/);
+  assert.match(
+    calls[0]!.system,
+    /own cited passage supplies a concrete implementation instrument/,
+  );
 });
