@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import test from "node:test";
 
 import type { ResearchSource } from "@acme/validators";
+import { candidateDossierSemanticProjection } from "@acme/validators";
 
 import { publicSourceAddresses } from "../research/pages.js";
 import { buildCaliforniaDossier } from "./california-dossier.js";
@@ -2515,3 +2516,190 @@ test("captured statewide authority pages require their office provision and reje
     }
   }
 });
+
+for (const name of ["Peter Coe Verbica", "Jimmy Panetta"]) {
+  test(`narrative-only acquires fresh ${name} evidence without any finance request`, async () => {
+    const f = await capturedHouseCampaign(name);
+    let blockedFinanceRequests = 0;
+    const fetch = f.deps.fetch;
+    f.deps.fetch = async (id, url) => {
+      if (/fec\.gov|fec\.gov\/|\/ccl\//.test(url)) {
+        blockedFinanceRequests++;
+        throw new Error("Finance transport is prohibited in this fixture");
+      }
+      return fetch(id, url);
+    };
+    const dossier = await collectCaliforniaEvidence(
+      { ...f, researchScope: "narrative_only" },
+      f.deps,
+    );
+    assert.equal(blockedFinanceRequests, 0);
+    assert.equal(dossier.classification, "supported");
+    assert.equal(dossier.finance, null);
+    assert.equal(dossier.financeIdentityProof, undefined);
+    assert.equal(
+      dossier.evidence.some((entry) => entry.role === "finance"),
+      false,
+    );
+    assert.deepEqual(
+      dossier.gaps.find((gap) => gap.dimension === "finance"),
+      {
+        dimension: "finance",
+        code: "source_unavailable",
+        message:
+          "Campaign-finance research is still pending for this candidate.",
+        checkedSourceIds: [],
+        required: false,
+      },
+    );
+    const later = await collectCaliforniaEvidence(
+      { ...f, researchScope: "narrative_only" },
+      { ...f.deps, now: () => "2026-10-30T13:00:00.000Z" },
+    );
+    assert.deepEqual(
+      candidateDossierSemanticProjection(later),
+      candidateDossierSemanticProjection(dossier),
+    );
+    const candidateEvidence = dossier.evidence.find(
+      (entry) => entry.role === "campaign_material",
+    );
+    assert.ok(candidateEvidence);
+    const candidateSource = f.sources.find((entry) =>
+      entry.text.includes(candidateEvidence.excerpt),
+    )!;
+    assert.ok(candidateSource);
+    candidateSource.text +=
+      "\nNew current campaign proposal for this offline fixture.";
+    candidateSource.contentHash = createHash("sha256")
+      .update(candidateSource.text)
+      .digest("hex");
+    f.deps.sharedSources.clear();
+    const fresh = await collectCaliforniaEvidence(
+      { ...f, researchScope: "narrative_only" },
+      f.deps,
+    );
+    assert.notEqual(fresh.dossierDigest, dossier.dossierDigest);
+    assert.ok(
+      fresh.sources.some((entry) =>
+        entry.text.includes("New current campaign proposal"),
+      ),
+    );
+    assert.equal(blockedFinanceRequests, 0);
+    const stale = {
+      ...dossier,
+      sources: [
+        ...dossier.sources,
+        source(
+          "old-finance-query",
+          "https://api.open.fec.gov/v1/reports/house/",
+          "old official finance response",
+        ),
+        source(
+          "C12345678:old-row",
+          "https://api.open.fec.gov/v1/reports/house/",
+          "old derived finance row",
+        ),
+      ],
+    };
+    let fetches = 0;
+    for (const conflicting of [
+      { previousDossier: stale },
+      {
+        cachedFinanceDossier: {
+          digest: dossier.dossierDigest,
+          document: stale,
+        },
+      },
+      {
+        previousDossier: stale,
+        cachedFinanceDossier: {
+          digest: dossier.dossierDigest,
+          document: stale,
+        },
+      },
+    ]) {
+      await assert.rejects(
+        collectCaliforniaEvidence(
+          { ...f, ...conflicting, researchScope: "narrative_only" },
+          {
+            ...f.deps,
+            fetch: async () => {
+              fetches++;
+              throw new Error("must not fetch");
+            },
+          },
+        ),
+        /fresh inputs without prior dossiers or finance caches/,
+      );
+    }
+    assert.equal(fetches, 0);
+  });
+}
+
+const excludedFinanceUrls = [
+  "https://api.open.fec.gov/v1/candidates/",
+  "https://www.fec.gov/data/candidate/H0CA00001/",
+  "https://www.fec.gov/files/bulk-downloads/2026/cn26.zip",
+  "https://docquery.fec.gov/dcdev/posted/1856505.fec",
+  "https://api.open.fec.gov./v1/candidates/",
+  "https://docquery.fec.gov./dcdev/posted/1856505.fec",
+];
+
+test("narrative-only filters discovered federal finance pages before fetching", async () => {
+  const f = await capturedHouseCampaign("Peter Coe Verbica");
+  const dossier = await collectCaliforniaEvidence(
+    { ...f, researchScope: "narrative_only" },
+    {
+      ...f.deps,
+      search: async () => ({
+        sources: excludedFinanceUrls.map((url) => ({ url })),
+      }),
+    },
+  );
+  assert.equal(dossier.classification, "supported");
+  assert.equal(dossier.finance, null);
+  assert.equal(
+    f.fetched.some((url) => excludedFinanceUrls.includes(url)),
+    false,
+  );
+  assert.deepEqual(
+    dossier.gaps.find((gap) => gap.dimension === "finance")?.checkedSourceIds,
+    [],
+  );
+});
+
+for (const url of excludedFinanceUrls) {
+  test(`narrative-only transport refuses ${url} before DNS and transport`, async () => {
+    const requested: string[] = [];
+    const resolved: string[] = [];
+    const controls = {
+      researchScope: "narrative_only" as const,
+      addresses: async (current: string) => {
+        resolved.push(current);
+        return [{ address: "93.184.216.34", family: 4 as const }];
+      },
+      transport: async (current: string) => {
+        requested.push(current);
+        return new Response(null, { status: 302, headers: { location: url } });
+      },
+    };
+    for (const initial of [url, "https://campaign.example/redirect"]) {
+      requested.length = 0;
+      resolved.length = 0;
+      await assert.rejects(
+        fetchBoundedCaliforniaSource(
+          "fixture",
+          initial,
+          "fixture",
+          "html",
+          { request() {}, bytes() {} },
+          undefined,
+          controls,
+        ),
+        /excludes federal finance sources/,
+      );
+      assert.deepEqual(requested, initial === url ? [] : [initial]);
+      assert.deepEqual(resolved, initial === url ? [] : [initial]);
+    }
+  });
+}

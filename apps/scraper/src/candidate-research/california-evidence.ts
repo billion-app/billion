@@ -653,18 +653,32 @@ function unchangedCitedFecIdentity(
     return false;
   }
 }
+function isFederalFinanceSource(url: string) {
+  const hostname = URL.canParse(url)
+    ? new URL(url).hostname.replace(/\.$/, "")
+    : "";
+  return hostname === "fec.gov" || hostname.endsWith(".fec.gov");
+}
+
 export async function collectCaliforniaEvidence(
   input: {
     snapshot: CaliforniaRosterSnapshot;
     race: CaliforniaRaceTarget;
     member: CaliforniaRaceTarget["members"][number];
     previousDossier?: CandidateEvidenceDossier;
-    researchScope?: "finance_refresh";
+    researchScope?: "finance_refresh" | "narrative_only";
     cachedFinanceDossier?: { digest: string; document: unknown };
     supplementalSources?: ResearchSource[];
   },
   deps: CaliforniaEvidenceDependencies,
 ): Promise<CandidateEvidenceDossier> {
+  if (
+    input.researchScope === "narrative_only" &&
+    (input.previousDossier || input.cachedFinanceDossier)
+  )
+    throw new Error(
+      "Narrative-only research requires fresh inputs without prior dossiers or finance caches",
+    );
   const { snapshot, race, member } = input;
   const rosterSource: ResearchSource =
     race.officeFamily === "local"
@@ -734,6 +748,10 @@ export async function collectCaliforniaEvidence(
     format: ResearchSource["format"] = "html",
     preferredId?: string,
   ) => {
+    if (input.researchScope === "narrative_only" && isFederalFinanceSource(url))
+      throw new Error(
+        "Narrative-only research excludes federal finance sources",
+      );
     const checked = sources.find((source) => source.url === url);
     if (checked) return checked;
     let pending = deps.sharedSources.get(url);
@@ -1134,7 +1152,13 @@ export async function collectCaliforniaEvidence(
     let candidatePages = 0;
     for (let index = 0; index < queue.length && candidatePages < 5; index++) {
       const { url, parent, anchorText } = queue[index]!;
-      if (visited.has(url)) continue;
+      if (
+        visited.has(url) ||
+        (input.researchScope === "narrative_only" &&
+          /^https?:\/\//.test(url) &&
+          isFederalFinanceSource(url))
+      )
+        continue;
       visited.add(url);
       candidatePages++;
       try {
@@ -1355,7 +1379,11 @@ export async function collectCaliforniaEvidence(
     "not_found_in_checked_sources";
   let financeGap =
     "California or local campaign-finance totals and donor records have not been reconciled. Federal FEC records do not apply to this office.";
-  if (race.officeFamily === "us_house") {
+  if (input.researchScope === "narrative_only") {
+    financeGap =
+      "Campaign-finance research is still pending for this candidate.";
+    financeGapCode = "source_unavailable";
+  } else if (race.officeFamily === "us_house") {
     const scope = [race];
     const identitySources = [rosterSource];
     const beforeIdentity = new Set(sources.map((source) => source.id));
@@ -1447,9 +1475,14 @@ export async function collectCaliforniaEvidence(
       dimension: "finance",
       code: financeGapCode,
       message: financeGap,
-      checkedSourceIds: sources
-        .filter((source) => new URL(source.url).hostname.endsWith("fec.gov"))
-        .map((source) => source.id),
+      checkedSourceIds:
+        input.researchScope === "narrative_only"
+          ? []
+          : sources
+              .filter((source) =>
+                new URL(source.url).hostname.endsWith("fec.gov"),
+              )
+              .map((source) => source.id),
       required: false,
     });
   if (race.kind === "retention")
@@ -1506,6 +1539,7 @@ export async function fetchBoundedCaliforniaSource(
   controls?: {
     transport?: typeof requestPublicSource;
     addresses?: typeof publicSourceAddresses;
+    researchScope?: "narrative_only";
   },
 ): Promise<ResearchSource> {
   const requestedURL = canonicalSourceUrl(url);
@@ -1518,6 +1552,13 @@ export async function fetchBoundedCaliforniaSource(
   let response: Response | undefined;
   const retrievalUrls: string[] = [];
   for (let redirects = 0; redirects <= 3; redirects++) {
+    if (
+      controls?.researchScope === "narrative_only" &&
+      isFederalFinanceSource(currentURL)
+    )
+      throw new Error(
+        "Narrative-only research excludes federal finance sources",
+      );
     let resolved: Awaited<ReturnType<typeof addresses>>;
     try {
       resolved = await addresses(currentURL);

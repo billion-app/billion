@@ -622,6 +622,17 @@ race keys to refresh a release inside the ordinary 12-hour reuse window. It
 still fetches current sources and requires independent review; it does not reset
 old drafts or relax publication checks.
 
+To research fresh candidate narrative without collecting financial records, add
+`--narrative-only` to a bounded reconciliation with explicit `--race` keys. It
+requires the ordinary `--apply`, approved `--policy`, source and model budgets.
+It cannot be combined with `--finance-only`. The collector uses no prior dossier,
+retained narrative or finance cache and makes no finance-specific source requests.
+Financial records stay unavailable, with the existing public absence disclosure.
+Current eligible race releases are preserved even with `--refresh-current`.
+Fresh substantive candidate Record or Priorities, independent review, source age
+and whole-race publication checks still apply. This scope does not complete
+financial research or clear previous rejected or unknown model attempts.
+
 To update financial research without regenerating unchanged campaign prose, add
 `--finance-only` to an explicit `--refresh-current` reconciliation. Every selected
 candidate must already have a published revision with matching author and reviewer

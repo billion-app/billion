@@ -18,6 +18,7 @@ import { ResearchReviewCollectionConflict } from "@acme/api/lib/candidate-brief-
 import {
   candidateBriefSchema,
   candidateEvidenceDossierSchema,
+  candidatePublicContentProjection,
   deriveCandidateResearchQuality,
 } from "@acme/validators";
 
@@ -3607,4 +3608,272 @@ test("historical narrative preserves exact author values regardless JSONB object
   (artifacts[0]!.author as Record<string, unknown>).unexpectedProof =
     "not in signed attestation";
   assert.equal(qualifyFinanceNarrativeBaseline(input), null);
+});
+
+test("narrative-only requires explicit races and excludes finance-only before acquisition", async () => {
+  const f = await fixture();
+  const input = {
+    snapshotId: f.snapshot.id,
+    policyVersion: "policy",
+    bounds,
+    narrativeOnly: true,
+  };
+  await assert.rejects(
+    reconcile(input, f.deps),
+    /requires explicit operator race keys/,
+  );
+  await assert.rejects(
+    reconcile({ ...input, financeOnly: true }, f.deps),
+    /mutually exclusive/,
+  );
+  assert.equal(f.stats.investigations, 0);
+  assert.equal(f.stats.authors, 0);
+});
+
+for (const priorEpoch of [3, 4]) {
+  test(`narrative-only excludes retained epoch-${priorEpoch} dossier and narrative inputs`, async () => {
+    const f = await fixture();
+    const race = f.snapshot.races[0]!;
+    f.rows.set(race.raceKey, {
+      raceKey: race.raceKey,
+      status: "blocked",
+      checkpoint: {
+        releaseId: "revoked-release",
+        dossierDigests: Object.fromEntries(
+          race.members.map((member) => [
+            member.candidateId,
+            "old-finance-dossier",
+          ]),
+        ),
+        dossierReviewEpochs: Object.fromEntries(
+          race.members.map((member) => [member.candidateId, priorEpoch]),
+        ),
+        candidateProvenance: Object.fromEntries(
+          race.members.map((member) => [
+            member.candidateId,
+            { dossierDigest: "old-finance-cache" },
+          ]),
+        ),
+      },
+    });
+    const claim = f.deps.claim;
+    f.deps.claim = async (input) => ({
+      ...(await claim(input))!,
+      reviewEpoch: 4,
+    });
+    const artifact = f.deps.artifact;
+    f.deps.artifact = async (key) => {
+      assert.ok(
+        !key.includes("old-finance"),
+        "historical finance must not be loaded",
+      );
+      return artifact(key);
+    };
+    f.deps.readFinanceNarrativeBaselines = async () => {
+      throw new Error("must not read retained narrative");
+    };
+    const investigate = f.deps.investigate;
+    f.deps.investigate = async (input, budget) => {
+      assert.equal(input.researchScope, "narrative_only");
+      assert.equal("previousDossier" in input, false);
+      assert.equal("cachedFinanceDossier" in input, false);
+      return investigate(input, budget);
+    };
+    const author = f.deps.author;
+    f.deps.author = async (input) => {
+      assert.equal(input.retainedNarrative, undefined);
+      return author(input);
+    };
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        narrativeOnly: true,
+        raceKeys: [race.raceKey],
+      },
+      f.deps,
+    );
+    assert.equal(result.completed, 1);
+    assert.equal(f.stats.authors, race.members.length);
+    assert.equal(f.stats.reviews, race.members.length);
+  });
+}
+
+test("narrative-only preserves actual current coverage despite stale checkpoints and explicit refresh", async () => {
+  const f = await fixture();
+  const race = f.snapshot.races[0]!;
+  f.deps.readPublishedCoverage = async () => ({
+    snapshotId: f.snapshot.id,
+    races: [
+      {
+        contestId: race.contestId,
+        jurisdiction: race.jurisdiction,
+        electionDate: race.electionDate,
+        releaseId: "current-eligible-release",
+        sourceCheckedAt: f.deps.now(),
+        policyVersion: "policy",
+        members: race.members.map((member) => ({
+          candidateId: member.candidateId,
+          revisionId: randomUUID(),
+          collectionId: null,
+          author: null,
+          reviewer: null,
+        })),
+      },
+    ],
+  });
+  f.deps.claim = async () => {
+    throw new Error("must not replace current coverage");
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      narrativeOnly: true,
+      refreshCurrent: true,
+      raceKeys: [race.raceKey],
+    },
+    f.deps,
+  );
+  assert.equal(result.outcomes[0]?.status, "current");
+  assert.equal(f.stats.investigations, 0);
+  assert.equal(f.stats.authors, 0);
+});
+
+test("narrative-only without substantive candidate evidence stays pending without model dispatch", async () => {
+  const f = await fixture();
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (...args) => {
+    const dossier = await investigate(...args);
+    return buildCaliforniaDossier({
+      ...dossier,
+      evidence: dossier.evidence.filter((entry) => entry.role === "roster"),
+      sources: dossier.sources.filter((entry) => entry.id === "roster"),
+      finance: null,
+    });
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      narrativeOnly: true,
+      raceKeys: [f.snapshot.races[0]!.raceKey],
+    },
+    f.deps,
+  );
+  assert.equal(result.completed, 0);
+  assert.equal(result.outcomes[0]?.status, "pending");
+  assert.equal(f.stats.authors, 0);
+  assert.equal(f.stats.reviews, 0);
+  assert.equal(f.stats.releases, 0);
+});
+
+test("narrative-only fails closed when canonical review history is unavailable", async () => {
+  const f = await fixture();
+  let historyReads = 0;
+  f.deps.reviewHistory = async () => {
+    historyReads++;
+    return {
+      kind: "unavailable",
+      reason: "Fixture cannot establish complete canonical history",
+    };
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      narrativeOnly: true,
+      raceKeys: [f.snapshot.races[0]!.raceKey],
+    },
+    f.deps,
+  );
+  assert.equal(result.blocked, 1);
+  assert.match(
+    result.outcomes[0]?.reason ?? "",
+    /semantic review history is unavailable/,
+  );
+  assert.ok(historyReads > 0);
+  assert.equal(f.stats.reviews, 0);
+  assert.equal(f.stats.releases, 0);
+});
+
+test("narrative-only gap changes cannot repeat review of unchanged rejected public content", async () => {
+  const f = await fixture();
+  const investigated: CandidateEvidenceDossier[] = [];
+  const publicContent: ReturnType<typeof candidatePublicContentProjection>[] =
+    [];
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (input, budget) => {
+    const dossier = await investigate(input, budget);
+    const fresh =
+      input.researchScope === "narrative_only"
+        ? buildCaliforniaDossier({
+            ...dossier,
+            finance: null,
+            gaps: [
+              ...dossier.gaps,
+              {
+                dimension: "finance",
+                code: "source_unavailable",
+                message:
+                  "Campaign-finance research is still pending for this candidate.",
+                checkedSourceIds: [],
+                required: false,
+              },
+            ],
+          })
+        : dossier;
+    investigated.push(fresh);
+    return fresh;
+  };
+  const author = f.deps.author;
+  f.deps.author = async (input) => {
+    const result = await author(input);
+    assert.equal(result.attestation.dossierDigest, input.dossier.dossierDigest);
+    assert.equal(
+      result.attestation.sourceSetDigest,
+      input.dossier.sourceSetDigest,
+    );
+    publicContent.push(candidatePublicContentProjection(result.brief));
+    return result;
+  };
+  const review = f.deps.review;
+  f.deps.review = async (input) => ({
+    ...(await review(input)),
+    verdict: "reject",
+  });
+  for (const narrativeOnly of [false, true]) {
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        narrativeOnly,
+        raceKeys: [f.snapshot.races[0]!.raceKey],
+      },
+      f.deps,
+    );
+    assert.equal(result.blocked, 1);
+  }
+  assert.equal(investigated.length, 2);
+  assert.notEqual(
+    investigated[0]!.dossierDigest,
+    investigated[1]!.dossierDigest,
+  );
+  assert.equal(
+    investigated[0]!.sourceSetDigest,
+    investigated[1]!.sourceSetDigest,
+  );
+  assert.deepEqual(investigated[0]!.sources, investigated[1]!.sources);
+  assert.deepEqual(investigated[0]!.evidence, investigated[1]!.evidence);
+  assert.deepEqual(investigated[0]!.identity, investigated[1]!.identity);
+  assert.ok(publicContent.length >= 2);
+  for (const content of publicContent)
+    assert.deepEqual(content, publicContent[0]);
+  assert.equal(f.stats.reviews, 1);
+  assert.equal(f.stats.releases, 0);
 });

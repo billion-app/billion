@@ -336,3 +336,17 @@ unavailable to public readers until fresh evidence and new independent reviews
 produce a current release. A newer revoked release cannot revive an older
 approval. Retained nonfinancial evidence still requires fresh qualification, and
 the twelve-hour query cache limit remains unchanged.
+
+## Fresh narrative-only research
+
+An explicit bounded narrative-only reconciliation acquires current nonfinancial
+evidence without reusing old dossiers, financial query caches or reviewed prose.
+It skips all finance-specific identity and source acquisition. The dossier records
+null finance and an honest gap with no checked financial sources. The existing
+public compiler describes financial amounts as unavailable, never zero.
+
+This scope preserves current eligible race releases and requires substantive
+candidate Record or Priorities with the ordinary author, independent review,
+source freshness and whole-race gates. It does not change policy or clear prior
+model failures. The [scraper CLI guide](../apps/scraper/README.md#candidate-research-demand)
+describes its operator flags.
