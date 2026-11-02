@@ -124,6 +124,27 @@ export function createCampaignBrowserHost(options: RendererHostOptions) {
       new Promise((resolve) => setTimeout(resolve, 5_000)),
     ]);
   };
+  const stopOwnedDriver = async (lease: BrowserLease) => {
+    const driver = lease.server?.process();
+    if (!driver || driver.exitCode !== null || driver.signalCode !== null)
+      return;
+    await new Promise<void>((resolve, reject) => {
+      const finished = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      const timer = setTimeout(() => {
+        driver.removeListener("exit", finished);
+        reject(
+          new Error(
+            "Owned browser driver did not terminate after container cleanup",
+          ),
+        );
+      }, 5_000);
+      driver.once("exit", finished);
+      driver.kill("SIGTERM");
+    });
+  };
   const cleanup = (lease: BrowserLease): Promise<void> => {
     if (lease.cleanup) return lease.cleanup;
     lease.cleanup = (async () => {
@@ -143,6 +164,7 @@ export function createCampaignBrowserHost(options: RendererHostOptions) {
       }
       if (lease.launchStarted && (await inspect(lease.name)))
         throw new Error("Owned browser container remains after cleanup");
+      await stopOwnedDriver(lease);
       if (active === lease) active = undefined;
     })().catch((error) => {
       quarantined = true;

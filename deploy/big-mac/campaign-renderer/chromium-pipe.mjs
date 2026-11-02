@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
-import { createReadStream, createWriteStream } from 'node:fs';
+import { Socket } from 'node:net';
 import { fileURLToPath } from 'node:url';
 
 const name = process.env.BILLION_RENDER_CONTAINER;
@@ -22,8 +22,14 @@ const child = spawn(docker, ['run', '--rm', '-i', '--pull=never', '--name', name
   'mcr.microsoft.com/playwright@sha256:6446946a1d9fd62d9ae501312a2d76a43ee688542b21622056a372959b65d63d',
   '-c', 'exec /ms-playwright/chromium-1208/chrome-linux/chrome "$@" 3<&0 4>&1', 'sh', ...chromiumArgs],
 { stdio: ['pipe', 'pipe', 'inherit'], env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: process.env.HOME, ...(process.env.DOCKER_HOST ? { DOCKER_HOST: process.env.DOCKER_HOST } : {}), ...(process.env.DOCKER_CONTEXT ? { DOCKER_CONTEXT: process.env.DOCKER_CONTEXT } : {}) } });
-createReadStream(null, { fd: 3 }).pipe(child.stdin);
-child.stdout.pipe(createWriteStream(null, { fd: 4 }));
+new Socket({ fd: 3, readable: true, writable: false }).pipe(child.stdin);
+child.stdout.pipe(new Socket({ fd: 4, readable: false, writable: true }));
 child.on('error', () => process.exit(1));
 child.on('exit', code => process.exit(code ?? 1));
-for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(signal, () => child.kill(signal));
+let shutdownTimer;
+for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(signal, () => {
+  if (shutdownTimer) return;
+  child.kill(signal);
+  shutdownTimer = setTimeout(() => child.kill('SIGKILL'), 1_000);
+  shutdownTimer.unref();
+});

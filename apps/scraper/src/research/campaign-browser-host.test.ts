@@ -13,6 +13,26 @@ import {
   createCampaignBrowserHost,
 } from "./campaign-browser-host";
 
+async function assertOwnedDriversGone() {
+  const { stdout } = await promisify(execFile)("ps", [
+    "-axo",
+    "pid,ppid,command",
+  ]);
+  const drivers = stdout.split("\n").filter((line) => {
+    const fields = /^\s*(\d+)\s+(\d+)\s+(.+)$/.exec(line);
+    return (
+      fields &&
+      Number(fields[2]) === process.pid &&
+      fields[3]?.includes("/campaign-renderer/chromium-pipe.mjs")
+    );
+  });
+  assert.deepEqual(
+    drivers,
+    [],
+    "host.close must join its owned local browser driver",
+  );
+}
+
 test(
   "fixed host capability: authentication, sandbox, no IP sockets, cleanup",
   { skip: process.env.CAMPAIGN_BROWSER_LOCAL_SMOKE !== "1", timeout: 120_000 },
@@ -152,6 +172,7 @@ test(
       }
     } finally {
       await host.close();
+      await assertOwnedDriversGone();
     }
   },
 );
@@ -195,6 +216,7 @@ test(
       assert.equal(response.status, 503);
     } finally {
       await host.close();
+      await assertOwnedDriversGone();
       rmSync(temporary, { recursive: true, force: true });
     }
     const remaining = await execute(docker, [
@@ -322,6 +344,7 @@ test(
       }
     } finally {
       await host.close();
+      await assertOwnedDriversGone();
     }
   },
 );
