@@ -1,0 +1,30 @@
+{
+  "mobyCommit": "4b8214fc4971e06172938a1f1554ccff6647ee80",
+  "baseline": {
+    "url": "https://raw.githubusercontent.com/moby/profiles/4b8214fc4971e06172938a1f1554ccff6647ee80/seccomp/default.json",
+    "status": 200,
+    "at": "2026-11-02T00:03:46.698Z",
+    "bytes": 17867,
+    "sha256": "6416b47770785a41ac59073cdc77d9fe98517df2799dc83ef207e622de3053f6",
+    "file": "seccomp-moby-default.json"
+  },
+  "metadata": {
+    "url": "https://api.github.com/repos/moby/profiles/commits/main",
+    "status": 200,
+    "at": "2026-11-02T00:03:46.441Z",
+    "bytes": 6965,
+    "sha256": "90f9370dab8287b516760f16fb1952dd08e10c713708cbf616c2c050204133fe",
+    "file": "moby-profile-commit.json"
+  },
+  "namespaceExceptions": {
+    "source": "https://raw.githubusercontent.com/microsoft/playwright/ce480a952553175eae75342aad2c5e86cdf2cbba/utils/docker/seccomp_profile.json",
+    "names": ["clone", "setns", "unshare"]
+  },
+  "socketPolicy": "Replace generic socket/socketcall allowance with AF_UNIX-only socket. AF_INET and AF_INET6 stay denied by default.",
+  "derived": {
+    "canonicalJsonSha256": "428a062dfcc138999687d9922b61a8bc5cf0bce198198e4cf45c5e9b0289cb52",
+    "additionalChroot": "Chromium namespace sandbox chroots into /proc/self/fdinfo/ after creating its own user namespace. Container retains cap-drop ALL; no host CAP_SYS_CHROOT is added.",
+    "image": "mcr.microsoft.com/playwright@sha256:6446946a1d9fd62d9ae501312a2d76a43ee688542b21622056a372959b65d63d",
+    "playwrightVersion": "1.58.2"
+  }
+}

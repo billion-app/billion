@@ -134,6 +134,18 @@
     "./lib/california-review-history": {
       "types": "./dist/lib/california-review-history.d.ts",
       "default": "./src/lib/california-review-history.ts"
+    },
+    "./lib/campaign-source-html": {
+      "types": "./dist/lib/campaign-source-html.d.ts",
+      "default": "./src/lib/campaign-source-html.ts"
+    },
+    "./lib/campaign-render-archive": {
+      "types": "./dist/lib/campaign-render-archive.d.ts",
+      "default": "./src/lib/campaign-render-archive.ts"
+    },
+    "./lib/campaign-ownership": {
+      "types": "./dist/lib/campaign-ownership.d.ts",
+      "default": "./src/lib/campaign-ownership.ts"
     }
   },
   "license": "MIT",
@@ -158,6 +170,7 @@
     "@openrouter/ai-sdk-provider": "^2.10.0",
     "@trpc/server": "catalog:",
     "ai": "^6.0.141",
+    "cheerio": "^1.2.0",
     "superjson": "2.2.6",
     "zod": "catalog:"
   },

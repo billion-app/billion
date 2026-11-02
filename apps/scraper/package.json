@@ -23,7 +23,7 @@
     "drizzle-zod": "^0.8.3",
     "p-limit": "^7.3.0",
     "pg": "^8.20.0",
-    "playwright": "^1.58.2",
+    "playwright": "1.58.2",
     "sharp": "^0.34.5",
     "turndown": "^7.2.2",
     "unpdf": "^1.6.2",
@@ -64,7 +64,8 @@
     "search-benchmark": "tsx src/research/benchmark-entry.ts",
     "content-translations": "tsx src/content-translations-entry.ts",
     "local-decision-briefs": "tsx src/local-decision-briefs-entry.ts",
-    "california-research": "tsx src/california-research-entry.ts"
+    "california-research": "tsx src/california-research-entry.ts",
+    "campaign-browser-host": "tsx src/campaign-browser-host-entry.ts"
   },
   "author": "It's not you it's me",
   "license": "ISC"

@@ -23,6 +23,7 @@ import {
   getCurrentCaliforniaRosterId,
   invalidateCaliforniaResearchState,
 } from "./california-roster-store";
+import { validateCampaignRenderSources } from "./campaign-render-archive";
 import { briefDigest, briefIdentityKey } from "./candidate-brief-publication";
 import {
   candidatePublicationPolicy,
@@ -194,6 +195,9 @@ export function researchSourceDigest(
         s.format,
         s.contentHash,
         ...(modern && s.format === "image" && s.byteHash ? [s.byteHash] : []),
+        ...(s.acquisition
+          ? [s.acquisition.kind, s.acquisition.semanticDigest]
+          : []),
       ])
       .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
     document.problems,
@@ -237,6 +241,7 @@ export async function saveResearchCollection(
   options?: { workLease?: ResearchWorkLease; stagedPolicyVersion?: string },
 ) {
   const document = candidateResearchCollectionSchema.parse(value);
+  validateCampaignRenderSources(document.sources);
   for (const source of document.sources) {
     if (
       createHash("sha256").update(source.text).digest("hex") !==
