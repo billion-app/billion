@@ -144,6 +144,13 @@ This does not require invented claims: if the context still cannot establish
 candidate research, an accurately sourced finance-only brief remains eligible
 for independent review. The original draft and correction slot remain immutable.
 
+A correction must preserve the meaning of its cited passage. If the passage
+supports a claim but the claim names the wrong page, the author fixes the page
+description rather than switching citations to fit that mistaken label. A changed
+citation must support the full claim, including whether it describes past work
+or a current commitment. Unsupported claims can be omitted; the existing single
+correction limit and independent review still apply.
+
 An approved review belongs to its saved collection. If replacing one candidate's
 draft creates a new collection, an unchanged opponent needs a review for that
 collection too. The worker reuses the author and obtains a collection-scoped
