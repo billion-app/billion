@@ -146,8 +146,8 @@ function fixture() {
       calls.push({ role: "author", correction: input.correction });
       return authorCaliforniaBrief(input, {
         now: deps.now,
-        invoke: async () => ({
-          output: {
+        invoke: async () => {
+          const output = {
             priorities: {
               claims: [
                 {
@@ -167,14 +167,25 @@ function fixture() {
             tradeoffs: { claims: [] },
             unknowns: { claims: [] },
             terms: [],
-          },
-          configuredModel: "fixture",
-          actualModel: "fixture",
-          provider: "fixture",
-          requestId: "request",
-          usage: { inputTokens: 100, outputTokens: 50 },
-          costUsd: null,
-        }),
+          };
+          return {
+            output: input.retainedNarrative
+              ? {
+                  retainedNarrativeJson: JSON.stringify(
+                    californiaAuthorOutputSchema(
+                      californiaAuthorEvidence(input.dossier),
+                    ).parse(output),
+                  ),
+                }
+              : output,
+            configuredModel: "fixture",
+            actualModel: "fixture",
+            provider: "fixture",
+            requestId: "request",
+            usage: { inputTokens: 100, outputTokens: 50 },
+            costUsd: null,
+          };
+        },
       });
     },
     review: async ({ authorAttestation }) => {
@@ -1629,7 +1640,7 @@ test("finance refresh cache binds narrative rather than changing publication run
   );
   assert.equal(
     first.authored.attestation.promptVersion,
-    "california-finance-refresh-v4",
+    "california-finance-refresh-v5",
   );
   const count = f.calls.length;
   const second = await prepareReviewedCaliforniaCandidate(
@@ -1656,8 +1667,9 @@ test("finance refresh cache binds narrative rather than changing publication run
 for (const legacyVersion of [
   "california-finance-refresh-v2",
   "california-finance-refresh-v3",
+  "california-finance-refresh-v4",
 ]) {
-  test(`finance refresh v4 does not reuse a ${legacyVersion} author artifact`, async () => {
+  test(`finance refresh v5 does not reuse a ${legacyVersion} author artifact`, async () => {
     const original = fixture();
     const input = original.fresh();
     const retainedNarrative = retainedFixture(input.dossier);
@@ -1692,7 +1704,7 @@ for (const legacyVersion of [
     );
     assert.equal(
       refreshed.authored.attestation.promptVersion,
-      "california-finance-refresh-v4",
+      "california-finance-refresh-v5",
     );
     assert.deepEqual(current.artifacts.get(legacyKey), legacy);
   });
