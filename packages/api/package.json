@@ -146,7 +146,6 @@
     "./lib/campaign-ownership": {
       "types": "./dist/lib/campaign-ownership.d.ts",
       "default": "./src/lib/campaign-ownership.ts"
-
     }
   },
   "license": "MIT",
@@ -171,9 +170,9 @@
     "@openrouter/ai-sdk-provider": "^2.10.0",
     "@trpc/server": "catalog:",
     "ai": "^6.0.141",
+    "cheerio": "^1.2.0",
     "superjson": "2.2.6",
-    "zod": "catalog:",
-    "cheerio": "^1.2.0"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@acme/eslint-config": "workspace:*",
