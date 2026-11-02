@@ -13,6 +13,7 @@ import {
 import {
   briefDigest,
   evidenceHashKey,
+  ResearchEligibleRaceConflict,
   ResearchReviewCollectionConflict,
 } from "./candidate-brief-publication";
 import { readCandidateRace } from "./candidate-race-release";
@@ -567,6 +568,258 @@ void test(
       await db
         .delete(Policy)
         .where(inArray(Policy.version, [oldVersion, newVersion]));
+    }
+  },
+);
+
+void test(
+  "automatic narrative publication preserves finance adopted after the fallback decision",
+  { skip: !process.env.CANDIDATE_RESEARCH_TEST_DATABASE_URL },
+  async () => {
+    const url = required(process.env.CANDIDATE_RESEARCH_TEST_DATABASE_URL);
+    const target = new URL(url);
+    assert.ok(
+      ["localhost", "127.0.0.1"].includes(target.hostname) &&
+        target.pathname.endsWith("_test"),
+    );
+    process.env.POSTGRES_URL = url;
+    const { db } = await import("@acme/db/client");
+    const { eq, inArray, sql } = await import("@acme/db");
+    const {
+      CandidateBriefReviewEvent: Event,
+      CandidateBriefRevision: Revision,
+      CandidateResearchCollection: Collection,
+      CandidateResearchPolicy: Policy,
+      CandidateRaceRelease: Release,
+    } = await import("@acme/db/schema");
+    const {
+      saveResearchCollection,
+      researchSourceDigest,
+      failResearchRefresh,
+    } = await import("./candidate-research-store");
+    const { publishResearchCollection, adoptResearchPolicy } =
+      await import("./candidate-research-service");
+    const version = `fallback-preservation-${randomUUID()}`;
+    const finance = fixture();
+    const financeBrief = required(finance.briefs[0]);
+    financeBrief.research = {
+      headlineClaimId: "record-claim",
+      promises: [],
+      finance: campaignFinanceSchema.parse({
+        committeeId: "C00000001",
+        committeeName: "Synthetic committee",
+        periodStart: "2026-01-01",
+        periodEnd: "2026-10-01",
+        currency: "USD",
+        coverage: "partial",
+        coverageNote: "Synthetic publication preservation fixture",
+        updatedAt: financeBrief.createdAt,
+        filingEvidenceIds: ["record"],
+        receipts: {
+          totalCents: 100,
+          breakdown: {
+            individuals: 100,
+            committees: 0,
+            self_contributions: 0,
+            candidate_loans: 0,
+            transfers: 0,
+            other: 0,
+          },
+          refundsCents: null,
+        },
+        donors: [],
+        donorCoverage: "unavailable",
+        outsideSpending: null,
+      }),
+      financeGap: null,
+    };
+    const narrative = structuredClone(finance);
+    narrative.researchVersion = "narrative-preservation-fixture";
+    const narrativeBrief = required(narrative.briefs[0]);
+    narrativeBrief.revisionId = randomUUID();
+    narrativeBrief.research = {
+      headlineClaimId: "record-claim",
+      promises: [],
+      finance: null,
+      financeGap:
+        "Financial records were not collected in this narrative-only research run.",
+    };
+    required(narrative.manifest.members[0]).revisionId =
+      narrativeBrief.revisionId;
+    const revisionIds = [financeBrief.revisionId, narrativeBrief.revisionId];
+    const collectionIds: string[] = [];
+    const releaseIds: string[] = [];
+    try {
+      assert.deepEqual(
+        await db
+          .select()
+          .from(Release)
+          .where(
+            sql`${Release.document}->>'contestId' = ${finance.manifest.contestId}`,
+          ),
+        [],
+        "Fallback decision observes no published race",
+      );
+      const savedFinance = await saveResearchCollection(finance, db, {
+        stagedPolicyVersion: version,
+        preserveEligibleRace: true,
+      });
+      collectionIds.push(savedFinance.collectionId);
+      await db.insert(Event).values({
+        revisionId: financeBrief.revisionId,
+        actorId: "independent-fixture",
+        action: "approve",
+        policyVersion: version,
+        reason: "Exact synthetic finance revision review",
+      });
+      const adopted = await adoptResearchPolicy({
+        policy: {
+          version,
+          approvedBy: "fixture-owner",
+          statement:
+            "This synthetic policy authorizes reviewed fixture publications only inside the disposable local regression test database.",
+        },
+        collectionIds: [savedFinance.collectionId],
+      });
+      releaseIds.push(...adopted.releaseIds);
+      const beforeSave = await db
+        .select()
+        .from(Collection)
+        .where(eq(Collection.id, savedFinance.collectionId));
+      const beforeRelease = await db
+        .select()
+        .from(Release)
+        .where(inArray(Release.id, releaseIds));
+      await assert.rejects(
+        saveResearchCollection(narrative, db, { preserveEligibleRace: true }),
+        ResearchEligibleRaceConflict,
+      );
+      await assert.rejects(
+        saveResearchCollection(finance, db, { preserveEligibleRace: true }),
+        ResearchEligibleRaceConflict,
+      );
+      await assert.rejects(
+        failResearchRefresh(
+          finance.pilotKey,
+          "Synthetic required source failure",
+          db,
+          {
+            preserveEligibleRace: true,
+          },
+        ),
+        ResearchEligibleRaceConflict,
+      );
+      assert.deepEqual(
+        await db
+          .select()
+          .from(Collection)
+          .where(eq(Collection.id, savedFinance.collectionId)),
+        beforeSave,
+        "Changed acquisition, unchanged acquisition and source failure preserve the collected finance state",
+      );
+      assert.deepEqual(
+        await db.select().from(Release).where(inArray(Release.id, releaseIds)),
+        beforeRelease,
+        "Acquisition and failure do not withdraw finance or refresh its clocks",
+      );
+      const narrativeCollectionId = randomUUID();
+      await db.insert(Revision).values({
+        id: narrativeBrief.revisionId,
+        identityKey: JSON.stringify([
+          narrativeBrief.identity.jurisdiction,
+          narrativeBrief.identity.electionDate,
+          narrativeBrief.identity.contestId,
+          narrativeBrief.identity.candidateId,
+        ]),
+        revisionDigest: briefDigest(narrativeBrief),
+        document: narrativeBrief,
+      });
+      await db.insert(Collection).values({
+        id: narrativeCollectionId,
+        pilotKey: narrative.pilotKey,
+        sourceDigest: researchSourceDigest(narrative),
+        document: narrative,
+        checkedAt: new Date(narrative.manifest.sourceCheckedAt),
+      });
+      collectionIds.push(narrativeCollectionId);
+      await db.insert(Event).values({
+        revisionId: narrativeBrief.revisionId,
+        actorId: "independent-fixture",
+        action: "approve",
+        policyVersion: version,
+        reason: "Exact synthetic narrative revision review",
+      });
+      const before = await db
+        .select()
+        .from(Release)
+        .where(inArray(Release.id, releaseIds));
+      assert.ok(
+        readCandidateRace({
+          manifest: required(before[0]).document,
+          revokedReason: null,
+          revisions: [
+            {
+              id: financeBrief.revisionId,
+              document: financeBrief,
+              revisionDigest: briefDigest(financeBrief),
+            },
+          ],
+          events: await db
+            .select()
+            .from(Event)
+            .where(eq(Event.revisionId, financeBrief.revisionId)),
+          policy: { approved: true, version },
+          now: new Date().toISOString(),
+        })?.briefs.every((brief) => brief.research?.finance),
+      );
+      await assert.rejects(
+        publishResearchCollection({
+          collectionId: narrativeCollectionId,
+          actorId: "fixture-owner",
+          preserveEligibleRace: true,
+        }),
+        ResearchEligibleRaceConflict,
+      );
+      assert.deepEqual(
+        await db.select().from(Release).where(inArray(Release.id, releaseIds)),
+        before,
+        "Preservation does not mutate original source or expiry clocks",
+      );
+      const explicit = await publishResearchCollection({
+        collectionId: narrativeCollectionId,
+        actorId: "fixture-owner",
+      });
+      releaseIds.push(explicit.releaseId);
+      assert.notEqual(explicit.releaseId, adopted.releaseIds[0]);
+      await db
+        .update(Release)
+        .set({ revokedReason: "Synthetic withdrawal" })
+        .where(eq(Release.id, explicit.releaseId));
+      const guardedSaved = await saveResearchCollection(narrative, db, {
+        preserveEligibleRace: true,
+      });
+      assert.equal(guardedSaved.collectionId, narrativeCollectionId);
+      const restored = await publishResearchCollection({
+        collectionId: guardedSaved.collectionId,
+        actorId: "fixture-owner",
+        preserveEligibleRace: true,
+      });
+      releaseIds.push(restored.releaseId);
+      assert.notEqual(
+        restored.releaseId,
+        explicit.releaseId,
+        "A revoked latest release allows fresh publication without reviving older eligible finance",
+      );
+    } finally {
+      if (releaseIds.length)
+        await db.delete(Release).where(inArray(Release.id, releaseIds));
+      await db.delete(Event).where(inArray(Event.revisionId, revisionIds));
+      if (collectionIds.length)
+        await db
+          .delete(Collection)
+          .where(inArray(Collection.id, collectionIds));
+      await db.delete(Revision).where(inArray(Revision.id, revisionIds));
+      await db.delete(Policy).where(eq(Policy.version, version));
     }
   },
 );

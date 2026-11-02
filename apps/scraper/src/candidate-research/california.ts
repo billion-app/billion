@@ -16,6 +16,7 @@ import type {
 } from "@acme/validators";
 import {
   evidenceHashKey,
+  ResearchEligibleRaceConflict,
   ResearchReviewCollectionConflict,
 } from "@acme/api/lib/candidate-brief-publication";
 import {
@@ -248,6 +249,7 @@ export interface CaliforniaDependencies {
   saveCollection(
     document: CandidateResearchCollectionDocument,
     lease?: Lease,
+    options?: { preserveEligibleRace?: boolean },
   ): Promise<{ collectionId: string; changed: boolean; checkedAt: string }>;
   attest(input: {
     collectionId: string;
@@ -257,12 +259,17 @@ export interface CaliforniaDependencies {
     dossier: CandidateEvidenceDossier;
     workLease?: Lease;
   }): Promise<unknown>;
-  publish(collectionId: string, lease: Lease): Promise<{ releaseId: string }>;
+  publish(
+    collectionId: string,
+    lease: Lease,
+    options?: { preserveEligibleRace?: boolean },
+  ): Promise<{ releaseId: string }>;
   fail(
     raceKey: string,
     reason: string,
     lease?: Lease,
     attempted?: CaliforniaWorkCheckpoint,
+    options?: { preserveEligibleRace?: boolean },
   ): Promise<void>;
   invalidateElection(input: {
     electionDate: string;
@@ -694,10 +701,11 @@ export async function createCaliforniaDependencies(
     },
     author: authorCaliforniaBrief,
     review: reviewCaliforniaBrief,
-    saveCollection: (document, lease) =>
+    saveCollection: (document, lease, options) =>
       collection.saveResearchCollection(document, db, {
         workLease: lease,
         stagedPolicyVersion: preparationPolicy?.version,
+        preserveEligibleRace: options?.preserveEligibleRace,
       }),
     attest: async (input) =>
       service.recordResearchAiReview({
@@ -712,17 +720,19 @@ export async function createCaliforniaDependencies(
           findings: input.review.findings,
         },
       }),
-    publish: (id, lease) =>
+    publish: (id, lease, options) =>
       service.publishResearchCollection({
         workLease: lease,
+        preserveEligibleRace: options?.preserveEligibleRace,
         collectionId: id,
         actorId: "california-research-service",
       }),
     invalidateElection: (input) =>
       collection.invalidateResearchElection(input, db),
-    fail: (key, reason, lease, attempted) =>
+    fail: (key, reason, lease, attempted, options) =>
       collection.failResearchRefresh(key, reason, db, {
         workLease: lease,
+        preserveEligibleRace: options?.preserveEligibleRace,
         attempted: attempted
           ? {
               attemptedAt: attempted.attemptedAt!,
@@ -1263,7 +1273,18 @@ export async function reconcile(
         current.jurisdiction === race.jurisdiction &&
         current.electionDate === race.electionDate,
     );
-    if (input.narrativeOnly && publicRace) {
+    const fecDeferReason =
+      race.officeFamily === "us_house" && !input.narrativeOnly
+        ? californiaFecRetryDeferReason(fecRetry, deps.now())
+        : undefined;
+    const automaticNarrative =
+      !!fecDeferReason && !input.financeOnly && !input.narrativeOnly;
+    const acquisitionScope = input.financeOnly
+      ? ("finance_refresh" as const)
+      : input.narrativeOnly || automaticNarrative
+        ? ("narrative_only" as const)
+        : ("full" as const);
+    if ((input.narrativeOnly || automaticNarrative) && publicRace) {
       outcomes.push({
         raceKey: race.raceKey,
         status: "current",
@@ -1271,6 +1292,21 @@ export async function reconcile(
       });
       continue;
     }
+    if (fecDeferReason && input.financeOnly) {
+      outcomes.push({
+        raceKey: race.raceKey,
+        status: "pending",
+        reason: fecDeferReason,
+      });
+      continue;
+    }
+    const financeComplete = race.members.every((member) =>
+      publicRace?.members.some(
+        (current) =>
+          current.candidateId === member.candidateId &&
+          !!current.brief?.research?.finance?.observation,
+      ),
+    );
     const narrativeRace =
       input.financeOnly && narrativeCoverage
         ? narrativeCoverage.races.find(
@@ -1282,6 +1318,10 @@ export async function reconcile(
         : publicRace;
     if (
       !input.refreshCurrent &&
+      (race.officeFamily !== "us_house" ||
+        input.financeOnly ||
+        input.narrativeOnly ||
+        financeComplete) &&
       prior?.releaseId &&
       publicRace?.releaseId === prior.releaseId &&
       publicRace.policyVersion === input.policyVersion &&
@@ -1292,18 +1332,6 @@ export async function reconcile(
         raceKey: race.raceKey,
         status: "current",
         releaseId: prior.releaseId,
-      });
-      continue;
-    }
-    const fecDeferReason =
-      race.officeFamily === "us_house" && !input.narrativeOnly
-        ? californiaFecRetryDeferReason(fecRetry, deps.now())
-        : undefined;
-    if (fecDeferReason) {
-      outcomes.push({
-        raceKey: race.raceKey,
-        status: "pending",
-        reason: fecDeferReason,
       });
       continue;
     }
@@ -1335,12 +1363,45 @@ export async function reconcile(
     const attemptPrior = (lease.checkpoint ?? prior) as
       | CaliforniaWorkCheckpoint
       | undefined;
-    const attemptFecRetry = readCaliforniaFecRetry(attemptPrior, deps.now());
+    const attemptFecRetry = mergeCaliforniaFecRetry(
+      fecRetry,
+      readCaliforniaFecRetry(attemptPrior, deps.now()),
+    );
     let savedCollectionId: string | undefined;
     const candidateProvenance: NonNullable<
       CaliforniaWorkCheckpoint["candidateProvenance"]
     > = {};
     try {
+      if (automaticNarrative) {
+        const currentCoverage = await deps.readPublishedCoverage(
+          snapshot.id,
+          snapshot.electionDate,
+        );
+        const currentRace = currentCoverage.races.find(
+          (current) =>
+            current.contestId === race.contestId &&
+            current.jurisdiction === race.jurisdiction &&
+            current.electionDate === race.electionDate,
+        );
+        if (currentRace) {
+          if (
+            !(await deps.checkpoint(
+              lease,
+              "complete",
+              lease.checkpoint as CaliforniaWorkCheckpoint,
+            ))
+          )
+            throw new Error(
+              "Race lease expired before preservation checkpoint",
+            );
+          outcomes.push({
+            raceKey: race.raceKey,
+            status: "current",
+            releaseId: currentRace.releaseId,
+          });
+          continue;
+        }
+      }
       const investigated: {
         dossier: CandidateEvidenceDossier;
         authored: Awaited<ReturnType<typeof authorCaliforniaBrief>>;
@@ -1351,7 +1412,8 @@ export async function reconcile(
         const previousDossierEpoch =
           attemptPrior?.dossierReviewEpochs?.[member.candidateId] ?? 0;
         const previousDossierDigest =
-          !input.narrativeOnly && previousDossierEpoch === lease.reviewEpoch
+          acquisitionScope !== "narrative_only" &&
+          previousDossierEpoch === lease.reviewEpoch
             ? (publicRace?.members.find(
                 (current) => current.candidateId === member.candidateId,
               )?.author?.dossierDigest ??
@@ -1363,7 +1425,7 @@ export async function reconcile(
             )) as CandidateEvidenceDossier | null)
           : null;
         const publishedMember = (
-          input.narrativeOnly ? undefined : narrativeRace
+          acquisitionScope === "narrative_only" ? undefined : narrativeRace
         )?.members.find(
           (current) => current.candidateId === member.candidateId,
         );
@@ -1402,7 +1464,7 @@ export async function reconcile(
             snapshot,
             race,
             member,
-            ...(input.narrativeOnly
+            ...(acquisitionScope === "narrative_only"
               ? { researchScope: "narrative_only" as const }
               : {
                   previousDossier: input.financeOnly
@@ -1539,7 +1601,9 @@ export async function reconcile(
         author: item.authored.attestation,
         dossier: item.dossier,
       }));
-      const saved = await deps.saveCollection(document, lease);
+      const saved = await deps.saveCollection(document, lease, {
+        preserveEligibleRace: automaticNarrative,
+      });
       savedCollectionId = saved.collectionId;
       for (const item of investigated) {
         const attest = () =>
@@ -1616,7 +1680,9 @@ export async function reconcile(
         });
         continue;
       }
-      const release = await deps.publish(saved.collectionId, lease);
+      const release = await deps.publish(saved.collectionId, lease, {
+        preserveEligibleRace: automaticNarrative,
+      });
       const checkpoint = {
         ...(attemptFecRetry ? { fecRetry: attemptFecRetry } : {}),
         collectionId: saved.collectionId,
@@ -1706,7 +1772,24 @@ export async function reconcile(
         error instanceof RequiredCaliforniaSourceFailure ||
         error instanceof CaliforniaCitedSourceFailure
       ) {
-        await deps.fail(race.raceKey, reason, lease, checkpoint);
+        try {
+          await deps.fail(race.raceKey, reason, lease, checkpoint, {
+            preserveEligibleRace: automaticNarrative,
+          });
+        } catch (preservationError) {
+          if (
+            !automaticNarrative ||
+            !(preservationError instanceof ResearchEligibleRaceConflict)
+          )
+            throw preservationError;
+          if (!(await deps.checkpoint(lease, status, checkpoint)))
+            throw new Error(
+              "Race lease expired before preservation checkpoint",
+              {
+                cause: preservationError,
+              },
+            );
+        }
       } else if (!(await deps.checkpoint(lease, status, checkpoint))) {
         throw new Error("Race lease expired before failure checkpoint", {
           cause: error,
