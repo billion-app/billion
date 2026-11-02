@@ -130,6 +130,10 @@
     "./lib/california-catalog-status": {
       "types": "./dist/lib/california-catalog-status.d.ts",
       "default": "./src/lib/california-catalog-status.ts"
+    },
+    "./lib/california-review-history": {
+      "types": "./dist/lib/california-review-history.d.ts",
+      "default": "./src/lib/california-review-history.ts"
     }
   },
   "license": "MIT",

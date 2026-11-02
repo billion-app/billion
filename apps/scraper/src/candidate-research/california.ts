@@ -2,6 +2,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod/v4";
 
 import type {
+  CaliforniaReviewHistory,
+  CaliforniaReviewScope,
+} from "@acme/api/lib/california-review-history";
+import type {
   CaliforniaRaceTarget,
   CaliforniaRosterSnapshot,
   CandidateBrief,
@@ -145,6 +149,7 @@ export interface CaliforniaPublishedCoverage {
 }
 export interface CaliforniaDependencies {
   now(): string;
+  reviewHistory(scope: CaliforniaReviewScope): Promise<CaliforniaReviewHistory>;
   demandedRaceKeys(snapshot: CaliforniaRosterSnapshot): Promise<string[]>;
   readPublishedCoverage(
     snapshotId: string,
@@ -198,6 +203,11 @@ export interface CaliforniaDependencies {
     candidateId?: string;
     document: unknown;
     workLease: Lease;
+    reviewAdmission?: {
+      scope: CaliforniaReviewScope;
+      brief: CandidateBrief;
+      proof: string;
+    };
     collectionReviewAttempt?: {
       key: string;
       collectionId: string;
@@ -566,6 +576,7 @@ export async function createCaliforniaDependencies(
         status,
         checkpoint: value,
       }),
+    reviewHistory: (scope) => store.readCaliforniaModelHistory(db, scope),
     artifact: (key) => store.getCaliforniaResearchArtifact(db, key),
     hasArtifact: (key) => store.hasCaliforniaResearchArtifact(db, key),
     reserveDispatch: (input) => store.claimCaliforniaModelDispatch(input, db),

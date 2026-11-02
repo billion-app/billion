@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 
 import type {
   CaliforniaRosterSnapshot,
+  CandidateBrief,
   CandidateResearchCollectionDocument,
 } from "@acme/validators";
 import { and, desc, eq, gt, inArray, isNull, lte, ne, or, sql } from "@acme/db";
@@ -15,6 +17,14 @@ import {
 } from "@acme/db/schema";
 import { californiaRosterSnapshotSchema } from "@acme/validators";
 
+import type { CaliforniaReviewScope } from "./california-review-history";
+import {
+  californiaHistoryAuthorSchema,
+  californiaHistoryReviewSchema,
+  evaluateCaliforniaSemanticReview,
+  lockCaliforniaReviewHistory,
+  readScopedCaliforniaReviewHistory,
+} from "./california-review-history";
 import {
   encodeCaliforniaRosterStorage,
   hydrateCaliforniaRosterStorage,
@@ -354,6 +364,11 @@ export async function claimCaliforniaModelDispatch(
     raceKey: string;
     candidateId?: string;
     document: unknown;
+    reviewAdmission?: {
+      scope: CaliforniaReviewScope;
+      brief: CandidateBrief;
+      proof: string;
+    };
     collectionReviewAttempt?: {
       key: string;
       collectionId: string;
@@ -398,6 +413,46 @@ export async function claimCaliforniaModelDispatch(
       work.leaseUntil.getTime() <= Date.now()
     )
       return false;
+    if (input.key.startsWith("dispatch:review:")) {
+      const expected = input.reviewAdmission;
+      if (
+        expected?.scope.raceKey !== input.raceKey ||
+        expected.scope.candidateId !== input.candidateId ||
+        expected.scope.policyVersion !== work.policyVersion
+      )
+        throw new Error(
+          "Reviewer dispatch requires exact semantic history admission",
+        );
+      const membership = await tx.execute(
+        sql`select member->'identity' as identity from ${CaliforniaRoster}, jsonb_array_elements(${CaliforniaRoster.document}->'races') race, jsonb_array_elements(race->'members') member where ${CaliforniaRoster.id}=${work.snapshotId} and race->>'raceKey'=${input.raceKey} and member->>'candidateId'=${input.candidateId}`,
+      );
+      if (
+        membership.rows.length !== 1 ||
+        !isDeepStrictEqual(
+          (membership.rows[0] as { identity: unknown }).identity,
+          expected.scope.identity,
+        )
+      )
+        throw new Error(
+          "Reviewer admission does not match the currently leased roster identity",
+        );
+      await lockCaliforniaReviewHistory(tx, input.raceKey, input.candidateId);
+      const history = await readScopedCaliforniaReviewHistory(
+        tx,
+        expected.scope,
+      );
+      const admission = evaluateCaliforniaSemanticReview({
+        history,
+        scope: expected.scope,
+        brief: expected.brief,
+        now: new Date().toISOString(),
+      });
+      if (admission.kind !== "clear" || admission.proof !== expected.proof)
+        throw new Error(
+          "Candidate review history changed, rejected or unsettled before atomic reservation",
+        );
+    } else if (input.candidateId)
+      await lockCaliforniaReviewHistory(tx, input.raceKey, input.candidateId);
     const inserted = await tx
       .insert(CaliforniaResearchArtifact)
       .values({
@@ -405,7 +460,12 @@ export async function claimCaliforniaModelDispatch(
         kind: "model_dispatch",
         raceKey: input.raceKey,
         candidateId: input.candidateId,
-        document: input.document,
+        document: input.reviewAdmission
+          ? {
+              ...(input.document as object),
+              reviewScope: input.reviewAdmission.scope,
+            }
+          : input.document,
       })
       .onConflictDoNothing()
       .returning({ key: CaliforniaResearchArtifact.key });
@@ -465,8 +525,18 @@ export async function getCaliforniaResearchArtifact(
     .limit(1);
   return row?.document ?? null;
 }
+export async function readCaliforniaModelHistory(
+  database: Pick<typeof db, "transaction">,
+  scope: CaliforniaReviewScope,
+) {
+  return database.transaction(async (tx) => {
+    await tx.execute(sql`select set_config('statement_timeout','3000',true)`);
+    await lockCaliforniaReviewHistory(tx, scope.raceKey, scope.candidateId);
+    return readScopedCaliforniaReviewHistory(tx, scope);
+  });
+}
 export async function saveCaliforniaResearchArtifact(
-  database: Writer,
+  database: Pick<typeof db, "transaction">,
   input: {
     key: string;
     kind: string;
@@ -475,11 +545,54 @@ export async function saveCaliforniaResearchArtifact(
     document: unknown;
   },
 ) {
-  await database
-    .insert(CaliforniaResearchArtifact)
-    .values(input)
-    .onConflictDoNothing();
-  return getCaliforniaResearchArtifact(database, input.key);
+  const result = await database.transaction(async (tx) => {
+    if (input.candidateId)
+      await lockCaliforniaReviewHistory(tx, input.raceKey, input.candidateId);
+    if (input.kind === "author")
+      californiaHistoryAuthorSchema.parse(input.document);
+    if (input.kind === "review")
+      californiaHistoryReviewSchema.parse(input.document);
+    await tx
+      .insert(CaliforniaResearchArtifact)
+      .values(input)
+      .onConflictDoNothing();
+    const [stored] = await tx
+      .select()
+      .from(CaliforniaResearchArtifact)
+      .where(eq(CaliforniaResearchArtifact.key, input.key));
+    if (!stored)
+      throw new Error(
+        "Immutable artifact insert did not produce a canonical result",
+      );
+    if (
+      ["author", "review", "model_failure"].includes(input.kind) &&
+      !isDeepStrictEqual(stored.document, input.document)
+    ) {
+      const digest = createHash("sha256")
+        .update(JSON.stringify(input.document))
+        .digest("hex");
+      await tx
+        .insert(CaliforniaResearchArtifact)
+        .values({
+          ...input,
+          key: `model-result-conflict:${input.key}:${digest}`,
+          kind: "model_result_conflict",
+          document: {
+            canonicalKey: input.key,
+            actualKind: input.kind,
+            actualDocument: input.document,
+          },
+        })
+        .onConflictDoNothing();
+      return { conflict: true, document: stored.document };
+    }
+    return { conflict: false, document: stored.document };
+  });
+  if (result.conflict)
+    throw new Error(
+      "Conflicting immutable artifact outcome was retained for audit; review history is unsettled",
+    );
+  return result.document;
 }
 
 export async function invalidateCaliforniaResearchState(

@@ -28,6 +28,7 @@ import type {
   ResearchWorkLease,
 } from "./candidate-research-store";
 import { verifyStoredCampaignContactProof } from "./california-campaign-contact";
+import { assertCaliforniaSemanticReviewClear } from "./california-review-history";
 import {
   briefDigest,
   briefIdentityKey,
@@ -263,6 +264,20 @@ export async function recordResearchAiReview(
       attestation.reviewer.policyVersion !== policy.version
     )
       throw new Error("Review revision or policy does not match");
+    if (attestation.verdict === "approve")
+      await assertCaliforniaSemanticReviewClear(
+        tx,
+        {
+          raceKey: row.pilotKey,
+          candidateId: brief.identity.candidateId,
+          dossierDigest: dossier.dossierDigest,
+          sourceSetDigest: dossier.sourceSetDigest,
+          policyVersion: policy.version,
+          identity: brief.identity,
+        },
+        brief,
+        artifact.author,
+      );
     const reused = await tx
       .select()
       .from(CandidateBriefReviewEvent)
@@ -399,6 +414,28 @@ async function publishInTransaction(
     throw new Error(
       "Policy and independent approval for every exact revision are required",
     );
+  for (const artifact of row.document.candidateArtifacts ?? []) {
+    const brief = row.document.briefs.find(
+      (entry) => entry.identity.candidateId === artifact.candidateId,
+    );
+    if (!brief)
+      throw new Error(
+        "Missing candidate brief for final semantic history admission",
+      );
+    await assertCaliforniaSemanticReviewClear(
+      tx,
+      {
+        raceKey: row.pilotKey,
+        candidateId: artifact.candidateId,
+        dossierDigest: artifact.dossierDigest,
+        sourceSetDigest: artifact.sourceSetDigest,
+        policyVersion: policy.version,
+        identity: brief.identity,
+      },
+      brief,
+      artifact.author,
+    );
+  }
   const [existing] = await tx
     .select()
     .from(CandidateRaceRelease)
