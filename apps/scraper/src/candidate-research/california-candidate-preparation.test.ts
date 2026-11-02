@@ -1629,7 +1629,7 @@ test("finance refresh cache binds narrative rather than changing publication run
   );
   assert.equal(
     first.authored.attestation.promptVersion,
-    "california-finance-refresh-v3",
+    "california-finance-refresh-v4",
   );
   const count = f.calls.length;
   const second = await prepareReviewedCaliforniaCandidate(
@@ -1653,44 +1653,76 @@ test("finance refresh cache binds narrative rather than changing publication run
   );
 });
 
-test("finance refresh v3 does not reuse a v2 author artifact", async () => {
-  const original = fixture();
-  const input = original.fresh();
+for (const legacyVersion of [
+  "california-finance-refresh-v2",
+  "california-finance-refresh-v3",
+]) {
+  test(`finance refresh v4 does not reuse a ${legacyVersion} author artifact`, async () => {
+    const original = fixture();
+    const input = original.fresh();
+    const retainedNarrative = retainedFixture(input.dossier);
+    const prepared = await prepareReviewedCaliforniaCandidate(
+      { ...input, retainedNarrative },
+      original.deps,
+    );
+    const legacyKey = `author:${evidenceDigest([
+      input.dossier.dossierDigest,
+      input.policyVersion,
+      californiaResearchVersion,
+      legacyVersion,
+      "fixture",
+      retainedNarrative.semanticDigest,
+    ])}`;
+    const legacy = structuredClone(prepared.authored);
+    legacy.attestation.promptVersion = legacyVersion;
+    assert.equal(legacy.brief.authorship?.kind, "generated");
+    if (legacy.brief.authorship?.kind === "generated")
+      legacy.brief.authorship.promptVersion = legacyVersion;
+    legacy.attestation.revisionDigest = evidenceDigest(legacy.brief);
+    const current = fixture();
+    current.artifacts.set(legacyKey, legacy);
+    const refreshed = await prepareReviewedCaliforniaCandidate(
+      { ...current.fresh(), retainedNarrative },
+      current.deps,
+    );
+    assert.equal(current.calls.length, 2);
+    assert.notEqual(
+      refreshed.authored.attestation.runId,
+      legacy.attestation.runId,
+    );
+    assert.equal(
+      refreshed.authored.attestation.promptVersion,
+      "california-finance-refresh-v4",
+    );
+    assert.deepEqual(current.artifacts.get(legacyKey), legacy);
+  });
+}
+
+test("a finance review correction cannot rewrite narrative or obtain another review", async () => {
+  const f = fixture();
+  const input = f.fresh();
   const retainedNarrative = retainedFixture(input.dossier);
-  const prepared = await prepareReviewedCaliforniaCandidate(
-    { ...input, retainedNarrative },
-    original.deps,
+  const review = f.deps.review;
+  f.deps.review = async (request) => ({
+    ...(await review(request)),
+    verdict: "reject",
+    overallReason: "The political wording needs to change.",
+  });
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate({ ...input, retainedNarrative }, f.deps),
+    (error: unknown) => error instanceof CaliforniaModelInvocationError,
   );
-  const legacyKey = `author:${evidenceDigest([
-    input.dossier.dossierDigest,
-    input.policyVersion,
-    californiaResearchVersion,
-    "california-finance-refresh-v2",
-    "fixture",
-    retainedNarrative.semanticDigest,
-  ])}`;
-  const legacy = structuredClone(prepared.authored);
-  legacy.attestation.promptVersion = "california-finance-refresh-v2";
-  assert.equal(legacy.brief.authorship?.kind, "generated");
-  if (legacy.brief.authorship?.kind === "generated")
-    legacy.brief.authorship.promptVersion = "california-finance-refresh-v2";
-  legacy.attestation.revisionDigest = evidenceDigest(legacy.brief);
-  const current = fixture();
-  current.artifacts.set(legacyKey, legacy);
-  const refreshed = await prepareReviewedCaliforniaCandidate(
-    { ...current.fresh(), retainedNarrative },
-    current.deps,
+  assert.equal(f.calls.filter((call) => call.role === "author").length, 2);
+  assert.equal(f.calls.filter((call) => call.role === "reviewer").length, 1);
+  const saved = structuredClone([...f.artifacts]);
+  const retry = f.fresh();
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate({ ...retry, retainedNarrative }, f.deps),
+    /Saved author failure/,
   );
-  assert.equal(current.calls.length, 2);
-  assert.notEqual(
-    refreshed.authored.attestation.runId,
-    legacy.attestation.runId,
-  );
-  assert.equal(
-    refreshed.authored.attestation.promptVersion,
-    "california-finance-refresh-v3",
-  );
-  assert.deepEqual(current.artifacts.get(legacyKey), legacy);
+  assert.equal(f.calls.length, 3);
+  assert.equal(retry.usage.modelCalls, 0);
+  assert.deepEqual([...f.artifacts], saved);
 });
 
 test("unknown finance refresh dispatch remains terminal for identical semantic content", async () => {
