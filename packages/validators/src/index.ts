@@ -26,3 +26,4 @@ export * from "./official-title";
 export * from "./fec-candidate-identity";
 
 export * from "./candidate-public-content";
+export * from "./campaign-acquisition";

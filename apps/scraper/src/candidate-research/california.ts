@@ -648,7 +648,18 @@ export async function createCaliforniaDependencies(
       return collectCaliforniaEvidence(
         { ...input, supplementalSources },
         {
-          fetch: (id, url, publisher, format, apiKey) =>
+          campaignRenderer: {
+            configuration:
+              process.env.SCRAPER_RENDERER_BASE_URL &&
+              process.env.SCRAPER_RENDERER_TOKEN
+                ? {
+                    baseUrl: process.env.SCRAPER_RENDERER_BASE_URL,
+                    token: process.env.SCRAPER_RENDERER_TOKEN,
+                  }
+                : undefined,
+            budget,
+          },
+          fetch: (id, url, publisher, format, apiKey, sourceOptions) =>
             fetchBoundedCaliforniaSource(
               id,
               url,
@@ -656,9 +667,12 @@ export async function createCaliforniaDependencies(
               format,
               budget,
               apiKey,
-              input.researchScope === "narrative_only"
-                ? { researchScope: input.researchScope }
-                : undefined,
+              {
+                ...sourceOptions,
+                ...(input.researchScope === "narrative_only"
+                  ? { researchScope: input.researchScope }
+                  : {}),
+              },
             ),
           search: (query, discover) => library.search(query, discover),
           budget: {

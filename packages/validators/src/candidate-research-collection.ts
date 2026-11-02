@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 
+import { campaignAcquisitionSchema } from "./campaign-acquisition";
 import { candidateBriefSchema } from "./candidate-brief";
 import { candidateRaceManifestSchema } from "./candidate-research";
 
@@ -11,7 +12,32 @@ export const researchSourceSchema = z
     id: z.string().min(1),
     url: z.url(),
     publisher: z.string().min(1),
-    format: z.enum(["html", "pdf", "json", "text", "image"]),
+    format: z.enum(["html", "pdf", "json", "text", "image", "render_archive"]),
+    acquisition: campaignAcquisitionSchema.optional(),
+    httpObservation: z
+      .object({
+        kind: z.literal("campaign_http_document_v1"),
+        responses: z
+          .array(
+            z
+              .object({
+                url: z.url(),
+                status: z.number().int().min(200).max(399),
+                mime: z.string().max(200),
+                location: z.string().max(4000).nullable(),
+                bodyHash: z.string().regex(/^[a-f0-9]{64}$/),
+                bodyBytes: z.number().int().min(0).max(1_000_000),
+                startedAt: z.iso.datetime(),
+                completedAt: z.iso.datetime(),
+                bodyBase64: z.string().max(65_536).optional(),
+              })
+              .strict(),
+          )
+          .min(1)
+          .max(4),
+      })
+      .strict()
+      .optional(),
     text: z.string().max(5_000_000),
     binaryBase64: z
       .string()
@@ -27,6 +53,31 @@ export const researchSourceSchema = z
     retrievalUrls: z.array(z.url()).min(1).max(4).optional(),
   })
   .superRefine((source, context) => {
+    if (source.format === "render_archive") {
+      if (
+        source.acquisition?.kind !== "campaign_render_archive_v1" ||
+        !source.binaryBase64 ||
+        !source.byteHash
+      )
+        context.addIssue({
+          code: "custom",
+          message:
+            "Rendered archives require their typed compressed bytes and hash",
+        });
+    } else if (source.acquisition?.kind === "campaign_render_archive_v1")
+      context.addIssue({
+        code: "custom",
+        message: "Rendered archive cannot masquerade as HTTP evidence",
+      });
+    if (
+      source.acquisition?.kind === "rendered_campaign_v1" &&
+      (source.format !== "html" || !source.byteHash || source.binaryBase64)
+    )
+      context.addIssue({
+        code: "custom",
+        message:
+          "Rendered campaign page must reference its separate immutable archive",
+      });
     if (source.format === "image") {
       if (source.text !== "" || !source.byteHash || !source.binaryBase64)
         context.addIssue({

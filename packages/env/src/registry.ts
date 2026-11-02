@@ -734,6 +734,24 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "SCRAPER_RENDERER_BASE_URL",
+    description:
+      "Private authenticated network-none campaign browser host URL.",
+    group: "Scraper operations",
+    secret: false,
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "SCRAPER_RENDERER_TOKEN",
+    description:
+      "Private campaign browser host capability token (at least 32 characters).",
+    group: "Scraper operations",
+    secret: true,
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
     key: "SCRAPER_FORCE_AI_REGEN",
     description: "Set to 1 only for a deliberate AI regeneration backfill.",
     group: "Scraper operations",

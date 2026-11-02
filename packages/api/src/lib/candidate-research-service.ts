@@ -30,6 +30,11 @@ import type {
 import { verifyStoredCampaignContactProof } from "./california-campaign-contact";
 import { assertCaliforniaSemanticReviewClear } from "./california-review-history";
 import {
+  campaignOwnershipDigest,
+  validateCampaignOwnership,
+} from "./campaign-ownership";
+import { validateCampaignRenderSources } from "./campaign-render-archive";
+import {
   briefDigest,
   briefIdentityKey,
   ResearchReviewCollectionConflict,
@@ -131,6 +136,18 @@ export async function recordResearchAiReview(
     );
     if (!artifact) throw new Error("Missing immutable author artifact");
     const dossier = candidateEvidenceDossierSchema.parse(artifact.dossier);
+    validateCampaignOwnership(dossier);
+    validateCampaignRenderSources(
+      dossier.sources,
+      dossier.campaignOwnershipProof
+        ? {
+            candidateId: dossier.identity.candidateId,
+            ownershipDigest: campaignOwnershipDigest(
+              dossier.campaignOwnershipProof,
+            ),
+          }
+        : undefined,
+    );
     await verifyStoredCampaignContactProof(
       tx,
       row.document.rosterSnapshotId,
@@ -153,9 +170,20 @@ export async function recordResearchAiReview(
                 dossier.campaignContactProof?.destinationSourceId ||
                 JSON.stringify(archived.retrievalUrls ?? null) ===
                   JSON.stringify(source.retrievalUrls ?? null)) &&
-              (source.format !== "image" ||
+              JSON.stringify(archived.acquisition ?? null) ===
+                JSON.stringify(source.acquisition ?? null) &&
+              (!(
+                source.format === "image" ||
+                source.acquisition !== undefined ||
+                dossier.campaignOwnershipProof !== undefined
+              ) ||
                 (archived.byteHash === source.byteHash &&
-                  archived.binaryBase64 === source.binaryBase64)),
+                  archived.binaryBase64 === source.binaryBase64 &&
+                  (!dossier.campaignOwnershipProof ||
+                    (JSON.stringify(archived.httpObservation ?? null) ===
+                      JSON.stringify(source.httpObservation ?? null) &&
+                      JSON.stringify(archived.retrievalUrls ?? null) ===
+                        JSON.stringify(source.retrievalUrls ?? null))))),
           ),
       )
     )

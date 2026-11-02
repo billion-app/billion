@@ -350,3 +350,9 @@ candidate Record or Priorities with the ordinary author, independent review,
 source freshness and whole-race gates. It does not change policy or clear prior
 model failures. The [scraper CLI guide](../apps/scraper/README.md#candidate-research-demand)
 describes its operator flags.
+
+### Campaign acquisition capability
+
+The California Governor adapter can acquire a successful thin campaign module shell through a separately hosted network-none Chromium capability. All browser assets still use the researcher's pinned public GET transport and shared limits. A typed private archive binds actual response bytes, rendered visible DOM and extracted evidence; it does not replace ordinary HTTP source provenance. Renderer absence fails closed with a source gap. [Host setup and the normal data flow](../deploy/big-mac/campaign-renderer/README.md) explain deployment, isolation, cleanup and archive replay.
+
+A distinct qualified-party discovery proof can bind an otherwise missing current SOS campaign website to the exact current candidate. It preserves the missing contact field and verifies official party registration, the election/office/full-name campaign link, actual redirects and the campaign's legal publisher. This proof establishes source ownership, not personal speech attribution or a state endorsement.

@@ -757,7 +757,12 @@ export function californiaModelInput(input: {
   const dossier = validateCaliforniaDossier(input.dossier);
   const project = (contextCharacters: number) => {
     const sources = dossier.sources.map(
-      ({ text, binaryBase64: _binaryArchive, ...metadata }) => {
+      ({
+        text,
+        binaryBase64: _binaryArchive,
+        httpObservation: _httpObservation,
+        ...metadata
+      }) => {
         const ranges = dossier.evidence
           .filter((entry) => entry.sourceId === metadata.id)
           .map((entry) => {

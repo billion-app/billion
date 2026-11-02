@@ -7,6 +7,7 @@ import type {
   CandidateEvidenceDossier,
   ResearchSource,
 } from "@acme/validators";
+import { formatCampaignHtml } from "@acme/api/lib/campaign-source-html";
 import {
   officeSlug,
   officeUrl,
@@ -17,11 +18,17 @@ import {
   resolveFecIdentityFromSource,
 } from "@acme/validators";
 
+import type {
+  CampaignBrowserConfiguration,
+  CampaignRenderBudget,
+} from "../research/campaign-browser.js";
+import { CampaignRendererUnavailable } from "../research/campaign-browser.js";
 import {
   canonicalSourceUrl,
   publicSourceAddresses,
 } from "../research/pages.js";
 import { requestPublicSource } from "../research/transport.js";
+import { prepareGovernorCampaign } from "./california-campaign-acquisition.js";
 import { decodeClarityXmlZip } from "./california-clarity.js";
 import { resolveCaliforniaOfficialCampaignWebsite } from "./california-contacts.js";
 import {
@@ -47,7 +54,7 @@ import {
   isCaliforniaSourceUnavailable,
   sourceAcquisitionFailure,
 } from "./california-source-availability.js";
-import { fetchSource, hash, htmlText } from "./sources.js";
+import { hash } from "./sources.js";
 
 export { CaliforniaSourceHttpError } from "./california-source-availability.js";
 
@@ -57,7 +64,18 @@ export interface EvidenceBudget {
   discovery?(): void;
 }
 export interface CaliforniaEvidenceDependencies {
-  fetch: typeof fetchSource;
+  campaignRenderer?: {
+    configuration?: CampaignBrowserConfiguration;
+    budget: CampaignRenderBudget;
+  };
+  fetch: (
+    id: string,
+    url: string,
+    publisher: string,
+    format: ResearchSource["format"],
+    apiKey?: string,
+    options?: { archiveHtml?: boolean },
+  ) => Promise<ResearchSource>;
   search(
     query: string,
     discover: boolean,
@@ -742,19 +760,31 @@ export async function collectCaliforniaEvidence(
   for (const source of input.supplementalSources ?? [])
     if (!sources.some((existing) => existing.id === source.id))
       sources.push(source);
-  const get = async (
+  const readRaw = async (
     url: string,
     publisher: string,
     format: ResearchSource["format"] = "html",
     preferredId?: string,
+    archiveHtml = false,
   ) => {
     if (input.researchScope === "narrative_only" && isFederalFinanceSource(url))
       throw new Error(
         "Narrative-only research excludes federal finance sources",
       );
     const checked = sources.find((source) => source.url === url);
-    if (checked) return checked;
+    if (
+      checked &&
+      (!archiveHtml || checked.binaryBase64 || checked.acquisition)
+    )
+      return checked;
     let pending = deps.sharedSources.get(url);
+    if (
+      pending &&
+      archiveHtml &&
+      !(await pending).binaryBase64 &&
+      !(await pending).acquisition
+    )
+      pending = undefined;
     if (!pending) {
       deps.budget.request();
       pending = deps
@@ -766,6 +796,7 @@ export async function collectCaliforniaEvidence(
           new URL(url).hostname === "api.open.fec.gov"
             ? (process.env.FEC_API_KEY ?? "DEMO_KEY")
             : undefined,
+          { archiveHtml },
         )
         .then((source) => {
           deps.budget.bytes(Buffer.byteLength(source.text));
@@ -791,6 +822,51 @@ export async function collectCaliforniaEvidence(
     }
     return source;
   };
+  let get: typeof readRaw = readRaw;
+  let governorCampaign: Awaited<ReturnType<typeof prepareGovernorCampaign>>;
+  if (race.officeFamily === "statewide" && race.office === "Governor") {
+    try {
+      governorCampaign = await prepareGovernorCampaign({
+        race,
+        member,
+        roster: rosterSource,
+        read: readRaw,
+        sources: () => sources,
+        register: (additional) => {
+          for (const source of additional) {
+            const index = sources.findIndex(
+              (existing) => existing.id === source.id,
+            );
+            if (index < 0) sources.push(source);
+            else sources[index] = source;
+            if (source.format !== "render_archive")
+              for (const alias of new Set([
+                source.url,
+                ...(source.retrievalUrls ?? []),
+              ]))
+                deps.sharedSources.set(alias, Promise.resolve(source));
+          }
+        },
+        budget: deps.campaignRenderer?.budget ?? deps.budget,
+        configuration: deps.campaignRenderer?.configuration,
+      });
+      if (governorCampaign) get = governorCampaign.read;
+    } catch (error) {
+      if (
+        error instanceof CaliforniaBudgetReached ||
+        error instanceof CaliforniaCitedSourceFailure
+      )
+        throw error;
+      gaps.push({
+        dimension: "priorities",
+        code: "identity_unresolved",
+        message:
+          "A current candidate-owned campaign website could not be qualified from its authoritative discovery records.",
+        checkedSourceIds: [],
+        required: false,
+      });
+    }
+  }
   const financeRefresh =
     input.researchScope === "finance_refresh"
       ? input.previousDossier
@@ -1076,19 +1152,22 @@ export async function collectCaliforniaEvidence(
     const currentContact = contact
       ? currentHouseCampaignContact(contact, race, member)
       : undefined;
-    const linked = currentContact
-      ? [currentContact.url]
-      : race.officeFamily === "us_house"
-        ? []
-        : localWebsite?.status === "listed" && localWebsite.url
-          ? [localWebsite.url]
-          : (contactExcerpt?.match(/(?:https?:\/\/|www\.)[^\s<>]+/g) ?? []).map(
-              (url) =>
+    const linked = governorCampaign
+      ? [governorCampaign.website]
+      : currentContact
+        ? [currentContact.url]
+        : race.officeFamily === "us_house"
+          ? []
+          : localWebsite?.status === "listed" && localWebsite.url
+            ? [localWebsite.url]
+            : (
+                contactExcerpt?.match(/(?:https?:\/\/|www\.)[^\s<>]+/g) ?? []
+              ).map((url) =>
                 (url.startsWith("www.") ? `https://${url}` : url).replace(
                   /[.,;)]+$/,
                   "",
                 ),
-            );
+              );
     const query = member.name;
     const statementSlug = officeSlug(race.office);
     const officialStatements = statementSlug
@@ -1168,6 +1247,10 @@ export async function collectCaliforniaEvidence(
           new URL(url).hostname,
           /\.pdf(?:$|\?)/i.test(url) ? "pdf" : "html",
         );
+        const verifiedGovernorCampaign =
+          governorCampaign && url === governorCampaign.website
+            ? await governorCampaign.qualify()
+            : undefined;
         const currentCampaign =
           currentContact?.url === url &&
           currentContactDestination(source, currentContact, member.name);
@@ -1184,6 +1267,7 @@ export async function collectCaliforniaEvidence(
           });
         } else if (
           !currentCampaign &&
+          !verifiedGovernorCampaign &&
           !qualifiedCandidatePage(
             source,
             race,
@@ -1195,6 +1279,7 @@ export async function collectCaliforniaEvidence(
         if (linked.includes(url)) {
           if (
             !currentCampaign &&
+            !verifiedGovernorCampaign &&
             !candidatePublisherDisclosure(source, member.name)
           )
             continue;
@@ -1214,6 +1299,17 @@ export async function collectCaliforniaEvidence(
               retrievalUrls: source.retrievalUrls,
             };
           }
+          const governorDiscovery = verifiedGovernorCampaign
+            ? governorCampaign!.discovery()
+            : undefined;
+          if (governorDiscovery)
+            sourceLinks.push({
+              fromSourceId: governorDiscovery.sourceId,
+              toSourceId: source.id,
+              url: source.url,
+              anchorText: governorDiscovery.anchorText,
+              relation: governorDiscovery.relation,
+            });
           const rawAnchor = currentCampaign
             ? currentContact.anchorText
             : (
@@ -1243,7 +1339,7 @@ export async function collectCaliforniaEvidence(
               try {
                 const parsed = new URL(childURL);
                 return new URL(source.url).origin === parsed.origin &&
-                  /issues|priorit|platform|plans|about/i.test(
+                  /issues|priorit|platform|plans?|about|meet(?:[-\s]|$)/i.test(
                     `${label} ${parsed.pathname}`,
                   ) &&
                   !/donat|contribut|endorse|volunteer|shop/i.test(
@@ -1261,8 +1357,17 @@ export async function collectCaliforniaEvidence(
         }
         const substantive = substantiveSourceText(source);
         const ownNameStart = candidateNamePosition(substantive, member.name);
-        if (ownNameStart < 0 && !parent && !currentCampaign) continue;
-        const start = currentCampaign ? 0 : Math.max(0, ownNameStart);
+        if (
+          ownNameStart < 0 &&
+          !parent &&
+          !currentCampaign &&
+          !verifiedGovernorCampaign
+        )
+          continue;
+        const start =
+          currentCampaign || verifiedGovernorCampaign
+            ? 0
+            : Math.max(0, ownNameStart);
         let end = Math.min(substantive.length, start + 2800);
         for (const other of officialStatements.includes(url)
           ? race.members
@@ -1333,9 +1438,12 @@ export async function collectCaliforniaEvidence(
               }
             : {}),
           identityQualification:
-            linked.includes(url) || !!parent
-              ? "official_cross_link"
-              : "exact_election_office",
+            governorCampaign?.proof()?.kind === "qualified_party_campaign_v1" &&
+            (linked.includes(url) || !!parent)
+              ? "qualified_party_discovery"
+              : linked.includes(url) || !!parent
+                ? "official_cross_link"
+                : "exact_election_office",
         });
       } catch (error) {
         if (
@@ -1343,6 +1451,15 @@ export async function collectCaliforniaEvidence(
           error instanceof CaliforniaCitedSourceFailure
         )
           throw error;
+        if (error instanceof CampaignRendererUnavailable)
+          gaps.push({
+            dimension: "priorities",
+            code: "source_unavailable",
+            message:
+              "The sandboxed campaign renderer was unavailable; this packet does not contain rendered campaign evidence.",
+            checkedSourceIds: [],
+            required: false,
+          });
         unavailable = true;
       }
     }
@@ -1519,6 +1636,9 @@ export async function collectCaliforniaEvidence(
     financeIdentityProof,
     sourceLinks,
     campaignContactProof,
+    ...(governorCampaign?.proof()
+      ? { campaignOwnershipProof: governorCampaign.proof() }
+      : {}),
     gaps,
   });
 }
@@ -1540,9 +1660,17 @@ export async function fetchBoundedCaliforniaSource(
     transport?: typeof requestPublicSource;
     addresses?: typeof publicSourceAddresses;
     researchScope?: "narrative_only";
+    archiveHtml?: boolean;
   },
 ): Promise<ResearchSource> {
+  if (format === "render_archive")
+    throw new Error(
+      "Private rendering archives cannot be fetched as HTTP sources",
+    );
   const requestedURL = canonicalSourceUrl(url);
+  const observations: NonNullable<
+    ResearchSource["httpObservation"]
+  >["responses"] = [];
   let currentURL = requestedURL;
   const fecMaster =
     format === "text" && isOfficialFecCandidateMasterUrl(requestedURL);
@@ -1550,6 +1678,7 @@ export async function fetchBoundedCaliforniaSource(
   const addresses = controls?.addresses ?? publicSourceAddresses;
   const signal = AbortSignal.timeout(30_000);
   let response: Response | undefined;
+  let finalStartedAt = new Date().toISOString();
   const retrievalUrls: string[] = [];
   for (let redirects = 0; redirects <= 3; redirects++) {
     if (
@@ -1559,6 +1688,8 @@ export async function fetchBoundedCaliforniaSource(
       throw new Error(
         "Narrative-only research excludes federal finance sources",
       );
+    const startedAt = new Date().toISOString();
+    finalStartedAt = startedAt;
     let resolved: Awaited<ReturnType<typeof addresses>>;
     try {
       resolved = await addresses(currentURL);
@@ -1580,7 +1711,37 @@ export async function fetchBoundedCaliforniaSource(
       throw sourceAcquisitionFailure(currentURL, error);
     }
     if (![301, 302, 303, 307, 308].includes(response.status)) break;
-    await response.body?.cancel().catch(() => undefined);
+    if (controls?.archiveHtml) {
+      const redirectReader = response.body?.getReader();
+      const redirectChunks: Uint8Array[] = [];
+      let redirectBytes = 0;
+      try {
+        while (redirectReader) {
+          const part = await redirectReader.read();
+          if (part.done) break;
+          redirectBytes += part.value.byteLength;
+          budget.bytes(part.value.byteLength);
+          if (redirectBytes > 49_152)
+            throw new Error("Campaign initial redirect exceeds archive bound");
+          redirectChunks.push(part.value);
+        }
+      } catch (error) {
+        await redirectReader?.cancel().catch(() => undefined);
+        throw error;
+      }
+      const body = Buffer.concat(redirectChunks);
+      observations.push({
+        url: currentURL,
+        status: response.status,
+        mime: response.headers.get("content-type") ?? "",
+        location: response.headers.get("location"),
+        bodyHash: hash(body),
+        bodyBytes: body.length,
+        startedAt,
+        completedAt: new Date().toISOString(),
+        bodyBase64: body.toString("base64"),
+      });
+    } else await response.body?.cancel().catch(() => undefined);
     const location = response.headers.get("location");
     if (!location) throw new Error("Source redirect has no location");
     if (redirects === 3) throw new Error("Source exceeds three redirects");
@@ -1608,9 +1769,11 @@ export async function fetchBoundedCaliforniaSource(
   if (!reader) throw new Error("Source has no body");
   const sourceByteLimit = fecMaster
     ? fecCandidateMasterCompressedLimit
-    : format === "image"
-      ? 5_000_000
-      : 25_000_000;
+    : controls?.archiveHtml && format === "html"
+      ? 1_000_000
+      : format === "image"
+        ? 5_000_000
+        : 25_000_000;
   const chunks: Uint8Array[] = [];
   let bytes = 0;
   try {
@@ -1633,6 +1796,21 @@ export async function fetchBoundedCaliforniaSource(
     throw error;
   }
   const buffer = Buffer.concat(chunks);
+  const completedAt = new Date().toISOString();
+  const archiveHtml = controls?.archiveHtml && format === "html";
+  if (archiveHtml && buffer.length > 1_000_000)
+    throw new Error("Campaign HTML exceeds ownership archive bound");
+  if (archiveHtml)
+    observations.push({
+      url: currentURL,
+      status: response.status,
+      mime: response.headers.get("content-type") ?? "",
+      location: null,
+      bodyHash: hash(buffer),
+      bodyBytes: buffer.length,
+      startedAt: finalStartedAt,
+      completedAt,
+    });
   let text: string;
   if (format === "image") {
     if (buffer.byteLength > 5_000_000)
@@ -1652,52 +1830,7 @@ export async function fetchBoundedCaliforniaSource(
     }
   } else if (format === "html") {
     const html = buffer.toString("utf8");
-    const $ = load(html);
-    const links: string[] = [];
-    $("a[href]").each((_, element) => {
-      const href = $(element).attr("href");
-      const label = $(element).text().replace(/\s+/g, " ").trim();
-      if (!href || !label || links.length >= 200) return;
-      try {
-        const target = new URL(href, currentURL);
-        if (/^https?:$/.test(target.protocol))
-          links.push(`${label} => ${target.toString()}`);
-      } catch {}
-    });
-    const substantive = htmlText(html);
-    $("blockquote,q,script,style,noscript").remove();
-    const disclosures = $(
-      "footer,[role=contentinfo],[class*=disclaimer],[id*=disclaimer]",
-    )
-      .toArray()
-      .filter((element) => !$(element).parents("article").length)
-      .flatMap((element) => {
-        const block = $(element).clone();
-        block
-          .find("p,div,section,address,li,h1,h2,h3,h4,h5,h6")
-          .prepend(" ")
-          .append(" ");
-        block.find("br").replaceWith(" ");
-        const value = block.text().replace(/\s+/g, " ").trim();
-        const offset =
-          /\b(?:Paid for by|Authorized (?:and paid for )?by)\b/i.exec(
-            value,
-          )?.index;
-        if (
-          offset === undefined ||
-          /["“”]|(?<![\p{L}\p{N}])['‘’]|['‘’](?![\p{L}\p{N}])|\b(?:says?|said|reports?|quoted?|according to)\b/iu.test(
-            value.slice(0, offset),
-          )
-        )
-          return [];
-        return [value.slice(offset)];
-      });
-    text =
-      substantive +
-      "\nLinked source navigation (discovery only):\n" +
-      links.join("\n") +
-      publisherDisclosureMarker +
-      [...new Set(disclosures)].join("\n");
+    text = formatCampaignHtml(html, currentURL).text;
   } else if (format === "json")
     text = JSON.stringify(JSON.parse(buffer.toString("utf8")), null, 2);
   else if (fecMaster)
@@ -1729,6 +1862,15 @@ export async function fetchBoundedCaliforniaSource(
     text,
     contentHash: hash(text),
     byteHash: hash(buffer),
+    ...(archiveHtml
+      ? {
+          binaryBase64: buffer.toString("base64"),
+          httpObservation: {
+            kind: "campaign_http_document_v1" as const,
+            responses: observations,
+          },
+        }
+      : {}),
     ...(format === "image" ? { binaryBase64: buffer.toString("base64") } : {}),
     fetchedAt: new Date().toISOString(),
   };
