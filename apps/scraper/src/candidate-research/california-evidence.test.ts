@@ -2545,9 +2545,9 @@ for (const name of ["Peter Coe Verbica", "Jimmy Panetta"]) {
       dossier.gaps.find((gap) => gap.dimension === "finance"),
       {
         dimension: "finance",
-        code: "not_found_in_checked_sources",
+        code: "source_unavailable",
         message:
-          "Financial records were not collected in this narrative-only research run.",
+          "Campaign-finance research is still pending for this candidate.",
         checkedSourceIds: [],
         required: false,
       },
@@ -2633,5 +2633,71 @@ for (const name of ["Peter Coe Verbica", "Jimmy Panetta"]) {
       );
     }
     assert.equal(fetches, 0);
+  });
+}
+
+const excludedFinanceUrls = [
+  "https://api.open.fec.gov/v1/candidates/",
+  "https://www.fec.gov/data/candidate/H0CA00001/",
+  "https://www.fec.gov/files/bulk-downloads/2026/cn26.zip",
+  "https://docquery.fec.gov/dcdev/posted/1856505.fec",
+];
+
+test("narrative-only filters discovered federal finance pages before fetching", async () => {
+  const f = await capturedHouseCampaign("Peter Coe Verbica");
+  const dossier = await collectCaliforniaEvidence(
+    { ...f, researchScope: "narrative_only" },
+    {
+      ...f.deps,
+      search: async () => ({
+        sources: excludedFinanceUrls.map((url) => ({ url })),
+      }),
+    },
+  );
+  assert.equal(dossier.classification, "supported");
+  assert.equal(dossier.finance, null);
+  assert.equal(
+    f.fetched.some((url) => new URL(url).hostname.endsWith("fec.gov")),
+    false,
+  );
+  assert.deepEqual(
+    dossier.gaps.find((gap) => gap.dimension === "finance")?.checkedSourceIds,
+    [],
+  );
+});
+
+for (const url of excludedFinanceUrls) {
+  test(`narrative-only transport refuses ${url} before DNS and transport`, async () => {
+    const requested: string[] = [];
+    const resolved: string[] = [];
+    const controls = {
+      researchScope: "narrative_only" as const,
+      addresses: async (current: string) => {
+        resolved.push(current);
+        return [{ address: "93.184.216.34", family: 4 as const }];
+      },
+      transport: async (current: string) => {
+        requested.push(current);
+        return new Response(null, { status: 302, headers: { location: url } });
+      },
+    };
+    for (const initial of [url, "https://campaign.example/redirect"]) {
+      requested.length = 0;
+      resolved.length = 0;
+      await assert.rejects(
+        fetchBoundedCaliforniaSource(
+          "fixture",
+          initial,
+          "fixture",
+          "html",
+          { request() {}, bytes() {} },
+          undefined,
+          controls,
+        ),
+        /excludes federal finance sources/,
+      );
+      assert.deepEqual(requested, initial === url ? [] : [initial]);
+      assert.deepEqual(resolved, initial === url ? [] : [initial]);
+    }
   });
 }

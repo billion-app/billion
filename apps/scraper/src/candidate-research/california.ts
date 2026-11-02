@@ -584,6 +584,7 @@ export async function createCaliforniaDependencies(
     investigate: async (input, budget) => {
       let supplementalSources: ResearchSource[] | undefined;
       if (
+        input.researchScope !== "narrative_only" &&
         preparationPolicy &&
         ["ca-house-17-2026", "ca-lieutenant-governor-2026"].includes(
           input.race.raceKey,
@@ -655,6 +656,9 @@ export async function createCaliforniaDependencies(
               format,
               budget,
               apiKey,
+              input.researchScope === "narrative_only"
+                ? { researchScope: input.researchScope }
+                : undefined,
             ),
           search: (query, discover) => library.search(query, discover),
           budget: {
