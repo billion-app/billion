@@ -284,9 +284,14 @@ and membership stay fixed. Binary proofs remain strict. Nonbinary comparisons
 use extracted text rather than volatile HTML bytes or historical redirect chains.
 
 The author receives the qualified published narrative through the existing output
-schema. Every response, including a correction, must reproduce that narrative
-exactly. The compiler regenerates financial records, evidence observations and
-coverage text
+schema. The finance author returns the complete narrative as an exact JSON string
+in a required `retainedNarrativeJson` field. Its response schema permits only that
+string, including every chapter, claim, citation and array order. The parser
+reads the returned string and checks the narrative again before compilation; it
+does not substitute the old narrative when output is missing or changed. Every
+response, including a correction, must reproduce that narrative exactly. This is
+a constrained copy, not an approval of current truth. The compiler regenerates
+financial records, evidence observations and coverage text
 from the current dossier. A fresh independent reviewer assesses the complete new
 profile. Historical approval cannot approve a new financial revision. The existing
 single correction can repair a copying error but cannot rewrite the retained
@@ -337,6 +342,14 @@ under the transaction lock. This fences new approvals and releases; it does not
 retroactively withdraw an otherwise valid existing publication. These boundaries
 live in `california-review-history.ts`, `california-roster-store.ts` and
 `california-candidate-preparation.ts`.
+
+Model packets first use the existing 120 KB limit, selecting 500 characters of
+surrounding archive context or, when needed, the cited passages without extra
+context. A complete federal finance review that still exceeds this limit can use
+up to 160 KB, with the same context selection and every source excerpt and brief
+field retained. This allowance does not apply to author or nonfinancial review
+packets. Previously admitted packets keep their exact projection. Larger packets
+still fail closed, and the total invocation and input-token budgets do not change.
 
 The finance-refresh prompt has its own version. These versions also identify the
 trusted compiler's output contract. Cache keys include the current

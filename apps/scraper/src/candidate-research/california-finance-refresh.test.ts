@@ -6,6 +6,8 @@ import type { CandidateEvidenceDossier } from "@acme/validators";
 
 import {
   authorCaliforniaBrief,
+  californiaAuthorEvidence,
+  californiaAuthorOutputSchema,
   californiaFinanceRefreshPromptVersion,
 } from "./california-ai.js";
 import {
@@ -36,8 +38,16 @@ const output = () => ({
   unknowns: { claims: [] },
   terms: [{ term: "Libraries", plain: "Public libraries." }],
 });
-const model = (value: unknown) => ({
-  output: value,
+const model = (value: unknown, retained = false) => ({
+  output: retained
+    ? {
+        retainedNarrativeJson: JSON.stringify(
+          californiaAuthorOutputSchema(
+            californiaAuthorEvidence(fixtureDossier()),
+          ).parse(value),
+        ),
+      }
+    : value,
   configuredModel: "fixture",
   actualModel: "fixture",
   provider: "fixture",
@@ -132,7 +142,7 @@ test("published finance refresh preserves narrative and compiles current finance
     {
       invoke: async (call) => {
         calls.push(call.prompt);
-        return model(output());
+        return model(output(), true);
       },
     },
   );
@@ -244,7 +254,7 @@ test("acquisition time and publication run changes do not change semantic retent
   assert.equal(initial.semanticDigest, next.semanticDigest);
   const fresh = await authorCaliforniaBrief(
     { dossier, policyVersion: "policy", retainedNarrative: initial },
-    { invoke: async () => model(output()) },
+    { invoke: async () => model(output(), true) },
   );
   const newMember = {
     ...member,
@@ -281,7 +291,7 @@ test("every refresh model attempt preserves the retained narrative", async () =>
   await assert.rejects(
     authorCaliforniaBrief(
       { dossier, policyVersion: "policy", retainedNarrative },
-      { invoke: async () => model(changed) },
+      { invoke: async () => model(changed, true) },
     ),
     (error: unknown) =>
       error instanceof Error && error.name === "CaliforniaModelInvocationError",
@@ -297,7 +307,7 @@ test("every refresh model attempt preserves the retained narrative", async () =>
   await assert.rejects(
     authorCaliforniaBrief(
       { dossier, policyVersion: "policy", retainedNarrative, correction },
-      { invoke: async () => model(changed) },
+      { invoke: async () => model(changed, true) },
     ),
     (error: unknown) =>
       error instanceof Error && error.name === "CaliforniaModelInvocationError",
@@ -374,7 +384,7 @@ test("nested promise readings survive extraction and finance recompilation", asy
   assert(retainedNarrative);
   const refreshed = await authorCaliforniaBrief(
     { dossier, policyVersion: "policy", retainedNarrative },
-    { invoke: async () => model(narrative) },
+    { invoke: async () => model(narrative, true) },
   );
   assert.deepEqual(
     refreshed.brief.research?.promises,
