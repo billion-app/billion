@@ -3877,3 +3877,463 @@ test("narrative-only gap changes cannot repeat review of unchanged rejected publ
   assert.equal(f.stats.reviews, 1);
   assert.equal(f.stats.releases, 0);
 });
+
+const capturedFecRetryCheckpoints = [
+  {
+    raceKey: "ca-sos-2026-11-03-110000160000",
+    status: "blocked",
+    checkpoint: {
+      attemptedAt: "2026-11-02T01:25:47.641Z",
+      reason:
+        "Source request failed (429); source https://api.open.fec.gov/v1/reports/house-senate/; retry after 17281 seconds",
+      releaseId: "f3e2a1b8-bcb2-40f2-b6c1-de827cc57db4",
+      sourceCheckedAt: "2026-10-31T23:17:17.827Z",
+    },
+  },
+  {
+    raceKey: "ca-sos-2026-11-03-110000190000",
+    status: "blocked",
+    checkpoint: {
+      attemptedAt: "2026-11-02T01:25:50.091Z",
+      reason:
+        "Source request failed (429); source https://api.open.fec.gov/v1/schedules/schedule_e/by_candidate/; retry after 9525 seconds",
+      releaseId: "9a53f718-f9ff-41fa-8b4b-ee1ac8911d42",
+      sourceCheckedAt: "2026-11-01T04:36:16.776Z",
+    },
+  },
+];
+
+for (const financeOnly of [false, true])
+  test(`FEC retry captured restart defers ${financeOnly ? "finance-only" : "ordinary"} House work without claims or work mutations`, async () => {
+    const f = await fixture();
+    const race = f.allRaces.find(
+      (target) =>
+        target.officeFamily === "us_house" && target.district === "10",
+    )!;
+    f.snapshot.races = [race];
+    f.deps.now = () => "2026-11-02T02:00:00.000Z";
+    for (const row of capturedFecRetryCheckpoints)
+      f.rows.set(row.raceKey, structuredClone(row));
+    const before = structuredClone([...f.rows]);
+    for (const method of [
+      "claim",
+      "investigate",
+      "author",
+      "review",
+      "checkpoint",
+      "fail",
+      "publish",
+    ] as const)
+      f.deps[method] = async () => {
+        assert.fail(`deferred attempt called ${method}`);
+      };
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        raceKeys: [race.raceKey],
+        financeOnly,
+        refreshCurrent: financeOnly,
+      },
+      f.deps,
+    );
+    assert.equal(result.remaining, 1);
+    assert.equal(result.outcomes[0]!.status, "pending");
+    assert.match(result.outcomes[0]!.reason!, /2026-11-02T06:14:48.641Z/);
+    assert.equal(result.usage.races, 0);
+    assert.equal(result.usage.candidates, 0);
+    assert.equal(result.usage.modelCalls, 0);
+    assert.deepEqual([...f.rows], before);
+  });
+
+for (const [now, admitted] of [
+  ["2026-11-02T06:14:48.640Z", false],
+  ["2026-11-02T06:14:48.641Z", true],
+] as const)
+  test(`FEC retry admits House acquisition at the original maximum plus safety ${now}`, async () => {
+    const f = await fixture();
+    const race = f.allRaces.find(
+      (target) => target.officeFamily === "us_house",
+    )!;
+    f.snapshot.races = [race];
+    f.deps.now = () => now;
+    for (const row of capturedFecRetryCheckpoints)
+      f.rows.set(row.raceKey, structuredClone(row));
+    let claims = 0;
+    let investigations = 0;
+    const claim = f.deps.claim;
+    f.deps.claim = async (input) => {
+      claims++;
+      return claim(input);
+    };
+    f.deps.investigate = async () => {
+      investigations++;
+      throw new Error("Synthetic acquisition boundary reached");
+    };
+    await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        raceKeys: [race.raceKey],
+      },
+      f.deps,
+    );
+    assert.equal(claims, Number(admitted));
+    assert.equal(investigations, Number(admitted));
+    assert.equal(f.stats.authors, 0);
+    assert.equal(f.stats.reviews, 0);
+  });
+
+test("FEC retry first observed response defers the next House race in the same serial run", async () => {
+  const f = await fixture();
+  f.snapshot.races = f.allRaces.filter(
+    (target) =>
+      target.officeFamily === "us_house" &&
+      ["16", "19"].includes(target.district!),
+  );
+  f.deps.now = () => "2026-11-02T02:00:00.000Z";
+  let claims = 0;
+  let investigations = 0;
+  const claim = f.deps.claim;
+  f.deps.claim = async (input) => {
+    claims++;
+    return claim(input);
+  };
+  f.deps.investigate = async () => {
+    investigations++;
+    throw new CaliforniaSourceHttpError(429, {
+      resource: "https://api.open.fec.gov/v1/reports/house-senate/",
+      retryAfterSeconds: 3600,
+    });
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      raceKeys: f.snapshot.races.map((race) => race.raceKey),
+    },
+    f.deps,
+  );
+  assert.equal(claims, 1);
+  assert.equal(investigations, 1);
+  assert.deepEqual(
+    result.outcomes.map((outcome) => outcome.status),
+    ["blocked", "pending"],
+  );
+  assert.match(result.outcomes[1]!.reason!, /2026-11-02T03:01:00.000Z/);
+  assert.equal(f.rows.size, 1);
+  const saved = [...f.rows.values()][0]!.checkpoint as CaliforniaWorkCheckpoint;
+  assert.equal(saved.attemptedAt, "2026-11-02T02:00:00.000Z");
+  assert.deepEqual(saved.fecRetry, {
+    resource: "https://api.open.fec.gov/v1/reports/house-senate/",
+    attemptedAt: "2026-11-02T02:00:00.000Z",
+    retryAfterSeconds: 3600,
+    notBefore: "2026-11-02T03:00:00.000Z",
+  });
+});
+
+for (const scenario of ["narrative", "statewide", "current"] as const)
+  test(`FEC retry preserves the existing ${scenario} admission path`, async () => {
+    const f = await fixture();
+    const race = f.allRaces.find((target) =>
+      scenario === "statewide"
+        ? target.officeFamily !== "us_house"
+        : target.officeFamily === "us_house",
+    )!;
+    f.snapshot.races = [race];
+    f.deps.now = () => "2026-11-02T02:00:00.000Z";
+    for (const row of capturedFecRetryCheckpoints)
+      f.rows.set(row.raceKey, structuredClone(row));
+    let claims = 0;
+    const claim = f.deps.claim;
+    f.deps.claim = async (input) => {
+      claims++;
+      return claim(input);
+    };
+    f.deps.investigate = async () => {
+      throw new Error("Synthetic acquisition boundary reached");
+    };
+    if (scenario === "current") {
+      f.rows.set(race.raceKey, {
+        raceKey: race.raceKey,
+        status: "complete",
+        checkpoint: {
+          releaseId: "current-release",
+          sourceCheckedAt: "2026-11-02T01:00:00.000Z",
+        },
+      });
+      f.deps.readPublishedCoverage = async () => ({
+        snapshotId: f.snapshot.id,
+        races: [
+          {
+            contestId: race.contestId,
+            jurisdiction: race.jurisdiction,
+            electionDate: race.electionDate,
+            releaseId: "current-release",
+            sourceCheckedAt: "2026-11-02T01:00:00.000Z",
+            policyVersion: "policy",
+            members: [],
+          },
+        ],
+      });
+    }
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        raceKeys: [race.raceKey],
+        narrativeOnly: scenario === "narrative",
+        includePilotRaces: true,
+      },
+      f.deps,
+    );
+    assert.equal(claims, scenario === "current" ? 0 : 1);
+    assert.equal(
+      result.outcomes[0]!.status,
+      scenario === "current" ? "current" : "blocked",
+    );
+    assert.equal(f.stats.authors, 0);
+    assert.equal(f.stats.reviews, 0);
+  });
+
+for (const bad of [
+  {
+    attemptedAt: "not-a-time",
+    reason: capturedFecRetryCheckpoints[0]!.checkpoint.reason,
+  },
+  {
+    attemptedAt: "2026-11-02T01:25:47.641Z",
+    reason:
+      "Source request failed (429); source https://api.open.fec.gov/v1/reports/house-senate/",
+  },
+  {
+    attemptedAt: "2026-11-03T01:25:47.641Z",
+    reason: capturedFecRetryCheckpoints[0]!.checkpoint.reason,
+  },
+])
+  test(`FEC retry malformed known response fails closed without refreshing attempt clocks ${bad.attemptedAt} ${bad.reason}`, async () => {
+    const f = await fixture();
+    const race = f.allRaces.find(
+      (target) => target.officeFamily === "us_house",
+    )!;
+    f.snapshot.races = [race];
+    f.deps.now = () => "2026-11-02T02:00:00.000Z";
+    f.rows.set("unselected-provider-observation", {
+      raceKey: "unselected-provider-observation",
+      status: "blocked",
+      checkpoint: bad,
+    });
+    const before = structuredClone([...f.rows]);
+    f.deps.claim = async () =>
+      assert.fail("malformed retry metadata admitted a claim");
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        raceKeys: [race.raceKey],
+      },
+      f.deps,
+    );
+    assert.equal(result.outcomes[0]!.status, "pending");
+    assert.match(result.outcomes[0]!.reason!, /FEC|retry/i);
+    assert.deepEqual([...f.rows], before);
+  });
+
+for (const outcome of [
+  "shorter429",
+  "unrelated-failure",
+  "publication",
+  "preparation",
+] as const)
+  test(`FEC retry longest original observation survives ${outcome} checkpoint replacement`, async () => {
+    const f = await fixture();
+    const race = f.allRaces.find(
+      (target) => target.officeFamily === "us_house",
+    )!;
+    f.snapshot.races = [race];
+    const originalFact = {
+      resource: "https://api.open.fec.gov/v1/reports/house-senate/",
+      attemptedAt: "2026-10-30T11:00:00.000Z",
+      retryAfterSeconds: 7200,
+      notBefore: "2026-10-30T13:00:00.000Z",
+    };
+    f.rows.set(race.raceKey, {
+      raceKey: race.raceKey,
+      status: "blocked",
+      checkpoint: {
+        attemptedAt: originalFact.attemptedAt,
+        reason:
+          "Source request failed (429); source https://api.open.fec.gov/v1/reports/house-senate/; retry after 7200 seconds",
+      },
+    });
+    const investigate = f.deps.investigate;
+    f.deps.investigate = async (...args) => {
+      if (outcome === "shorter429")
+        throw new CaliforniaSourceHttpError(429, {
+          resource:
+            "https://api.open.fec.gov/v1/schedules/schedule_e/by_candidate/",
+          retryAfterSeconds: 600,
+        });
+      if (outcome === "unrelated-failure")
+        throw new Error("Synthetic campaign source failure");
+      return buildCaliforniaDossier({
+        ...(await investigate(...args)),
+        officeKind: "federal_legislative",
+      });
+    };
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        raceKeys: [race.raceKey],
+        narrativeOnly: true,
+        ...(outcome === "preparation"
+          ? {
+              preparationPolicy: {
+                approved: true as const,
+                version: "policy",
+                automation: {},
+                approvedBy: "fixture operator",
+                statement:
+                  "The synthetic fixture operator authorizes this local fixture preparation with no live models or external source calls and no publication to a shared database.",
+              },
+            }
+          : {}),
+      },
+      f.deps,
+    );
+    assert.equal(
+      result.outcomes[0]!.status,
+      outcome === "publication"
+        ? "published"
+        : outcome === "preparation"
+          ? "prepared"
+          : "blocked",
+    );
+    const checkpoint = f.rows.get(race.raceKey)!
+      .checkpoint as CaliforniaWorkCheckpoint;
+    assert.deepEqual(checkpoint.fecRetry, originalFact);
+    if (outcome === "shorter429" || outcome === "unrelated-failure")
+      assert.equal(checkpoint.attemptedAt, "2026-10-30T12:00:00.000Z");
+  });
+
+for (const failure of [
+  new CaliforniaSourceHttpError(503, {
+    resource: "https://api.open.fec.gov/v1/reports/house-senate/",
+    retryAfterSeconds: 3600,
+  }),
+  new CaliforniaSourceHttpError(429, {
+    resource: "https://campaign.example.org/issues/",
+    retryAfterSeconds: 3600,
+  }),
+])
+  test(`FEC retry leaves unrelated acquisition failure admission unchanged ${failure.message}`, async () => {
+    const f = await fixture();
+    f.snapshot.races = f.allRaces.filter(
+      (target) =>
+        target.officeFamily === "us_house" &&
+        ["16", "19"].includes(target.district!),
+    );
+    let claims = 0;
+    const claim = f.deps.claim;
+    f.deps.claim = async (input) => {
+      claims++;
+      return claim(input);
+    };
+    f.deps.investigate = async () => {
+      throw failure;
+    };
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        raceKeys: f.snapshot.races.map((race) => race.raceKey),
+      },
+      f.deps,
+    );
+    assert.equal(claims, 2);
+    assert.deepEqual(
+      result.outcomes.map((outcome) => outcome.status),
+      ["blocked", "blocked"],
+    );
+    for (const row of f.rows.values())
+      assert.equal(
+        (row.checkpoint as CaliforniaWorkCheckpoint).fecRetry,
+        undefined,
+      );
+  });
+
+test("FEC retry reevaluates eligibility after earlier statewide work advances the run clock", async () => {
+  const f = await fixture();
+  const statewide = f.allRaces.find(
+    (race) => race.officeFamily === "statewide",
+  )!;
+  const house = f.allRaces.find(
+    (race) => race.officeFamily === "us_house" && race.district === "10",
+  )!;
+  assert.ok(statewide.raceKey.localeCompare(house.raceKey) < 0);
+  f.snapshot.races = [statewide, house];
+  let now = "2026-11-02T06:14:48.640Z";
+  f.deps.now = () => now;
+  for (const row of capturedFecRetryCheckpoints)
+    f.rows.set(row.raceKey, structuredClone(row));
+  const investigated: string[] = [];
+  f.deps.investigate = async ({ race }) => {
+    investigated.push(race.raceKey);
+    if (race.raceKey === statewide.raceKey) now = "2026-11-02T06:14:48.641Z";
+    throw new Error("Synthetic acquisition boundary reached");
+  };
+  await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      raceKeys: [statewide.raceKey, house.raceKey],
+      includePilotRaces: true,
+    },
+    f.deps,
+  );
+  assert.deepEqual(investigated, [statewide.raceKey, house.raceKey]);
+});
+
+test("FEC retry invalid retained observation survives narrative failure and blocks a later ordinary restart", async () => {
+  const f = await fixture();
+  const race = f.allRaces.find((target) => target.officeFamily === "us_house")!;
+  f.snapshot.races = [race];
+  f.rows.set(race.raceKey, {
+    raceKey: race.raceKey,
+    status: "blocked",
+    checkpoint: {
+      attemptedAt: "not-a-time",
+      reason: capturedFecRetryCheckpoints[0]!.checkpoint.reason,
+    },
+  });
+  f.deps.investigate = async () => {
+    throw new Error("Synthetic nonfinancial source failure");
+  };
+  const input = {
+    snapshotId: f.snapshot.id,
+    policyVersion: "policy",
+    bounds,
+    raceKeys: [race.raceKey],
+  };
+  const first = await reconcile({ ...input, narrativeOnly: true }, f.deps);
+  assert.equal(first.outcomes[0]!.status, "blocked");
+  const saved = f.rows.get(race.raceKey)!
+    .checkpoint as CaliforniaWorkCheckpoint;
+  assert.ok(saved.fecRetry && "invalid" in saved.fecRetry);
+  assert.equal(saved.fecRetry.attemptedAt, "not-a-time");
+  const before = structuredClone([...f.rows]);
+  f.deps.claim = async () =>
+    assert.fail("invalid retained metadata admitted a claim");
+  const second = await reconcile(input, f.deps);
+  assert.equal(second.outcomes[0]!.status, "pending");
+  assert.deepEqual([...f.rows], before);
+});
