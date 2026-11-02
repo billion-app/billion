@@ -125,7 +125,7 @@ test("retained finance transport rejects the actual dropped-Mechanisms output", 
   assert.equal(bodies.length, 1);
 });
 
-test("retained transport sends the exact literal schema and preserves the genuine returned envelope", async (t) => {
+test("retained transport sends a string schema and locally preserves the exact genuine returned envelope", async (t) => {
   const { fixture, call } = await retainedCall();
   let output: unknown = {
     retainedNarrativeJson: JSON.stringify(fixture.narrative),
@@ -141,7 +141,6 @@ test("retained transport sends the exact literal schema and preserves the genuin
   assert.equal(format.schema.additionalProperties, false);
   assert.deepEqual(format.schema.properties.retainedNarrativeJson, {
     type: "string",
-    enum: [JSON.stringify(fixture.narrative)],
   });
   output = fixture.failedOutput;
   const ordinary = await invokeCaliforniaModel({

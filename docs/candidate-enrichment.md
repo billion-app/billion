@@ -359,6 +359,15 @@ previous publication changed those IDs. Ordinary research still discovers new
 campaign material. The targeted operator command is documented in the
 [scraper CLI guide](../apps/scraper/README.md#candidate-research-demand).
 
+The finance author returns the complete retained political narrative as one JSON
+string. Finance contract v6 sends a required plain string field to the provider,
+then locally requires exact equality with the canonical retained JSON before
+decoding it. The ordinary author schema, exact narrative digest and full independent
+review still apply. No omitted prose is filled from the baseline. Earlier finance
+author contracts cannot supply cached approval for v6. This is a conservative
+provider-compatibility adaptation after a genuine v5 schema rejection; the original
+specific provider-validation reason was not retained and remains unknown.
+
 A finance-only restart can reuse full official FEC query responses from its latest
 saved acquisition dossier for up to 12 hours. These source checks apply when
 preparation is pending, blocked or complete. The political narrative still comes

@@ -573,3 +573,160 @@ test("campaign contact destinations cannot become mutable unused discovery feeds
   };
   assert.equal(refreshableUnusedDiscoverySource(contactContext, source), false);
 });
+
+test("finance copy accepts exactly the prior singleton-enum output set", async () => {
+  const { z } = await import("zod/v4");
+  const { old, dossier, member } = await fixture();
+  const retainedNarrative = qualifyPublishedFinanceNarrative({
+    member,
+    previousDossier: old,
+    dossier,
+    policyVersion: "policy",
+  });
+  assert(retainedNarrative);
+  const serialized = JSON.stringify(retainedNarrative.narrative);
+  const prior = z
+    .object({ retainedNarrativeJson: z.enum([serialized]) })
+    .strict();
+  const reordered = Object.fromEntries(
+    Object.entries(retainedNarrative.narrative).reverse(),
+  );
+  const cases: unknown[] = [
+    { retainedNarrativeJson: serialized },
+    { retainedNarrativeJson: serialized + " " },
+    { retainedNarrativeJson: JSON.stringify(reordered) },
+    { retainedNarrativeJson: "{" },
+    { retainedNarrativeJson: "" },
+    { retainedNarrativeJson: null },
+    { retainedNarrativeJson: 1 },
+    { retainedNarrativeJson: serialized, extra: true },
+    {},
+    retainedNarrative.narrative,
+  ];
+  for (const output of cases) {
+    const accepted = prior.safeParse(output).success;
+    const attempt = authorCaliforniaBrief(
+      { dossier, retainedNarrative, policyVersion: "policy" },
+      { invoke: async () => ({ ...model(output), output }) },
+    );
+    if (accepted)
+      assert.deepEqual(
+        (await attempt).brief.sections.map((s) => s.claims),
+        member.brief.sections.map((s) => s.claims),
+      );
+    else
+      await assert.rejects(
+        attempt,
+        (error: unknown) =>
+          error instanceof Error &&
+          error.name === "CaliforniaModelInvocationError",
+      );
+  }
+});
+
+test("finance SDK wire uses a bare string while local validation preserves exact copy and correction failures", async () => {
+  const { invokeCaliforniaModel, CaliforniaModelInvocationError } =
+    await import("./california-ai.js");
+  const { old, dossier, member } = await fixture();
+  const retainedNarrative = qualifyPublishedFinanceNarrative({
+    member,
+    previousDossier: old,
+    dossier,
+    policyVersion: "policy",
+  });
+  assert(retainedNarrative);
+  const serialized = JSON.stringify(retainedNarrative.narrative);
+  const previousFetch = globalThis.fetch;
+  const values = {
+    SCRAPER_FALLBACK_BASE_URL: "https://fixture.invalid/v1",
+    SCRAPER_FALLBACK_API_KEY: "SYNTHETIC_UNUSED",
+    SCRAPER_FALLBACK_MODEL: "gpt-6-luna",
+    SCRAPER_FALLBACK_PRIORITY: "primary",
+  };
+  const previous = Object.fromEntries(
+    Object.keys(values).map((key) => [key, process.env[key]]),
+  );
+  Object.assign(process.env, values);
+  const wires: Record<string, unknown>[] = [];
+  let returned = serialized;
+  globalThis.fetch = async (_url, init) => {
+    assert.equal(String(_url), "https://fixture.invalid/v1/responses");
+    wires.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+    return new Response(
+      JSON.stringify({
+        id: "resp_OFFLINE_FIXTURE",
+        object: "response",
+        created_at: 1,
+        model: "gpt-6-luna",
+        status: "completed",
+        output: [
+          {
+            id: "msg_OFFLINE_FIXTURE",
+            type: "message",
+            role: "assistant",
+            status: "completed",
+            content: [
+              {
+                type: "output_text",
+                text: JSON.stringify({ retainedNarrativeJson: returned }),
+                annotations: [],
+              },
+            ],
+          },
+        ],
+        usage: {
+          input_tokens: 10,
+          output_tokens: 10,
+          total_tokens: 20,
+          input_tokens_details: { cached_tokens: 0 },
+          output_tokens_details: { reasoning_tokens: 0 },
+        },
+      }),
+      { headers: { "Content-Type": "application/json" } },
+    );
+  };
+  try {
+    const input = { dossier, retainedNarrative, policyVersion: "policy" };
+    const accepted = await authorCaliforniaBrief(input, {
+      invoke: invokeCaliforniaModel,
+    });
+    assert.deepEqual(
+      accepted.brief.sections.map((s) => s.claims),
+      member.brief.sections.map((s) => s.claims),
+    );
+    const format = (
+      wires[0]!.text as {
+        format: { schema: { properties: { retainedNarrativeJson: unknown } } };
+      }
+    ).format;
+    assert.deepEqual(format.schema.properties.retainedNarrativeJson, {
+      type: "string",
+    });
+    returned = serialized + " ";
+    const correction = {
+      kind: "author_validation" as const,
+      previousOutput: { retainedNarrativeJson: returned },
+      validationProblems: ["Exact retained narrative required"],
+    };
+    for (const attempt of [input, { ...input, correction }])
+      await assert.rejects(
+        authorCaliforniaBrief(attempt, { invoke: invokeCaliforniaModel }),
+        (error: unknown) => {
+          assert(error instanceof CaliforniaModelInvocationError);
+          assert.equal(error.diagnostic.errorKind, "schema_validation");
+          assert.equal(
+            error.diagnostic.rawText,
+            JSON.stringify({ retainedNarrativeJson: returned }),
+          );
+          return true;
+        },
+      );
+    assert.equal(wires.length, 3);
+  } finally {
+    globalThis.fetch = previousFetch;
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});

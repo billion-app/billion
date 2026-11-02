@@ -22,7 +22,7 @@ import {
 export const californiaAuthorPromptVersion = "california-author-v20";
 export const californiaReviewerPromptVersion = "california-review-v6";
 export const californiaFinanceRefreshPromptVersion =
-  "california-finance-refresh-v5";
+  "california-finance-refresh-v6";
 export interface CaliforniaRetainedNarrative {
   dossierDigest: string;
   narrative: z.infer<ReturnType<typeof californiaAuthorOutputSchema>>;
@@ -235,11 +235,16 @@ function authorResponseContract(
     };
   const serialized = JSON.stringify(narrativeSchema.parse(retainedNarrative));
   if (serialized.length + "retainedNarrativeJson".length > 120_000)
-    throw new Error(
-      "Retained finance response exceeds provider schema string budget",
-    );
+    throw new Error("Retained finance response exceeds copy string budget");
   const schema = z
-    .object({ retainedNarrativeJson: z.enum([serialized]) })
+    .object({
+      retainedNarrativeJson: z
+        .string()
+        .refine((value) => value === serialized, {
+          message:
+            "Retained finance response must copy the exact canonical narrative",
+        }),
+    })
     .strict();
   return {
     schema,
