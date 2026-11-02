@@ -27,6 +27,7 @@ import {
   researchSourceSchema,
 } from "@acme/validators";
 
+import type { CaliforniaFecRetry } from "./california-fec-retry.js";
 import type { CaliforniaReviewedNarrativeCoverage } from "./california-finance-baseline.js";
 import type { CaliforniaRosterObservation } from "./california-roster-observation.js";
 import {
@@ -50,6 +51,11 @@ import {
   collectCaliforniaEvidence,
   fetchBoundedCaliforniaSource,
 } from "./california-evidence.js";
+import {
+  californiaFecRetryDeferReason,
+  mergeCaliforniaFecRetry,
+  readCaliforniaFecRetry,
+} from "./california-fec-retry.js";
 import { readFinanceNarrativeBaselines } from "./california-finance-baseline.js";
 import { qualifyPublishedFinanceNarrative } from "./california-finance-refresh.js";
 import {
@@ -100,6 +106,7 @@ export interface CaliforniaWorkCheckpoint {
   >;
   reason?: string;
   attemptedAt?: string;
+  fecRetry?: CaliforniaFecRetry;
   rosterCheckArtifactKey?: string;
 }
 export interface CaliforniaPreparationPolicy {
@@ -1201,6 +1208,14 @@ export async function reconcile(
       row.checkpoint as CaliforniaWorkCheckpoint,
     ]),
   );
+  let fecRetry = work.reduce<CaliforniaFecRetry | undefined>(
+    (retained, row) =>
+      mergeCaliforniaFecRetry(
+        retained,
+        readCaliforniaFecRetry(row.checkpoint, deps.now()),
+      ),
+    undefined,
+  );
   const due = (race: CaliforniaRaceTarget) => {
     const checkpoint = checkpoints.get(race.raceKey);
     return checkpoint?.releaseId
@@ -1280,6 +1295,18 @@ export async function reconcile(
       });
       continue;
     }
+    const fecDeferReason =
+      race.officeFamily === "us_house" && !input.narrativeOnly
+        ? californiaFecRetryDeferReason(fecRetry, deps.now())
+        : undefined;
+    if (fecDeferReason) {
+      outcomes.push({
+        raceKey: race.raceKey,
+        status: "pending",
+        reason: fecDeferReason,
+      });
+      continue;
+    }
     if (
       usage.races >= input.bounds.maxRaces ||
       usage.candidates + race.members.length > input.bounds.maxCandidates
@@ -1308,6 +1335,7 @@ export async function reconcile(
     const attemptPrior = (lease.checkpoint ?? prior) as
       | CaliforniaWorkCheckpoint
       | undefined;
+    const attemptFecRetry = readCaliforniaFecRetry(attemptPrior, deps.now());
     let savedCollectionId: string | undefined;
     const candidateProvenance: NonNullable<
       CaliforniaWorkCheckpoint["candidateProvenance"]
@@ -1555,6 +1583,7 @@ export async function reconcile(
       if (input.preparationPolicy) {
         if (
           !(await deps.checkpoint(lease, "complete", {
+            ...(attemptFecRetry ? { fecRetry: attemptFecRetry } : {}),
             collectionId: saved.collectionId,
             rosterCheckArtifactKey,
             candidateProvenance,
@@ -1589,6 +1618,7 @@ export async function reconcile(
       }
       const release = await deps.publish(saved.collectionId, lease);
       const checkpoint = {
+        ...(attemptFecRetry ? { fecRetry: attemptFecRetry } : {}),
         collectionId: saved.collectionId,
         rosterCheckArtifactKey,
         candidateProvenance,
@@ -1666,6 +1696,12 @@ export async function reconcile(
         attemptedAt: deps.now(),
         reason,
       };
+      const observedRetry = mergeCaliforniaFecRetry(
+        attemptFecRetry,
+        readCaliforniaFecRetry(checkpoint, deps.now()),
+      );
+      if (observedRetry) checkpoint.fecRetry = observedRetry;
+      fecRetry = mergeCaliforniaFecRetry(fecRetry, observedRetry);
       if (
         error instanceof RequiredCaliforniaSourceFailure ||
         error instanceof CaliforniaCitedSourceFailure
