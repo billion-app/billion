@@ -370,6 +370,17 @@ reused. The ordinary publication expiry still starts at the oldest actual source
 observation. Reusing a query does not adopt a rejected model output or clear a
 review failure.
 
+An explicit cache-only House refresh can proceed during provider backoff only when
+both candidates' exact raw API queries pass the same cache checks. It acquires the
+whole race before any author or reviewer. The private cache cannot fall through to
+HTTP, and the static acquisition adapter denies API hosts before DNS and after each
+redirect. Browser rendering and discovery are excluded. Fresh static records and
+nonfinancial source revalidation remain required. An immutable preflight binds the
+original observations and completed dossier digests, while work checkpoints retain
+the original provider Retry-After. A cache-only success establishes no new provider
+eligibility. The [CLI guide](../apps/scraper/README.md#candidate-research-demand)
+describes the explicit mode and its application-level counters.
+
 If a release expires before a finance-only restart, a private baseline reader can
 recover its reviewed narrative. It selects the latest release before checking
 revocation, current policy, roster membership and the exact approved revisions.
@@ -396,7 +407,8 @@ describes its operator flags.
 The normal demanded-race worker also chooses this fresh narrative scope for an
 unavailable House race while retained FEC retry metadata defers finance. Any
 eligible whole-race release takes precedence, including a current narrative
-release. Explicit finance-only work stays deferred. Invalid known retry metadata
+release. Ordinary explicit finance-only work stays deferred; the separately
+selected cache-only contract above cannot make API requests. Invalid known retry metadata
 still blocks finance, and narrative checkpoints retain the original provider fact.
 The first actual 429 remains a failed ordinary attempt. Only a later scheduled
 tick can select narrative for that same race. Later unavailable races in the same

@@ -58,6 +58,10 @@ import {
   readCaliforniaFecRetry,
 } from "./california-fec-retry.js";
 import { readFinanceNarrativeBaselines } from "./california-finance-baseline.js";
+import {
+  CaliforniaFinanceCacheOnly,
+  CaliforniaFinanceCacheUnavailable,
+} from "./california-finance-cache-only.js";
 import { qualifyPublishedFinanceNarrative } from "./california-finance-refresh.js";
 import {
   observedRosterSources,
@@ -75,6 +79,7 @@ import {
   isCaliforniaSourceUnavailable,
   sourceAcquisitionFailure,
 } from "./california-source-availability.js";
+import { hash } from "./sources.js";
 
 export interface CaliforniaBounds {
   maxRaces: number;
@@ -109,6 +114,9 @@ export interface CaliforniaWorkCheckpoint {
   attemptedAt?: string;
   fecRetry?: CaliforniaFecRetry;
   rosterCheckArtifactKey?: string;
+  acquisitionMode?: "finance_cache_only";
+  financeCachePreflightArtifactKey?: string;
+  financeCacheAcquisition?: ReturnType<CaliforniaFinanceCacheOnly["receipt"]>;
 }
 export interface CaliforniaPreparationPolicy {
   approved: true;
@@ -237,6 +245,7 @@ export interface CaliforniaDependencies {
       previousDossier?: CandidateEvidenceDossier;
       researchScope?: "finance_refresh" | "narrative_only";
       cachedFinanceDossier?: { digest: string; document: unknown };
+      financeCacheOnly?: CaliforniaFinanceCacheOnly;
     },
     budget: {
       request(): void;
@@ -281,6 +290,7 @@ export async function fetchCaliforniaPlan(
   electionDate: string,
   budget?: { request(): void; bytes(amount: number): void },
   expectedSource?: CaliforniaRosterSnapshot["source"],
+  financeCacheOnly?: CaliforniaFinanceCacheOnly,
 ): Promise<CaliforniaRosterSnapshot> {
   if (electionDate !== "2026-11-03")
     throw new Error(
@@ -290,7 +300,22 @@ export async function fetchCaliforniaPlan(
   const url = "https://media.sos.ca.gov/media/C26GG.txt";
   let response: Response;
   try {
-    response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+    financeCacheOnly?.beforeDns(url);
+    financeCacheOnly?.beforeTransport(url);
+    response = await fetch(url, {
+      signal: AbortSignal.timeout(30_000),
+      ...(financeCacheOnly ? { redirect: "manual" as const } : {}),
+    });
+    if (
+      financeCacheOnly &&
+      [301, 302, 303, 307, 308].includes(response.status)
+    ) {
+      await response.body?.cancel().catch(() => undefined);
+      throw new CaliforniaFinanceCacheUnavailable(
+        url,
+        "Roster redirects are forbidden in cache-only mode",
+      );
+    }
   } catch (error) {
     throw sourceAcquisitionFailure(url, error);
   }
@@ -338,6 +363,8 @@ export async function fetchCaliforniaPlan(
       "California Secretary of State",
       "pdf",
       budget ?? { request() {}, bytes() {} },
+      undefined,
+      { financeCacheOnly },
     );
   } catch (error) {
     if (rawChanged && isCaliforniaSourceUnavailable(error))
@@ -356,6 +383,7 @@ export async function fetchCaliforniaPlan(
 }
 export async function createCaliforniaDependencies(
   preparationPolicy?: CaliforniaPreparationPolicy,
+  financeCacheOnly?: CaliforniaFinanceCacheOnly,
 ): Promise<CaliforniaDependencies> {
   const [
     { db },
@@ -581,7 +609,8 @@ export async function createCaliforniaDependencies(
       }),
     beginSourceCheck: (electionDate) =>
       store.beginCaliforniaSourceCheck(db, electionDate),
-    fetchRoster: fetchCaliforniaPlan,
+    fetchRoster: (date, budget, expected) =>
+      fetchCaliforniaPlan(date, budget, expected, financeCacheOnly),
     listWork: (id) => store.listCaliforniaRaceWork(db, id),
     claim: (input) => store.claimCaliforniaRaceWork(db, input),
     checkpoint: (lease, status, value) =>
@@ -662,17 +691,19 @@ export async function createCaliforniaDependencies(
       return collectCaliforniaEvidence(
         { ...input, supplementalSources },
         {
-          campaignRenderer: {
-            configuration:
-              process.env.SCRAPER_RENDERER_BASE_URL &&
-              process.env.SCRAPER_RENDERER_TOKEN
-                ? {
-                    baseUrl: process.env.SCRAPER_RENDERER_BASE_URL,
-                    token: process.env.SCRAPER_RENDERER_TOKEN,
-                  }
-                : undefined,
-            budget,
-          },
+          campaignRenderer: financeCacheOnly
+            ? undefined
+            : {
+                configuration:
+                  process.env.SCRAPER_RENDERER_BASE_URL &&
+                  process.env.SCRAPER_RENDERER_TOKEN
+                    ? {
+                        baseUrl: process.env.SCRAPER_RENDERER_BASE_URL,
+                        token: process.env.SCRAPER_RENDERER_TOKEN,
+                      }
+                    : undefined,
+                budget,
+              },
           fetch: (id, url, publisher, format, apiKey, sourceOptions) =>
             fetchBoundedCaliforniaSource(
               id,
@@ -683,12 +714,20 @@ export async function createCaliforniaDependencies(
               apiKey,
               {
                 ...sourceOptions,
+                financeCacheOnly,
                 ...(input.researchScope === "narrative_only"
                   ? { researchScope: input.researchScope }
                   : {}),
               },
             ),
-          search: (query, discover) => library.search(query, discover),
+          search: (query, discover) => {
+            if (financeCacheOnly)
+              throw new CaliforniaFinanceCacheUnavailable(
+                "https://api.open.fec.gov/",
+                "Discovery is forbidden in cache-only finance",
+              );
+            return library.search(query, discover);
+          },
           budget: {
             request: () => budget.request(),
             bytes: () => {},
@@ -1020,6 +1059,7 @@ export async function reconcile(
     raceKeys?: string[];
     refreshCurrent?: boolean;
     financeOnly?: boolean;
+    financeCacheOnly?: boolean;
     narrativeOnly?: boolean;
     preparationPolicy?: CaliforniaPreparationPolicy;
   },
@@ -1042,8 +1082,28 @@ export async function reconcile(
     throw new Error(
       "Refreshing current research requires explicit operator race keys",
     );
+  if (
+    input.financeCacheOnly &&
+    (!input.financeOnly ||
+      !input.refreshCurrent ||
+      input.raceKeys?.length !== 1 ||
+      input.bounds.maxRaces !== 1 ||
+      input.preparationPolicy)
+  )
+    throw new Error(
+      "Finance cache-only requires one explicit finance refresh race, maxRaces 1 and no preparation policy",
+    );
+  const financeCacheOnly = input.financeCacheOnly
+    ? new CaliforniaFinanceCacheOnly(
+        () => provided?.now() ?? new Date().toISOString(),
+      )
+    : undefined;
   const deps =
-    provided ?? (await createCaliforniaDependencies(input.preparationPolicy));
+    provided ??
+    (await createCaliforniaDependencies(
+      input.preparationPolicy,
+      financeCacheOnly,
+    ));
   if (
     input.preparationPolicy &&
     (input.preparationPolicy.version !== input.policyVersion ||
@@ -1091,6 +1151,7 @@ export async function reconcile(
     reason?: string;
     releaseId?: string;
     collectionId?: string;
+    financeCachePreflightArtifactKey?: string;
   }[] = [];
   const raceKeys = input.raceKeys ?? (await deps.demandedRaceKeys(snapshot));
   const initialRaces = snapshot.races;
@@ -1100,6 +1161,14 @@ export async function reconcile(
     throw new Error(
       "Requested race key is absent from the authoritative snapshot",
     );
+  if (
+    financeCacheOnly &&
+    snapshot.races.some(
+      (race) =>
+        raceKeys.includes(race.raceKey) && race.officeFamily !== "us_house",
+    )
+  )
+    throw new Error("Finance cache-only is limited to a federal House race");
   if (!raceKeys.length)
     return {
       snapshotId: snapshot.id,
@@ -1157,6 +1226,8 @@ export async function reconcile(
             publisher,
             format,
             budget,
+            undefined,
+            { financeCacheOnly },
           );
         },
       );
@@ -1292,7 +1363,7 @@ export async function reconcile(
       });
       continue;
     }
-    if (fecDeferReason && input.financeOnly) {
+    if (fecDeferReason && input.financeOnly && !financeCacheOnly) {
       outcomes.push({
         raceKey: race.raceKey,
         status: "pending",
@@ -1368,6 +1439,7 @@ export async function reconcile(
       readCaliforniaFecRetry(attemptPrior, deps.now()),
     );
     let savedCollectionId: string | undefined;
+    let financeCachePreflightArtifactKey: string | undefined;
     const candidateProvenance: NonNullable<
       CaliforniaWorkCheckpoint["candidateProvenance"]
     > = {};
@@ -1407,8 +1479,9 @@ export async function reconcile(
         authored: Awaited<ReturnType<typeof authorCaliforniaBrief>>;
         reviewed: Awaited<ReturnType<typeof reviewCaliforniaBrief>>;
       }[] = [];
-      for (const member of race.members) {
-        usage.candidates++;
+      const loadContext = async (
+        member: CaliforniaRaceTarget["members"][number],
+      ) => {
         const previousDossierEpoch =
           attemptPrior?.dossierReviewEpochs?.[member.candidateId] ?? 0;
         const previousDossierDigest =
@@ -1459,11 +1532,48 @@ export async function reconcile(
             ? null
             : await deps.artifact(`dossier:${acquisitionDigest}`)
           : null;
+        return {
+          member,
+          previousDossier,
+          publishedMember,
+          publishedDossier,
+          acquisitionDigest,
+          acquisitionDossier,
+        };
+      };
+      const contexts = financeCacheOnly
+        ? await Promise.all(race.members.map(loadContext))
+        : undefined;
+      for (const context of contexts ?? []) {
+        if (
+          context.acquisitionDigest &&
+          context.acquisitionDossier &&
+          context.publishedDossier
+        )
+          financeCacheOnly!.seed({
+            digest: context.acquisitionDigest,
+            document: context.acquisitionDossier,
+            expected: context.publishedDossier,
+          });
+      }
+      const acquire = async (
+        context: Awaited<ReturnType<typeof loadContext>>,
+      ) => {
+        const {
+          member,
+          previousDossier,
+          publishedMember,
+          publishedDossier,
+          acquisitionDigest,
+          acquisitionDossier,
+        } = context;
+        usage.candidates++;
         const dossier = await deps.investigate(
           {
             snapshot,
             race,
             member,
+            financeCacheOnly,
             ...(acquisitionScope === "narrative_only"
               ? { researchScope: "narrative_only" as const }
               : {
@@ -1532,6 +1642,13 @@ export async function reconcile(
           throw new Error(
             "Finance-only refresh changed nonfinancial context or has no financial observation",
           );
+        return { member, dossier, retainedNarrative };
+      };
+      const prepare = async ({
+        member,
+        dossier,
+        retainedNarrative,
+      }: Awaited<ReturnType<typeof acquire>>) => {
         investigated.push(
           await prepareReviewedCaliforniaCandidate(
             {
@@ -1548,6 +1665,40 @@ export async function reconcile(
             deps,
           ),
         );
+      };
+      if (financeCacheOnly) {
+        const acquired = [];
+        for (const context of contexts!) acquired.push(await acquire(context));
+        financeCacheOnly.assertReady(
+          race.members.map((member) => member.candidateId),
+        );
+        const document = {
+          ...financeCacheOnly.receipt(),
+          checkedAt: deps.now(),
+          retainedProviderRetry: attemptFecRetry ?? null,
+          raceKey: race.raceKey,
+          candidates: acquired.map(({ dossier }) => ({
+            candidateId: dossier.identity.candidateId,
+            dossierDigest: dossier.dossierDigest,
+            sourceSetDigest: dossier.sourceSetDigest,
+          })),
+        };
+        financeCachePreflightArtifactKey = `finance-cache-preflight:${hash(JSON.stringify(document))}`;
+        await deps.saveArtifact({
+          key: financeCachePreflightArtifactKey,
+          kind: "finance_cache_preflight",
+          raceKey: race.raceKey,
+          document,
+        });
+        for (const candidate of acquired) {
+          financeCacheOnly.assertReady(
+            race.members.map((member) => member.candidateId),
+          );
+          await prepare(candidate);
+        }
+      } else {
+        for (const member of race.members)
+          await prepare(await acquire(await loadContext(member)));
       }
       const sourceMap = new Map<string, ResearchSource>([
         [
@@ -1684,6 +1835,13 @@ export async function reconcile(
         preserveEligibleRace: automaticNarrative,
       });
       const checkpoint = {
+        ...(financeCacheOnly
+          ? {
+              acquisitionMode: "finance_cache_only" as const,
+              financeCachePreflightArtifactKey,
+              financeCacheAcquisition: financeCacheOnly.receipt(),
+            }
+          : {}),
         ...(attemptFecRetry ? { fecRetry: attemptFecRetry } : {}),
         collectionId: saved.collectionId,
         rosterCheckArtifactKey,
@@ -1715,6 +1873,7 @@ export async function reconcile(
         raceKey: race.raceKey,
         status: "published",
         releaseId: release.releaseId,
+        ...(financeCacheOnly ? { financeCachePreflightArtifactKey } : {}),
       });
     } catch (error) {
       const reason =
@@ -1726,6 +1885,9 @@ export async function reconcile(
           : "blocked";
       const checkpoint: CaliforniaWorkCheckpoint = {
         ...attemptPrior,
+        acquisitionMode: financeCacheOnly ? "finance_cache_only" : undefined,
+        financeCachePreflightArtifactKey,
+        financeCacheAcquisition: financeCacheOnly?.receipt(),
         rosterCheckArtifactKey,
         collectionId: savedCollectionId ?? attemptPrior?.collectionId,
         candidateProvenance: {
@@ -1795,13 +1957,23 @@ export async function reconcile(
           cause: error,
         });
       }
-      outcomes.push({ raceKey: race.raceKey, status, reason });
+      outcomes.push({
+        raceKey: race.raceKey,
+        status,
+        reason,
+        ...(financeCacheOnly ? { financeCachePreflightArtifactKey } : {}),
+      });
     }
   }
   return {
     snapshotId: snapshot.id,
     scopeLabel: snapshot.scopeLabel,
     rosterCheckArtifactKey,
+    ...(financeCacheOnly
+      ? {
+          financeCacheAcquisition: financeCacheOnly.receipt(),
+        }
+      : {}),
     usage,
     outcomes,
     prepared: outcomes.filter((item) => item.status === "prepared").length,

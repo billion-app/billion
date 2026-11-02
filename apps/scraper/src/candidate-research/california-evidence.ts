@@ -22,6 +22,7 @@ import type {
   CampaignBrowserConfiguration,
   CampaignRenderBudget,
 } from "../research/campaign-browser.js";
+import type { CaliforniaFinanceCacheOnly } from "./california-finance-cache-only.js";
 import { CampaignRendererUnavailable } from "../research/campaign-browser.js";
 import {
   canonicalSourceUrl,
@@ -40,6 +41,7 @@ import {
   fecCandidateMasterCompressedLimit,
   isFecCandidateMasterRedirect,
 } from "./california-fec-bulk.js";
+import { CaliforniaFinanceCacheUnavailable } from "./california-finance-cache-only.js";
 import {
   financeRefreshNonfinancialSources,
   refreshableUnusedDiscoverySource,
@@ -686,10 +688,22 @@ export async function collectCaliforniaEvidence(
     previousDossier?: CandidateEvidenceDossier;
     researchScope?: "finance_refresh" | "narrative_only";
     cachedFinanceDossier?: { digest: string; document: unknown };
+    financeCacheOnly?: CaliforniaFinanceCacheOnly;
     supplementalSources?: ResearchSource[];
   },
   deps: CaliforniaEvidenceDependencies,
 ): Promise<CandidateEvidenceDossier> {
+  if (
+    input.financeCacheOnly &&
+    (input.researchScope !== "finance_refresh" ||
+      input.race.officeFamily !== "us_house" ||
+      deps.campaignRenderer ||
+      input.supplementalSources?.length)
+  )
+    throw new CaliforniaFinanceCacheUnavailable(
+      "https://api.open.fec.gov/",
+      "Cache-only finance requires the static House refresh adapter without renderer or supplemental sources",
+    );
   if (
     input.researchScope === "narrative_only" &&
     (input.previousDossier || input.cachedFinanceDossier)
@@ -771,6 +785,7 @@ export async function collectCaliforniaEvidence(
       throw new Error(
         "Narrative-only research excludes federal finance sources",
       );
+    input.financeCacheOnly?.beforeDns(url, "nonfinancial-source");
     const checked = sources.find((source) => source.url === url);
     if (
       checked &&
@@ -1547,6 +1562,7 @@ export async function collectCaliforniaEvidence(
         sharedSources: deps.sharedSources,
         budget: deps.budget,
         apiKey: process.env.FEC_API_KEY,
+        financeCacheOnly: input.financeCacheOnly,
       },
     );
     for (const source of identitySources) {
@@ -1661,6 +1677,7 @@ export async function fetchBoundedCaliforniaSource(
     addresses?: typeof publicSourceAddresses;
     researchScope?: "narrative_only";
     archiveHtml?: boolean;
+    financeCacheOnly?: CaliforniaFinanceCacheOnly;
   },
 ): Promise<ResearchSource> {
   if (format === "render_archive")
@@ -1688,6 +1705,10 @@ export async function fetchBoundedCaliforniaSource(
       throw new Error(
         "Narrative-only research excludes federal finance sources",
       );
+    controls?.financeCacheOnly?.beforeDns(
+      currentURL,
+      redirects ? "redirect" : "initial",
+    );
     const startedAt = new Date().toISOString();
     finalStartedAt = startedAt;
     let resolved: Awaited<ReturnType<typeof addresses>>;
@@ -1698,6 +1719,7 @@ export async function fetchBoundedCaliforniaSource(
     }
     retrievalUrls.push(currentURL);
     try {
+      controls?.financeCacheOnly?.beforeTransport(currentURL);
       response = await transport(currentURL, resolved, signal, {
         "User-Agent": "Mozilla/5.0 (compatible; BillionResearch/1.0)",
         Accept: "text/html,application/pdf,text/plain,application/json",
