@@ -4868,7 +4868,7 @@ test("automatic fallback source failure releases its lease when preservation pre
   assert.equal(f.stats.releases, 0);
 });
 
-for (const secondFails of [true, false])
+for (const secondFails of [true, false, "secret"] as const)
   test(`cache-only acquires the complete race before any model when second acquisition ${secondFails ? "fails" : "succeeds"}`, async () => {
     const f = await automaticNarrativeFixture();
     f.rows.delete("shared-provider-observation");
@@ -4930,8 +4930,13 @@ for (const secondFails of [true, false])
     f.deps.investigate = async (request) => {
       events.push(`acquire:${request.member.candidateId}`);
       assert(request.financeCacheOnly);
-      if (secondFails && events.length === 2)
+      if (secondFails && events.length === 2) {
+        if (secondFails === "secret")
+          request.financeCacheOnly.beforeDns(
+            "https://SYNTHETIC_CREDENTIAL_SENTINEL:SYNTHETIC_CREDENTIAL_SENTINEL@api.open.fec.gov/v1/filings/?api_key=SYNTHETIC_CREDENTIAL_SENTINEL&token=SYNTHETIC_CREDENTIAL_SENTINEL#SYNTHETIC_CREDENTIAL_SENTINEL",
+          );
         throw new Error("Second candidate exact query is missing");
+      }
       const old = request.previousDossier!;
       const record = old.evidence.find(
         (entry) => entry.role === "candidate_record",
@@ -5008,6 +5013,13 @@ for (const secondFails of [true, false])
       },
       f.deps,
     );
+    assert.equal(
+      JSON.stringify({
+        result,
+        checkpoint: f.rows.get(f.race.raceKey)!.checkpoint,
+      }).includes("SYNTHETIC_CREDENTIAL_SENTINEL"),
+      false,
+    );
     assert.equal(result.completed, 0);
     assert.deepEqual(
       events,
@@ -5019,7 +5031,11 @@ for (const secondFails of [true, false])
     );
     assert.match(
       result.outcomes[0]!.reason!,
-      secondFails ? /Second candidate exact query/ : /No provider invocation/,
+      secondFails === "secret"
+        ? /FEC API network acquisition is forbidden/
+        : secondFails
+          ? /Second candidate exact query/
+          : /No provider invocation/,
     );
     assert.equal(result.usage.modelCalls, secondFails ? 0 : 1);
     if (!secondFails) {

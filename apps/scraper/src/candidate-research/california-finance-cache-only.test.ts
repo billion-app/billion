@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import { inspect } from "node:util";
 
 import { buildCaliforniaDossier } from "./california-dossier.js";
 import { fixtureDossier } from "./california-dossier.test.js";
@@ -179,4 +180,103 @@ test("cache-only denies API redirect before its DNS and transport and retains de
   assert.equal(cache.receipt().nonApiTransportAttempts, 1);
   assert.equal(cache.receipt().apiTransportAttempts, 0);
   assert.equal(cache.receipt().deniedApiRequests[0]!.stage, "redirect");
+});
+
+for (const action of ["deny", "miss"] as const)
+  test(`cache-only ${action} diagnostics omit query, userinfo and fragment secrets`, () => {
+    const cache = new CaliforniaFinanceCacheOnly(() => now);
+    const secret = "SYNTHETIC_CREDENTIAL_SENTINEL";
+    const url = `https://${secret}:${secret}@api.open.fec.gov/v1/filings/?api_key=${secret}&token=${secret}#${secret}`;
+    let failure: Error | undefined;
+    try {
+      if (action === "deny") cache.beforeDns(url);
+      else cache.read(url, "member");
+    } catch (error) {
+      assert(error instanceof CaliforniaFinanceCacheUnavailable);
+      failure = error;
+    }
+    assert(failure);
+    assert.equal(inspect(failure, { depth: 5 }).includes(secret), false);
+    const retained = cache.receipt();
+    const diagnostic =
+      action === "deny"
+        ? retained.deniedApiRequests[0]!
+        : retained.cacheMisses[0]!;
+    assert.equal(diagnostic.url, "https://api.open.fec.gov/v1/filings/");
+    assert.equal(
+      JSON.stringify({
+        receipt: retained,
+        error: {
+          message: failure.message,
+          stack: failure.stack,
+          cause: failure.cause,
+        },
+      }).includes(secret),
+      false,
+    );
+  });
+
+test("credential-bearing API redirect diagnostics stay safe after failure serialization", async () => {
+  const cache = new CaliforniaFinanceCacheOnly(() => now);
+  const secret = "SYNTHETIC_CREDENTIAL_SENTINEL";
+  let dns = 0,
+    transports = 0;
+  let failure: Error | undefined;
+  try {
+    await fetchBoundedCaliforniaSource(
+      "test",
+      "https://www.fec.gov/data/",
+      "FEC",
+      "html",
+      { request() {}, bytes() {} },
+      undefined,
+      {
+        financeCacheOnly: cache,
+        addresses: async () => {
+          dns++;
+          return [];
+        },
+        transport: async () => {
+          transports++;
+          return new Response(null, {
+            status: 302,
+            headers: {
+              Location: `https://api.open.fec.gov/v1/filings/?api_key=${secret}&token=${secret}`,
+            },
+          });
+        },
+      },
+    );
+  } catch (error) {
+    assert(error instanceof CaliforniaFinanceCacheUnavailable);
+    failure = error;
+  }
+  assert(failure);
+  assert.equal(inspect(failure, { depth: 5 }).includes(secret), false);
+  assert.equal(dns, 1);
+  assert.equal(transports, 1);
+  const receipt = cache.receipt();
+  const checkpoint = {
+    acquisitionMode: receipt.acquisitionMode,
+    financeCacheAcquisition: receipt,
+    reason: failure.message,
+  };
+  const cli = {
+    financeCacheAcquisition: receipt,
+    outcomes: [{ status: "blocked", reason: failure.message }],
+  };
+  assert.equal(
+    JSON.stringify({
+      checkpoint,
+      cli,
+      stack: failure.stack,
+      cause: failure.cause,
+    }).includes(secret),
+    false,
+  );
+  assert.equal(
+    receipt.deniedApiRequests[0]!.url,
+    "https://api.open.fec.gov/v1/filings/",
+  );
+  assert.equal(receipt.apiTransportAttempts, 0);
 });

@@ -10,7 +10,15 @@ import { CaliforniaSourceUnavailable } from "./california-source-availability.js
 import { hash } from "./sources.js";
 
 const maximumAge = 12 * 60 * 60 * 1000;
+function diagnosticUrl(value: string): string {
+  if (!URL.canParse(value)) return "unavailable-source";
+  const url = new URL(value);
+  return ["https:", "http:"].includes(url.protocol)
+    ? `${url.origin}${url.pathname}`
+    : "unavailable-source";
+}
 export function isFecApiUrl(value: string): boolean {
+  if (!URL.canParse(value)) return false;
   const host = new URL(value).hostname.toLowerCase().replace(/\.+$/, "");
   return ["api.open.fec.gov", "api.data.gov"].some(
     (api) => host === api || host.endsWith(`.${api}`),
@@ -18,7 +26,7 @@ export function isFecApiUrl(value: string): boolean {
 }
 export class CaliforniaFinanceCacheUnavailable extends CaliforniaSourceUnavailable {
   constructor(url: string, reason: string) {
-    super(url, new Error(reason));
+    super(diagnosticUrl(url), new Error(reason));
     this.name = "CaliforniaFinanceCacheUnavailable";
     this.message = `Finance cache-only acquisition unavailable: ${reason}`;
   }
@@ -85,7 +93,10 @@ export class CaliforniaFinanceCacheOnly {
     else if (hash(cached.source.text) !== cached.source.contentHash)
       reason = "Raw query body changed";
     if (reason || !cached) {
-      this.misses.push({ url, reason: reason ?? "Exact raw query is absent" });
+      this.misses.push({
+        url: diagnosticUrl(url),
+        reason: reason ?? "Exact raw query is absent",
+      });
       throw new CaliforniaFinanceCacheUnavailable(
         url,
         reason ?? "Exact raw query is absent",
@@ -105,7 +116,7 @@ export class CaliforniaFinanceCacheOnly {
 
   beforeDns(url: string, stage = "initial") {
     if (isFecApiUrl(url)) {
-      this.denials.push({ url, stage });
+      this.denials.push({ url: diagnosticUrl(url), stage });
       throw new CaliforniaFinanceCacheUnavailable(
         url,
         "FEC API network acquisition is forbidden",
