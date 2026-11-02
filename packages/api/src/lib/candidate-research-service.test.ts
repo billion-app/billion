@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
   campaignFinanceSchema,
+  campaignOwnershipProofSchema,
   candidateDossierSemanticProjection,
   candidateDossierSourceProjection,
   candidateModelAttestationSchema,
   candidateResearchCollectionSchema,
+  researchSourceSchema,
 } from "@acme/validators";
 
 import {
@@ -18,6 +21,7 @@ import {
 } from "./candidate-brief-publication";
 import { readCandidateRace } from "./candidate-race-release";
 import { validResearchAttestation } from "./candidate-research-attestation";
+import { researchSourceMatchesArchive } from "./candidate-research-service";
 
 function required<T>(value: T | undefined): T {
   assert.ok(value);
@@ -2865,5 +2869,152 @@ void test("observation bound uses current sources and required roster checks, no
   assert.equal(
     researchObservationBound(document).toISOString(),
     document.manifest.sourceCheckedAt,
+  );
+});
+
+void test("archived source binding ignores captured JSONB object key order and preserves all values", () => {
+  const capture = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/jsonb-source-binding.json", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    acquisition: { archived: unknown; dossier: unknown };
+    httpObservation: { archived: unknown; dossier: unknown };
+    campaignOwnershipProof: unknown;
+  };
+  const base = required(fixture().sources[0]);
+  const proofs = {
+    campaignOwnershipProof: campaignOwnershipProofSchema.parse(
+      capture.campaignOwnershipProof,
+    ),
+  };
+  const archived = {
+    ...researchSourceSchema.parse({
+      ...base,
+      format: "html",
+      byteHash: "a".repeat(64),
+      acquisition: capture.acquisition.archived,
+      httpObservation: capture.httpObservation.archived,
+      retrievalUrls: ["https://example.org/start", "https://example.org/end"],
+    }),
+    acquisition: capture.acquisition.archived,
+    httpObservation: capture.httpObservation.archived,
+  } as ReturnType<typeof researchSourceSchema.parse>;
+  const source = researchSourceSchema.parse({
+    ...archived,
+    acquisition: capture.acquisition.dossier,
+    httpObservation: capture.httpObservation.dossier,
+  });
+  assert.notEqual(
+    JSON.stringify(archived.acquisition),
+    JSON.stringify(source.acquisition),
+  );
+  assert.notEqual(
+    JSON.stringify(archived.httpObservation),
+    JSON.stringify(source.httpObservation),
+  );
+  assert.equal(researchSourceMatchesArchive(archived, source, proofs), true);
+  for (const field of [
+    "id",
+    "url",
+    "contentHash",
+    "text",
+    "format",
+    "byteHash",
+    "binaryBase64",
+  ] as const) {
+    assert.equal(
+      researchSourceMatchesArchive(
+        { ...archived, [field]: "changed" },
+        source,
+        proofs,
+      ),
+      false,
+      field,
+    );
+  }
+  assert.equal(
+    researchSourceMatchesArchive(
+      {
+        ...archived,
+        retrievalUrls: [...required(archived.retrievalUrls)].reverse(),
+      },
+      source,
+      proofs,
+    ),
+    false,
+  );
+  assert.equal(
+    researchSourceMatchesArchive(
+      { ...archived, acquisition: undefined },
+      source,
+      proofs,
+    ),
+    false,
+  );
+  const acquisition = required(source.acquisition);
+  assert.equal(acquisition.kind, "rendered_campaign_v1");
+  for (const change of [
+    { pageIndex: acquisition.pageIndex + 1 },
+    { archiveSourceId: "different-archive" },
+    { semanticDigest: "b".repeat(64) },
+  ]) {
+    assert.equal(
+      researchSourceMatchesArchive(
+        { ...archived, acquisition: { ...acquisition, ...change } },
+        source,
+        proofs,
+      ),
+      false,
+    );
+  }
+  const observation = required(source.httpObservation);
+  assert.equal(
+    researchSourceMatchesArchive(
+      {
+        ...archived,
+        httpObservation: {
+          ...observation,
+          responses: [...observation.responses].reverse(),
+        },
+      },
+      source,
+      proofs,
+    ),
+    false,
+  );
+  const response = required(observation.responses[0]);
+  for (const field of Object.keys(response)) {
+    const changed = {
+      ...response,
+      [field]:
+        typeof response[field as keyof typeof response] === "number"
+          ? -1
+          : "changed",
+    };
+    assert.equal(
+      researchSourceMatchesArchive(
+        {
+          ...archived,
+          httpObservation: {
+            ...observation,
+            responses: [changed, ...observation.responses.slice(1)],
+          },
+        },
+        source,
+        proofs,
+      ),
+      false,
+      field,
+    );
+  }
+  assert.equal(
+    researchSourceMatchesArchive(
+      { ...base, httpObservation: undefined },
+      { ...base },
+      {},
+    ),
+    true,
   );
 });
