@@ -113,9 +113,23 @@ export function campaignMainContextCovered(
       } else visit($(node));
     });
   visit($("main"));
+  const words = (text: string) =>
+    text.toLocaleLowerCase("en-US").match(/[\p{L}\p{N}]+/gu) ?? [];
+  const retainedWords = words($("main").text());
+  const observationRetained = (frame: string) => {
+    let cursor = 0;
+    for (const word of words(frame)) {
+      while (cursor < retainedWords.length && retainedWords[cursor] !== word)
+        cursor++;
+      if (cursor === retainedWords.length) return false;
+      cursor++;
+    }
+    return true;
+  };
   return (
     nodes.length > 0 &&
-    nodes.every((text) => observed.some((frame) => frame.includes(text)))
+    nodes.every((text) => observed.some((frame) => frame.includes(text))) &&
+    observations.every(observationRetained)
   );
 }
 

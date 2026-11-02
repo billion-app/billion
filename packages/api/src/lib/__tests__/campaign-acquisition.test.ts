@@ -174,6 +174,31 @@ void test("skipped offscreen speaker attribution cannot be labeled complete camp
   validateCampaignRenderArchive(value);
 });
 
+void test("observed speaker attribution cannot disappear from retained evidence DOM", () => {
+  const value = archive();
+  const page = must(value.pages[0]);
+  const attribution =
+    "According to an independent organization, these are its priorities and are not adopted by the candidate.";
+  page.domHtml = page.domHtml.replace(
+    "</main>",
+    `<p aria-hidden="true">${attribution}</p></main>`,
+  );
+  page.mainObservations.push({
+    text: attribution,
+    scrollY: 600,
+    capturedAt: time,
+  });
+  assert.throws(
+    () => validateCampaignRenderArchive(value),
+    /complete observed main context/,
+  );
+  page.evidenceDomHtml = page.evidenceDomHtml.replace(
+    "</main>",
+    `<p aria-hidden="true">${attribution}</p></main>`,
+  );
+  validateCampaignRenderArchive(value);
+});
+
 function source(id: string, url: string, html: string): ResearchSource {
   const bytes = Buffer.from(html);
   return {

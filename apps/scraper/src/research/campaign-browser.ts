@@ -395,14 +395,12 @@ export async function renderCampaignSource(input: {
               "CANVAS",
               "IFRAME",
             ].includes(original.tagName) ||
-            original.hasAttribute("hidden") ||
-            original.getAttribute("aria-hidden") === "true" ||
             style.display === "none" ||
             style.visibility === "hidden"
           )
             copy.remove();
           else if (
-            /^(P|DIV|SECTION|ADDRESS|LI|H[1-6]|MAIN|FOOTER|NAV|BUTTON)$/.test(
+            /^(P|DIV|SECTION|ADDRESS|LI|H[1-6]|MAIN|FOOTER|NAV|BUTTON|LABEL|FORM|A|TD|TH|DT|DD)$/.test(
               original.tagName,
             )
           ) {
@@ -411,6 +409,7 @@ export async function renderCampaignSource(input: {
           }
         }
         return {
+          domHtml: browser.document.documentElement.outerHTML,
           evidenceDomHtml: clone.outerHTML,
           visibleText: browser.document.body.innerText,
           links: [...browser.document.querySelectorAll("a[href]")].map(
