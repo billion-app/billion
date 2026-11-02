@@ -62,12 +62,27 @@ export class CaliforniaFinanceCacheOnly {
       now: this.now(),
     })) {
       const existing = this.sources.get(source.url);
-      if (existing && !isDeepStrictEqual(existing.source, source))
-        throw new CaliforniaFinanceCacheUnavailable(
-          source.url,
-          "Conflicting raw query observations",
-        );
-      if (existing) existing.owners.add(input.expected.identity.candidateId);
+      if (existing && !isDeepStrictEqual(existing.source, source)) {
+        const { fetchedAt: existingAt, ...existingObservation } =
+          existing.source;
+        const { fetchedAt: incomingAt, ...incomingObservation } = source;
+        if (!isDeepStrictEqual(existingObservation, incomingObservation))
+          throw new CaliforniaFinanceCacheUnavailable(
+            source.url,
+            "Conflicting raw query observations",
+          );
+        if (
+          Date.parse(incomingAt) > Date.parse(existingAt) ||
+          (Date.parse(incomingAt) === Date.parse(existingAt) &&
+            incomingAt > existingAt)
+        )
+          continue;
+        this.sources.set(source.url, {
+          source: structuredClone(source),
+          owners: new Set([input.expected.identity.candidateId]),
+        });
+      } else if (existing)
+        existing.owners.add(input.expected.identity.candidateId);
       else
         this.sources.set(source.url, {
           source: structuredClone(source),

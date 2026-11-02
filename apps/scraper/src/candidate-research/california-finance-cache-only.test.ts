@@ -280,3 +280,98 @@ test("credential-bearing API redirect diagnostics stay safe after failure serial
   );
   assert.equal(receipt.apiTransportAttempts, 0);
 });
+
+function anotherObservation(fetchedAt: string) {
+  const input = fixture();
+  const expected = buildCaliforniaDossier({
+    ...input.expected,
+    identity: {
+      ...input.expected.identity,
+      candidateId: input.expected.identity.candidateId.replace(/:1$/, ":2"),
+    },
+  });
+  const source = { ...input.source, fetchedAt };
+  const document = buildCaliforniaDossier({
+    ...expected,
+    sources: [...expected.sources, source],
+  });
+  return { expected, source, document, digest: document.dossierDigest };
+}
+
+for (const reversed of [false, true])
+  test(`same query observations retain the oldest exact object independent of seed order (${reversed})`, () => {
+    const older = fixture();
+    const newer = anotherObservation("2026-10-30T00:10:00.000Z");
+    const cache = new CaliforniaFinanceCacheOnly(() => now);
+    for (const input of reversed ? [newer, older] : [older, newer])
+      cache.seed(input);
+    for (const owner of [
+      older.expected.identity.candidateId,
+      newer.expected.identity.candidateId,
+    ])
+      assert.deepEqual(cache.read(older.source.url, owner), older.source);
+    assert(
+      cache
+        .receipt()
+        .apiCacheHits.every((hit) => hit.fetchedAt === older.source.fetchedAt),
+    );
+    assert(
+      cache
+        .receipt()
+        .apiCacheHits.every(
+          (hit) =>
+            JSON.stringify(hit.cacheOwners) ===
+            JSON.stringify([older.expected.identity.candidateId]),
+        ),
+    );
+  });
+
+test("owners merge only for the complete selected observation and its age is never extended", () => {
+  const older = fixture();
+  const same = anotherObservation(observed);
+  const newer = anotherObservation("2026-10-30T00:10:00.000Z");
+  let clock = now;
+  const cache = new CaliforniaFinanceCacheOnly(() => clock);
+  cache.seed(newer);
+  cache.seed(older);
+  cache.seed(same);
+  assert.deepEqual(cache.read(older.source.url, "reader"), older.source);
+  assert.deepEqual(
+    cache.receipt().apiCacheHits[0]!.cacheOwners,
+    [
+      older.expected.identity.candidateId,
+      same.expected.identity.candidateId,
+    ].sort(),
+  );
+  clock = "2026-10-30T12:00:00.000Z";
+  assert.throws(() => cache.read(older.source.url, "reader"), /expired/);
+  assert.equal(cache.receipt().apiCacheHits[0]!.fetchedAt, observed);
+});
+
+test("different raw query bodies or other metadata remain conflicting observations", () => {
+  const older = fixture();
+  const input = anotherObservation("2026-10-30T00:10:00.000Z");
+  const changedText = JSON.stringify({
+    pagination: { is_count_exact: true, page: 1, pages: 1, count: 1 },
+    results: [{ committee_id: "C00000001", file_number: 2 }],
+  });
+  for (const source of [
+    { ...input.source, text: changedText, contentHash: hash(changedText) },
+    { ...input.source, byteHash: "1".repeat(64) },
+    {
+      ...input.source,
+      retrievalUrls: [input.source.url, "https://www.fec.gov/"],
+    },
+  ]) {
+    const document = buildCaliforniaDossier({
+      ...input.expected,
+      sources: [...input.expected.sources, source],
+    });
+    const cache = new CaliforniaFinanceCacheOnly(() => now);
+    cache.seed(older);
+    assert.throws(
+      () => cache.seed({ ...input, document, digest: document.dossierDigest }),
+      /Conflicting raw query observations/,
+    );
+  }
+});

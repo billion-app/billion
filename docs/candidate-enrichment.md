@@ -371,7 +371,11 @@ observation. Reusing a query does not adopt a rejected model output or clear a
 review failure.
 
 An explicit cache-only House refresh can proceed during provider backoff only when
-both candidates' exact raw API queries pass the same cache checks. It acquires the
+both candidates' exact raw API queries pass the same cache checks. When eligible
+observations differ only in their original retrieval time, the cache selects the
+oldest complete source object, independent of candidate order. Its owners are only
+the dossiers containing that exact observation; a later clock is never blended
+into it. Every other metadata or body difference remains a conflict. It acquires the
 whole race before any author or reviewer. The private cache cannot fall through to
 HTTP, and the static acquisition adapter denies API hosts before DNS and after each
 redirect. Browser rendering and discovery are excluded. Fresh static records and
