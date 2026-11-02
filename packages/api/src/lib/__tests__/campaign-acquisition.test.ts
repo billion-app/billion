@@ -199,6 +199,20 @@ void test("observed speaker attribution cannot disappear from retained evidence 
   validateCampaignRenderArchive(value);
 });
 
+void test("complete visible line breaks preserve source word boundaries", () => {
+  const value = archive();
+  const page = must(value.pages[0]);
+  page.evidenceDomHtml = page.evidenceDomHtml.replace(
+    "housing affordability",
+    "housing<br>affordability",
+  );
+  page.domHtml = page.evidenceDomHtml;
+  validateCampaignRenderArchive(value);
+  const sources = encodeCampaignRenderSources(value);
+  assert.ok(must(sources[1]).text.includes("housing affordability"));
+  validateCampaignRenderSources(sources);
+});
+
 function source(id: string, url: string, html: string): ResearchSource {
   const bytes = Buffer.from(html);
   return {

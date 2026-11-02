@@ -12,6 +12,7 @@ import { campaignOwnershipProofSchema } from "@acme/validators";
 
 import {
   campaignRenderArchiveSchema,
+  formatRenderedCampaignHtml,
   validateCampaignRenderArchive,
 } from "./campaign-render-archive";
 import { formatCampaignHtml } from "./campaign-source-html";
@@ -277,7 +278,8 @@ function campaignHtml(source: ResearchSource, sources: ResearchSource[]) {
   const page = archive.pages[proof.pageIndex];
   if (
     page?.url !== source.url ||
-    formatCampaignHtml(page.evidenceDomHtml, page.url).text !== source.text
+    formatRenderedCampaignHtml(page.evidenceDomHtml, page.url).text !==
+      source.text
   )
     throw new Error("Rendered ownership DOM differs from source");
   return page.evidenceDomHtml;

@@ -402,7 +402,8 @@ export async function renderCampaignSource(input: {
           else if (
             /^(P|DIV|SECTION|ADDRESS|LI|H[1-6]|MAIN|FOOTER|NAV|BUTTON|LABEL|FORM|A|TD|TH|DT|DD)$/.test(
               original.tagName,
-            )
+            ) ||
+            /^(?:block|flex|grid|table|list-item)/.test(style.display)
           ) {
             copy.prepend(" ");
             copy.append(" ");

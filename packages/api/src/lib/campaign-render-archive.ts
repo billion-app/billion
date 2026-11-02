@@ -95,12 +95,19 @@ const normalized = (value: string) =>
   value.replace(/\s+/g, " ").trim().toLocaleLowerCase("en-US");
 const host = (value: string) => new URL(value).hostname.replace(/^www\./, "");
 
+export function formatRenderedCampaignHtml(html: string, url: string) {
+  const $ = load(html);
+  $("br").replaceWith(" ");
+  return formatCampaignHtml($.html(), url);
+}
+
 export function campaignMainContextCovered(
   html: string,
   observations: string[],
 ) {
   const $ = load(html);
   $("script,style,nav,footer,noscript").remove();
+  $("br").replaceWith(" ");
   const normalize = (text: string) =>
     text.replace(/\s+/g, "").toLocaleLowerCase("en-US");
   const observed = observations.map(normalize);
@@ -257,7 +264,10 @@ export function validateCampaignRenderArchive(
       throw new Error(
         "Campaign DOM is not bound to its actual document and clock",
       );
-    const extracted = formatCampaignHtml(page.evidenceDomHtml, page.url);
+    const extracted = formatRenderedCampaignHtml(
+      page.evidenceDomHtml,
+      page.url,
+    );
     if (
       extracted.substantive.length < 180 ||
       !campaignMainContextCovered(
@@ -303,7 +313,7 @@ export function campaignRenderSemanticDigest(archive: CampaignRenderArchive) {
       ownershipDigest: archive.ownershipDigest,
       pages: archive.pages.map((page) => ({
         url: page.url,
-        text: formatCampaignHtml(page.evidenceDomHtml, page.url).text,
+        text: formatRenderedCampaignHtml(page.evidenceDomHtml, page.url).text,
       })),
     }),
   );
@@ -341,7 +351,10 @@ export function encodeCampaignRenderSources(
   return [
     stored,
     ...archive.pages.map((page, pageIndex): ResearchSource => {
-      const text = formatCampaignHtml(page.evidenceDomHtml, page.url).text;
+      const text = formatRenderedCampaignHtml(
+        page.evidenceDomHtml,
+        page.url,
+      ).text;
       return {
         id: `source-${campaignArchiveHash(pageIndex === 0 ? archive.requestedUrl : page.url).slice(0, 24)}`,
         url: page.url,
