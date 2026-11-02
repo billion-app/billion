@@ -1,0 +1,101 @@
+{
+  "scope": "Offline regression fixture. Captured failed author output and previously published retained narrative; neither is a fresh acquisition or model approval.",
+  "candidateId": "ca-sos:2026-11-03:110000160000:3178",
+  "releaseId": "5275710f-9935-48d4-b6e9-9c0096e73653",
+  "capturedAt": "2026-11-02T15:25:44.481Z",
+  "baselineSha256": "22a0a6caae6cb89ec3a9b4e8a6c0ecd58a20824cb2678fc774cf8da44b4f6a5e",
+  "failureSha256": "99cb44ae18e8fb594ab048e27a9c1bb9afdcfb75a9e697f861829a1e8c38f2bc",
+  "authorEvidence": {
+    "primaryRecordIds": ["roster", "office-authority"],
+    "candidateIds": ["candidate-2", "candidate-3", "candidate-4"],
+    "officeIds": ["office-authority"],
+    "requiredCandidateIds": []
+  },
+  "retainedNarrative": {
+    "priorities": {
+      "claims": [
+        {
+          "text": "The campaign presents three priorities: public safety and security, bringing back the Golden State, and building for the next generation.",
+          "evidenceIds": ["candidate-3"],
+          "kind": "promise",
+          "promiseDetails": null
+        }
+      ]
+    },
+    "record": {
+      "claims": [
+        {
+          "text": "The campaign biography says Soule served on the San Jose Civil Service Commission from 2007 to 2011 and worked in his family’s steel business, including in accounting, finance, property management, and architectural products.",
+          "evidenceIds": ["candidate-4"],
+          "kind": "analysis"
+        }
+      ]
+    },
+    "mechanisms": {
+      "claims": [
+        {
+          "text": "The campaign proposes withholding federal dollars from cities whose sanctuary policies prevent deportation of criminals who are in the country illegally; removing federal highway funds from states that continue issuing commercial driver’s licenses to people who cannot read English and obey traffic laws; restricting Chinese purchases of American farmland near military bases; and supporting legislation targeting bigotry against Christians, Jews, and others.",
+          "evidenceIds": ["candidate-3"],
+          "kind": "promise",
+          "promiseDetails": null
+        },
+        {
+          "text": "The campaign proposes reforming what it calls the “Federal Environmental Species Act” and increasing water storage capacity; removing restrictions on oil drilling and building refineries in California; reforming the H-1B visa program to favor hiring Americans; and banning large financial institutions from buying single-family homes while shielding Baby Boomers from capital gains tax when selling homes.",
+          "evidenceIds": ["candidate-3"],
+          "kind": "promise",
+          "promiseDetails": null
+        },
+        {
+          "text": "The campaign proposes federal policies to protect parental rights and school choice, opportunities for vocational training, conditioning federal school funding on basic-skills and American-history curricula, and savings accounts for school-aged children.",
+          "evidenceIds": ["candidate-3"],
+          "kind": "promise",
+          "promiseDetails": null
+        }
+      ]
+    },
+    "effects": {
+      "claims": []
+    },
+    "tradeoffs": {
+      "claims": []
+    },
+    "unknowns": {
+      "claims": []
+    },
+    "terms": []
+  },
+  "failedOutput": {
+    "terms": [],
+    "record": {
+      "claims": [
+        {
+          "kind": "analysis",
+          "text": "The campaign biography says Soule served on the San Jose Civil Service Commission from 2007 to 2011 and worked in his family’s steel business, including in accounting, finance, property management, and architectural products.",
+          "evidenceIds": ["candidate-4"]
+        }
+      ]
+    },
+    "effects": {
+      "claims": []
+    },
+    "unknowns": {
+      "claims": []
+    },
+    "tradeoffs": {
+      "claims": []
+    },
+    "mechanisms": {
+      "claims": []
+    },
+    "priorities": {
+      "claims": [
+        {
+          "kind": "promise",
+          "text": "The campaign presents three priorities: public safety and security, bringing back the Golden State, and building for the next generation.",
+          "evidenceIds": ["candidate-3"],
+          "promiseDetails": null
+        }
+      ]
+    }
+  }
+}
