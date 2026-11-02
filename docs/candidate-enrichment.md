@@ -284,12 +284,15 @@ and membership stay fixed. Binary proofs remain strict. Nonbinary comparisons
 use extracted text rather than volatile HTML bytes or historical redirect chains.
 
 The author receives the qualified published narrative through the existing output
-schema. Its actual first response must reproduce that narrative exactly. The
-compiler regenerates financial records, evidence observations and coverage text
+schema. Every response, including a correction, must reproduce that narrative
+exactly. The compiler regenerates financial records, evidence observations and
+coverage text
 from the current dossier. A fresh independent reviewer assesses the complete new
 profile. Historical approval cannot approve a new financial revision. The existing
-single correction can repair reviewer findings, and rejected or unknown attempts
-remain terminal for the same input. A correction receives another review only
+single correction can repair a copying error but cannot rewrite the retained
+political text. A reviewer rejection that requires changed political text blocks
+this finance refresh. Ordinary research can reassess that text separately.
+Rejected or unknown attempts remain terminal for the same input. A correction receives another review only
 when its compiled reader-facing content changes. New revision IDs, author IDs,
 observation timestamps and correction metadata do not count as a repair. An
 unchanged saved correction cannot use a cached approval or dispatch another

@@ -267,7 +267,7 @@ test("acquisition time and publication run changes do not change semantic retent
   assert(again);
   assert.equal(initial.semanticDigest, again.semanticDigest);
 });
-test("actual refresh model output cannot silently replace the retained narrative", async () => {
+test("every refresh model attempt preserves the retained narrative", async () => {
   const { old, dossier, member } = await fixture();
   const retainedNarrative = qualifyPublishedFinanceNarrative({
     member,
@@ -294,17 +294,13 @@ test("actual refresh model output cannot silently replace the retained narrative
       { claimId: "priorities-1", supported: false, reason: "Repair wording" },
     ],
   };
-  const repaired = await authorCaliforniaBrief(
-    { dossier, policyVersion: "policy", retainedNarrative, correction },
-    { invoke: async () => model(changed) },
-  );
-  assert.equal(
-    repaired.brief.sections[0]?.claims[0]?.text,
-    changed.priorities.claims[0]?.text,
-  );
-  assert.equal(
-    repaired.attestation.revisionDigest,
-    evidenceDigest(repaired.brief),
+  await assert.rejects(
+    authorCaliforniaBrief(
+      { dossier, policyVersion: "policy", retainedNarrative, correction },
+      { invoke: async () => model(changed) },
+    ),
+    (error: unknown) =>
+      error instanceof Error && error.name === "CaliforniaModelInvocationError",
   );
 });
 
