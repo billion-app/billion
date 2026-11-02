@@ -213,6 +213,32 @@ void test("complete visible line breaks preserve source word boundaries", () => 
   validateCampaignRenderSources(sources);
 });
 
+void test("every rendered source belongs to its exact canonical archived page", () => {
+  const sources = encodeCampaignRenderSources(archive());
+  for (const pageIndex of [0, 2]) {
+    const extra = structuredClone(must(sources[1]));
+    extra.id = "unarchived-alias";
+    extra.text = "An arbitrary unarchived statement";
+    extra.contentHash = campaignArchiveHash(extra.text);
+    assert.ok(extra.acquisition?.kind === "rendered_campaign_v1");
+    extra.acquisition.pageIndex = pageIndex;
+    assert.throws(
+      () => validateCampaignRenderSources([...sources, extra]),
+      /canonical archived page/,
+    );
+  }
+  assert.throws(
+    () => validateCampaignRenderSources([...sources, must(sources[1])]),
+    /Duplicate/,
+  );
+  const extraArchive = structuredClone(must(sources[0]));
+  extraArchive.id = "archive-alias";
+  assert.throws(
+    () => validateCampaignRenderSources([...sources, extraArchive]),
+    /not canonical/,
+  );
+});
+
 function source(id: string, url: string, html: string): ResearchSource {
   const bytes = Buffer.from(html);
   return {

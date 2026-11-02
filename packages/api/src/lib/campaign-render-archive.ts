@@ -387,6 +387,9 @@ export function validateCampaignRenderSources(
 ) {
   const rendered = sources.filter((source) => source.acquisition);
   if (!rendered.length) return;
+  if (new Set(sources.map((source) => source.id)).size !== sources.length)
+    throw new Error("Duplicate campaign source identities are ambiguous");
+  const canonicalSourceIds = new Set<string>();
   for (const stored of rendered.filter(
     (source) => source.acquisition?.kind === "campaign_render_archive_v1",
   )) {
@@ -415,11 +418,15 @@ export function validateCampaignRenderSources(
         "Rendered campaign belongs to a different candidate or ownership proof",
       );
     const rebuilt = encodeCampaignRenderSources(archive);
+    if (stored.id !== rebuilt[0]?.id)
+      throw new Error("Campaign archive identity is not canonical");
     for (const original of rebuilt) {
+      canonicalSourceIds.add(original.id);
       const current = sources.find((source) => source.id === original.id);
       if (
         current?.url !== original.url ||
         current.format !== original.format ||
+        current.publisher !== original.publisher ||
         current.text !== original.text ||
         current.contentHash !== original.contentHash ||
         (original.format !== "render_archive" &&
@@ -437,6 +444,10 @@ export function validateCampaignRenderSources(
     }
   }
   for (const source of rendered) {
+    if (!canonicalSourceIds.has(source.id))
+      throw new Error(
+        "Rendered campaign source is not a canonical archived page",
+      );
     const acquisition = source.acquisition;
     if (
       acquisition?.kind === "rendered_campaign_v1" &&

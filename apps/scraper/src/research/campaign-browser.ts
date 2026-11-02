@@ -315,6 +315,7 @@ export async function renderCampaignSource(input: {
     });
     const capture = async (url: string) => {
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      if (failure) throw failure;
       await page.waitForFunction(
         '(document.querySelector("main")?.textContent?.length ?? 0) > 180',
         undefined,

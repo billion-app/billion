@@ -208,3 +208,120 @@ test(
     assert.equal(remaining.stdout.trim(), "");
   },
 );
+
+test(
+  "actual browser broker rejects FEC asset redirects before any FEC DNS or transport",
+  { skip: process.env.CAMPAIGN_BROWSER_LOCAL_SMOKE !== "1", timeout: 120_000 },
+  async () => {
+    const { renderCampaignSource } = await import("./campaign-browser");
+    const { campaignArchiveHash } =
+      await import("@acme/api/lib/campaign-render-archive");
+    const { formatCampaignHtml } =
+      await import("@acme/api/lib/campaign-source-html");
+    const docker =
+        process.env.CAMPAIGN_BROWSER_DOCKER ?? "/usr/local/bin/docker",
+      token = "local-smoke-token-0123456789abcdef";
+    const host = createCampaignBrowserHost({
+      token,
+      dockerPath: docker,
+      wrapperPath: fileURLToPath(
+        new URL(
+          "../../../../deploy/big-mac/campaign-renderer/chromium-pipe.mjs",
+          import.meta.url,
+        ),
+      ),
+    });
+    await new Promise<void>((r) => host.server.listen(0, "127.0.0.1", r));
+    const address = host.server.address();
+    assert.ok(address && typeof address !== "string");
+    const url = "https://campaign.example/",
+      raw = Buffer.from(
+        '<html><head><script type="module" src="/app.js"></script></head><body><main></main></body></html>',
+      ),
+      hash = campaignArchiveHash(raw),
+      time = "2026-01-01T00:00:00.000Z";
+    const initial = {
+      id: "root",
+      url,
+      retrievalUrls: [url],
+      publisher: "offline fixture",
+      format: "html" as const,
+      text: formatCampaignHtml(raw.toString(), url).text,
+      contentHash: campaignArchiveHash(
+        formatCampaignHtml(raw.toString(), url).text,
+      ),
+      byteHash: hash,
+      binaryBase64: raw.toString("base64"),
+      fetchedAt: time,
+      httpObservation: {
+        kind: "campaign_http_document_v1" as const,
+        responses: [
+          {
+            url,
+            status: 200,
+            mime: "text/html",
+            location: null,
+            bodyHash: hash,
+            bodyBytes: raw.length,
+            startedAt: time,
+            completedAt: time,
+          },
+        ],
+      },
+    };
+    try {
+      for (const destination of [
+        "https://api.open.fec.gov/v1/candidate/",
+        "https://api.open.fec.gov./v1/candidate/",
+      ]) {
+        const dns: string[] = [],
+          requests: string[] = [];
+        await assert.rejects(
+          renderCampaignSource({
+            initial,
+            candidateId: "offline-no-fec",
+            ownershipDigest: "a".repeat(64),
+            configuration: {
+              baseUrl: `http://127.0.0.1:${address.port}`,
+              token,
+            },
+            budget: { request() {}, bytes() {} },
+            addresses: async (requested) => {
+              dns.push(requested);
+              return [{ address: "203.0.113.1", family: 4 }];
+            },
+            transport: async (requested) => {
+              requests.push(requested);
+              return new Response("", {
+                status: 302,
+                headers: {
+                  location: destination,
+                  "content-type": "text/javascript",
+                },
+              });
+            },
+          }),
+        );
+        assert.ok(requests.includes("https://campaign.example/app.js"));
+        assert.equal(
+          dns.some(
+            (requested) =>
+              new URL(requested).hostname.replace(/\.$/, "") ===
+              "api.open.fec.gov",
+          ),
+          false,
+        );
+        assert.equal(
+          requests.some(
+            (requested) =>
+              new URL(requested).hostname.replace(/\.$/, "") ===
+              "api.open.fec.gov",
+          ),
+          false,
+        );
+      }
+    } finally {
+      await host.close();
+    }
+  },
+);
