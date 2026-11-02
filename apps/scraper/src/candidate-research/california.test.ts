@@ -18,6 +18,7 @@ import { ResearchReviewCollectionConflict } from "@acme/api/lib/candidate-brief-
 import {
   candidateBriefSchema,
   candidateEvidenceDossierSchema,
+  candidatePublicContentProjection,
   deriveCandidateResearchQuality,
 } from "@acme/validators";
 
@@ -3800,8 +3801,46 @@ test("narrative-only fails closed when canonical review history is unavailable",
   assert.equal(f.stats.releases, 0);
 });
 
-test("narrative-only cannot repeat rejected content through a fresh acquisition scope", async () => {
+test("narrative-only gap changes cannot repeat review of unchanged rejected public content", async () => {
   const f = await fixture();
+  const investigated: CandidateEvidenceDossier[] = [];
+  const publicContent: ReturnType<typeof candidatePublicContentProjection>[] =
+    [];
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (input, budget) => {
+    const dossier = await investigate(input, budget);
+    const fresh =
+      input.researchScope === "narrative_only"
+        ? buildCaliforniaDossier({
+            ...dossier,
+            finance: null,
+            gaps: [
+              ...dossier.gaps,
+              {
+                dimension: "finance",
+                code: "source_unavailable",
+                message:
+                  "Campaign-finance research is still pending for this candidate.",
+                checkedSourceIds: [],
+                required: false,
+              },
+            ],
+          })
+        : dossier;
+    investigated.push(fresh);
+    return fresh;
+  };
+  const author = f.deps.author;
+  f.deps.author = async (input) => {
+    const result = await author(input);
+    assert.equal(result.attestation.dossierDigest, input.dossier.dossierDigest);
+    assert.equal(
+      result.attestation.sourceSetDigest,
+      input.dossier.sourceSetDigest,
+    );
+    publicContent.push(candidatePublicContentProjection(result.brief));
+    return result;
+  };
   const review = f.deps.review;
   f.deps.review = async (input) => ({
     ...(await review(input)),
@@ -3820,6 +3859,21 @@ test("narrative-only cannot repeat rejected content through a fresh acquisition 
     );
     assert.equal(result.blocked, 1);
   }
+  assert.equal(investigated.length, 2);
+  assert.notEqual(
+    investigated[0]!.dossierDigest,
+    investigated[1]!.dossierDigest,
+  );
+  assert.equal(
+    investigated[0]!.sourceSetDigest,
+    investigated[1]!.sourceSetDigest,
+  );
+  assert.deepEqual(investigated[0]!.sources, investigated[1]!.sources);
+  assert.deepEqual(investigated[0]!.evidence, investigated[1]!.evidence);
+  assert.deepEqual(investigated[0]!.identity, investigated[1]!.identity);
+  assert.ok(publicContent.length >= 2);
+  for (const content of publicContent)
+    assert.deepEqual(content, publicContent[0]);
   assert.equal(f.stats.reviews, 1);
   assert.equal(f.stats.releases, 0);
 });
