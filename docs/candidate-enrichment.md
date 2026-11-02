@@ -276,8 +276,20 @@ change. The API reads complete immutable candidate/race history and pairs each
 review with its exact author, dossier, source set and policy. Reader-visible
 content uses the shared `candidatePublicContentProjection`; new revision IDs,
 writer metadata and observation clocks cannot erase an earlier rejection.
-Genuinely changed claims, chapter placement, citation context or validated dossier
-evidence may receive another independent review under the existing bounds.
+Genuinely changed claims, chapter placement, citation targets or validated source
+sets may receive another independent review under the existing bounds. Claim IDs
+and public evidence IDs are presentation graph labels. The projection normalizes
+them by chapter/claim order and evidence order, including headline, promise and
+citation references. It preserves prose, ordering, citation targets and financial
+entity IDs. Exact private revision, dossier and attestation hashes remain intact.
+
+A private dossier digest change alone cannot erase a rejection or unresolved
+review when candidate, race, policy and source set stay the same. Private-only
+qualification repairs can therefore remain conservatively blocked. The source-set
+digest also contains source metadata; this comparison does not establish that
+all possible source aliases are semantically equivalent. Historical invocation
+pairing and current author/source/collection validation still require exact
+dossier bindings.
 
 History reads first select scoped artifact metadata, then enforce 512 rows and
 8 MB of decoded payload before returning documents. Database statement and lock

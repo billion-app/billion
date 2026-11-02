@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 
+import { campaignFinanceSchema, candidateBriefSchema } from "@acme/validators";
+
 import {
   candidatePublicContentDigest,
   evaluateCaliforniaSemanticReview,
@@ -240,5 +242,305 @@ void test("a collection without complete author invocation evidence cannot use t
       history: { kind: "complete", proof: "proof", artifacts: [] },
     }).kind,
     "unavailable",
+  );
+});
+
+void test("coherent claim ID renaming preserves the rejected claim graph including headline and promise references", () => {
+  const f = candidateReviewHistoryFixture();
+  const claim = required(required(f.brief.sections[0]).claims[0]);
+  const point = {
+    title: "Library funding",
+    text: "The campaign proposes more library funding.",
+    emphasis: [],
+    evidenceIds: ["platform"],
+  };
+  f.brief.research = {
+    headlineClaimId: claim.id,
+    promises: [
+      {
+        claimId: claim.id,
+        title: "Library funding",
+        brief: { change: point, authority: point, unknowns: point },
+        benefits: [],
+        costs: [],
+        affected: [],
+        perspectives: [],
+        steps: [],
+        alternatives: [],
+        unknowns: [],
+      },
+    ],
+    finance: null,
+    financeGap: "No finance research is present in this fixture.",
+  };
+  f.author.attestation.revisionDigest = briefDigest(f.brief);
+  f.review.attestation.revisionDigest = briefDigest(f.brief);
+  const renamed = structuredClone(f.author);
+  renamed.brief.revisionId = randomUUID();
+  const selected = required(required(renamed.brief.sections[0]).claims[0]);
+  selected.id = "opaque-nonce-claim";
+  const research = required(renamed.brief.research);
+  research.headlineClaimId = selected.id;
+  required(research.promises[0]).claimId = selected.id;
+  renamed.attestation.revisionDigest = briefDigest(renamed.brief);
+  assert.notEqual(
+    renamed.attestation.revisionDigest,
+    f.author.attestation.revisionDigest,
+  );
+  assert.equal(
+    candidatePublicContentDigest(renamed.brief),
+    candidatePublicContentDigest(f.brief),
+  );
+  const admission = evaluateCaliforniaSemanticReview({
+    scope: f.scope,
+    brief: renamed.brief,
+    now: f.now,
+    history: {
+      kind: "complete",
+      proof: "proof",
+      artifacts: [...f.artifacts, f.row("author:renamed", "author", renamed)],
+    },
+  });
+  assert.equal(admission.kind, "rejected");
+});
+void test("claim ID normalization preserves graph targets, chapter ordering and literal prose", () => {
+  const f = candidateReviewHistoryFixture();
+  const first = required(required(f.brief.sections[0]).claims[0]);
+  const second = {
+    ...first,
+    id: "second-claim",
+    text: "The campaign also proposes more school funding.",
+  };
+  required(f.brief.sections[0]).claims.push(second);
+  f.brief.research = {
+    headlineClaimId: first.id,
+    promises: [],
+    finance: null,
+    financeGap: "No finance research is present in this fixture.",
+  };
+  const digest = candidatePublicContentDigest(f.brief);
+  const headline = structuredClone(f.brief);
+  required(headline.research).headlineClaimId = second.id;
+  assert.notEqual(candidatePublicContentDigest(headline), digest);
+  const order = structuredClone(f.brief);
+  required(order.sections[0]).claims.reverse();
+  assert.notEqual(candidatePublicContentDigest(order), digest);
+  const text = structuredClone(f.brief);
+  required(required(text.sections[0]).claims[0]).text = first.id;
+  assert.notEqual(candidatePublicContentDigest(text), digest);
+});
+
+for (const prior of ["rejected", "unsettled"] as const)
+  void test(`private dossier-only changes cannot bypass ${prior} history with the same actual source set`, () => {
+    const f = candidateReviewHistoryFixture();
+    const newer = structuredClone(f.author);
+    newer.brief.revisionId = randomUUID();
+    newer.attestation.dossierDigest = "d".repeat(64);
+    newer.attestation.revisionDigest = briefDigest(newer.brief);
+    const scope = {
+      ...f.scope,
+      dossierDigest: newer.attestation.dossierDigest,
+    };
+    const artifacts =
+      prior === "rejected"
+        ? [...f.artifacts, f.row("author:new-gap", "author", newer)]
+        : [
+            required(f.artifacts[0]),
+            f.row("author:new-gap", "author", newer),
+            f.row("dispatch:review:old-gap", "model_dispatch", {
+              startedAt: f.now,
+              reviewScope: f.scope,
+            }),
+          ];
+    const result = evaluateCaliforniaSemanticReview({
+      scope,
+      brief: newer.brief,
+      now: f.now,
+      history: { kind: "complete", proof: "proof", artifacts },
+    });
+    assert.equal(
+      result.kind,
+      prior === "rejected" ? "rejected" : "unavailable",
+    );
+  });
+
+void test("coherent evidence ID graph renaming includes promises, financial observations, donors and outside spending", () => {
+  const f = candidateReviewHistoryFixture();
+  const first = required(f.brief.evidence[0]);
+  f.brief.evidence.push({ ...first, id: "finance", origin: "primary_record" });
+  const point = {
+    title: "Fixture context",
+    text: "The fixture does not establish influence.",
+    emphasis: [],
+    evidenceIds: ["finance"],
+  };
+  const window = {
+    periodStart: "2026-01-01",
+    periodEnd: "2026-10-01",
+    updatedAt: f.now,
+    evidenceIds: ["finance"],
+  };
+  const finance = campaignFinanceSchema.parse({
+    committeeId: "C00000001",
+    committeeName: "Synthetic committee",
+    periodStart: window.periodStart,
+    periodEnd: window.periodEnd,
+    currency: "USD",
+    coverage: "partial",
+    coverageNote: "Synthetic graph fixture.",
+    updatedAt: f.now,
+    filingEvidenceIds: ["finance"],
+    receipts: null,
+    donors: [
+      {
+        id: "donor-entity",
+        name: "Synthetic donor",
+        type: "individual",
+        amountCents: 100,
+        evidenceIds: ["finance"],
+        lobbying: point,
+        interests: [{ area: "education", evidenceIds: ["finance"] }],
+        positions: [point],
+      },
+    ],
+    donorCoverage: "selected",
+    donorAmounts: "contribution",
+    outsideSpending: [
+      {
+        id: "outside-entity",
+        spender: "Synthetic spender",
+        direction: "support",
+        amountCents: 100,
+        evidenceIds: ["finance"],
+      },
+    ],
+    observation: {
+      schemaVersion: 1,
+      summary: {
+        status: "unavailable",
+        reason: "Not reported in this fixture.",
+        evidenceIds: ["finance"],
+      },
+      donorSelection: {
+        status: "available",
+        ...window,
+        basis: "selected_filing_transactions",
+        selection: "Synthetic transaction",
+        filingNumbers: [1],
+        limit: 1,
+      },
+      independentExpenditures: {
+        status: "available",
+        ...window,
+        basis: "processed_periodic_reports",
+        completeness: "complete",
+        supportCents: 100,
+        opposeCents: 0,
+        transactionCount: 1,
+      },
+      filingStatus: {
+        status: "available",
+        ...window,
+        basis: "official_filing_index",
+        kind: "financial_reports",
+        latestForm: "F3",
+        observedForms: ["F3"],
+        statement: null,
+      },
+    },
+  });
+  f.brief.research = {
+    headlineClaimId: "priorities-1",
+    promises: [
+      {
+        claimId: "priorities-1",
+        title: "Synthetic proposal",
+        brief: { change: point, authority: point, unknowns: point },
+        benefits: [point],
+        costs: [point],
+        affected: [point],
+        perspectives: [point],
+        steps: [point],
+        alternatives: [point],
+        unknowns: [point],
+      },
+    ],
+    finance,
+    financeGap: null,
+  };
+  f.author.attestation.revisionDigest = briefDigest(f.brief);
+  f.review.attestation.revisionDigest = briefDigest(f.brief);
+  const names = new Map(
+    f.brief.evidence.map((entry, index) => [
+      entry.id,
+      `opaque-evidence-${index}`,
+    ]),
+  );
+  const refs = (value: unknown): unknown =>
+    Array.isArray(value)
+      ? value.map(refs)
+      : value && typeof value === "object"
+        ? Object.fromEntries(
+            Object.entries(value).map(([key, item]) => [
+              key,
+              (key === "evidenceIds" || key === "filingEvidenceIds") &&
+              Array.isArray(item)
+                ? item.map((id: unknown) =>
+                    typeof id === "string" ? names.get(id) : id,
+                  )
+                : refs(item),
+            ]),
+          )
+        : value;
+  const renamed = structuredClone(f.author);
+  renamed.brief = candidateBriefSchema.parse(
+    refs({
+      ...renamed.brief,
+      evidence: renamed.brief.evidence.map((entry) => ({
+        ...entry,
+        id: names.get(entry.id),
+      })),
+    }),
+  );
+  renamed.brief.revisionId = randomUUID();
+  renamed.attestation.dossierDigest = "d".repeat(64);
+  renamed.attestation.revisionDigest = briefDigest(renamed.brief);
+  assert.equal(
+    candidatePublicContentDigest(renamed.brief),
+    candidatePublicContentDigest(f.brief),
+  );
+  const scope = {
+    ...f.scope,
+    dossierDigest: renamed.attestation.dossierDigest,
+  };
+  assert.equal(
+    evaluateCaliforniaSemanticReview({
+      scope,
+      brief: renamed.brief,
+      now: f.now,
+      history: {
+        kind: "complete",
+        proof: "proof",
+        artifacts: [
+          ...f.artifacts,
+          f.row("author:evidence-alias", "author", renamed),
+        ],
+      },
+    }).kind,
+    "rejected",
+  );
+  const retarget = structuredClone(f.brief);
+  required(required(retarget.sections[0]).claims[0]).evidenceIds = ["finance"];
+  assert.notEqual(
+    candidatePublicContentDigest(retarget),
+    candidatePublicContentDigest(f.brief),
+  );
+  const donor = structuredClone(f.brief);
+  const donorFinance = required(donor.research).finance;
+  assert.ok(donorFinance);
+  required(donorFinance.donors[0]).id = "different-real-entity";
+  assert.notEqual(
+    candidatePublicContentDigest(donor),
+    candidatePublicContentDigest(f.brief),
   );
 });

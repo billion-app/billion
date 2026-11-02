@@ -1785,6 +1785,9 @@ for (const mode of [
   "new_owner",
   "new_reviewer",
   "collection",
+  "claim_ids",
+  "claim_ids_cached",
+  "claim_ids_collection",
 ] as const)
   test(`canonical writer-17 rejection blocks metadata-only ${mode} review without an index`, async () => {
     const f = fixture();
@@ -1797,6 +1800,24 @@ for (const mode of [
       model: newer.attestation.actualModel,
       promptVersion: "california-author-v18",
     };
+    if (mode.startsWith("claim_ids")) {
+      const names = new Map(
+        newer.brief.sections.flatMap((section) =>
+          section.claims.map((claim) => [claim.id, `renamed-${claim.id}`]),
+        ),
+      );
+      for (const section of newer.brief.sections)
+        for (const claim of section.claims)
+          claim.id = names.get(claim.id) ?? claim.id;
+      if (newer.brief.research) {
+        const headline = newer.brief.research.headlineClaimId;
+        if (headline)
+          newer.brief.research.headlineClaimId =
+            names.get(headline) ?? headline;
+        for (const promise of newer.brief.research.promises)
+          promise.claimId = names.get(promise.claimId) ?? promise.claimId;
+      }
+    }
     newer.attestation = {
       ...newer.attestation,
       promptVersion: "california-author-v18",
@@ -1819,7 +1840,7 @@ for (const mode of [
       f.deps.reviewerConfigurationKey = "new-reviewer-configuration";
     let cachedReviewReads = 0;
     const artifact = f.deps.artifact;
-    if (mode === "cached_approval")
+    if (mode === "cached_approval" || mode === "claim_ids_cached")
       f.deps.artifact = async (key) => {
         if (key.startsWith("review:") && key !== "review:legacy-v17") {
           cachedReviewReads++;
@@ -1827,7 +1848,7 @@ for (const mode of [
         }
         return artifact(key);
       };
-    if (mode === "collection") {
+    if (mode === "collection" || mode === "claim_ids_collection") {
       f.artifacts.set("author:newer", newer);
       await assert.rejects(
         reviewPreparedCaliforniaCandidateForCollection(

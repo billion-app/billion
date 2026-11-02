@@ -198,6 +198,18 @@ function sameScope(
     attestation.policyVersion === scope.policyVersion
   );
 }
+function sameRejectionContext(
+  attestation: Pick<
+    z.infer<typeof candidateModelAttestationSchema>,
+    "sourceSetDigest" | "policyVersion"
+  >,
+  scope: CaliforniaReviewScope,
+) {
+  return (
+    attestation.sourceSetDigest === scope.sourceSetDigest &&
+    attestation.policyVersion === scope.policyVersion
+  );
+}
 export function evaluateCaliforniaSemanticReview(input: {
   history: CaliforniaReviewHistory;
   scope: CaliforniaReviewScope;
@@ -380,7 +392,19 @@ export function evaluateCaliforniaSemanticReview(input: {
       const parsed = z
         .object({ reviewScope: californiaReviewScopeSchema })
         .safeParse(dispatch.document);
-      if (!parsed.success || sameScope(parsed.data.reviewScope, scope))
+      if (
+        parsed.success &&
+        (parsed.data.reviewScope.raceKey !== scope.raceKey ||
+          parsed.data.reviewScope.candidateId !== scope.candidateId ||
+          !isDeepStrictEqual(parsed.data.reviewScope.identity, scope.identity))
+      )
+        throw new Error(
+          "Unsettled reviewer dispatch has conflicting candidate or race identity",
+        );
+      if (
+        !parsed.success ||
+        sameRejectionContext(parsed.data.reviewScope, scope)
+      )
         throw new Error(
           "A prior reviewer dispatch is unsettled or its canonical result is missing",
         );
@@ -412,7 +436,10 @@ export function evaluateCaliforniaSemanticReview(input: {
         )
       )
         throw new Error("Reviewer history is not an independent invocation");
-      if (review.document.verdict !== "reject" || !sameScope(r, scope))
+      if (
+        review.document.verdict !== "reject" ||
+        !sameRejectionContext(r, scope)
+      )
         continue;
       const original = paired.find(
         (author) =>
