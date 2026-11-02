@@ -21,6 +21,7 @@ import {
 } from "./california-candidate-preparation.js";
 import {
   buildCaliforniaDossier,
+  californiaResearchVersion,
   evidenceDigest,
 } from "./california-dossier.js";
 import {
@@ -1628,7 +1629,7 @@ test("finance refresh cache binds narrative rather than changing publication run
   );
   assert.equal(
     first.authored.attestation.promptVersion,
-    "california-finance-refresh-v2",
+    "california-finance-refresh-v3",
   );
   const count = f.calls.length;
   const second = await prepareReviewedCaliforniaCandidate(
@@ -1651,6 +1652,47 @@ test("finance refresh cache binds narrative rather than changing publication run
     second.authored.attestation.runId,
   );
 });
+
+test("finance refresh v3 does not reuse a v2 author artifact", async () => {
+  const original = fixture();
+  const input = original.fresh();
+  const retainedNarrative = retainedFixture(input.dossier);
+  const prepared = await prepareReviewedCaliforniaCandidate(
+    { ...input, retainedNarrative },
+    original.deps,
+  );
+  const legacyKey = `author:${evidenceDigest([
+    input.dossier.dossierDigest,
+    input.policyVersion,
+    californiaResearchVersion,
+    "california-finance-refresh-v2",
+    "fixture",
+    retainedNarrative.semanticDigest,
+  ])}`;
+  const legacy = structuredClone(prepared.authored);
+  legacy.attestation.promptVersion = "california-finance-refresh-v2";
+  assert.equal(legacy.brief.authorship?.kind, "generated");
+  if (legacy.brief.authorship?.kind === "generated")
+    legacy.brief.authorship.promptVersion = "california-finance-refresh-v2";
+  legacy.attestation.revisionDigest = evidenceDigest(legacy.brief);
+  const current = fixture();
+  current.artifacts.set(legacyKey, legacy);
+  const refreshed = await prepareReviewedCaliforniaCandidate(
+    { ...current.fresh(), retainedNarrative },
+    current.deps,
+  );
+  assert.equal(current.calls.length, 2);
+  assert.notEqual(
+    refreshed.authored.attestation.runId,
+    legacy.attestation.runId,
+  );
+  assert.equal(
+    refreshed.authored.attestation.promptVersion,
+    "california-finance-refresh-v3",
+  );
+  assert.deepEqual(current.artifacts.get(legacyKey), legacy);
+});
+
 test("unknown finance refresh dispatch remains terminal for identical semantic content", async () => {
   const f = fixture();
   const input = f.fresh();

@@ -131,7 +131,7 @@ test("nested promises compile stable links and separate exact reviewer attestati
   assert.notEqual(a.attestation.runId, r.attestation.runId);
   assert.notEqual(a.attestation.actorId, r.attestation.actorId);
   assert.equal(a.attestation.revisionDigest, r.attestation.revisionDigest);
-  assert.equal(a.attestation.promptVersion, "california-author-v19");
+  assert.equal(a.attestation.promptVersion, "california-author-v20");
   assert.equal(r.attestation.actualModel, "actual-fixture-model");
   assert.equal(calls[1]!.excludedConfiguredModel, "fixture:author");
 });
@@ -909,7 +909,7 @@ test("v15 author owns claims only and preserves temporal and contextual constrai
     { dossier: fixtureDossier(), policyVersion: "p1" },
     deps,
   );
-  assert.equal(result.attestation.promptVersion, "california-author-v19");
+  assert.equal(result.attestation.promptVersion, "california-author-v20");
   assert.ok(
     calls[0]!.system.includes("Past achievements belong only in Record"),
   );
@@ -2003,11 +2003,11 @@ test("empty section coverage does not expose source collection workflow", async 
     dossier.gaps.find((gap) => gap.dimension === "record")?.message,
     "The record source could not be downloaded.",
   );
-  assert.equal(result.attestation.promptVersion, "california-author-v19");
+  assert.equal(result.attestation.promptVersion, "california-author-v20");
   assert.deepEqual(result.brief.authorship, {
     kind: "generated",
     model: "actual-fixture-model",
-    promptVersion: "california-author-v19",
+    promptVersion: "california-author-v20",
   });
 });
 
