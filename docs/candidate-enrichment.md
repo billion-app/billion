@@ -367,6 +367,33 @@ source freshness and whole-race gates. It does not change policy or clear prior
 model failures. The [scraper CLI guide](../apps/scraper/README.md#candidate-research-demand)
 describes its operator flags.
 
+The normal demanded-race worker also chooses this fresh narrative scope for an
+unavailable House race while retained FEC retry metadata defers finance. Any
+eligible whole-race release takes precedence, including a current narrative
+release. Explicit finance-only work stays deferred. Invalid known retry metadata
+still blocks finance, and narrative checkpoints retain the original provider fact.
+The first actual 429 remains a failed ordinary attempt. Only a later scheduled
+tick can select narrative for that same race. Later unavailable races in the same
+serial run can use the newly observed deferral without another FEC attempt.
+
+When FEC eligibility returns, the twelve-hour current shortcut requires a finance
+observation for every authoritative House member. Missing briefs or observations
+admit ordinary full acquisition. A valid threshold statement with null amounts
+still counts as an observation. This predicate schedules acquisition; it does not
+replace finance validation or guarantee a successful successor.
+
+The worker rereads eligible coverage after claiming an automatic fallback lease.
+If another publication won, it releases its lease with the unchanged checkpoint.
+Automatic fallback collection saving, publication, and source-failure handling
+also check actual release eligibility under the existing policy transaction lock.
+An intervening policy adoption cannot be withdrawn or overwritten by a narrative
+result. A publication conflict remains a truthful failed attempt rather
+than borrowing another release or advancing its source clocks. The configured
+worker has concurrency one, and production operators serialize runs. These
+protections do not promise uninterrupted pages. Demand, budgets, source quality,
+independent review, whole-race gates, and the twenty-four-hour expiry still apply;
+the normal job checks demanded races every thirty minutes.
+
 ### Campaign acquisition capability
 
 The California Governor adapter can acquire a successful thin campaign module shell through a separately hosted network-none Chromium capability. All browser assets still use the researcher's pinned public GET transport and shared limits. A typed private archive binds actual response bytes, rendered visible DOM and extracted evidence; it does not replace ordinary HTTP source provenance. Renderer absence fails closed with a source gap. [Host setup and the normal data flow](../deploy/big-mac/campaign-renderer/README.md) explain deployment, isolation, cleanup and archive replay.

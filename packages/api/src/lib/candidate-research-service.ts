@@ -47,6 +47,7 @@ import {
 } from "./candidate-research-attestation";
 import {
   activeResearchPolicy,
+  assertNoEligibleResearchRace,
   assertResearchWorkLease,
   lockPilot,
   lockResearchElection,
@@ -358,6 +359,7 @@ async function publishInTransaction(
   policy: Awaited<ReturnType<typeof activeResearchPolicy>>,
   workLease?: ResearchWorkLease,
   cutover = false,
+  preserveEligibleRace = false,
 ) {
   const row = await currentResearchCollection(tx, collectionId);
   if (!cutover) await assertResearchWorkLease(tx, workLease, row.document);
@@ -479,6 +481,7 @@ async function publishInTransaction(
       desc(CandidateRaceRelease.id),
     )
     .limit(1);
+  if (preserveEligibleRace) await assertNoEligibleResearchRace(tx, manifest);
   if (
     existing &&
     !existing.revokedReason &&
@@ -503,6 +506,7 @@ export async function publishResearchCollection(
     collectionId: string;
     actorId: string;
     workLease?: ResearchWorkLease;
+    preserveEligibleRace?: boolean;
   },
   database: ResearchDatabase = db,
 ) {
@@ -514,6 +518,8 @@ export async function publishResearchCollection(
       input.actorId,
       await activeResearchPolicy(tx),
       input.workLease,
+      false,
+      input.preserveEligibleRace,
     );
   });
 }
