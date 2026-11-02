@@ -4867,3 +4867,215 @@ test("automatic fallback source failure releases its lease when preservation pre
   );
   assert.equal(f.stats.releases, 0);
 });
+
+for (const secondFails of [true, false, "secret"] as const)
+  test(`cache-only acquires the complete race before any model when second acquisition ${secondFails ? "fails" : "succeeds"}`, async () => {
+    const f = await automaticNarrativeFixture();
+    f.rows.delete("shared-provider-observation");
+    const financeCoverage = await eligibleHouseCoverage(f, true);
+    const investigate = f.deps.investigate;
+    f.deps.investigate = async (...args) =>
+      buildCaliforniaDossier({
+        ...(await investigate(...args)),
+        officeKind: "federal_legislative",
+      });
+    const originalAuthor = f.deps.author;
+    const briefs = new Map<string, CandidateBrief>();
+    f.deps.author = async (input) => {
+      const result = await originalAuthor(input);
+      result.attestation.actualModel = "fixture";
+      briefs.set(input.dossier.identity.candidateId, result.brief);
+      return result;
+    };
+    const input = {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds: { ...bounds, maxRaces: 1 },
+      raceKeys: [f.race.raceKey],
+    };
+    assert.equal((await reconcile(input, f.deps)).completed, 1);
+    const prior = structuredClone(
+      f.rows.get(f.race.raceKey)!.checkpoint,
+    ) as CaliforniaWorkCheckpoint;
+    f.deps.readPublishedCoverage = async () => ({
+      snapshotId: f.snapshot.id,
+      races: [
+        {
+          contestId: f.race.contestId,
+          jurisdiction: f.race.jurisdiction,
+          electionDate: f.race.electionDate,
+          releaseId: prior.releaseId!,
+          sourceCheckedAt: prior.sourceCheckedAt!,
+          policyVersion: "policy",
+          members: f.race.members.map((member) => {
+            const proof = prior.candidateProvenance![member.candidateId]!;
+            return {
+              candidateId: member.candidateId,
+              revisionId: proof.revisionId!,
+              collectionId: prior.collectionId!,
+              brief: briefs.get(member.candidateId),
+              author: proof.author!,
+              reviewer: proof.reviewer!,
+            };
+          }),
+        },
+      ],
+    });
+    f.rows.set("shared-provider-observation", {
+      raceKey: "shared-provider-observation",
+      status: "blocked",
+      checkpoint: { fecRetry: f.retry },
+    });
+    const events: string[] = [];
+    f.deps.investigate = async (request) => {
+      events.push(`acquire:${request.member.candidateId}`);
+      assert(request.financeCacheOnly);
+      if (secondFails && events.length === 2) {
+        if (secondFails === "secret")
+          request.financeCacheOnly.beforeDns(
+            "https://SYNTHETIC_CREDENTIAL_SENTINEL:SYNTHETIC_CREDENTIAL_SENTINEL@api.open.fec.gov/v1/filings/?api_key=SYNTHETIC_CREDENTIAL_SENTINEL&token=SYNTHETIC_CREDENTIAL_SENTINEL#SYNTHETIC_CREDENTIAL_SENTINEL",
+          );
+        throw new Error("Second candidate exact query is missing");
+      }
+      const old = request.previousDossier!;
+      const record = old.evidence.find(
+        (entry) => entry.role === "candidate_record",
+      )!;
+      const finance = structuredClone(
+        financeCoverage.members[0]!.brief.research!.finance!,
+      );
+      const replace = (value: unknown): unknown =>
+        Array.isArray(value)
+          ? value.map(replace)
+          : value && typeof value === "object"
+            ? Object.fromEntries(
+                Object.entries(value).map(([key, value]) => [
+                  key,
+                  key === "evidenceIds" || key === "filingEvidenceIds"
+                    ? ["synthetic-finance"]
+                    : replace(value),
+                ]),
+              )
+            : value;
+      const dossier = buildCaliforniaDossier({
+        ...old,
+        evidence: [
+          ...old.evidence,
+          { ...record, id: "synthetic-finance", role: "finance" },
+        ],
+        finance: replace(finance) as NonNullable<
+          CandidateEvidenceDossier["finance"]
+        >,
+      });
+      const url =
+        "https://api.open.fec.gov/v1/reports/house-senate/?cycle=2026&committee_id=C00000001&per_page=100&page=1&most_recent=true";
+      const text = JSON.stringify({
+        pagination: { is_count_exact: true, page: 1, pages: 1, count: 0 },
+        results: [],
+      });
+      const cached = buildCaliforniaDossier({
+        ...dossier,
+        sources: [
+          ...dossier.sources,
+          {
+            id: `fec-${hash(url).slice(0, 20)}`,
+            url,
+            publisher: "Federal Election Commission",
+            format: "json",
+            fetchedAt: f.deps.now(),
+            contentHash: hash(text),
+            text,
+          },
+        ],
+      });
+      request.financeCacheOnly.seed({
+        digest: cached.dossierDigest,
+        document: cached,
+        expected: old,
+      });
+      request.financeCacheOnly.read(url, request.member.candidateId);
+      request.financeCacheOnly.complete(request.member.candidateId);
+      return cached;
+    };
+    f.deps.author = async () => {
+      events.push("author");
+      throw new Error(
+        "No provider invocation permitted by this acquisition test",
+      );
+    };
+    f.deps.review = async () => assert.fail("No reviewer permitted");
+    const result = await reconcile(
+      {
+        ...input,
+        financeOnly: true,
+        refreshCurrent: true,
+        financeCacheOnly: true,
+      },
+      f.deps,
+    );
+    assert.equal(
+      JSON.stringify({
+        result,
+        checkpoint: f.rows.get(f.race.raceKey)!.checkpoint,
+      }).includes("SYNTHETIC_CREDENTIAL_SENTINEL"),
+      false,
+    );
+    assert.equal(result.completed, 0);
+    assert.deepEqual(
+      events,
+      [
+        ...f.race.members.map((member) => `acquire:${member.candidateId}`),
+        ...(secondFails ? [] : ["author"]),
+      ],
+      JSON.stringify(result.outcomes),
+    );
+    assert.match(
+      result.outcomes[0]!.reason!,
+      secondFails === "secret"
+        ? /FEC API network acquisition is forbidden/
+        : secondFails
+          ? /Second candidate exact query/
+          : /No provider invocation/,
+    );
+    assert.equal(result.usage.modelCalls, secondFails ? 0 : 1);
+    if (!secondFails) {
+      const key = result.outcomes[0]!.financeCachePreflightArtifactKey!;
+      const preflight = f.artifacts.get(key) as {
+        retainedProviderRetry: unknown;
+        candidates: unknown[];
+      };
+      assert.deepEqual(preflight.retainedProviderRetry, f.retry);
+      assert.equal(preflight.candidates.length, 2);
+    }
+    assert.deepEqual(
+      (f.rows.get(f.race.raceKey)!.checkpoint as CaliforniaWorkCheckpoint)
+        .fecRetry,
+      f.retry,
+    );
+    assert("financeCacheAcquisition" in result);
+    assert.equal(result.financeCacheAcquisition?.apiTransportAttempts, 0);
+  });
+
+test("cache-only admission rejects broad scopes before sources and models", async () => {
+  const f = await fixture();
+  for (const change of [
+    {},
+    { financeOnly: true },
+    { financeOnly: true, refreshCurrent: true, raceKeys: ["one", "two"] },
+  ])
+    await assert.rejects(
+      reconcile(
+        {
+          snapshotId: f.snapshot.id,
+          policyVersion: "policy",
+          bounds,
+          financeCacheOnly: true,
+          ...change,
+        },
+        f.deps,
+      ),
+      /Finance(?: cache)?-only/,
+    );
+  assert.equal(f.stats.investigations, 0);
+  assert.equal(f.stats.authors, 0);
+});

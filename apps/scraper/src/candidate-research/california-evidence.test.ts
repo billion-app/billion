@@ -17,6 +17,7 @@ import {
   fetchBoundedCaliforniaSource,
   qualifiedCandidatePage,
 } from "./california-evidence.js";
+import { CaliforniaFinanceCacheOnly } from "./california-finance-cache-only.js";
 import { decodeCaliforniaRoster } from "./california-roster.js";
 import {
   CaliforniaSourceHttpError,
@@ -2769,4 +2770,43 @@ test("narrative-only HTML acquisition retains the raw ownership archive", async 
   assert.equal(result.httpObservation?.responses.at(-1)?.url, url);
   assert.equal(result.httpObservation?.responses.at(-1)?.status, 200);
   assert.ok(result.text.includes("A current candidate explains plans"));
+});
+
+test("cache-only evidence excludes non-House, renderer and supplemental acquisition paths before fetch", async () => {
+  const { snapshot, race } = await fixture();
+  const policy = new CaliforniaFinanceCacheOnly(() => now);
+  for (const variant of ["non-house", "renderer", "supplemental"] as const) {
+    await assert.rejects(
+      collectCaliforniaEvidence(
+        {
+          snapshot,
+          race:
+            variant === "non-house"
+              ? race
+              : { ...race, officeFamily: "us_house" },
+          member: race.members[0]!,
+          researchScope: "finance_refresh",
+          financeCacheOnly: policy,
+          ...(variant === "supplemental"
+            ? {
+                supplementalSources: [
+                  source("untrusted", "https://example.gov/", "untrusted"),
+                ],
+              }
+            : {}),
+        },
+        {
+          ...(variant === "renderer"
+            ? { campaignRenderer: { budget: { request() {}, bytes() {} } } }
+            : {}),
+          fetch: async () => assert.fail("No source transport permitted"),
+          search: async () => assert.fail("No discovery permitted"),
+          now: () => now,
+          sharedSources: new Map(),
+          budget: { request() {}, bytes() {} },
+        },
+      ),
+      /static House refresh adapter/,
+    );
+  }
 });

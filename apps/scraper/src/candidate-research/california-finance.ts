@@ -14,6 +14,8 @@ import {
   resolveFecIdentityFromSource,
 } from "@acme/validators";
 
+import type { CaliforniaFinanceCacheOnly } from "./california-finance-cache-only.js";
+import { isFecApiUrl } from "./california-finance-cache-only.js";
 import {
   isCaliforniaSourceUnavailable,
   sourceAcquisitionFailure,
@@ -51,6 +53,7 @@ export interface CaliforniaFinanceDependencies {
   sharedSources: Map<string, Promise<ResearchSource>>;
   budget: { request(): void };
   apiKey?: string;
+  financeCacheOnly?: CaliforniaFinanceCacheOnly;
 }
 export interface CaliforniaFederalFinance {
   finance: CampaignFinance | null;
@@ -133,7 +136,12 @@ export async function collectCaliforniaFederalFinance(
     format: ResearchSource["format"],
     keyed = false,
   ) => {
-    let pending = deps.sharedSources.get(url);
+    let pending =
+      deps.financeCacheOnly && isFecApiUrl(url)
+        ? Promise.resolve(
+            deps.financeCacheOnly.read(url, input.member.candidateId),
+          )
+        : deps.sharedSources.get(url);
     if (!pending) {
       deps.budget.request();
       pending = deps.fetch(
@@ -216,6 +224,14 @@ export async function collectCaliforniaFederalFinance(
         .map((member) => resolve(race, member))
         .filter((value): value is NonNullable<typeof value> => value !== null),
     );
+    if (
+      deps.financeCacheOnly &&
+      identities.length !==
+        scope.reduce((count, race) => count + race.members.length, 0)
+    )
+      throw new Error(
+        "Cache-only finance requires every selected member identity",
+      );
     if (!identities.some((value) => value.candidateId === identity.candidateId))
       throw new Error("Finance candidate absent from selected race scope");
     const candidateIds = [
@@ -364,6 +380,7 @@ export async function collectCaliforniaFederalFinance(
     finance.coverageNote =
       "Campaign totals retain their reported coverage. Donors are a bounded selection of individual filing transactions, never combined or ranked by name. Independent expenditures cover the separate cycle window of processed periodic reports. New reports may not yet be processed. Lobbying status and interests are not established.";
     result.finance = campaignFinanceSchema.parse(finance);
+    deps.financeCacheOnly?.complete(input.member.candidateId);
     return result;
   } catch (error) {
     if (isRunBudget(error) || isCaliforniaSourceUnavailable(error)) throw error;
