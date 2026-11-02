@@ -2641,6 +2641,8 @@ const excludedFinanceUrls = [
   "https://www.fec.gov/data/candidate/H0CA00001/",
   "https://www.fec.gov/files/bulk-downloads/2026/cn26.zip",
   "https://docquery.fec.gov/dcdev/posted/1856505.fec",
+  "https://api.open.fec.gov./v1/candidates/",
+  "https://docquery.fec.gov./dcdev/posted/1856505.fec",
 ];
 
 test("narrative-only filters discovered federal finance pages before fetching", async () => {
@@ -2657,7 +2659,7 @@ test("narrative-only filters discovered federal finance pages before fetching", 
   assert.equal(dossier.classification, "supported");
   assert.equal(dossier.finance, null);
   assert.equal(
-    f.fetched.some((url) => new URL(url).hostname.endsWith("fec.gov")),
+    f.fetched.some((url) => excludedFinanceUrls.includes(url)),
     false,
   );
   assert.deepEqual(

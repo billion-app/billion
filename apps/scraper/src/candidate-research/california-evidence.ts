@@ -654,7 +654,9 @@ function unchangedCitedFecIdentity(
   }
 }
 function isFederalFinanceSource(url: string) {
-  const hostname = URL.canParse(url) ? new URL(url).hostname : "";
+  const hostname = URL.canParse(url)
+    ? new URL(url).hostname.replace(/\.$/, "")
+    : "";
   return hostname === "fec.gov" || hostname.endsWith(".fec.gov");
 }
 
