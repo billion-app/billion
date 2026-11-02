@@ -227,7 +227,7 @@ export interface CaliforniaDependencies {
       race: CaliforniaRaceTarget;
       member: CaliforniaRaceTarget["members"][number];
       previousDossier?: CandidateEvidenceDossier;
-      researchScope?: "finance_refresh";
+      researchScope?: "finance_refresh" | "narrative_only";
       cachedFinanceDossier?: { digest: string; document: unknown };
     },
     budget: {
@@ -985,11 +985,20 @@ export async function reconcile(
     raceKeys?: string[];
     refreshCurrent?: boolean;
     financeOnly?: boolean;
+    narrativeOnly?: boolean;
     preparationPolicy?: CaliforniaPreparationPolicy;
   },
   provided?: CaliforniaDependencies,
 ) {
   positiveBounds(input.bounds);
+  if (input.narrativeOnly && input.financeOnly)
+    throw new Error(
+      "Narrative-only and finance-only research are mutually exclusive",
+    );
+  if (input.narrativeOnly && !input.raceKeys?.length)
+    throw new Error(
+      "Narrative-only research requires explicit operator race keys",
+    );
   if (input.financeOnly && (!input.refreshCurrent || !input.raceKeys?.length))
     throw new Error(
       "Finance-only research requires explicit races and --refresh-current",
@@ -1221,6 +1230,14 @@ export async function reconcile(
         current.jurisdiction === race.jurisdiction &&
         current.electionDate === race.electionDate,
     );
+    if (input.narrativeOnly && publicRace) {
+      outcomes.push({
+        raceKey: race.raceKey,
+        status: "current",
+        releaseId: publicRace.releaseId,
+      });
+      continue;
+    }
     const narrativeRace =
       input.financeOnly && narrativeCoverage
         ? narrativeCoverage.races.find(
@@ -1288,7 +1305,7 @@ export async function reconcile(
         const previousDossierEpoch =
           attemptPrior?.dossierReviewEpochs?.[member.candidateId] ?? 0;
         const previousDossierDigest =
-          previousDossierEpoch === lease.reviewEpoch
+          !input.narrativeOnly && previousDossierEpoch === lease.reviewEpoch
             ? (publicRace?.members.find(
                 (current) => current.candidateId === member.candidateId,
               )?.author?.dossierDigest ??
@@ -1299,7 +1316,9 @@ export async function reconcile(
               `dossier:${previousDossierDigest}`,
             )) as CandidateEvidenceDossier | null)
           : null;
-        const publishedMember = narrativeRace?.members.find(
+        const publishedMember = (
+          input.narrativeOnly ? undefined : narrativeRace
+        )?.members.find(
           (current) => current.candidateId === member.candidateId,
         );
         const publishedDossier = publishedMember?.author?.dossierDigest
@@ -1337,9 +1356,13 @@ export async function reconcile(
             snapshot,
             race,
             member,
-            previousDossier: input.financeOnly
-              ? publishedDossier!
-              : (previousDossier ?? undefined),
+            ...(input.narrativeOnly
+              ? { researchScope: "narrative_only" as const }
+              : {
+                  previousDossier: input.financeOnly
+                    ? publishedDossier!
+                    : (previousDossier ?? undefined),
+                }),
             ...(input.financeOnly
               ? {
                   researchScope: "finance_refresh" as const,

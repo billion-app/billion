@@ -659,12 +659,19 @@ export async function collectCaliforniaEvidence(
     race: CaliforniaRaceTarget;
     member: CaliforniaRaceTarget["members"][number];
     previousDossier?: CandidateEvidenceDossier;
-    researchScope?: "finance_refresh";
+    researchScope?: "finance_refresh" | "narrative_only";
     cachedFinanceDossier?: { digest: string; document: unknown };
     supplementalSources?: ResearchSource[];
   },
   deps: CaliforniaEvidenceDependencies,
 ): Promise<CandidateEvidenceDossier> {
+  if (
+    input.researchScope === "narrative_only" &&
+    (input.previousDossier || input.cachedFinanceDossier)
+  )
+    throw new Error(
+      "Narrative-only research requires fresh inputs without prior dossiers or finance caches",
+    );
   const { snapshot, race, member } = input;
   const rosterSource: ResearchSource =
     race.officeFamily === "local"
@@ -1355,7 +1362,10 @@ export async function collectCaliforniaEvidence(
     "not_found_in_checked_sources";
   let financeGap =
     "California or local campaign-finance totals and donor records have not been reconciled. Federal FEC records do not apply to this office.";
-  if (race.officeFamily === "us_house") {
+  if (input.researchScope === "narrative_only")
+    financeGap =
+      "Financial records were not collected in this narrative-only research run.";
+  else if (race.officeFamily === "us_house") {
     const scope = [race];
     const identitySources = [rosterSource];
     const beforeIdentity = new Set(sources.map((source) => source.id));
@@ -1447,9 +1457,14 @@ export async function collectCaliforniaEvidence(
       dimension: "finance",
       code: financeGapCode,
       message: financeGap,
-      checkedSourceIds: sources
-        .filter((source) => new URL(source.url).hostname.endsWith("fec.gov"))
-        .map((source) => source.id),
+      checkedSourceIds:
+        input.researchScope === "narrative_only"
+          ? []
+          : sources
+              .filter((source) =>
+                new URL(source.url).hostname.endsWith("fec.gov"),
+              )
+              .map((source) => source.id),
       required: false,
     });
   if (race.kind === "retention")

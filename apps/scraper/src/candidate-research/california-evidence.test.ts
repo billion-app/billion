@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import test from "node:test";
 
 import type { ResearchSource } from "@acme/validators";
+import { candidateDossierSemanticProjection } from "@acme/validators";
 
 import { publicSourceAddresses } from "../research/pages.js";
 import { buildCaliforniaDossier } from "./california-dossier.js";
@@ -2515,3 +2516,122 @@ test("captured statewide authority pages require their office provision and reje
     }
   }
 });
+
+for (const name of ["Peter Coe Verbica", "Jimmy Panetta"]) {
+  test(`narrative-only acquires fresh ${name} evidence without any finance request`, async () => {
+    const f = await capturedHouseCampaign(name);
+    let blockedFinanceRequests = 0;
+    const fetch = f.deps.fetch;
+    f.deps.fetch = async (id, url) => {
+      if (/fec\.gov|fec\.gov\/|\/ccl\//.test(url)) {
+        blockedFinanceRequests++;
+        throw new Error("Finance transport is prohibited in this fixture");
+      }
+      return fetch(id, url);
+    };
+    const dossier = await collectCaliforniaEvidence(
+      { ...f, researchScope: "narrative_only" },
+      f.deps,
+    );
+    assert.equal(blockedFinanceRequests, 0);
+    assert.equal(dossier.classification, "supported");
+    assert.equal(dossier.finance, null);
+    assert.equal(dossier.financeIdentityProof, undefined);
+    assert.equal(
+      dossier.evidence.some((entry) => entry.role === "finance"),
+      false,
+    );
+    assert.deepEqual(
+      dossier.gaps.find((gap) => gap.dimension === "finance"),
+      {
+        dimension: "finance",
+        code: "not_found_in_checked_sources",
+        message:
+          "Financial records were not collected in this narrative-only research run.",
+        checkedSourceIds: [],
+        required: false,
+      },
+    );
+    const later = await collectCaliforniaEvidence(
+      { ...f, researchScope: "narrative_only" },
+      { ...f.deps, now: () => "2026-10-30T13:00:00.000Z" },
+    );
+    assert.deepEqual(
+      candidateDossierSemanticProjection(later),
+      candidateDossierSemanticProjection(dossier),
+    );
+    const candidateEvidence = dossier.evidence.find(
+      (entry) => entry.role === "campaign_material",
+    );
+    assert.ok(candidateEvidence);
+    const candidateSource = f.sources.find((entry) =>
+      entry.text.includes(candidateEvidence.excerpt),
+    )!;
+    assert.ok(candidateSource);
+    candidateSource.text +=
+      "\nNew current campaign proposal for this offline fixture.";
+    candidateSource.contentHash = createHash("sha256")
+      .update(candidateSource.text)
+      .digest("hex");
+    f.deps.sharedSources.clear();
+    const fresh = await collectCaliforniaEvidence(
+      { ...f, researchScope: "narrative_only" },
+      f.deps,
+    );
+    assert.notEqual(fresh.dossierDigest, dossier.dossierDigest);
+    assert.ok(
+      fresh.sources.some((entry) =>
+        entry.text.includes("New current campaign proposal"),
+      ),
+    );
+    assert.equal(blockedFinanceRequests, 0);
+    const stale = {
+      ...dossier,
+      sources: [
+        ...dossier.sources,
+        source(
+          "old-finance-query",
+          "https://api.open.fec.gov/v1/reports/house/",
+          "old official finance response",
+        ),
+        source(
+          "C12345678:old-row",
+          "https://api.open.fec.gov/v1/reports/house/",
+          "old derived finance row",
+        ),
+      ],
+    };
+    let fetches = 0;
+    for (const conflicting of [
+      { previousDossier: stale },
+      {
+        cachedFinanceDossier: {
+          digest: dossier.dossierDigest,
+          document: stale,
+        },
+      },
+      {
+        previousDossier: stale,
+        cachedFinanceDossier: {
+          digest: dossier.dossierDigest,
+          document: stale,
+        },
+      },
+    ]) {
+      await assert.rejects(
+        collectCaliforniaEvidence(
+          { ...f, ...conflicting, researchScope: "narrative_only" },
+          {
+            ...f.deps,
+            fetch: async () => {
+              fetches++;
+              throw new Error("must not fetch");
+            },
+          },
+        ),
+        /fresh inputs without prior dossiers or finance caches/,
+      );
+    }
+    assert.equal(fetches, 0);
+  });
+}
