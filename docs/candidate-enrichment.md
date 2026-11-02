@@ -150,6 +150,9 @@ description rather than switching citations to fit that mistaken label. A change
 citation must support the full claim, including whether it describes past work
 or a current commitment. Unsupported claims can be omitted; the existing single
 correction limit and independent review still apply.
+The shared correction contract is versioned for both ordinary authors and retained
+finance narratives, so older cached author artifacts cannot stand in for the
+changed contract.
 
 An approved review belongs to its saved collection. If replacing one candidate's
 draft creates a new collection, an unchanged opponent needs a review for that

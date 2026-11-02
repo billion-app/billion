@@ -22,7 +22,7 @@ import {
 export const californiaAuthorPromptVersion = "california-author-v20";
 export const californiaReviewerPromptVersion = "california-review-v6";
 export const californiaFinanceRefreshPromptVersion =
-  "california-finance-refresh-v2";
+  "california-finance-refresh-v3";
 export interface CaliforniaRetainedNarrative {
   dossierDigest: string;
   narrative: z.infer<ReturnType<typeof californiaAuthorOutputSchema>>;
