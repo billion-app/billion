@@ -270,6 +270,33 @@ unchanged saved correction cannot use a cached approval or dispatch another
 review. Compiler-owned coverage describes what the brief presents without
 exposing collection-workflow commentary.
 
+The same rejection rule applies before every initial, corrected and
+collection-bound review, including cached approvals after a writer version
+change. The API reads complete immutable candidate/race history and pairs each
+review with its exact author, dossier, source set and policy. Reader-visible
+content uses the shared `candidatePublicContentProjection`; new revision IDs,
+writer metadata and observation clocks cannot erase an earlier rejection.
+Genuinely changed claims, chapter placement, citation context or validated dossier
+evidence may receive another independent review under the existing bounds.
+
+History reads first select scoped artifact metadata, then enforce 512 rows and
+8 MB of decoded payload before returning documents. Database statement and lock
+timeouts fail closed. These limits bound results and waiting time, not physical
+scan cost; the artifact table currently has no composite candidate-history index.
+Malformed, orphaned, conflicting or incomplete history never means permission to
+review. Legacy canonical author/review records are discovered without a new
+semantic index or backfill.
+
+Reviewer reservation rechecks the history proof under the same candidate history
+lock used for canonical outcome writes. An unresolved earlier reviewer dispatch
+blocks a replacement, even after lease loss. Late outcomes remain immutable audit
+evidence. Conflicting results for one canonical key are retained separately and
+block admission. Approval recording and publication recheck the same history
+under the transaction lock. This fences new approvals and releases; it does not
+retroactively withdraw an otherwise valid existing publication. These boundaries
+live in `california-review-history.ts`, `california-roster-store.ts` and
+`california-candidate-preparation.ts`.
+
 The finance-refresh prompt has its own version. These versions also identify the
 trusted compiler's output contract. Cache keys include the current
 semantic dossier and retained narrative, but exclude historical publication run

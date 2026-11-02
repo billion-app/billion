@@ -94,6 +94,10 @@ async function fixture() {
     races: [original.races[0]!, original.races[2]!],
   };
   const artifacts = new Map<string, unknown>();
+  const artifactMetadata = new Map<
+    string,
+    { kind: string; raceKey: string; candidateId?: string }
+  >();
   const rows = new Map<
     string,
     { raceKey: string; status: string; checkpoint: unknown }
@@ -115,7 +119,10 @@ async function fixture() {
     actorId: role === "author" ? brief.authorId : `reviewer:${randomUUID()}`,
     runId: randomUUID(),
     configuredModel: role,
-    actualModel: role,
+    actualModel:
+      role === "author" && brief.authorship.kind === "generated"
+        ? brief.authorship.model
+        : role,
     provider: "fixture",
     requestId: null,
     promptVersion: "fixture",
@@ -149,6 +156,42 @@ async function fixture() {
       rows.set(lease.key, { raceKey: lease.key, status, checkpoint: value });
       return true;
     },
+    reviewHistory: async (scope) => ({
+      kind: "complete",
+      proof: "fixture-history",
+      artifacts: [...artifacts].flatMap(([key, document]) => {
+        const metadata = artifactMetadata.get(key);
+        if (
+          metadata &&
+          (metadata.raceKey !== scope.raceKey ||
+            metadata.candidateId !== scope.candidateId)
+        )
+          return [];
+        const kind = key.startsWith("dispatch:")
+          ? "model_dispatch"
+          : key.startsWith("author:") || key.startsWith("author-correction:")
+            ? "author"
+            : key.startsWith("review:")
+              ? "review"
+              : key.startsWith("review-rejected:")
+                ? "model_review_rejection"
+                : key.startsWith("correction-rejected:")
+                  ? "model_correction_rejection"
+                  : null;
+        return kind
+          ? [
+              {
+                key,
+                kind,
+                document,
+                raceKey: scope.raceKey,
+                candidateId: scope.candidateId,
+                createdAt: new Date("2026-10-30T00:00:00.000Z"),
+              },
+            ]
+          : [];
+      }),
+    }),
     artifact: async (key) => artifacts.get(key) ?? null,
     hasArtifact: async (key) => artifacts.has(key),
     reserveDispatch: async (input) => {
@@ -168,10 +211,22 @@ async function fixture() {
         artifacts.set(key, { collectionId, reviewKey });
       }
       artifacts.set(input.key, input.document);
+      artifactMetadata.set(input.key, {
+        kind: "model_dispatch",
+        raceKey: input.raceKey,
+        candidateId: input.candidateId,
+      });
       return true;
     },
     saveArtifact: async (input) => {
-      if (!artifacts.has(input.key)) artifacts.set(input.key, input.document);
+      if (!artifacts.has(input.key)) {
+        artifacts.set(input.key, input.document);
+        artifactMetadata.set(input.key, {
+          kind: input.kind,
+          raceKey: input.raceKey,
+          candidateId: input.candidateId,
+        });
+      }
       return artifacts.get(input.key);
     },
     investigate: async ({ race, member }) => {

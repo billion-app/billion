@@ -701,6 +701,7 @@ void test(
     const { eq, inArray } = await import("@acme/db");
     const {
       CaliforniaRoster: Roster,
+      CaliforniaResearchArtifact: Artifact,
       CaliforniaRaceWork: Work,
       CandidateBriefRevision: Revision,
       CandidateBriefReviewEvent: Event,
@@ -719,6 +720,7 @@ void test(
       saveCaliforniaRoster,
       claimCaliforniaRaceWork,
       beginCaliforniaSourceCheck,
+      saveCaliforniaResearchArtifact,
     } = await import("./california-roster-store");
     const {
       recordResearchAiReview,
@@ -993,6 +995,7 @@ void test(
       excludedContests: [],
       countyCoverage: [],
     });
+    const ownedArtifactKeys: string[] = [];
     const collectionIds: string[] = [],
       releaseIds: string[] = [],
       revisionIds = [brief.revisionId];
@@ -1952,7 +1955,102 @@ void test(
         }),
         ResearchReviewCollectionConflict,
       );
+      const proposedArtifact = required(
+        pairChanged.candidateArtifacts?.find(
+          (entry) =>
+            entry.candidateId === unchangedPairBrief.identity.candidateId,
+        ),
+      );
+      const authorKey = `author:publication-history:${randomUUID()}`;
+      const reviewKey = `review:publication-history:${randomUUID()}`;
+      ownedArtifactKeys.push(authorKey, `dispatch:${reviewKey}`, reviewKey);
+      await saveCaliforniaResearchArtifact(db, {
+        key: authorKey,
+        kind: "author",
+        raceKey: pairChanged.pilotKey,
+        candidateId: proposedArtifact.candidateId,
+        document: {
+          brief: unchangedPairBrief,
+          attestation: proposedArtifact.author,
+        },
+      });
+      const pendingStartedAt = new Date().toISOString();
+      await db.insert(Artifact).values({
+        key: `dispatch:${reviewKey}`,
+        kind: "model_dispatch",
+        raceKey: pairChanged.pilotKey,
+        candidateId: proposedArtifact.candidateId,
+        document: { startedAt: pendingStartedAt, costUsd: null },
+      });
+      const eventsBefore = await db
+        .select()
+        .from(Event)
+        .where(inArray(Event.revisionId, revisionIds));
+      const releasesBefore = await db
+        .select()
+        .from(Release)
+        .where(inArray(Release.id, releaseIds));
+      for (const late of [false, true]) {
+        if (late)
+          await saveCaliforniaResearchArtifact(db, {
+            key: reviewKey,
+            kind: "review",
+            raceKey: pairChanged.pilotKey,
+            candidateId: proposedArtifact.candidateId,
+            document: {
+              verdict: "reject",
+              overallReason:
+                "Synthetic late reviewer response rejects unchanged public content.",
+              findings: freshPairReview.findings,
+              attestation: {
+                ...freshPairReview.reviewer,
+                runId: randomUUID(),
+                actorId: `late-reviewer:${randomUUID()}`,
+                startedAt: pendingStartedAt,
+                completedAt: new Date().toISOString(),
+              },
+            },
+          });
+        const expected = late
+          ? /rejected this unchanged public content/
+          : /unsettled|canonical result/;
+        await assert.rejects(
+          recordResearchAiReview({
+            collectionId: pairResumed.collectionId,
+            revisionId: unchangedPairBrief.revisionId,
+            attestation: freshPairReview,
+            workLease: pairLease,
+          }),
+          expected,
+        );
+        await assert.rejects(
+          publishResearchCollection({
+            collectionId: pairResumed.collectionId,
+            actorId: "fixture-service",
+            workLease: pairLease,
+          }),
+          expected,
+        );
+        assert.deepEqual(
+          await db
+            .select()
+            .from(Event)
+            .where(inArray(Event.revisionId, revisionIds)),
+          eventsBefore,
+        );
+        assert.deepEqual(
+          await db
+            .select()
+            .from(Release)
+            .where(inArray(Release.id, releaseIds)),
+          releasesBefore,
+        );
+      }
     } finally {
+      if (ownedArtifactKeys.length)
+        await db
+          .delete(Artifact)
+          .where(inArray(Artifact.key, ownedArtifactKeys));
       if (releaseIds.length)
         await db.delete(Release).where(inArray(Release.id, releaseIds));
       await db.delete(Event).where(inArray(Event.revisionId, revisionIds));
