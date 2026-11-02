@@ -192,6 +192,22 @@ quota. A transient failure stops acquisition without extending an earlier
 publication's original 24-hour expiry. The collector does not publish a replacement
 summary-only record after a required component fails.
 
+Before claiming a finance-bearing House race, the coordinator checks every loaded
+work checkpoint for a previously observed FEC API Retry-After. The shared key
+uses the longest absolute deadline plus sixty seconds of safety, across races
+and API paths. A new 429 also defers later House races in the same serial run.
+Existing current-release shortcuts, statewide research and explicit narrative-only
+research keep their admission behavior. Required roster validation still runs.
+
+The optional `fecRetry` checkpoint field retains the original resource,
+observation time, Retry-After and absolute deadline through later failures,
+preparation and publication. Exact legacy diagnostics can supply this fact when
+it has not yet been saved separately. Invalid known FEC retry metadata defers
+finance work until it can be reconciled. A deferred race stays pending without a
+claim, candidate acquisition, model call or work-checkpoint rewrite. Deferral does
+not renew source observations, review epochs or publication expiry. Overwritten
+historical diagnostics cannot be recovered automatically from the latest row.
+
 `finance.observation` records four separate outcomes. The campaign summary keeps
 its reported coverage and explicitly supplied spending, cash, debt and individual
 itemization amounts. Donor observations select up to ten positive non-memo
