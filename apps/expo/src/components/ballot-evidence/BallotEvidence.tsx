@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 
 import type { BallotCitation, BallotEvidence, LanguageEvidence } from "./model";
 import { Icon } from "~/components/ui/Icon";
@@ -66,6 +66,7 @@ export function SourceLink({
         <Text
           style={[
             s.linkText,
+            Platform.OS === "web" && label === url && s.urlText,
             prominence === "primary" && s.primaryText,
             reader && s.readerLinkText,
           ]}
@@ -510,6 +511,9 @@ const s = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     color: colors.white,
+  },
+  urlText: {
+    minWidth: 0,
   },
   recoveryCard: {
     backgroundColor: P.card,
