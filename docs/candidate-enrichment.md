@@ -64,11 +64,11 @@ the background request.
 
 The [California evidence collector](../apps/scraper/src/candidate-research/california-evidence.ts)
 checks official office responsibilities separately from candidate claims.
-Controller and Treasurer use their official functions pages. Governor and
-Superintendent use the official voter guide's institutional introduction,
-ending before the candidate statements. A missing-page response or a page
-without the required office provision leaves a required authority gap; a
-successful HTTP response alone does not qualify it.
+Controller and Treasurer use their official functions pages. Governor, Attorney
+General, Insurance Commissioner and Superintendent use the official voter guide's
+institutional introduction, ending before the candidate statements. A missing-page
+response or a page without the required office provision leaves a required
+authority gap; a successful HTTP response alone does not qualify it.
 
 Campaign publisher disclosures establish who publishes a page, not who made
 every statement on it. The collector retains the surrounding footer context
