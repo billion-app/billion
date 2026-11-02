@@ -2391,7 +2391,13 @@ test("captured statewide authority pages require their office provision and reje
       new URL("./fixtures/statewide-authority-pages.json", import.meta.url),
       "utf8",
     ),
-  ) as { office: string; url: string; text?: string; html?: string }[];
+  ) as {
+    office: string;
+    url: string;
+    text?: string;
+    html?: string;
+    introduction?: string;
+  }[];
   const { snapshot } = await fixture();
   for (const page of pages) {
     const race = snapshot.races.find(
@@ -2404,7 +2410,11 @@ test("captured statewide authority pages require their office provision and reje
       "wrong-office",
       "soft404",
       "truncated",
-      ...(page.office === "Superintendent of Public Instruction"
+      ...(page.introduction
+        ? ["missing-introduction", "truncated-introduction", "wrong-heading"]
+        : []),
+      ...(page.introduction ||
+      page.office === "Superintendent of Public Instruction"
         ? ["candidate-quotation"]
         : []),
       ...(page.office === "Controller" ? ["fragment"] : []),
@@ -2427,18 +2437,29 @@ test("captured statewide authority pages require their office provision and reje
             const actual =
               page.html ??
               `<html><body><main>${page.text}</main></body></html>`;
+            const body = page.text ?? "";
+            const bodies: Record<string, string> = {
+              "wrong-office":
+                "The mayor administers the city budget and oversees municipal departments.",
+              fragment:
+                "As the chief fiscal officer of California, this page is unavailable while maintenance continues.",
+              soft404: `The page you requested is not found. ${body}`,
+              "candidate-quotation": `${member.name} says: ${body}`,
+              truncated: body.slice(0, 150),
+              "missing-introduction": body.replace(page.introduction ?? "", ""),
+              "truncated-introduction": body.replace(
+                page.introduction ?? "",
+                page.introduction?.slice(0, -40) ?? "",
+              ),
+              "wrong-heading": body.replace(
+                `${page.office} Candidate Statements`,
+                "Governor Candidate Statements",
+              ),
+            };
             const html =
               variant === "actual"
                 ? actual
-                : variant === "wrong-office"
-                  ? "<html><main>The mayor administers the city budget and oversees municipal departments.</main></html>"
-                  : variant === "fragment"
-                    ? "<html><main>As the chief fiscal officer of California, this page is unavailable while maintenance continues.</main></html>"
-                    : variant === "soft404"
-                      ? `<html><main>The page you requested is not found. ${page.text ?? ""}</main></html>`
-                      : variant === "candidate-quotation"
-                        ? `<html><main>${member.name} says: ${page.text ?? ""}</main></html>`
-                        : `<html><main>${(page.text ?? "").slice(0, 150)}</main></html>`;
+                : `<html><main>${bodies[variant]}</main></html>`;
             return fetchBoundedCaliforniaSource(
               id,
               url,
@@ -2469,6 +2490,16 @@ test("captured statewide authority pages require their office provision and reje
           authority.excerpt,
           /page you requested is not found/i,
         );
+        if (page.introduction) {
+          assert.equal(authority.excerpt, page.introduction);
+          for (const candidate of race.members)
+            assert.equal(authority.excerpt.includes(candidate.name), false);
+          assert.equal(authority.origin, "primary_record");
+          assert.equal(
+            authority.identityQualification,
+            "exact_election_office",
+          );
+        }
         if (page.office === "Superintendent of Public Instruction") {
           assert.match(authority.excerpt, /governing boards/);
           assert.doesNotMatch(authority.excerpt, /Richard Barrera|Sonja Shaw/);

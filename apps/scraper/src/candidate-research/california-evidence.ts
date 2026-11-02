@@ -101,10 +101,19 @@ const statewide: Record<string, OfficeAuthoritySource> = {
     marker:
       /The office of California State Treasurer has broad responsibilities and authority in the areas of investment and finance/,
   },
-  "Attorney General": { url: "https://oag.ca.gov/about", marker: /.*/ },
+  "Attorney General": {
+    url: "https://voterguide.sos.ca.gov/candidates/attorney-general-candidate-statements.htm",
+    marker:
+      /Attorney General Candidate Statements As the state[’']s chief law officer, ensures that state laws are enforced and investigates fraudulent or illegal activities\. Heads the Department of Justice, which provides state government legal services and represents the state in civil and criminal court cases\. Oversees law enforcement agencies, including county district attorneys and sheriffs\./,
+    exactMatch: true,
+    beforeCandidates: true,
+  },
   "Insurance Commissioner": {
-    url: "https://www.insurance.ca.gov/0500-about-us/",
-    marker: /.*/,
+    url: "https://voterguide.sos.ca.gov/candidates/insurance-commissioner-candidate-statements.htm",
+    marker:
+      /Insurance Commissioner Candidate Statements Heads the Department of Insurance, which enforces California insurance laws and adopts regulations to implement the laws\. Licenses, regulates, and examines insurance companies\. Answers public questions and complaints about the insurance industry\./,
+    exactMatch: true,
+    beforeCandidates: true,
   },
   "Superintendent of Public Instruction": {
     url: "https://voterguide.sos.ca.gov/candidates/superintendent-candidate-statements.htm",
