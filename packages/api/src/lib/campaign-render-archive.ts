@@ -114,7 +114,7 @@ export function campaignMainContextCovered(
   const nodes: string[] = [];
   const visit = (selection: ReturnType<typeof $>) =>
     selection.contents().each((_, node) => {
-      if (node.type === "text") {
+      if (node.nodeType === 3) {
         const text = normalize(node.data);
         if (text) nodes.push(text);
       } else visit($(node));

@@ -20,7 +20,9 @@ export function formatCampaignHtml(html: string, url: string) {
       const target = new URL(href, url);
       if (/^https?:$/.test(target.protocol))
         links.push(`${label} => ${target.toString()}`);
-    } catch {}
+    } catch {
+      return;
+    }
   });
   const substantive = htmlSourceText(html);
   $("blockquote,q,script,style,noscript").remove();
