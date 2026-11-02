@@ -3769,3 +3769,57 @@ test("narrative-only without substantive candidate evidence stays pending withou
   assert.equal(f.stats.reviews, 0);
   assert.equal(f.stats.releases, 0);
 });
+
+test("narrative-only fails closed when canonical review history is unavailable", async () => {
+  const f = await fixture();
+  let historyReads = 0;
+  f.deps.reviewHistory = async () => {
+    historyReads++;
+    return {
+      kind: "unavailable",
+      reason: "Fixture cannot establish complete canonical history",
+    };
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      narrativeOnly: true,
+      raceKeys: [f.snapshot.races[0]!.raceKey],
+    },
+    f.deps,
+  );
+  assert.equal(result.blocked, 1);
+  assert.match(
+    result.outcomes[0]?.reason ?? "",
+    /semantic review history is unavailable/,
+  );
+  assert.ok(historyReads > 0);
+  assert.equal(f.stats.reviews, 0);
+  assert.equal(f.stats.releases, 0);
+});
+
+test("narrative-only cannot repeat rejected content through a fresh acquisition scope", async () => {
+  const f = await fixture();
+  const review = f.deps.review;
+  f.deps.review = async (input) => ({
+    ...(await review(input)),
+    verdict: "reject",
+  });
+  for (const narrativeOnly of [false, true]) {
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        narrativeOnly,
+        raceKeys: [f.snapshot.races[0]!.raceKey],
+      },
+      f.deps,
+    );
+    assert.equal(result.blocked, 1);
+  }
+  assert.equal(f.stats.reviews, 1);
+  assert.equal(f.stats.releases, 0);
+});
