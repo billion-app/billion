@@ -2703,3 +2703,70 @@ for (const url of excludedFinanceUrls) {
     }
   });
 }
+
+for (const destination of [
+  "https://api.open.fec.gov/v1/candidates/",
+  "https://api.open.fec.gov./v1/candidates/",
+]) {
+  test(`narrative-only HTML archiving rejects ${destination} before its DNS or transport`, async () => {
+    const requested: string[] = [];
+    const resolved: string[] = [];
+    const initial = "https://campaign.example/";
+    await assert.rejects(
+      fetchBoundedCaliforniaSource(
+        "campaign-fixture",
+        initial,
+        "campaign fixture",
+        "html",
+        { request() {}, bytes() {} },
+        undefined,
+        {
+          researchScope: "narrative_only",
+          archiveHtml: true,
+          addresses: async (current) => {
+            resolved.push(current);
+            return [{ address: "93.184.216.34", family: 4 }];
+          },
+          transport: async (current) => {
+            requested.push(current);
+            return new Response("Redirecting", {
+              status: 302,
+              headers: { location: destination, "content-type": "text/html" },
+            });
+          },
+        },
+      ),
+      /excludes federal finance sources/,
+    );
+    assert.deepEqual(requested, [initial]);
+    assert.deepEqual(resolved, [initial]);
+  });
+}
+
+test("narrative-only HTML acquisition retains the raw ownership archive", async () => {
+  const url = "https://campaign.example/";
+  const html =
+    "<html><body><main>A current candidate explains plans to improve housing, protect schools and reduce household costs.</main><footer>Paid for by Example Candidate for Governor 2026</footer></body></html>";
+  const result = await fetchBoundedCaliforniaSource(
+    "campaign-fixture",
+    url,
+    "campaign fixture",
+    "html",
+    { request() {}, bytes() {} },
+    undefined,
+    {
+      researchScope: "narrative_only",
+      archiveHtml: true,
+      addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+      transport: async () =>
+        new Response(html, { headers: { "content-type": "text/html" } }),
+    },
+  );
+  assert.equal(
+    Buffer.from(result.binaryBase64 ?? "", "base64").toString(),
+    html,
+  );
+  assert.equal(result.httpObservation?.responses.at(-1)?.url, url);
+  assert.equal(result.httpObservation?.responses.at(-1)?.status, 200);
+  assert.ok(result.text.includes("A current candidate explains plans"));
+});
