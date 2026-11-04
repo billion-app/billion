@@ -13,6 +13,7 @@ import {
   DigestRadii,
   fontBody,
   DigestPalette as P,
+  BillReaderPalette as R,
 } from "~/styles";
 import { Icon } from "./Icon";
 
@@ -28,6 +29,7 @@ export function Segmented<T extends string>({
   onChange,
   iconPosition = "beside",
   wrap = false,
+  appearance = "segmented",
 }: {
   options: SegmentOption<T>[];
   value: T;
@@ -35,21 +37,30 @@ export function Segmented<T extends string>({
   iconPosition?: "beside" | "above";
   /** Reflow long topic labels with available width, including browser zoom. */
   wrap?: boolean;
+  appearance?: "segmented" | "underline";
 }) {
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale > 1.3;
+  const underline = appearance === "underline";
   return (
     <View
       accessibilityRole="tablist"
       style={[
         s.wrap,
+        underline && s.underlineWrap,
         wrap && { flexWrap: "wrap" },
         stacked && { flexDirection: "column" },
       ]}
     >
       {options.map((o) => {
         const active = value === o.id;
-        const fg = active ? P.canvas : P.inkOnNight;
+        const fg = underline
+          ? active
+            ? R.text
+            : R.muted
+          : active
+            ? P.canvas
+            : P.inkOnNight;
         return (
           <TouchableOpacity
             key={o.id}
@@ -66,10 +77,14 @@ export function Segmented<T extends string>({
                 !stacked && { flexBasis: 140, flexGrow: 1, flexShrink: 0 },
 
               stacked && { flex: 0 },
-              active ? s.segActive : undefined,
+              underline
+                ? [s.underlineTab, active && s.underlineActive]
+                : active
+                  ? s.segActive
+                  : undefined,
             ]}
           >
-            {o.icon && (
+            {o.icon && !underline && (
               <View
                 accessibilityElementsHidden
                 importantForAccessibility="no-hide-descendants"
@@ -98,6 +113,22 @@ const s = StyleSheet.create({
     padding: 4,
     gap: 4,
   },
+  underlineWrap: {
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    borderRadius: 0,
+    padding: 0,
+    gap: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: R.rule,
+  },
+  underlineTab: {
+    borderRadius: 0,
+    paddingHorizontal: 0,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  underlineActive: { borderBottomColor: R.secondary },
   seg: {
     flex: 1,
     minHeight: 44,

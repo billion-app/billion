@@ -4,6 +4,8 @@ Read [the architecture tour](docs/architecture.md) when a task crosses packages 
 
 ## Repository-specific constraints
 
+- For consumer explanations, assume no prior political or subject knowledge. Follow the [audience and reading hierarchy](docs/content-detail-design.md#audience-zero-assumed-knowledge); explain essential concepts before asking readers to explore.
+
 - Expo reaches server data through tRPC. Keep `@acme/db/client` and server credentials out of mobile and browser bundles.
 - Use the package names in `package.json` for pnpm filters. They retain the `@acme/*` prefix. `pnpm dev` excludes ingestion; `pnpm dev:all` starts background jobs as well.
 - Check the selected database before migrations, seeds, scraper runs, or repair commands. Root `.env.local` can override `.env`; Expo has its own local override. Inspect variable names and target hosts without printing credentials.

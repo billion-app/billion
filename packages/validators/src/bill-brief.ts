@@ -145,6 +145,33 @@ export type BriefFact = z.infer<typeof BriefFactSchema>;
  * is almost never one of four stock scenes. Per-change artwork should be
  * generated from the change itself; until it is, no image is correct.
  */
+export const BriefReaderIntroSchema = z.object({
+  quote: BriefQuoteSchema.optional().describe(
+    "An exact official-text passage directly supporting this follow-up answer, with its section locator when available. Do not copy the change's quote merely because it concerns the same provision. Omit when no passage directly supports the answer, including unsupported absence or uncertainty claims. The question's Source action appears only for this answer-specific quote.",
+  ),
+  summary: z
+    .string()
+    .trim()
+    .min(12)
+    .describe(
+      "The everyday consequence for a reader who does not follow politics. One or two short sentences, usually 20–35 words. Explain the human action or consequence before the legal mechanism. Assume no knowledge of the program or subject: define unfamiliar words and what a number measures where they first appear, without requiring a glossary or extra tap. Preserve the measure's legal status, covered people and essential limits. No teaser, invented personal benefit or legal jargon requiring a glossary. Do not truncate a qualification to hit a word target.",
+    ),
+  question: z
+    .string()
+    .trim()
+    .min(8)
+    .describe(
+      "One natural follow-up the supplied answer actually resolves, normally under 60 characters. For example, 'What are the three conditions?' only when the answer explains all three. Never ask a loaded or rhetorical question, promise an outcome or manufacture suspense.",
+    ),
+  answer: z
+    .string()
+    .trim()
+    .min(12)
+    .describe(
+      "A complete source-grounded answer to the follow-up in familiar words. Usually 40–90 words, less for a simple provision. Explain required conditions and exceptions explicitly. Short paragraphs or numbered points may clarify a real list; never invent a list or repeat the summary. All claims must be supported by the change's source passage.",
+    ),
+});
+
 export const BriefChangeSchema = z.object({
   kind: BriefChangeKindSchema.describe(
     "The mechanical action. Pick the verb the text supports, not the one the sponsor prefers.",
@@ -154,22 +181,25 @@ export const BriefChangeSchema = z.object({
     .trim()
     .min(8)
     .describe(
-      "Everyday-language name for this change, kept under 70 characters so it fits one card heading. Describe what a person would recognize, not the legislative mechanism; for example, 'Ten years of road money for states', not 'Formula funding authorization'. If it will not fit, narrow the change rather than lengthening the name.",
+      "Standalone everyday-language name for this change, normally under 90 characters. Name the actual program, service or action; 'half the program' is incomplete without its subject. Preserve numeric scope and denominators. Describe what a person would recognize, not the legislative mechanism; for example, 'Ten years of road money for states', not 'Formula funding authorization'. If it will not fit, narrow the change rather than lengthening the name.",
     ),
   before: z
     .string()
     .trim()
     .min(10)
     .describe(
-      "What happens today, using words a general reader already knows, in under 240 characters. Translate legislative and agency terminology rather than shortening it. If the source does not establish current law, say so plainly. At most two short **bold** spans may mark the phrases a scanner should retain.",
+      "What happens today, using words a general reader already knows, in under 240 characters. Translate legislative and agency terminology rather than shortening it. If the source does not establish current law, say so plainly. Plain text is preferred; at most one short **bold** span may mark an essential figure or consequence.",
     ),
   after: z
     .string()
     .trim()
     .min(10)
     .describe(
-      "What would happen under this measure, in concrete everyday language, in under 240 characters. Explain who acts, what they do, and what changes; avoid unexplained terms such as authorization, appropriation, discretionary grant, allocation formula, and funding horizon. If one provision does too much to fit, split it into a separate change rather than writing a longer sentence. Preserve legal status. At most two short **bold** spans may mark the phrases a scanner should retain.",
+      "What would happen under this measure, in concrete everyday language, in under 240 characters. Explain who acts, what they do, and what changes; avoid unexplained terms such as authorization, appropriation, discretionary grant, allocation formula, and funding horizon. If one provision does too much to fit, split it into a separate change rather than writing a longer sentence. Preserve legal status. Plain text is preferred; at most one short **bold** span may mark an essential figure or consequence.",
     ),
+  reader: BriefReaderIntroSchema.optional().describe(
+    "A short consequence and one useful follow-up for casual readers. Older cached briefs may omit it; do not derive it by clipping before/after text.",
+  ),
   quote: BriefQuoteSchema.optional().describe(
     "The exact provision this change is drawn from. Include it whenever the source contains a direct supporting span; evaluate every change rather than citing only the first card.",
   ),
@@ -210,7 +240,7 @@ export const BriefAffectedSchema = z.object({
     .trim()
     .min(24)
     .describe(
-      "A complete, standalone sentence summarizing the concrete effect for this group, in under 240 characters. It must name the subject and action, make sense without surrounding text, and never be a noun phrase or dangling clause. Mark one short, concrete phrase with **double asterisks**.",
+      "A complete, standalone sentence summarizing the concrete effect for this group, in under 240 characters. It must name the subject and action, make sense without surrounding text, and never be a noun phrase or dangling clause. Plain text is valid; avoid routine bolding.",
     ),
   effect: z
     .string()
@@ -237,7 +267,7 @@ export const BriefTermSchema = z.object({
     .trim()
     .min(15)
     .describe(
-      "A one-sentence definition in everyday words, under 250 characters. Mark the practical meaning the reader should retain with one short **bold** span.",
+      "A one-sentence definition in everyday words, under 250 characters. Use plain text; optional emphasis should be rare.",
     ),
 });
 export type BriefTerm = z.infer<typeof BriefTermSchema>;
@@ -260,7 +290,7 @@ export const BriefReadingSchema = z.object({
     .trim()
     .min(20)
     .describe(
-      "One plain-language sentence, under 180 characters, explaining what this article helps the reader understand. Mark its specific added value with one short **bold** span.",
+      "One plain-language sentence, under 180 characters, explaining what this article helps the reader understand. State its specific added value without promotional language.",
     ),
 });
 export type BriefReading = z.infer<typeof BriefReadingSchema>;
@@ -288,7 +318,7 @@ export const BriefContextPointSchema = z.object({
     .trim()
     .min(40)
     .describe(
-      "A coherent, neutral explanation of one documented barrier, tradeoff, or earlier attempt, in under 420 characters. Do not speculate about motives. Mark one or two short, factual phrases with **double asterisks**.",
+      "A coherent, neutral explanation of one documented barrier, tradeoff, or earlier attempt, in under 420 characters. Do not speculate about motives. Use plain text; emphasize a figure only when needed.",
     ),
   citations: z
     .array(BriefContextCitationSchema)
@@ -307,7 +337,7 @@ export const BriefContextSchema = z.object({
     .trim()
     .min(40)
     .describe(
-      "A one- or two-sentence preview, under 250 characters, of the main reason this proposal was not already adopted. Mark one short statement of the central barrier with **double asterisks**.",
+      "A one- or two-sentence preview, under 250 characters, of the main reason this proposal was not already adopted. State the documented barrier directly; plain text is valid.",
     ),
   points: z
     .array(BriefContextPointSchema)
@@ -325,13 +355,15 @@ export const BriefDeepDiveSchema = z.object({
     .string()
     .trim()
     .min(8)
-    .describe("The explainer's headline, under 90 characters."),
+    .describe(
+      "A direct, declarative headline, usually 5–10 words and under 70 characters. State what would change in ordinary language. No bill numbers, unexplained agency acronyms, generic explainers, or manufactured surprise.",
+    ),
   dek: z
     .string()
     .trim()
     .min(30)
     .describe(
-      "A plain-language preview of what the reader will learn, under 250 characters. Mark its central question or insight with one short **bold** span.",
+      "A plain-language preview of what the reader will learn, under 250 characters. State the practical point directly; plain text is valid.",
     ),
   body: z
     .string()
@@ -350,19 +382,27 @@ export type BriefDeepDive = z.infer<typeof BriefDeepDiveSchema>;
  * already know.
  */
 export const BillBriefSchema = z.object({
+  headline: z
+    .string()
+    .trim()
+    .min(8)
+    .optional()
+    .describe(
+      "A standalone article headline, normally under 90 characters, naming the specific program, service or action in everyday language for someone with no political or subject knowledge. Naming an unfamiliar technical program is not enough: lead with a recognizable human action, and explain the basic idea in the visible summary. Readers see it before the summary: never assume they know what 'the program', 'the rule', 'this plan' or a percentage refers to. Preserve the source's scope and the denominator of any number; do not narrow renewable energy to solar. No bill number, unexplained acronym, bold markup or promised outcome. This is the article headline, separate from individual provision labels.",
+    ),
   summary: z
     .string()
     .trim()
     .min(30)
     .describe(
-      "One ultra-short, standalone sentence under 180 characters that states the single most important practical change or catch. Preserve proposed-versus-enacted status and mark one short concrete phrase with **double asterisks**.",
+      "One short, standalone explanation, normally under 180 characters, that makes the headline understandable to someone with no prior political or subject knowledge. Explain what the named program actually does; define an unavoidable technical word where it first appears. Add meaning rather than restating the headline. Do not assume a glossary or extra tap. Preserve proposed-versus-enacted status. Plain text is valid; use at most one short bold span when it helps.",
     ),
   hook: z
     .string()
     .trim()
     .min(60)
     .describe(
-      "A coherent 2–3 sentence 'What this means for you' paragraph, under 600 characters. Explain the bill's most consequential concrete changes and the most important limitation or uncertainty in plain language. It must stand alone, not read like a list of facts, and preserve proposed-versus-enacted status. Mark two or three short, concrete phrases with **double asterisks** so scanners can retain the key changes; never bold a whole sentence.",
+      "A coherent 2–3 sentence 'What this means for you' paragraph, under 600 characters. Explain the bill's most consequential concrete changes and the most important limitation or uncertainty in plain language. It must stand alone, not read like a list of facts, and preserve proposed-versus-enacted status. Do not require prior political interest. Plain text is valid; use at most two short bold spans when essential, never a whole sentence.",
     ),
   facts: z
     .array(BriefFactSchema)
@@ -389,7 +429,7 @@ export const BillBriefSchema = z.object({
         .trim()
         .min(15)
         .describe(
-          "One open question, stated plainly in under 250 characters. Mark the unresolved decision or consequence with one short **bold** span.",
+          "One open question, stated plainly in under 250 characters. Name the unresolved decision or consequence directly; plain text is valid.",
         ),
     )
     .min(1)

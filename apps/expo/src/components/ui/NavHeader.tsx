@@ -14,12 +14,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LanguageButton } from "~/components/LanguageButton";
 import { useLanguage } from "~/hooks/useLanguage";
 import {
+  BillReaderSpace,
   DigestHair,
   DigestRadii,
   DigestSpace,
   fontBody,
   fontDisplay,
   DigestPalette as P,
+  BillReaderPalette as R,
 } from "~/styles";
 import { Icon } from "./Icon";
 
@@ -30,20 +32,23 @@ export function NavHeader({
   large,
   tone = "dark",
   languageControl = true,
+  compact = false,
 }: {
   title: string;
   onBack?: () => void;
   action?: ReactNode;
   large?: boolean;
-  tone?: "dark" | "paper";
+  tone?: "dark" | "paper" | "reader";
   languageControl?: boolean;
+  /** Reading toolbar: actions only, with the story title in the page. */
+  compact?: boolean;
 }) {
   const { t: tr } = useLanguage();
   const insets = useSafeAreaInsets();
   const { fontScale, width } = useWindowDimensions();
   const separateTitle = fontScale > 1.2 || width < 390 || !!action;
   const paper = tone === "paper";
-  const foreground = paper ? P.ink : P.inkOnNight;
+  const foreground = paper ? P.ink : tone === "reader" ? R.text : P.inkOnNight;
   const backBg = paper ? DigestHair.inkFaint : P.stone;
   const backBorder = paper ? DigestHair.inkBorder : DigestHair.cardBorder;
   const rule = paper ? DigestHair.inkHair : DigestHair.sectionRule;
@@ -52,7 +57,14 @@ export function NavHeader({
     <View
       style={[
         s.wrap,
-        paper ? s.paperWrap : s.darkWrap,
+        paper
+          ? s.paperWrap
+          : tone === "reader"
+            ? {
+                backgroundColor: R.canvas,
+                paddingHorizontal: BillReaderSpace.page,
+              }
+            : s.darkWrap,
         { paddingTop: insets.top + 4 },
       ]}
     >
@@ -61,7 +73,7 @@ export function NavHeader({
             two side slots, so a screen with two actions does not push its
             title off-centre. Behind the buttons in the layout, and inert, so
             a long title cannot swallow a tap. */}
-        {!large && !separateTitle && (
+        {!compact && !large && !separateTitle && (
           <Text
             style={[s.title, { color: foreground }]}
             numberOfLines={1}
@@ -75,7 +87,9 @@ export function NavHeader({
             onPress={onBack}
             style={[
               s.backBtn,
-              { backgroundColor: backBg, borderColor: backBorder },
+              compact
+                ? { backgroundColor: "transparent", borderWidth: 0 }
+                : { backgroundColor: backBg, borderColor: backBorder },
             ]}
             activeOpacity={0.7}
             hitSlop={8}
@@ -92,7 +106,7 @@ export function NavHeader({
           {action}
         </View>
       </View>
-      {!large && separateTitle && (
+      {!compact && !large && separateTitle && (
         <Text
           key={fontScale}
           accessibilityRole="header"
@@ -112,7 +126,7 @@ export function NavHeader({
         </Text>
       )}
       {large && <Text style={[s.large, { color: foreground }]}>{title}</Text>}
-      <View style={[s.bottomRule, { backgroundColor: rule }]} />
+      {!compact && <View style={[s.bottomRule, { backgroundColor: rule }]} />}
     </View>
   );
 }

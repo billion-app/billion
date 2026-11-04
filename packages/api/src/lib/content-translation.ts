@@ -44,6 +44,7 @@ type Path = (string | number)[];
  * untouched.
  */
 export const BILL_BRIEF_FIELDS = [
+  "headline",
   "summary",
   "hook",
   "facts.*.label",
@@ -52,6 +53,9 @@ export const BILL_BRIEF_FIELDS = [
   "changes.*.title",
   "changes.*.before",
   "changes.*.after",
+  "changes.*.reader.summary",
+  "changes.*.reader.question",
+  "changes.*.reader.answer",
   "affected.*.group",
   "affected.*.takeaway",
   "affected.*.effect",

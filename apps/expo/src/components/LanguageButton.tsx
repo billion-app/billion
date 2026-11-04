@@ -1,18 +1,43 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
+import Animated, {
+  cancelAnimation,
+  Easing,
+  interpolateColor,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "~/components/ui/Icon";
 import { useLanguage } from "~/hooks/useLanguage";
 import { LANGUAGE_OPTIONS } from "~/i18n/language";
-import { fontBody, fontDisplay, hair, DigestPalette as P } from "~/styles";
+import {
+  BillReaderPalette,
+  fontBody,
+  fontDisplay,
+  hair,
+  DigestPalette as P,
+} from "~/styles";
+import { whenSplashHidden } from "~/utils/splash-gate";
+
+// One introduction per cold launch, shared across header mounts and navigation.
+let introductionEndsAt: number | undefined;
+const INTRODUCTION_MS = 2400;
+const AnimatedLanguageButton =
+  Animated.createAnimatedComponent(TouchableOpacity);
 
 /** For standalone recovery screens without a navigation header. */
 export function LanguageCorner() {
@@ -30,11 +55,76 @@ export function LanguageButton({
   tone = "dark",
 }: {
   compact?: boolean;
-  tone?: "dark" | "paper";
+  tone?: "dark" | "paper" | "reader";
 }) {
   const { language, setLanguage, t } = useLanguage();
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
+  const { width: screenWidth } = useWindowDimensions();
+  const [textWidth, setTextWidth] = useState(0);
+  const labelWidth = textWidth > 0 ? textWidth + 6 + (compact ? 0 : 20) : 0;
+  const reveal = useSharedValue(
+    !reduceMotion &&
+      (introductionEndsAt === undefined || Date.now() < introductionEndsAt)
+      ? 1
+      : 0,
+  );
+  useEffect(() => {
+    let disposed = false;
+    if (labelWidth === 0) return;
+    void whenSplashHidden().then(() => {
+      if (disposed) return;
+      introductionEndsAt ??= Date.now() + INTRODUCTION_MS;
+      if (reduceMotion) {
+        reveal.value = 0;
+        return;
+      }
+      const remaining = introductionEndsAt - Date.now();
+      if (remaining <= 0) {
+        reveal.value = 0;
+        return;
+      }
+      reveal.value = withDelay(
+        remaining,
+        withTiming(0, {
+          duration: 520,
+          easing: Easing.inOut(Easing.cubic),
+        }),
+      );
+    });
+    return () => {
+      disposed = true;
+      cancelAnimation(reveal);
+    };
+  }, [labelWidth, reduceMotion, reveal]);
+  const labelStyle = useAnimatedStyle(() => ({
+    width: labelWidth * reveal.value,
+    opacity: reveal.value,
+    transform: [{ translateX: 8 * (1 - reveal.value) }],
+  }));
+  const reader = tone === "reader";
+  const buttonStyle = useAnimatedStyle(() => ({
+    width: 44 + labelWidth * reveal.value,
+    backgroundColor: reader
+      ? "transparent"
+      : interpolateColor(
+          reveal.value,
+          [0, 1],
+          tone === "paper"
+            ? ["rgba(134,105,24,0)", "rgba(134,105,24,0.08)"]
+            : ["rgba(212,175,55,0)", "rgba(212,175,55,0.12)"],
+        ),
+    borderColor: reader
+      ? "transparent"
+      : interpolateColor(
+          reveal.value,
+          [0, 1],
+          tone === "paper"
+            ? ["rgba(134,105,24,0)", "rgba(134,105,24,0.45)"]
+            : ["rgba(212,175,55,0)", "rgba(212,175,55,0.55)"],
+        ),
+  }));
   const current = LANGUAGE_OPTIONS.find((option) => option.id === language);
   const label =
     language === "zh"
@@ -44,11 +134,13 @@ export function LanguageButton({
         : "中文 · Español";
   return (
     <>
-      <Pressable
-        style={({ pressed }) => [
+      <AnimatedLanguageButton
+        activeOpacity={0.7}
+        style={[
           s.button,
           tone === "paper" && s.paper,
-          pressed && s.pressed,
+          reader && s.reader,
+          buttonStyle,
         ]}
         onPress={() => setOpen(true)}
         accessibilityRole="button"
@@ -59,25 +151,62 @@ export function LanguageButton({
         accessibilityHint="English · 中文 · Español"
         testID="reader-language"
       >
-        <Icon
-          name="globe"
-          size={17}
-          color={tone === "paper" ? P.ink : P.spark}
-        />
+        <View style={s.globe} pointerEvents="none">
+          <Icon
+            name="globe"
+            size={17}
+            color={
+              tone === "paper"
+                ? P.ink
+                : reader
+                  ? BillReaderPalette.muted
+                  : P.spark
+            }
+          />
+        </View>
+        <Animated.View
+          style={[s.labelClip, labelStyle]}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          aria-hidden
+        >
+          <View style={[s.labelRow, { width: labelWidth }]}>
+            <Text
+              style={[
+                s.label,
+                { width: textWidth },
+                tone === "paper" && s.paperLabel,
+                reader && { color: BillReaderPalette.text },
+              ]}
+              numberOfLines={1}
+            >
+              {label}
+            </Text>
+            {!compact && (
+              <Icon
+                name="chevD"
+                size={14}
+                color={tone === "paper" ? P.ink : P.quiet}
+              />
+            )}
+          </View>
+        </Animated.View>
         <Text
-          style={[s.label, tone === "paper" && s.paperLabel]}
+          style={[s.label, s.measureLabel, { width: screenWidth }]}
+          pointerEvents="none"
+          accessible={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          aria-hidden
           numberOfLines={1}
+          onTextLayout={(event) => {
+            const measured = Math.ceil(event.nativeEvent.lines[0]?.width ?? 0);
+            if (measured > 0 && measured !== textWidth) setTextWidth(measured);
+          }}
         >
           {label}
         </Text>
-        {!compact && (
-          <Icon
-            name="chevD"
-            size={14}
-            color={tone === "paper" ? P.ink : P.quiet}
-          />
-        )}
-      </Pressable>
+      </AnimatedLanguageButton>
       <Modal
         visible={open}
         transparent
@@ -155,12 +284,25 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    paddingHorizontal: 11,
+    minWidth: 44,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: "rgba(212,175,55,0.55)",
     borderRadius: 22,
     backgroundColor: "rgba(212,175,55,0.12)",
+  },
+  globe: { position: "absolute", right: 12 },
+  measureLabel: { position: "absolute", opacity: 0 },
+  labelClip: { position: "absolute", left: 12, overflow: "hidden" },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingRight: 6,
+    gap: 6,
+  },
+  reader: {
+    backgroundColor: "transparent",
+    borderColor: "transparent",
   },
   paper: {
     backgroundColor: "rgba(134,105,24,0.08)",

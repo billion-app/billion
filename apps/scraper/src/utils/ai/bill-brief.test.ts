@@ -4,6 +4,7 @@ import test from "node:test";
 import type { BillBrief } from "@acme/validators";
 import {
   BILL_BRIEF_VERSION,
+  BillBriefSchema,
   isCurrentBillBrief,
   isUsableBillBrief,
   parseBillBriefRecord,
@@ -15,7 +16,7 @@ import {
   dropUncitedContextPoints,
   dropUnrecognisedChangeKinds,
   findLoadedLanguage,
-  findMissingEmphasis,
+  findOveremphasis,
   findUnexplainedJargon,
   GeneratedBriefQuoteSchema,
   isQuoteGrounded,
@@ -81,6 +82,76 @@ function brief(overrides: Partial<BillBrief> = {}): BillBrief {
   };
 }
 
+void test("article headlines stay separate from provision labels and remain optional for old caches", () => {
+  const legacy = brief();
+  assert.equal(BillBriefSchema.parse(legacy).headline, undefined);
+  const headline =
+    "Environmental reviews could be waived for project deadlines";
+  const authored = brief({ headline });
+  const parsed = parseBriefWithSectionRecovery(authored, "TEST 1");
+  assert.equal(parsed.headline, headline);
+  assert.equal(verifyBriefQuotes(parsed, SOURCE).brief.headline, headline);
+  assert.equal(parsed.changes[0]?.title, legacy.changes[0]?.title);
+});
+
+void test("article headlines participate in editorial checks", () => {
+  assert.ok(
+    findLoadedLanguage(
+      brief({ headline: "A common sense plan for energy" }),
+    ).includes("common sense"),
+  );
+  assert.ok(
+    findOveremphasis(
+      brief({ headline: "**Road funding** for states" }),
+    ).includes("headline"),
+  );
+  assert.ok(
+    findUnexplainedJargon(
+      brief({ headline: "A discretionary grant for road construction" }),
+    ).includes("discretionary grant"),
+  );
+});
+
+void test("reader introductions survive validation without being invented for older briefs", () => {
+  const legacy = brief();
+  assert.equal(BillBriefSchema.parse(legacy).changes[0]?.reader, undefined);
+  const change = legacy.changes[0];
+  assert.ok(change);
+  const reader = {
+    summary:
+      "The Secretary could skip a review when a project deadline is at risk.",
+    question: "Which deadlines would qualify?",
+    answer: "The source does not define which deadlines would qualify.",
+  };
+  const current = brief({ changes: [{ ...change, reader }] });
+  assert.deepEqual(BillBriefSchema.parse(current).changes[0]?.reader, reader);
+  const verified = verifyBriefQuotes(current, SOURCE);
+  assert.deepEqual(verified.brief.changes[0]?.reader, reader);
+});
+
+void test("reader summaries, questions and answers cannot bypass editorial checks", () => {
+  const original = brief();
+  const change = original.changes[0];
+  assert.ok(change);
+  const current = brief({
+    changes: [
+      {
+        ...change,
+        reader: {
+          summary: "This common sense proposal would skip a review.",
+          question: "Would this remove red tape?",
+          answer:
+            "The discretionary grant has a **new** and **different** test.",
+        },
+      },
+    ],
+  });
+  assert.ok(findLoadedLanguage(current).includes("common sense"));
+  assert.ok(findLoadedLanguage(current).includes("red tape"));
+  assert.ok(findUnexplainedJargon(current).includes("discretionary grant"));
+  assert.ok(findOveremphasis(current).includes("changes[0].reader.answer"));
+});
+
 void test("older brief records stay renderable but are not current cache hits", () => {
   const metadata = {
     legalStatus: "proposed" as const,
@@ -136,42 +207,27 @@ void test("v1 briefs receive client defaults at the API boundary", () => {
   assert.equal(normalized?.affected[0]?.takeaway, current.affected[0]?.effect);
 });
 
-void test("brief-wide emphasis lint names every prose field that needs revision", () => {
-  const missing = findMissingEmphasis(brief());
-
-  assert.ok(missing.includes("hook"));
-  assert.equal(missing.includes("summary"), false);
-  assert.ok(missing.includes("changes[0].before"));
-  assert.ok(missing.includes("affected[0].takeaway"));
-  assert.ok(missing.includes("unknowns[0]"));
-
-  const emphasized = brief({
-    hook: "The bill would let the Secretary **skip environmental reviews** for covered projects when an operational deadline is at risk.",
+void test("plain editorial copy is valid and excess emphasis is bounded", () => {
+  assert.deepEqual(findOveremphasis(brief()), []);
+  const overworked = brief({
+    summary:
+      "The bill would let the Secretary **skip reviews** to meet **some deadlines**.",
+    hook: "The bill would **skip reviews**, **change a deadline**, and **remove public comment**.",
     changes: [
       {
-        kind: "waives",
-        title: "Environmental review can be skipped",
-        before:
-          "Covered projects must **complete an environmental review** under current law.",
-        after:
-          "The Secretary could **waive that review** to meet an operational deadline.",
+        ...brief().changes[0]!,
+        before: "Projects must **complete a review** with **public comment**.",
+        quote: {
+          text: "**An exact source** may **contain emphasis** and is not edited.",
+        },
       },
-    ],
-    affected: [
-      {
-        group: "Communities near covered projects",
-        takeaway:
-          "Nearby communities would **lose a required opportunity for public comment**.",
-        effect:
-          "They would **lose the public comment step** that the review process provides.",
-        direction: "loses",
-      },
-    ],
-    unknowns: [
-      "The text does not define **what counts as an operational deadline**.",
     ],
   });
-  assert.deepEqual(findMissingEmphasis(emphasized), []);
+  assert.deepEqual(findOveremphasis(overworked), [
+    "summary",
+    "hook",
+    "changes[0].before",
+  ]);
 });
 
 void test("further reading keeps only URLs found by the research loop", () => {
@@ -740,4 +796,47 @@ test("a failure in required content still rejects the brief", () => {
   assert.throws(() =>
     parseBriefWithSectionRecovery({ ...validBrief(), changes: [] }, "S. 3"),
   );
+});
+
+void test("answer quotes are verified independently without inheriting a provision quote", () => {
+  const change = brief().changes[0]!;
+  const quote = {
+    text: "The Secretary may waive the requirements",
+    locator: "Sec. 4(a)",
+  };
+  const reader = {
+    summary: "The Secretary could skip a review for some project deadlines.",
+    question: "Who could skip the review?",
+    answer: "The Secretary could decide to skip the review.",
+  };
+  const without = verifyBriefQuotes(
+    brief({ changes: [{ ...change, quote, reader }] }),
+    SOURCE,
+  );
+  assert.equal(without.brief.changes[0]?.reader?.quote, undefined);
+  const valid = verifyBriefQuotes(
+    brief({ changes: [{ ...change, quote, reader: { ...reader, quote } }] }),
+    SOURCE,
+  );
+  assert.equal(valid.verified, 2);
+  assert.deepEqual(valid.brief.changes[0]?.reader?.quote, quote);
+  const invented = verifyBriefQuotes(
+    brief({
+      changes: [
+        {
+          ...change,
+          quote,
+          reader: {
+            ...reader,
+            quote: { text: "Every household will save fifty dollars." },
+          },
+        },
+      ],
+    }),
+    SOURCE,
+  );
+  assert.equal(invented.dropped, 1);
+  assert.deepEqual(invented.brief.changes[0]?.quote, quote);
+  assert.equal(invented.brief.changes[0]?.reader?.quote, undefined);
+  assert.equal(invented.brief.changes[0]?.reader?.answer, reader.answer);
 });

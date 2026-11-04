@@ -24,12 +24,16 @@ export function DefinedText({
   terms = [],
   emphasis = [],
   accent = P.primary,
+  emphasisStyle,
+  termStyle,
   style,
 }: {
   text: string;
   terms?: readonly InlineDefinition[];
   emphasis?: readonly string[];
   accent?: string;
+  emphasisStyle?: StyleProp<TextStyle>;
+  termStyle?: StyleProp<TextStyle>;
   style: StyleProp<TextStyle>;
 }) {
   const { t: tr } = useLanguage();
@@ -55,7 +59,7 @@ export function DefinedText({
   const renderParts = (chunks: DefinedTextPart[]) =>
     chunks.map((part, index) =>
       part.emphasized ? (
-        <Text key={index} style={s.emphasis}>
+        <Text key={index} style={[s.emphasis, emphasisStyle]}>
           {part.text}
         </Text>
       ) : (
@@ -92,7 +96,10 @@ export function DefinedText({
                 if (node) triggers.current.set(index, node);
                 else triggers.current.delete(index);
               }}
-              style={{ color: P.linkOnNight, textDecorationLine: "underline" }}
+              style={[
+                { color: P.linkOnNight, textDecorationLine: "underline" },
+                termStyle,
+              ]}
               accessibilityRole="button"
               accessibilityLabel={tr("readerUi.define", { term: term.term })}
               accessibilityHint={tr("readerUi.defineHint")}
