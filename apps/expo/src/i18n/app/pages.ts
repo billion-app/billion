@@ -1021,11 +1021,6 @@ export const pageStrings = {
     es: "cargo estatal",
     zh: "全州公职",
   },
-  "Voting plan": {
-    en: "Voting plan",
-    es: "Plan de votación",
-    zh: "投票计划",
-  },
   Notes: {
     en: "Notes",
     es: "Notas",
@@ -1050,11 +1045,6 @@ export const pageStrings = {
     en: "The preview isn’t available in Billion.",
     es: "La vista previa no está disponible en Billion.",
     zh: "Billion 暂无此预览。",
-  },
-  "{date} · General election": {
-    en: "{date} · General election",
-    es: "{date} · Elección general",
-    zh: "{date} · 大选",
   },
   "Statements {count}": {
     en: "Statements {count}",
@@ -1664,21 +1654,6 @@ export const pageStrings = {
     es: "No se pudo abrir el enlace. Toca para reintentar.",
     zh: "无法打开链接。点按重试。",
   },
-  "California statewide guide · local races are not included.": {
-    en: "California statewide guide · local races are not included.",
-    es: "Guía estatal de California · No incluye contiendas locales.",
-    zh: "加州全州指南 · 不包含地方选举。",
-  },
-  "Read California’s official guide": {
-    en: "Read California’s official guide",
-    es: "Leer la guía oficial de California",
-    zh: "阅读加州官方指南",
-  },
-  "Your guide notes": {
-    en: "Your guide notes",
-    es: "Tus notas de la guía",
-    zh: "你的指南笔记",
-  },
   "Local decision": {
     en: "Local decision",
     es: "Decisión local",
@@ -2282,11 +2257,6 @@ export const pageStrings = {
     es: "Abre los detalles de la propuesta",
     zh: "打开提案详情",
   },
-  "California guide": {
-    en: "California guide",
-    es: "Guía de California",
-    zh: "加州指南",
-  },
   "The official guide could not load.": {
     en: "The official guide could not load.",
     es: "No se pudo cargar la guía oficial.",
@@ -2303,17 +2273,6 @@ export const pageStrings = {
     es: "Encuentra tu oficina electoral del condado",
     zh: "查找县选举事务办公室",
   },
-  "Statewide candidates listed in California's voter guide. Check your county ballot for all contests.":
-    {
-      en: "Statewide candidates listed in California's voter guide. Check your county ballot for all contests.",
-      es: "Candidatos estatales de la guía del votante de California. Consulta todas las contiendas en la boleta de tu condado.",
-      zh: "加州选民指南中列出的全州候选人。请查看县级选票了解所有选举项目。",
-    },
-  "Find my official ballot": {
-    en: "Find my official ballot",
-    es: "Encontrar mi boleta oficial",
-    zh: "查找我的官方选票",
-  },
   "Official voter guide": {
     en: "Official voter guide",
     es: "Guía oficial del votante",
@@ -2323,16 +2282,6 @@ export const pageStrings = {
     en: "Check your registration",
     es: "Comprueba tu inscripción",
     zh: "核查选民登记",
-  },
-  "County elections office": {
-    en: "County elections office",
-    es: "Oficina electoral del condado",
-    zh: "县选举事务办公室",
-  },
-  "Development scenarios": {
-    en: "Development scenarios",
-    es: "Escenarios de desarrollo",
-    zh: "开发情境",
   },
   "Ballot source: {value1}": {
     en: "Ballot source: {value1}",
@@ -4103,25 +4052,10 @@ export const pageStrings = {
     es: "Excepciones y elecciones especiales",
     zh: "例外与特别选举",
   },
-  "Guide notes": {
-    en: "Guide notes",
-    es: "Notas de la guía",
-    zh: "指南笔记",
-  },
-  "California statewide guide": {
-    en: "California statewide guide",
-    es: "Guía estatal de California",
-    zh: "加州全州指南",
-  },
   "Proposition {value1}: {value2}": {
     en: "Proposition {value1}: {value2}",
     es: "Propuesta {value1}: {value2}",
     zh: "第 {value1} 号提案：{value2}",
-  },
-  "California statewide election · {value1}": {
-    en: "California statewide election · {value1}",
-    es: "Elección estatal de California · {value1}",
-    zh: "加州全州选举 · {value1}",
   },
   "Geographic area not specified in the official record.": {
     en: "Geographic area not specified in the official record.",
@@ -5256,11 +5190,6 @@ export const pageStrings = {
     en: "Return to ballot",
     es: "Volver a la papeleta",
     zh: "返回选票",
-  },
-  "Return to statewide guide": {
-    en: "Return to statewide guide",
-    es: "Volver a la guía estatal",
-    zh: "返回全州指南",
   },
   "Party unavailable": {
     en: "Party unavailable",

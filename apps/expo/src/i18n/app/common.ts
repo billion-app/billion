@@ -215,11 +215,6 @@ export const commonStrings = {
     es: { one: "en {count} día", other: "en {count} días" },
     zh: "{count} 天后",
   },
-  "relative.daysLeft": {
-    en: { one: "{count} day left", other: "{count} days left" },
-    es: { one: "Queda {count} día", other: "Quedan {count} días" },
-    zh: "还剩 {count} 天",
-  },
 
   "topic.Healthcare": { en: "Healthcare", es: "Salud", zh: "医疗" },
   "topic.Climate": { en: "Climate", es: "Clima", zh: "气候" },
