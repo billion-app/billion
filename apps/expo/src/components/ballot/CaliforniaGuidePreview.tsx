@@ -516,10 +516,7 @@ export function CaliforniaGuidePreview({
             {tab === "measures" && regional && (
               <View style={s.officeGroup}>
                 <View style={s.regionalHead}>
-                  <Text
-                    accessibilityRole="header"
-                    style={[s.officeName, s.regionalEyebrow]}
-                  >
+                  <Text accessibilityRole="header" style={s.regionalEyebrow}>
                     {tx("Bay Area regional measure")}
                   </Text>
                   <TouchableOpacity
@@ -731,8 +728,14 @@ export function CaliforniaGuidePreview({
 
 const s = StyleSheet.create({
   regionalHead: { flexDirection: "row", alignItems: "center", gap: 4 },
-  /** Hugs its text so the info button sits beside the eyebrow, not at the edge. */
-  regionalEyebrow: { flexGrow: 0, flexShrink: 1 },
+  /** `officeName` without its `flex: 1`, so the text hugs the info button. */
+  regionalEyebrow: {
+    ...DigestType.sectionEyebrow,
+    flexShrink: 1,
+    fontSize: 11,
+    color: P.spark,
+    textTransform: "uppercase",
+  },
   infoButton: {
     width: 28,
     height: 28,
