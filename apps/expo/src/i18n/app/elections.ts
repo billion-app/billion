@@ -526,6 +526,17 @@ export const electionStrings = {
   },
   Tied: { en: "Tied", es: "Empate", zh: "平票" },
   Leading: { en: "Leading", es: "En cabeza", zh: "领先" },
+  ahead: { en: "ahead", es: "adelante", zh: "领先" },
+  "No polls in our sources": {
+    en: "No polls in our sources",
+    es: "No hay encuestas en nuestras fuentes",
+    zh: "我们的来源暂无民调",
+  },
+  "No other polls in our sources": {
+    en: "No other polls in our sources",
+    es: "No hay otras encuestas en nuestras fuentes",
+    zh: "我们的来源暂无其他民调",
+  },
   "{count} votes": {
     en: "{count} votes",
     es: "{count} votos",

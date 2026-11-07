@@ -47,8 +47,13 @@ import {
 } from "~/utils/proposition-explainers";
 import { regionalMeasureRoute } from "~/utils/regional-measures";
 import { CandidatePortrait } from "./CandidatePortrait";
+import { guideListStamp } from "./guide-list-stamp";
 import { GuidePollResult } from "./GuidePollResult";
-import { GuideVoteResult, useGuideVoteLabel } from "./GuideVoteResult";
+import {
+  GuideListStampLine,
+  GuideVoteResult,
+  useGuideVoteLabel,
+} from "./GuideVoteResult";
 
 type Guide = NonNullable<RouterOutputs["civic"]["getCaliforniaGuide"]>;
 type Candidate = Guide["candidates"][number];
@@ -92,18 +97,14 @@ function officeGroups(candidates: readonly Candidate[]) {
 
 function CandidateRow({
   candidate,
-  showPolls,
   result,
-  status,
   last,
 }: {
   candidate: Candidate;
-  showPolls: boolean;
   result?: GuideVote;
-  status: "loading" | "pending" | "unavailable" | "reported";
   last: boolean;
 }) {
-  const resultLabel = useGuideVoteLabel(result, status, true);
+  const resultLabel = useGuideVoteLabel(result, "reported", "spoken");
   const { t: tx, language } = useAppTranslation();
   const router = useRouter();
   return (
@@ -111,16 +112,7 @@ function CandidateRow({
       accessibilityRole="button"
       accessibilityLabel={[
         candidate.name,
-        result
-          ? resultLabel
-          : showPolls &&
-            tx(
-              status === "loading"
-                ? "Checking polls…"
-                : status === "unavailable"
-                  ? "Polling unavailable"
-                  : "No poll available in our sources",
-            ),
+        result && resultLabel,
         translateAppLabel(
           language,
           candidate.officeName ?? tx("statewide office"),
@@ -152,19 +144,9 @@ function CandidateRow({
             </Text>
           </View>
         ) : null}
-        {result ? (
-          <GuideVoteResult result={result} status={status} />
-        ) : showPolls ? (
-          <Text style={s.note}>
-            {tx(
-              status === "loading"
-                ? "Checking polls…"
-                : status === "unavailable"
-                  ? "Polling unavailable"
-                  : "No poll available in our sources",
-            )}
-          </Text>
-        ) : null}
+        {result && (
+          <GuideVoteResult result={result} status="reported" variant="row" />
+        )}
       </View>
       <Icon name="chevR" size={18} color={P.primary} />
     </TouchableOpacity>
@@ -176,15 +158,13 @@ function MeasureRow({
   showPolls,
   standing,
   result,
-  status,
 }: {
   measure: Measure;
   showPolls: boolean;
   standing?: Standing;
   result?: GuideVote;
-  status: "loading" | "pending" | "unavailable" | "reported";
 }) {
-  const resultLabel = useGuideVoteLabel(result, status, true);
+  const resultLabel = useGuideVoteLabel(result, "reported", "spoken");
   const { t: tx } = useAppTranslation();
 
   const { t } = useLanguage();
@@ -206,16 +186,7 @@ function MeasureRow({
           tx("Proposition {value1}", { value1: measure.number }),
           standing?.kind === "poll" && showPolls
             ? `${tx("Poll")}. ${standing.poll.observation.choices.map((choice) => `${choice.kind === "yes" ? tx("Yes") : choice.kind === "no" ? tx("No") : choice.kind === "undecided" ? tx("Undecided") : choice.label} ${choice.share}%`).join(", ")}`
-            : result
-              ? resultLabel
-              : showPolls &&
-                tx(
-                  status === "loading"
-                    ? "Checking polls…"
-                    : status === "unavailable"
-                      ? "Polling unavailable"
-                      : "No poll available in our sources",
-                ),
+            : result && resultLabel,
           measure.displayTitle
             ? plainTrillionText(measure.displayTitle)
             : measure.title,
@@ -248,27 +219,29 @@ function MeasureRow({
           {translation.state === "unavailable" && (
             <Text style={s.note}>{t("article.translationUnavailable")}</Text>
           )}
-          {(showPolls || result) &&
-            standing?.kind !== "poll" &&
-            (result ? (
-              <GuideVoteResult result={result} status={status} />
-            ) : (
-              <Text style={s.note}>
-                {tx(
-                  status === "loading"
-                    ? "Checking polls…"
-                    : status === "unavailable"
-                      ? "Polling unavailable"
-                      : "No poll available in our sources",
-                )}
-              </Text>
-            ))}
+          {result && (
+            <GuideVoteResult result={result} status="reported" variant="row" />
+          )}
         </View>
         <Icon name="chevR" size={18} color={P.primary} />
       </TouchableOpacity>
       {showPolls && standing?.kind === "poll" && (
         <GuidePollResult poll={standing.poll} compact />
       )}
+    </View>
+  );
+}
+
+function GovernorResult({ name, result }: { name: string; result: GuideVote }) {
+  const label = useGuideVoteLabel(result, "reported", "spoken");
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${name}, ${label}`}
+      style={{ padding: 14 }}
+    >
+      <Text style={s.rowTitle}>{name}</Text>
+      <GuideVoteResult result={result} status="reported" variant="row" />
     </View>
   );
 }
@@ -364,6 +337,29 @@ export function CaliforniaGuidePreview({
     enabled: tab === "measures",
   });
   const hasBoldedTitles = !!guide?.measures.some((m) => m.displayTitle);
+  const stamp =
+    guide &&
+    guideListStamp(
+      tab === "measures"
+        ? guide.measures.map((measure) => results?.measures[measure.number])
+        : [
+            ...(results?.governor.kind === "poll" ? [results.governor] : []),
+            ...guide.candidates
+              .filter(
+                (candidate) =>
+                  officeFilter === "all" ||
+                  candidate.officeSlug === officeFilter,
+              )
+              .map(
+                (candidate) =>
+                  results?.candidates[
+                    `${candidate.officeSlug}:${candidate.name}`
+                  ],
+              ),
+          ],
+      resultsStatus,
+      showPolls,
+    );
   const offices = guide ? officeGroups(guide.candidates) : [];
   const electionDate = guide?.electionDate ?? regional?.electionDate;
   const daysAway = electionDate ? daysUntil(electionDate) : 0;
@@ -392,7 +388,6 @@ export function CaliforniaGuidePreview({
             showPolls={showPolls}
             standing={results?.measures[item.number]}
             result={officialMeasure(results?.measures[item.number])}
-            status={resultsStatus}
           />
         )}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
@@ -407,7 +402,8 @@ export function CaliforniaGuidePreview({
         showsVerticalScrollIndicator={false}
         ListHeaderComponentStyle={{
           marginBottom:
-            tab === "measures" && (hasBoldedTitles || language !== "en")
+            tab === "measures" &&
+            (hasBoldedTitles || language !== "en" || stamp)
               ? 12
               : 22,
         }}
@@ -593,6 +589,7 @@ export function CaliforniaGuidePreview({
               <>
                 {tab === "offices" ? (
                   <View style={s.list}>
+                    {stamp && <GuideListStampLine stamp={stamp} />}
                     {showPolls && results?.governor.kind === "poll" && (
                       <View style={s.standingRow}>
                         <GuidePollResult
@@ -605,13 +602,11 @@ export function CaliforniaGuidePreview({
                       <View style={s.standingRow}>
                         <Text style={s.rowTitle}>{tx("Governor")}</Text>
                         {results.governor.candidates.map((candidate) => (
-                          <View key={candidate.name} style={{ padding: 14 }}>
-                            <Text style={s.rowTitle}>{candidate.name}</Text>
-                            <GuideVoteResult
-                              result={candidate.result}
-                              status="reported"
-                            />
-                          </View>
+                          <GovernorResult
+                            key={candidate.name}
+                            name={candidate.name}
+                            result={candidate.result}
+                          />
                         ))}
                       </View>
                     )}
@@ -668,13 +663,11 @@ export function CaliforniaGuidePreview({
                               <CandidateRow
                                 key={`${candidate.officeSlug}:${candidate.name}`}
                                 candidate={candidate}
-                                showPolls={showPolls}
                                 result={officialCandidate(
                                   results?.candidates[
                                     `${candidate.officeSlug}:${candidate.name}`
                                   ],
                                 )}
-                                status={resultsStatus}
                                 last={index === group.candidates.length - 1}
                               />
                             ))}
@@ -702,6 +695,7 @@ export function CaliforniaGuidePreview({
                         </Text>
                       </View>
                     )}
+                    {stamp && <GuideListStampLine stamp={stamp} />}
                   </View>
                 )}
               </>
