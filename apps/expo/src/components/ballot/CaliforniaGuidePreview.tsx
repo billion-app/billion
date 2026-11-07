@@ -3,12 +3,14 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  LayoutAnimation,
   ScrollView,
   StyleSheet,
   Switch,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useReducedMotion } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useIsFocused, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -47,8 +49,13 @@ import {
 } from "~/utils/proposition-explainers";
 import { regionalMeasureRoute } from "~/utils/regional-measures";
 import { CandidatePortrait } from "./CandidatePortrait";
+import { guideListStamp } from "./guide-list-stamp";
 import { GuidePollResult } from "./GuidePollResult";
-import { GuideVoteResult, useGuideVoteLabel } from "./GuideVoteResult";
+import {
+  GuideListStampLine,
+  GuideVoteResult,
+  useGuideVoteLabel,
+} from "./GuideVoteResult";
 
 type Guide = NonNullable<RouterOutputs["civic"]["getCaliforniaGuide"]>;
 type Candidate = Guide["candidates"][number];
@@ -92,18 +99,14 @@ function officeGroups(candidates: readonly Candidate[]) {
 
 function CandidateRow({
   candidate,
-  showPolls,
   result,
-  status,
   last,
 }: {
   candidate: Candidate;
-  showPolls: boolean;
   result?: GuideVote;
-  status: "loading" | "pending" | "unavailable" | "reported";
   last: boolean;
 }) {
-  const resultLabel = useGuideVoteLabel(result, status, true);
+  const resultLabel = useGuideVoteLabel(result, "reported", "spoken");
   const { t: tx, language } = useAppTranslation();
   const router = useRouter();
   return (
@@ -111,16 +114,7 @@ function CandidateRow({
       accessibilityRole="button"
       accessibilityLabel={[
         candidate.name,
-        result
-          ? resultLabel
-          : showPolls &&
-            tx(
-              status === "loading"
-                ? "Checking polls…"
-                : status === "unavailable"
-                  ? "Polling unavailable"
-                  : "No poll available in our sources",
-            ),
+        result && resultLabel,
         translateAppLabel(
           language,
           candidate.officeName ?? tx("statewide office"),
@@ -152,19 +146,9 @@ function CandidateRow({
             </Text>
           </View>
         ) : null}
-        {result ? (
-          <GuideVoteResult result={result} status={status} />
-        ) : showPolls ? (
-          <Text style={s.note}>
-            {tx(
-              status === "loading"
-                ? "Checking polls…"
-                : status === "unavailable"
-                  ? "Polling unavailable"
-                  : "No poll available in our sources",
-            )}
-          </Text>
-        ) : null}
+        {result && (
+          <GuideVoteResult result={result} status="reported" variant="row" />
+        )}
       </View>
       <Icon name="chevR" size={18} color={P.primary} />
     </TouchableOpacity>
@@ -176,15 +160,13 @@ function MeasureRow({
   showPolls,
   standing,
   result,
-  status,
 }: {
   measure: Measure;
   showPolls: boolean;
   standing?: Standing;
   result?: GuideVote;
-  status: "loading" | "pending" | "unavailable" | "reported";
 }) {
-  const resultLabel = useGuideVoteLabel(result, status, true);
+  const resultLabel = useGuideVoteLabel(result, "reported", "spoken");
   const { t: tx } = useAppTranslation();
 
   const { t } = useLanguage();
@@ -206,16 +188,7 @@ function MeasureRow({
           tx("Proposition {value1}", { value1: measure.number }),
           standing?.kind === "poll" && showPolls
             ? `${tx("Poll")}. ${standing.poll.observation.choices.map((choice) => `${choice.kind === "yes" ? tx("Yes") : choice.kind === "no" ? tx("No") : choice.kind === "undecided" ? tx("Undecided") : choice.label} ${choice.share}%`).join(", ")}`
-            : result
-              ? resultLabel
-              : showPolls &&
-                tx(
-                  status === "loading"
-                    ? "Checking polls…"
-                    : status === "unavailable"
-                      ? "Polling unavailable"
-                      : "No poll available in our sources",
-                ),
+            : result && resultLabel,
           measure.displayTitle
             ? plainTrillionText(measure.displayTitle)
             : measure.title,
@@ -248,21 +221,9 @@ function MeasureRow({
           {translation.state === "unavailable" && (
             <Text style={s.note}>{t("article.translationUnavailable")}</Text>
           )}
-          {(showPolls || result) &&
-            standing?.kind !== "poll" &&
-            (result ? (
-              <GuideVoteResult result={result} status={status} />
-            ) : (
-              <Text style={s.note}>
-                {tx(
-                  status === "loading"
-                    ? "Checking polls…"
-                    : status === "unavailable"
-                      ? "Polling unavailable"
-                      : "No poll available in our sources",
-                )}
-              </Text>
-            ))}
+          {result && (
+            <GuideVoteResult result={result} status="reported" variant="row" />
+          )}
         </View>
         <Icon name="chevR" size={18} color={P.primary} />
       </TouchableOpacity>
@@ -317,6 +278,8 @@ export function CaliforniaGuidePreview({
 
   const [tab, setTab] = useState<GuideTab>("measures");
   const [officeFilter, setOfficeFilter] = useState("all");
+  const [regionalScopeOpen, setRegionalScopeOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
   const { showPolls, setShowPolls } = usePollVisibility();
   const focused = useIsFocused();
   const query = useQuery(
@@ -364,6 +327,29 @@ export function CaliforniaGuidePreview({
     enabled: tab === "measures",
   });
   const hasBoldedTitles = !!guide?.measures.some((m) => m.displayTitle);
+  const stamp =
+    guide &&
+    guideListStamp(
+      tab === "measures"
+        ? guide.measures.map((measure) => results?.measures[measure.number])
+        : [
+            ...(results?.governor.kind === "poll" ? [results.governor] : []),
+            ...guide.candidates
+              .filter(
+                (candidate) =>
+                  officeFilter === "all" ||
+                  candidate.officeSlug === officeFilter,
+              )
+              .map(
+                (candidate) =>
+                  results?.candidates[
+                    `${candidate.officeSlug}:${candidate.name}`
+                  ],
+              ),
+          ],
+      resultsStatus,
+      showPolls,
+    );
   const offices = guide ? officeGroups(guide.candidates) : [];
   const electionDate = guide?.electionDate ?? regional?.electionDate;
   const daysAway = electionDate ? daysUntil(electionDate) : 0;
@@ -392,7 +378,6 @@ export function CaliforniaGuidePreview({
             showPolls={showPolls}
             standing={results?.measures[item.number]}
             result={officialMeasure(results?.measures[item.number])}
-            status={resultsStatus}
           />
         )}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
@@ -406,13 +391,10 @@ export function CaliforniaGuidePreview({
         contentContainerStyle={s.screen}
         showsVerticalScrollIndicator={false}
         ListHeaderComponentStyle={{
-          marginBottom:
-            tab === "measures" && (hasBoldedTitles || language !== "en")
-              ? 12
-              : 22,
+          marginBottom: tab === "measures" ? 12 : 22,
         }}
         ListHeaderComponent={
-          <View style={{ gap: 22 }}>
+          <View style={{ gap: 14 }}>
             <View style={s.intro}>
               <Text style={s.kicker}>
                 {tx("California · General election")}
@@ -456,17 +438,6 @@ export function CaliforniaGuidePreview({
               }}
             />
 
-            {guide && (
-              <View style={s.pollToggle}>
-                <Text style={s.toggleText}>{tx("Show polls")}</Text>
-                <Switch
-                  accessibilityLabel={tx("Show polls")}
-                  value={showPolls}
-                  onValueChange={setShowPolls}
-                  hitSlop={8}
-                />
-              </View>
-            )}
             {query.isPending && <ActivityIndicator color={P.inkOnNight} />}
             {query.isError && (
               <Card>
@@ -544,14 +515,38 @@ export function CaliforniaGuidePreview({
             )}
             {tab === "measures" && regional && (
               <View style={s.officeGroup}>
-                <Text accessibilityRole="header" style={s.officeName}>
-                  {tx("Bay Area regional measure")}
-                </Text>
-                <Text style={s.regionalScope}>
-                  {tx(
-                    "Alameda, Contra Costa, San Francisco, San Mateo and Santa Clara counties. Check your county ballot.",
-                  )}
-                </Text>
+                <View style={s.regionalHead}>
+                  <Text accessibilityRole="header" style={s.regionalEyebrow}>
+                    {tx("Bay Area regional measure")}
+                  </Text>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={tx("About this regional measure")}
+                    accessibilityState={{ expanded: regionalScopeOpen }}
+                    hitSlop={8}
+                    onPress={() => {
+                      if (!reduceMotion)
+                        LayoutAnimation.configureNext(
+                          LayoutAnimation.Presets.easeInEaseOut,
+                        );
+                      setRegionalScopeOpen((open) => !open);
+                    }}
+                    style={s.infoButton}
+                  >
+                    <Icon
+                      name="info"
+                      size={15}
+                      color={regionalScopeOpen ? P.inkOnNight : P.quiet}
+                    />
+                  </TouchableOpacity>
+                </View>
+                {regionalScopeOpen && (
+                  <Text style={s.regionalScope}>
+                    {tx(
+                      "Alameda, Contra Costa, San Francisco, San Mateo and Santa Clara counties. Check your county ballot.",
+                    )}
+                  </Text>
+                )}
                 {regional.measures.map((measure) => (
                   <TouchableOpacity
                     key={measure.id}
@@ -590,121 +585,112 @@ export function CaliforniaGuidePreview({
               </View>
             )}
             {guide && (
-              <>
-                {tab === "offices" ? (
-                  <View style={s.list}>
-                    {showPolls && results?.governor.kind === "poll" && (
-                      <View style={s.standingRow}>
-                        <GuidePollResult
-                          title={tx("Governor poll")}
-                          poll={results.governor.poll}
-                        />
-                      </View>
-                    )}
-                    {results?.governor.kind === "official" && (
-                      <View style={s.standingRow}>
-                        <Text style={s.rowTitle}>{tx("Governor")}</Text>
-                        {results.governor.candidates.map((candidate) => (
-                          <View key={candidate.name} style={{ padding: 14 }}>
-                            <Text style={s.rowTitle}>{candidate.name}</Text>
-                            <GuideVoteResult
-                              result={candidate.result}
-                              status="reported"
-                            />
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      style={s.officeChips}
-                      contentContainerStyle={s.officeChipRow}
-                      accessibilityLabel={tx("Filter by office")}
-                    >
-                      {[
-                        { slug: "all", label: tx("All offices") },
-                        ...offices.map((group) => ({
-                          slug: group.slug,
-                          label: translateAppLabel(
-                            language,
-                            group.name ?? tx("Statewide office"),
-                          ),
-                        })),
-                      ].map((chip) => (
-                        <Pill
-                          key={chip.slug}
-                          label={chip.label}
-                          active={officeFilter === chip.slug}
-                          onPress={() => setOfficeFilter(chip.slug)}
-                        />
-                      ))}
-                    </ScrollView>
-                    {offices
-                      .filter(
-                        (group) =>
-                          officeFilter === "all" || group.slug === officeFilter,
-                      )
-                      .map((group) => (
-                        <View key={group.slug} style={s.officeGroup}>
-                          <View style={s.officeHead}>
-                            <Text
-                              accessibilityRole="header"
-                              style={s.officeName}
-                            >
-                              {translateAppLabel(
-                                language,
-                                group.name ?? tx("Statewide office"),
-                              )}
-                            </Text>
-                            <Text style={s.officeCount}>
-                              {tx("candidate.count", {
-                                count: group.candidates.length,
-                              })}
-                            </Text>
-                          </View>
-                          <View style={s.officeCard}>
-                            {group.candidates.map((candidate, index) => (
-                              <CandidateRow
-                                key={`${candidate.officeSlug}:${candidate.name}`}
-                                candidate={candidate}
-                                showPolls={showPolls}
-                                result={officialCandidate(
-                                  results?.candidates[
-                                    `${candidate.officeSlug}:${candidate.name}`
-                                  ],
-                                )}
-                                status={resultsStatus}
-                                last={index === group.candidates.length - 1}
-                              />
-                            ))}
-                          </View>
-                        </View>
-                      ))}
-                    <View style={s.officeGroup}>
-                      <GuideLinkRow
-                        icon="users"
-                        title={tx("All races and candidates")}
-                        note={tx("District, judicial and local contests")}
-                        onPress={() => router.push("/candidate-research")}
-                      />
-                    </View>
-                  </View>
-                ) : (
-                  <View style={s.list}>
-                    {(hasBoldedTitles || language !== "en") && (
+              <View style={s.listMeta}>
+                <View style={s.metaRow}>
+                  {tab === "measures" &&
+                    (hasBoldedTitles || language !== "en") && (
                       <View style={s.aiNote}>
                         <Icon name="sparkle" size={13} color={P.quiet} />
-                        <Text style={s.note}>
+                        <Text style={s.metaNote}>
                           {language === "en"
                             ? tx("Official titles · bold added by Billion")
                             : t("reader.translatedTitles")}
                         </Text>
                       </View>
                     )}
+                  <View style={s.pollToggle}>
+                    <Text style={s.toggleText}>{tx("Polls")}</Text>
+                    <Switch
+                      accessibilityLabel={tx("Show polls")}
+                      value={showPolls}
+                      onValueChange={setShowPolls}
+                      hitSlop={8}
+                    />
+                  </View>
+                </View>
+                {stamp && <GuideListStampLine stamp={stamp} />}
+              </View>
+            )}
+            {guide && tab === "offices" && (
+              <View style={s.list}>
+                {showPolls && results?.governor.kind === "poll" && (
+                  <View style={s.standingRow}>
+                    <GuidePollResult
+                      title={tx("Governor poll")}
+                      poll={results.governor.poll}
+                    />
                   </View>
                 )}
-              </>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={s.officeChips}
+                  contentContainerStyle={s.officeChipRow}
+                  accessibilityLabel={tx("Filter by office")}
+                >
+                  {[
+                    { slug: "all", label: tx("All offices") },
+                    ...offices.map((group) => ({
+                      slug: group.slug,
+                      label: translateAppLabel(
+                        language,
+                        group.name ?? tx("Statewide office"),
+                      ),
+                    })),
+                  ].map((chip) => (
+                    <Pill
+                      key={chip.slug}
+                      label={chip.label}
+                      active={officeFilter === chip.slug}
+                      onPress={() => setOfficeFilter(chip.slug)}
+                    />
+                  ))}
+                </ScrollView>
+                {offices
+                  .filter(
+                    (group) =>
+                      officeFilter === "all" || group.slug === officeFilter,
+                  )
+                  .map((group) => (
+                    <View key={group.slug} style={s.officeGroup}>
+                      <View style={s.officeHead}>
+                        <Text accessibilityRole="header" style={s.officeName}>
+                          {translateAppLabel(
+                            language,
+                            group.name ?? tx("Statewide office"),
+                          )}
+                        </Text>
+                        <Text style={s.officeCount}>
+                          {tx("candidate.count", {
+                            count: group.candidates.length,
+                          })}
+                        </Text>
+                      </View>
+                      <View style={s.officeCard}>
+                        {group.candidates.map((candidate, index) => (
+                          <CandidateRow
+                            key={`${candidate.officeSlug}:${candidate.name}`}
+                            candidate={candidate}
+                            result={officialCandidate(
+                              results?.candidates[
+                                `${candidate.officeSlug}:${candidate.name}`
+                              ],
+                            )}
+                            last={index === group.candidates.length - 1}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  ))}
+                <View style={s.officeGroup}>
+                  <GuideLinkRow
+                    icon="users"
+                    title={tx("All races and candidates")}
+                    note={tx("District, judicial and local contests")}
+                    onPress={() => router.push("/candidate-research")}
+                  />
+                </View>
+              </View>
             )}
           </View>
         }
@@ -741,22 +727,46 @@ export function CaliforniaGuidePreview({
 }
 
 const s = StyleSheet.create({
+  regionalHead: { flexDirection: "row", alignItems: "center", gap: 4 },
+  /** `officeName` without its `flex: 1`, so the text hugs the info button. */
+  regionalEyebrow: {
+    ...DigestType.sectionEyebrow,
+    flexShrink: 1,
+    fontSize: 11,
+    color: P.spark,
+    textTransform: "uppercase",
+  },
+  infoButton: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   regionalScope: {
     fontFamily: fontBody.regular,
     fontSize: 14,
     lineHeight: 21,
     color: P.inkOnNight,
   },
+  listMeta: { gap: 2 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  metaNote: {
+    flexShrink: 1,
+    fontFamily: fontBody.regular,
+    fontSize: 12,
+    lineHeight: 18,
+    color: P.quiet,
+  },
   pollToggle: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 16,
+    gap: 8,
     minHeight: 44,
+    marginLeft: "auto",
   },
   toggleText: {
     fontFamily: fontBody.semibold,
-    fontSize: 14,
+    fontSize: 13,
     color: P.inkOnNight,
   },
   screen: {
@@ -798,7 +808,7 @@ const s = StyleSheet.create({
     lineHeight: 19,
     color: P.quiet,
   },
-  aiNote: { flexDirection: "row", alignItems: "center", gap: 6 },
+  aiNote: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
   list: { gap: 12 },
   row: {
     flexDirection: "row",
