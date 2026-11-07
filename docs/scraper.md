@@ -237,6 +237,15 @@ by the scrape path and the retroactive scripts.
 
 Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text uses an OpenAI-compatible local endpoint (`LOCAL_LLM_BASE_URL`, such as Ollama) first, then **OpenRouter**, with direct DeepSeek retained as a text fallback. Two workloads stay API-first regardless: bill briefs (`getStructuredLlm()`), because local servers advertise structured output but cannot compile the brief's JSON grammar, and the dual lens (`getSearchModel()`), which needs a provider-native web-search tool. PDF vision fallback uses **Gemini `gemini-2.5-flash`**. The shared image helper tries local FLUX before hosted **Black Forest Labs FLUX.2 Klein 9B**, but the scheduled header-art job calls the local-only helper and never falls back to paid generation. Provider usage and hosted-image costs are tracked per run.
 
+An optional `SCRAPER_FALLBACK_BASE_URL` adds a final Responses-compatible
+provider after the existing text and brief providers fail. Its model defaults
+to `gpt-6-luna`; web research retries with the fallback's own native search tool
+so citation URLs still flow into source verification. This is independent of
+`LOCAL_LLM_BASE_URL`, which remains the preferred local inference endpoint.
+Adding the outage fallback preserves existing research cache keys. It does not
+change image review, PDF extraction, or image generation. See the
+[host setup](../deploy/big-mac/README.md#optional-local-fallback) for configuration.
+
 Each new/changed item runs through:
 
 1. **Summary** (`text-generation.ts`) — ≤100-char punchy summary, 8th-grade reading level.

@@ -1,7 +1,4 @@
-import type {
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-} from "react-native";
+import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -424,6 +421,15 @@ export function DigestHome() {
                 <View style={s.coverGrid}>
                   <View style={s.coverCopy}>
                     <Text style={s.coverHeadline}>{coverItem.title}</Text>
+                    {cardDek(coverItem) ? (
+                      <Text
+                        style={s.coverDek}
+                        numberOfLines={3}
+                        ellipsizeMode="tail"
+                      >
+                        {cardDek(coverItem)}
+                      </Text>
+                    ) : null}
                     <Text style={s.coverMeta}>{coverMeta(coverItem)}</Text>
                     {coverConnection ? (
                       <Text style={s.coverConnection}>{coverConnection}</Text>
@@ -663,6 +669,14 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 11,
     color: MUTED,
+  },
+  coverDek: {
+    marginTop: 4,
+    marginBottom: 8,
+    fontFamily: fontBody.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: INK,
   },
   coverConnection: {
     marginTop: 6,

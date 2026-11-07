@@ -29,6 +29,13 @@
         "simulator": true
       }
     },
+    "testflight-preview": {
+      "extends": "base",
+      "channel": "preview",
+      "environment": "preview",
+      "distribution": "store",
+      "autoIncrement": true
+    },
     "production": {
       "extends": "base",
       "channel": "production",
@@ -39,6 +46,12 @@
     "production": {
       "ios": {
         "ascAppId": "6761675243"
+      }
+    },
+    "testflight-preview": {
+      "ios": {
+        "ascAppId": "6761675243",
+        "groups": ["Billion Preview"]
       }
     }
   }

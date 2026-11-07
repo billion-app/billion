@@ -465,6 +465,34 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "SCRAPER_FALLBACK_BASE_URL",
+    description:
+      "Optional OpenAI Responses-compatible fallback endpoint for scraper text, briefs, and web search. Unset disables fallback.",
+    group: "AI",
+    secret: false,
+    example: "http://host.docker.internal:10531/v1",
+    requirements: { scraper: "optional" },
+    schema: url,
+  }),
+  define({
+    key: "SCRAPER_FALLBACK_MODEL",
+    description: "Model served by the scraper fallback endpoint.",
+    group: "AI",
+    secret: false,
+    defaultValue: "gpt-6-luna",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "SCRAPER_FALLBACK_API_KEY",
+    description:
+      "Optional bearer token for the scraper fallback endpoint; local OAuth proxies do not need a real API key.",
+    group: "AI",
+    secret: true,
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
     key: "GROQ_API_KEY",
     description: "Groq key for AI text generation.",
     group: "AI",

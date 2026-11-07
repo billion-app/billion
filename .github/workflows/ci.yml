@@ -113,6 +113,99 @@ jobs:
             --message "main@${GITHUB_SHA}" \
             --non-interactive
 
+  # A preview OTA needs a store-signed binary with the same native fingerprint
+  # before TestFlight testers can receive it. Reuse a compatible binary while
+  # one is finished or building, and create a new one only when native inputs
+  # change. Keep this disabled until the named App Store Connect group exists.
+  ensure-testflight-preview:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      vars.TESTFLIGHT_PREVIEW_ENABLED == 'true'
+    needs: [lint, typecheck, test, bundle-expo]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Generate preview fingerprint
+        working-directory: apps/expo
+        run: |
+          eas fingerprint:generate \
+            --platform ios \
+            --environment preview \
+            --json > "$RUNNER_TEMP/testflight-preview-fingerprint.json"
+
+      - name: Find compatible TestFlight preview build
+        id: compatible
+        working-directory: apps/expo
+        run: |
+          FINGERPRINT_HASH="$(node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            import { parseEasJsonOutput } from "../../scripts/assert-eas-update-runtime.mjs";
+            const fingerprint = parseEasJsonOutput(readFileSync(process.argv[1], "utf8"));
+            if (!fingerprint.hash) throw new Error("Generated preview fingerprint has no hash.");
+            process.stdout.write(fingerprint.hash);
+          ' "$RUNNER_TEMP/testflight-preview-fingerprint.json")"
+
+          eas build:list \
+            --platform ios \
+            --build-profile testflight-preview \
+            --distribution store \
+            --fingerprint-hash "$FINGERPRINT_HASH" \
+            --limit 50 \
+            --json > "$RUNNER_TEMP/testflight-preview-builds.json"
+
+          node --input-type=module -e '
+            import { appendFileSync, readFileSync } from "node:fs";
+            import { parseEasJsonOutput } from "../../scripts/assert-eas-update-runtime.mjs";
+            const builds = parseEasJsonOutput(readFileSync(process.argv[1], "utf8"));
+            const usableStatuses = new Set(["FINISHED", "NEW", "IN_QUEUE", "IN_PROGRESS"]);
+            const build = builds.find((candidate) => usableStatuses.has(candidate.status));
+            appendFileSync(process.env.GITHUB_OUTPUT, `found=${build ? "true" : "false"}\n`);
+            appendFileSync(process.env.GITHUB_OUTPUT, `fingerprint=${process.argv[2]}\n`);
+            if (build) {
+              appendFileSync(process.env.GITHUB_OUTPUT, `build-id=${build.id}\n`);
+              appendFileSync(process.env.GITHUB_OUTPUT, `build-status=${build.status}\n`);
+            }
+          ' "$RUNNER_TEMP/testflight-preview-builds.json" "$FINGERPRINT_HASH"
+
+      - name: Build and submit TestFlight preview
+        if: steps.compatible.outputs.found != 'true'
+        working-directory: apps/expo
+        run: |
+          eas build \
+            --platform ios \
+            --profile testflight-preview \
+            --auto-submit \
+            --no-wait \
+            --non-interactive \
+            --message "TestFlight preview main@${GITHUB_SHA}" \
+            --what-to-test "Preview of main. Receives preview OTA updates. Do not promote this build to the App Store."
+
+      - name: Summarise
+        run: |
+          {
+            echo "### TestFlight preview"
+            echo
+            echo "- Fingerprint: \`${{ steps.compatible.outputs.fingerprint }}\`"
+            if [ "${{ steps.compatible.outputs.found }}" = "true" ]; then
+              echo "- Reused build: \`${{ steps.compatible.outputs.build-id }}\` (${{ steps.compatible.outputs.build-status }})"
+            else
+              echo "- No compatible build existed; a new build and submission were queued."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # Publishes the image the scrapers actually run in production.
   #
   # This lives in `ci.yml` rather than its own workflow so it can `needs:` the

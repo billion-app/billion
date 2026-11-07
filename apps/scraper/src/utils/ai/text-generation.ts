@@ -3,7 +3,6 @@
  * Generates summaries and full articles from government content
  */
 
-import type { Tool } from "ai";
 import {
   APICallError,
   generateText,
@@ -23,7 +22,7 @@ import { deriveBillLifecycle } from "@acme/validators";
 import { clampBillDescription } from "../bill-description.js";
 import { trackLLMUsage } from "../costs.js";
 import { createLogger } from "../log.js";
-import { getSearchModel, getTextLlm, getWebSearchTool } from "./provider.js";
+import { generateWebSearch, getTextLlm } from "./provider.js";
 
 const logger = createLogger("ai");
 
@@ -583,11 +582,9 @@ const webResearchTool = tool({
     query: z.string().describe("A focused search query."),
   }),
   execute: async ({ query }: { query: string }) => {
-    const res = await generateText({
-      model: getSearchModel(),
-      tools: { web_search: getWebSearchTool() as Tool<any, any> },
-      prompt: `Search the web and briefly summarize what you find for: ${query}`,
-    });
+    const res = await generateWebSearch(
+      `Search the web and briefly summarize what you find for: ${query}`,
+    );
     trackLLMUsage(res.usage.inputTokens, res.usage.outputTokens);
     const results = ((res.sources ?? []) as SdkSource[])
       .filter((s) => s.sourceType === "url" && s.url)

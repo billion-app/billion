@@ -2,12 +2,12 @@
 
 A store binary and an over-the-air update have different release paths. Choose the path before changing a version or starting a build.
 
-| Change                                                          | Release path                                                       |
-| --------------------------------------------------------------- | ------------------------------------------------------------------ |
-| New native dependencies, native configuration, or store version | Push a version tag to trigger the TestFlight build workflow        |
-| JavaScript or assets compatible with an installed store build   | Use the production OTA workflow with that build's EAS ID           |
-| Device testing of `main`                                        | Use an internal preview build; CI publishes to its preview channel |
-| EAS unavailable or build quota exhausted                        | Use a clean local Xcode archive after the same preflight checks    |
+| Change                                                          | Release path                                                                   |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| New native dependencies, native configuration, or store version | Push a version tag to trigger the TestFlight build workflow                    |
+| JavaScript or assets compatible with an installed store build   | Use the production OTA workflow with that build's EAS ID                       |
+| Device testing of `main`                                        | Use the internal or TestFlight preview build; CI publishes preview OTA updates |
+| EAS unavailable or build quota exhausted                        | Use a clean local Xcode archive after the same preflight checks                |
 
 Commands below use `pnpm dlx eas-cli@latest` so they do not depend on a globally installed EAS CLI. Run EAS from `apps/expo`, including inside a release worktree.
 
@@ -155,13 +155,29 @@ Record the release commit and tag, version/build number, build and submission li
 
 ## Production OTA updates
 
-Merges to `main` publish to the preview channel after CI. To install an internal preview binary, run from `apps/expo`:
+Merges to `main` publish to the preview channel after CI. Preview OTA updates can be consumed by either an internal EAS build or a dedicated TestFlight preview build.
+
+To install an internal preview binary, run from `apps/expo`:
 
 ```bash
 pnpm dlx eas-cli@latest build --platform ios --profile preview
 ```
 
 Use `preview-simulator` for the iOS Simulator.
+
+### TestFlight preview lane
+
+The `testflight-preview` profile is a store-signed build subscribed to the same `preview` channel. Its submission profile assigns the build to the **Billion Preview** internal testing group in App Store Connect. Testers in that group install the preview binary through TestFlight, then receive compatible updates from every successful push to `main` without another Apple upload.
+
+Create the **Billion Preview** internal testing group in App Store Connect and add only preview testers. Then enable the repository variable:
+
+```bash
+gh variable set TESTFLIGHT_PREVIEW_ENABLED --body true
+```
+
+After the variable is enabled, the `ensure-testflight-preview` CI job generates the current iOS fingerprint and looks for a finished or active store build created with the `testflight-preview` profile. It queues a new build with automatic TestFlight submission only when no compatible build exists. JavaScript-only changes reuse the existing binary and arrive through the normal preview OTA job.
+
+The preview profile uses the EAS `preview` environment. Verify its public API URL and other public configuration before enabling the lane. Do not promote a `testflight-preview` build to the App Store; production binaries continue to come only from the version-tag workflow.
 
 Production updates use [Release OTA (Production)](../.github/workflows/release-ota.yml) in GitHub Actions. Choose the branch containing the JavaScript update from GitHub's **Use workflow from** menu and run the workflow without inputs.
 

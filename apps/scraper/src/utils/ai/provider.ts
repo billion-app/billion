@@ -1,10 +1,11 @@
-import type { LanguageModel, LanguageModelMiddleware } from "ai";
+import type { LanguageModel, LanguageModelMiddleware, Tool } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { wrapLanguageModel } from "ai";
+import { customProvider, generateText, wrapLanguageModel } from "ai";
 
 import { createLogger } from "../log.js";
 
@@ -89,6 +90,46 @@ function getLocalTextModel(baseURL: string): V3Model {
   });
 }
 
+/** Optional Responses-compatible endpoint; credentials are owned by the proxy. */
+function getFallbackProvider() {
+  const baseURL = process.env.SCRAPER_FALLBACK_BASE_URL?.trim();
+  if (!baseURL) return null;
+  return createOpenAI({
+    baseURL: baseURL.replace(/\/$/, ""),
+    apiKey: process.env.SCRAPER_FALLBACK_API_KEY?.trim() || "unused",
+  });
+}
+
+function getFallbackModel(): V3Model | null {
+  const provider = getFallbackProvider();
+  if (!provider) return null;
+  return wrapLanguageModel({
+    model: provider.responses(
+      process.env.SCRAPER_FALLBACK_MODEL?.trim() || "gpt-6-luna",
+    ),
+    middleware: {
+      specificationVersion: "v3",
+      transformParams: async ({ params }) => ({
+        ...params,
+        providerOptions: {
+          openai: {
+            store: false,
+            reasoningEffort: "none",
+            strictJsonSchema: false,
+            maxToolCalls: 5,
+          },
+        },
+      }),
+    },
+  });
+}
+
+function appendFallback(candidates: { label: string; model: V3Model }[]) {
+  const model = getFallbackModel();
+  if (model) candidates.push({ label: "configured fallback", model });
+  return candidates;
+}
+
 type V3Model = Parameters<typeof wrapLanguageModel>[0]["model"];
 
 function withFallbacks(
@@ -104,6 +145,7 @@ function withFallbacks(
       try {
         return await doGenerate();
       } catch (primaryError) {
+        if (params.abortSignal?.aborted) throw primaryError;
         let lastError: unknown = primaryError;
         for (const fallback of fallbacks) {
           logger.warn(
@@ -112,6 +154,7 @@ function withFallbacks(
           try {
             return await fallback.model.doGenerate(params);
           } catch (error) {
+            if (params.abortSignal?.aborted) throw error;
             lastError = error;
           }
         }
@@ -122,6 +165,7 @@ function withFallbacks(
       try {
         return await doStream();
       } catch (primaryError) {
+        if (params.abortSignal?.aborted) throw primaryError;
         let lastError: unknown = primaryError;
         for (const fallback of fallbacks) {
           logger.warn(
@@ -130,6 +174,7 @@ function withFallbacks(
           try {
             return await fallback.model.doStream(params);
           } catch (error) {
+            if (params.abortSignal?.aborted) throw error;
             lastError = error;
           }
         }
@@ -168,17 +213,15 @@ export function getTextLlm(): LanguageModel {
   }
 
   const deepseekKey = process.env.DEEPSEEK_API_KEY?.trim();
-  if (candidates.length > 0) {
-    textLlm = withFallbacks(candidates);
-    return textLlm;
+  if (candidates.length === 0 && deepseekKey) {
+    candidates.push({
+      label: "DeepSeek",
+      model: customProvider({
+        fallbackProvider: createDeepSeek({ apiKey: deepseekKey }),
+      }).languageModel("deepseek-v4-flash"),
+    });
   }
-  if (!deepseekKey) {
-    throw new Error(
-      "LOCAL_LLM_BASE_URL, OPENROUTER_API_KEY, or deprecated DEEPSEEK_API_KEY is required for scraper AI generation",
-    );
-  }
-
-  textLlm = createDeepSeek({ apiKey: deepseekKey })("deepseek-v4-flash");
+  textLlm = withFallbacks(appendFallback(candidates));
   return textLlm;
 }
 
@@ -191,22 +234,26 @@ export function getTextLlm(): LanguageModel {
 export function getStructuredLlm(): LanguageModel {
   if (structuredLlm) return structuredLlm;
 
+  const candidates: { label: string; model: V3Model }[] = [];
   const openrouterKey = getOpenRouterApiKey();
-  if (openrouterKey) {
-    structuredLlm =
-      getOpenRouterProvider(openrouterKey).chat(getOpenRouterModel());
-    return structuredLlm;
-  }
-
   const deepseekKey = process.env.DEEPSEEK_API_KEY?.trim();
-  if (deepseekKey) {
-    structuredLlm = createDeepSeek({ apiKey: deepseekKey })(
-      "deepseek-v4-flash",
-    );
+  if (openrouterKey) {
+    candidates.push({
+      label: "OpenRouter",
+      model: getOpenRouterProvider(openrouterKey).chat(getOpenRouterModel()),
+    });
+  } else if (deepseekKey) {
+    candidates.push({
+      label: "DeepSeek",
+      model: customProvider({
+        fallbackProvider: createDeepSeek({ apiKey: deepseekKey }),
+      }).languageModel("deepseek-v4-flash"),
+    });
+  } else {
+    structuredLlm = getTextLlm();
     return structuredLlm;
   }
-
-  structuredLlm = getTextLlm();
+  structuredLlm = withFallbacks(appendFallback(candidates));
   return structuredLlm;
 }
 
@@ -226,7 +273,12 @@ export function getTextModelVersion(): string {
   ]
     .filter(Boolean)
     .join(" -> ");
-  return modernProviders || "deepseek:deepseek-v4-flash";
+  // Adding an outage fallback must not invalidate all existing research caches.
+  if (modernProviders) return modernProviders;
+  if (process.env.DEEPSEEK_API_KEY?.trim()) return "deepseek:deepseek-v4-flash";
+  if (getFallbackProvider())
+    return `fallback:${process.env.SCRAPER_FALLBACK_MODEL?.trim() || "gpt-6-luna"}`;
+  return "deepseek:deepseek-v4-flash";
 }
 
 // The deprecated direct-DeepSeek fallback uses its Anthropic-compatible
@@ -276,6 +328,32 @@ export function getWebSearchTool() {
   });
   return provider.tools.webSearch_20250305({ maxUses: 5 });
 }
+/** Retry the whole search with the fallback's own native tool, preserving sources. */
+export async function generateWebSearch(prompt: string) {
+  const fallback = getFallbackModel();
+  try {
+    return await generateText({
+      model: getSearchModel(),
+      tools: { web_search: getWebSearchTool() as Tool<any, any> },
+      prompt,
+      ...(fallback ? { maxRetries: 0 } : {}),
+    });
+  } catch (error) {
+    if (!fallback) throw error;
+    logger.warn("Primary web search failed; trying configured fallback");
+    return generateText({
+      model: fallback,
+      tools: {
+        web_search: getFallbackProvider()!.tools.webSearch({
+          searchContextSize: "low",
+        }) as Tool<any, any>,
+      },
+      prompt,
+      maxRetries: 0,
+    });
+  }
+}
+
 // Multimodal (PDF/vision) model for document extraction — the default text
 // model is text-only.
 // Gated on the API key so the scraper still runs without it (callers that need

@@ -46,3 +46,22 @@ test("preview has both physical-device and simulator build profiles", () => {
   assert.equal(eas.build["preview-simulator"].extends, "preview");
   assert.equal(eas.build["preview-simulator"].ios.simulator, true);
 });
+
+test("TestFlight preview uses the preview channel and a dedicated tester group", () => {
+  const eas = JSON.parse(read("apps/expo/eas.json"));
+  const ci = read(".github/workflows/ci.yml");
+
+  assert.equal(eas.build["testflight-preview"].channel, "preview");
+  assert.equal(eas.build["testflight-preview"].environment, "preview");
+  assert.equal(eas.build["testflight-preview"].distribution, "store");
+  assert.equal(eas.build["testflight-preview"].autoIncrement, true);
+  assert.deepEqual(eas.submit["testflight-preview"].ios.groups, [
+    "Billion Preview",
+  ]);
+  assert.match(ci, /ensure-testflight-preview:/);
+  assert.match(ci, /TESTFLIGHT_PREVIEW_ENABLED == 'true'/);
+  assert.match(ci, /--build-profile testflight-preview/);
+  assert.match(ci, /--fingerprint-hash/);
+  assert.match(ci, /--profile testflight-preview/);
+  assert.match(ci, /--auto-submit/);
+});
