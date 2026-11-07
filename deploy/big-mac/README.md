@@ -3,6 +3,9 @@
 Configuration for the long-running services on `big-mac` — the Mac that runs the
 scrapers and the local image model.
 
+The [private Supabase trial](supabase-trial/README.md) runs a separate production
+database copy and web/API app for self-hosting checks.
+
 These files are **live infrastructure**, not build output or leftovers. Each one
 is the versioned source of something currently installed on that host, so a
 change here is a change to a running service.

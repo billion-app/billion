@@ -1,0 +1,32 @@
+name: billion-supabase-trial
+
+services:
+  studio:
+    container_name: billion-trial-studio
+  api-gw:
+    container_name: billion-trial-gateway
+    ports: !override
+      - 127.0.0.1:8006:8000
+  auth:
+    container_name: billion-trial-auth
+  rest:
+    container_name: billion-trial-rest
+  realtime:
+    container_name: realtime-dev.billion-trial-realtime
+  storage:
+    container_name: billion-trial-storage
+  imgproxy:
+    container_name: billion-trial-imgproxy
+  meta:
+    container_name: billion-trial-meta
+  functions:
+    container_name: billion-trial-functions
+  db:
+    container_name: billion-trial-db
+    ports:
+      - 127.0.0.1:5440:5432
+  supavisor:
+    container_name: billion-trial-pooler
+    ports: !override
+      - 127.0.0.1:5441:5432
+      - 127.0.0.1:6548:6543
