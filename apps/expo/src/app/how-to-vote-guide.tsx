@@ -5,9 +5,9 @@
  * already hold the sourced facts, but each one assumes the voter knows which
  * method they want. This screen answers the earlier question — "what are my
  * options, and what does each one take?" — in short sections of one-line
- * rows, then hands off to those pages. It is static by design: no address, no
- * provider call, no launch gate, so it works even when the live ballot lookup
- * is unavailable.
+ * rows, then hands off to those pages. It is static by design: no address and
+ * no provider call. While the address lookup is gated, rows that would open it
+ * stay informational so no tap ends at the gate.
  */
 import type { Href } from "expo-router";
 import {
@@ -18,6 +18,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
 
 import type { IconName } from "~/components/ui";
 import type { AppTranslate } from "~/i18n/app-strings";
@@ -32,6 +33,8 @@ import {
   fontEditorial,
   DigestPalette as P,
 } from "~/styles";
+import { trpc } from "~/utils/api";
+import { electionsAreLive } from "~/utils/elections-live";
 
 export const ErrorBoundary = createRouteErrorBoundary("how-to-vote-guide");
 
@@ -47,7 +50,11 @@ interface GuideSection {
   rows: readonly GuideRow[];
 }
 
-function guideSections(t: AppTranslate): readonly GuideSection[] {
+function guideSections(
+  t: AppTranslate,
+  lookupLive: boolean,
+): readonly GuideSection[] {
+  const lookup = (route: Href) => (lookupLive ? { route } : {});
   return [
     {
       title: t("voteGuide.ways"),
@@ -56,31 +63,34 @@ function guideSections(t: AppTranslate): readonly GuideSection[] {
           icon: "mail",
           title: t("voteGuide.mail.title"),
           note: t("voteGuide.mail.p1"),
-          route: { pathname: "/how-to-vote", params: { method: "mail" } },
+          ...lookup({ pathname: "/how-to-vote", params: { method: "mail" } }),
         },
         {
           icon: "inbox",
           title: t("voteGuide.dropBox.title"),
           note: t("voteGuide.dropBox.p3"),
-          route: { pathname: "/how-to-vote", params: { method: "dropBox" } },
+          ...lookup({
+            pathname: "/how-to-vote",
+            params: { method: "dropBox" },
+          }),
         },
         {
           icon: "calendar",
           title: t("voteGuide.early.title"),
           note: t("voteGuide.early.p3"),
-          route: {
+          ...lookup({
             pathname: "/how-to-vote",
             params: { method: "earlyInPerson" },
-          },
+          }),
         },
         {
           icon: "flag",
           title: t("voteGuide.electionDay.title"),
           note: t("voteGuide.electionDay.p3"),
-          route: {
+          ...lookup({
             pathname: "/how-to-vote",
             params: { method: "electionDay" },
-          },
+          }),
         },
       ],
     },
@@ -108,11 +118,15 @@ function guideSections(t: AppTranslate): readonly GuideSection[] {
           note: t("voteGuide.dates.returnDetail"),
           url: "https://www.sos.ca.gov/elections/upcoming-elections",
         },
-        {
-          icon: "doc",
-          title: t("voteGuide.published"),
-          route: "/how-to-vote",
-        },
+        ...(lookupLive
+          ? [
+              {
+                icon: "doc",
+                title: t("voteGuide.published"),
+                route: "/how-to-vote",
+              } as const,
+            ]
+          : []),
       ],
     },
     {
@@ -223,6 +237,13 @@ function GuideRowView({ row, last }: { row: GuideRow; last: boolean }) {
 export default function HowToVoteGuideScreen() {
   const router = useRouter();
   const { t } = useAppTranslation();
+  const availability = useQuery({
+    ...trpc.civic.getBallotAvailability.queryOptions(),
+    retry: false,
+  });
+  const lookupLive = electionsAreLive(
+    availability.isError ? undefined : availability.data,
+  );
 
   return (
     <View style={s.screen}>
@@ -244,7 +265,7 @@ export default function HowToVoteGuideScreen() {
           <Text style={s.introText}>{t("voteGuide.intro")}</Text>
         </View>
 
-        {guideSections(t).map((section) => (
+        {guideSections(t, lookupLive).map((section) => (
           <View key={section.title} style={s.section}>
             <Text accessibilityRole="header" style={s.sectionTitle}>
               {section.title}
@@ -264,23 +285,25 @@ export default function HowToVoteGuideScreen() {
           </View>
         ))}
 
-        <Card style={s.cta}>
-          <Text style={s.ctaTitle}>{t("voteGuide.cta.title")}</Text>
-          <Text style={s.ctaBody}>{t("voteGuide.cta.body")}</Text>
-          <PrimaryButton
-            label={t("voteGuide.cta.button")}
-            onPress={() => router.push("/how-to-vote")}
-            style={s.ctaButton}
-          />
-          <TouchableOpacity
-            accessibilityRole="button"
-            onPress={() => router.push("/settings/location")}
-            style={s.ctaLink}
-          >
-            <Icon name="pin" size={14} color={P.quiet} />
-            <Text style={s.ctaLinkText}>{t("voteGuide.cta.location")}</Text>
-          </TouchableOpacity>
-        </Card>
+        {lookupLive && (
+          <Card style={s.cta}>
+            <Text style={s.ctaTitle}>{t("voteGuide.cta.title")}</Text>
+            <Text style={s.ctaBody}>{t("voteGuide.cta.body")}</Text>
+            <PrimaryButton
+              label={t("voteGuide.cta.button")}
+              onPress={() => router.push("/how-to-vote")}
+              style={s.ctaButton}
+            />
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => router.push("/settings/location")}
+              style={s.ctaLink}
+            >
+              <Icon name="pin" size={14} color={P.quiet} />
+              <Text style={s.ctaLinkText}>{t("voteGuide.cta.location")}</Text>
+            </TouchableOpacity>
+          </Card>
+        )}
       </ScrollView>
     </View>
   );
