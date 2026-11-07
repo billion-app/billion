@@ -298,24 +298,10 @@ function MeasureRow({
   );
 }
 
-const QUICK_ACTIONS: readonly {
-  label: "Voting plan" | "Notes" | "Voting help";
-  icon: IconName;
-  mode: "plan" | "notes" | "help";
-}[] = [
-  { label: "Voting plan", icon: "vote", mode: "plan" },
-  { label: "Notes", icon: "book", mode: "notes" },
-  { label: "Voting help", icon: "info", mode: "help" },
-];
-
 export function CaliforniaGuidePreview({
   onOpenBallot,
-  onOpenFixtures,
-  onBack,
 }: {
   onOpenBallot?: () => void;
-  onOpenFixtures?: () => void;
-  onBack?: () => void;
 }) {
   const { t: tx, language: uiLanguage } = useAppTranslation();
 
@@ -373,7 +359,7 @@ export function CaliforniaGuidePreview({
       onTouchEnd={preloading.onTouchEnd}
       onTouchCancel={preloading.onTouchCancel}
     >
-      <NavHeader title={tx("California guide")} large onBack={onBack} />
+      <NavHeader title={tx("California guide")} large />
       <FlatList
         key={tab}
         data={tab === "measures" ? guide?.measures : []}
@@ -441,29 +427,6 @@ export function CaliforniaGuidePreview({
                 />
               </View>
             )}
-            <View style={s.actions}>
-              {QUICK_ACTIONS.map((item) => (
-                <TouchableOpacity
-                  key={item.mode}
-                  accessibilityRole="button"
-                  activeOpacity={0.8}
-                  style={s.action}
-                  onPress={() =>
-                    router.push(
-                      item.mode === "help"
-                        ? "/election-access"
-                        : {
-                            pathname: "/guide-preparation",
-                            params: { mode: item.mode },
-                          },
-                    )
-                  }
-                >
-                  <Icon name={item.icon} size={15} color={P.inkOnNight} />
-                  <Text style={s.actionText}>{tx(item.label)}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
             {query.isPending && <ActivityIndicator color={P.inkOnNight} />}
             {query.isError && (
               <Card>
@@ -709,11 +672,6 @@ export function CaliforniaGuidePreview({
                 </Card>
               </View>
             )}
-            {onOpenFixtures && (
-              <TouchableOpacity onPress={onOpenFixtures}>
-                <Text style={s.fixtureLink}>{tx("Development scenarios")}</Text>
-              </TouchableOpacity>
-            )}
           </View>
         }
       />
@@ -758,17 +716,6 @@ const s = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: P.quiet,
-  },
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  action: {
-    minHeight: 40,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: DigestHair.sectionRule,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
   },
   actionText: {
     fontFamily: fontBody.semibold,
@@ -959,5 +906,4 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: P.inkOnNight,
   },
-  fixtureLink: { color: P.quiet, paddingVertical: 16 },
 });

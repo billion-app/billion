@@ -5,7 +5,7 @@ import { translateApp } from "~/i18n/app-strings";
 import { daysUntil } from "~/utils/dates";
 
 /**
- * Ballot helpers: Civic election type from `name`, contest grouping, CA filter.
+ * Ballot helpers: Civic election type from `name` and the CA filter.
  */
 
 /** Civic always includes a dummy "VIP Test Election" with this id. */
@@ -36,101 +36,6 @@ export function electionTypeLabel(
   language: AppLanguage = "en",
 ): string {
   return translateApp(language, `elections.type.${type}`);
-}
-
-/**
- * One plain-language sentence explaining what this kind of election decides.
- * Static copy — no backend. Keeps the "what does this mean" promise of the hero.
- */
-export function electionExplainer(
-  type: ElectionType,
-  language: AppLanguage = "en",
-): string {
-  return translateApp(language, `elections.explainer.${type}`);
-}
-
-// ---------------------------------------------------------------------------
-// Candidate contests grouped by government level
-// ---------------------------------------------------------------------------
-
-export type LevelGroupKey = "federal" | "state" | "county" | "local";
-
-export interface LevelGroup {
-  key: LevelGroupKey;
-  label: string;
-  contests: Contest[];
-}
-
-const LEVEL_GROUP_ORDER: LevelGroupKey[] = [
-  "federal",
-  "state",
-  "county",
-  "local",
-];
-
-/** Map a single Civic `level` value onto one of our four display groups. */
-function levelToGroup(level: string | undefined): LevelGroupKey {
-  switch (level) {
-    case "country":
-      return "federal";
-    case "administrativeArea1":
-      return "state";
-    case "administrativeArea2":
-      return "county";
-    default:
-      // locality, subLocality1/2, special, regional, or missing → local.
-      return "local";
-  }
-}
-
-/** True when a contest is judicial (always sorted into Local / Judicial). */
-function isJudicial(c: Contest): boolean {
-  return (c.roles ?? []).some(
-    (r) => r === "judge" || r === "highestCourtJudge",
-  );
-}
-
-/**
- * Bucket candidate contests into Federal → State → County → Local/Judicial,
- * preserving ballot order within each group and dropping empty groups.
- */
-export function groupContestsByLevel(
-  contests: Contest[],
-  language: AppLanguage = "en",
-): LevelGroup[] {
-  const buckets: Record<LevelGroupKey, Contest[]> = {
-    federal: [],
-    state: [],
-    county: [],
-    local: [],
-  };
-  for (const c of contests) {
-    const key = isJudicial(c) ? "local" : levelToGroup(c.level?.[0]);
-    buckets[key].push(c);
-  }
-  return LEVEL_GROUP_ORDER.filter((key) => buckets[key].length > 0).map(
-    (key) => ({
-      key,
-      label: translateApp(language, `elections.level.${key}`),
-      contests: buckets[key],
-    }),
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Measures: statewide propositions vs local measures
-// ---------------------------------------------------------------------------
-
-/**
- * Classify a measure as statewide (numbered "Proposition") vs local (lettered
- * "Measure"). Heuristic on the title since Civic doesn't tag this directly.
- */
-export function measureIsStatewide(m: Contest): boolean {
-  const t = (m.referendumTitle ?? "").toLowerCase();
-  if (t.includes("proposition")) return true;
-  // ACA / SCA — statewide legislative constitutional amendments.
-  if (/\b(aca|sca)\b/.test(t)) return true;
-  return false;
 }
 
 // ---------------------------------------------------------------------------

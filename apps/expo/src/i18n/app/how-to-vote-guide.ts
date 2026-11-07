@@ -1,4 +1,4 @@
-/** Plain-language California voting guide and its entry point. */
+/** Plain-language California voting guide. */
 import type { Catalog } from "./types";
 
 export const voteGuideStrings = {
@@ -361,66 +361,5 @@ export const voteGuideStrings = {
     en: "Change my saved address",
     es: "Cambiar mi dirección guardada",
     zh: "更改我保存的地址",
-  },
-
-  "voteGuide.entry.address": {
-    en: "Add your address to see your options",
-    es: "Agrega tu dirección para ver tus opciones",
-    zh: "添加地址以查看你的投票方式",
-  },
-  "voteGuide.entry.ended": {
-    en: "See results and what comes next",
-    es: "Consulta los resultados y lo que sigue",
-    zh: "查看结果和后续事项",
-  },
-  "voteGuide.entry.contacts": {
-    en: "Deadlines and official election contacts",
-    es: "Fechas límite y contactos electorales oficiales",
-    zh: "截止日期与官方选举联系方式",
-  },
-  "voteGuide.entry.today": {
-    en: "Polling places, hours, and directions",
-    es: "Lugares de votación, horarios y cómo llegar",
-    zh: "投票地点、时间和路线",
-  },
-  "voteGuide.entry.ways": {
-    en: "Ways to vote and where to go",
-    es: "Cómo votar y adónde ir",
-    zh: "投票方式和地点",
-  },
-  "voteGuide.entry.summary": {
-    en: "Four ways to vote in California, step by step.",
-    es: "Cuatro formas de votar en California, paso a paso.",
-    zh: "逐步了解加州的四种投票方式。",
-  },
-  "voteGuide.entry.a11y": {
-    en: "How to vote in California. Mail, drop box, early voting, or Election Day.",
-    es: "Cómo votar en California. Por correo, en buzón, anticipadamente o el Día de la Elección.",
-    zh: "如何在加州投票。邮寄、投递箱、提前投票或选举日投票。",
-  },
-  "voteGuide.entry.hint": {
-    en: "Opens a short guide to voting in California",
-    es: "Abre una breve guía para votar en California",
-    zh: "打开加州投票简明指南",
-  },
-  "voteGuide.chip.mail": {
-    en: "Mail",
-    es: "Correo",
-    zh: "邮寄",
-  },
-  "voteGuide.chip.dropBox": {
-    en: "Drop box",
-    es: "Buzón",
-    zh: "投递箱",
-  },
-  "voteGuide.chip.early": {
-    en: "Early",
-    es: "Anticipado",
-    zh: "提前",
-  },
-  "voteGuide.chip.electionDay": {
-    en: "Election Day",
-    es: "Día de la Elección",
-    zh: "选举日",
   },
 } satisfies Catalog;

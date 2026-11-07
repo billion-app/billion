@@ -7,7 +7,6 @@ import type { VotingMethod, VotingMethodId, VotingPlan } from "./voting";
 import {
   buildVotingPlan,
   electionPhase,
-  entryCardSubtitle,
   formatCivicAddress,
   registrationCheckUrl,
   resolveOfficialSource,
@@ -215,51 +214,6 @@ void test("provider lookup destinations are not attributed to an official author
 void test("resolveOfficialSource yields nothing without administration data", () => {
   assert.equal(resolveOfficialSource(response()), undefined);
   assert.equal(resolveOfficialSource(undefined), undefined);
-});
-
-void test("entryCardSubtitle asks for an address before anything else", () => {
-  assert.equal(
-    entryCardSubtitle(false, undefined, "upcoming"),
-    "Add your address to see your options",
-  );
-});
-
-void test("entryCardSubtitle does not promise availability from location counts", () => {
-  const many = buildVotingPlan(
-    response({
-      dropOffLocations: [location()],
-      pollingLocations: [location()],
-    }),
-  );
-  assert.equal(
-    entryCardSubtitle(true, many, "upcoming"),
-    "Ways to vote and where to go",
-  );
-
-  const one = buildVotingPlan(response({ dropOffLocations: [location()] }));
-  assert.equal(
-    entryCardSubtitle(true, one, "upcoming"),
-    "Ways to vote and where to go",
-  );
-});
-
-void test("entryCardSubtitle reframes on Election Day and after", () => {
-  const plan = buildVotingPlan(response({ pollingLocations: [location()] }));
-  assert.equal(
-    entryCardSubtitle(true, plan, "electionDay"),
-    "Polling places, hours, and directions",
-  );
-  assert.equal(
-    entryCardSubtitle(true, plan, "ended"),
-    "See results and what comes next",
-  );
-});
-
-void test("entryCardSubtitle never promises a deadline it doesn't have", () => {
-  assert.doesNotMatch(
-    entryCardSubtitle(true, buildVotingPlan(response()), "upcoming"),
-    /postmark|deadline by|due/i,
-  );
 });
 
 // --- instruction provenance -----------------------------

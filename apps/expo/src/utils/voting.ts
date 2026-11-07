@@ -6,8 +6,6 @@ import type {
   VoterInfoResponse,
 } from "@acme/api";
 
-import type { AppTranslate } from "../i18n/app-strings";
-import { appTranslator } from "../i18n/app-strings";
 import { daysUntil } from "./dates";
 
 // ---------------------------------------------------------------------------
@@ -304,25 +302,4 @@ export function buildVotingPlan(
       dropOff.length === 0 && early.length === 0 && polling.length === 0,
     source,
   };
-}
-
-/**
- * Sublabel for the Elections-tab entry card.
- *
- * Deliberately never states a deadline: we have no sourced deadline data, and
- * the entry point is the last place to start guessing at one.
- */
-export function entryCardSubtitle(
-  hasAddress: boolean,
-  plan: VotingPlan | undefined,
-  phase: ElectionPhase,
-  t: AppTranslate = appTranslator("en"),
-): string {
-  if (!hasAddress) return t("voteGuide.entry.address");
-  if (phase === "ended") return t("voteGuide.entry.ended");
-  if (!plan || plan.methods.length === 0) {
-    return t("voteGuide.entry.contacts");
-  }
-  if (phase === "electionDay") return t("voteGuide.entry.today");
-  return t("voteGuide.entry.ways");
 }

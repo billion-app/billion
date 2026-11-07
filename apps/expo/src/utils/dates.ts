@@ -43,12 +43,3 @@ export function isWithinDays(dateString: string, days: number): boolean {
   const daysRemaining = daysUntil(dateString);
   return daysRemaining > 0 && daysRemaining <= days;
 }
-
-/** Short "Nov 4" style label. */
-export function monthDay(dateString: string, locale = "en-US"): string {
-  return new Date(dateString).toLocaleDateString(locale, {
-    month: "short",
-    day: "numeric",
-    ...(/^\d{4}-\d{2}-\d{2}$/.test(dateString) ? { timeZone: "UTC" } : {}),
-  });
-}

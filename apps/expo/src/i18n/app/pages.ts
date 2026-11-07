@@ -1021,11 +1021,6 @@ export const pageStrings = {
     es: "cargo estatal",
     zh: "全州公职",
   },
-  "Voting plan": {
-    en: "Voting plan",
-    es: "Plan de votación",
-    zh: "投票计划",
-  },
   Notes: {
     en: "Notes",
     es: "Notas",
@@ -1663,21 +1658,6 @@ export const pageStrings = {
     en: "Could not open the link. Tap to retry.",
     es: "No se pudo abrir el enlace. Toca para reintentar.",
     zh: "无法打开链接。点按重试。",
-  },
-  "California statewide guide · local races are not included.": {
-    en: "California statewide guide · local races are not included.",
-    es: "Guía estatal de California · No incluye contiendas locales.",
-    zh: "加州全州指南 · 不包含地方选举。",
-  },
-  "Read California’s official guide": {
-    en: "Read California’s official guide",
-    es: "Leer la guía oficial de California",
-    zh: "阅读加州官方指南",
-  },
-  "Your guide notes": {
-    en: "Your guide notes",
-    es: "Tus notas de la guía",
-    zh: "你的指南笔记",
   },
   "Local decision": {
     en: "Local decision",
@@ -2328,11 +2308,6 @@ export const pageStrings = {
     en: "County elections office",
     es: "Oficina electoral del condado",
     zh: "县选举事务办公室",
-  },
-  "Development scenarios": {
-    en: "Development scenarios",
-    es: "Escenarios de desarrollo",
-    zh: "开发情境",
   },
   "Ballot source: {value1}": {
     en: "Ballot source: {value1}",
@@ -4103,25 +4078,10 @@ export const pageStrings = {
     es: "Excepciones y elecciones especiales",
     zh: "例外与特别选举",
   },
-  "Guide notes": {
-    en: "Guide notes",
-    es: "Notas de la guía",
-    zh: "指南笔记",
-  },
-  "California statewide guide": {
-    en: "California statewide guide",
-    es: "Guía estatal de California",
-    zh: "加州全州指南",
-  },
   "Proposition {value1}: {value2}": {
     en: "Proposition {value1}: {value2}",
     es: "Propuesta {value1}: {value2}",
     zh: "第 {value1} 号提案：{value2}",
-  },
-  "California statewide election · {value1}": {
-    en: "California statewide election · {value1}",
-    es: "Elección estatal de California · {value1}",
-    zh: "加州全州选举 · {value1}",
   },
   "Geographic area not specified in the official record.": {
     en: "Geographic area not specified in the official record.",
@@ -5256,11 +5216,6 @@ export const pageStrings = {
     en: "Return to ballot",
     es: "Volver a la papeleta",
     zh: "返回选票",
-  },
-  "Return to statewide guide": {
-    en: "Return to statewide guide",
-    es: "Volver a la guía estatal",
-    zh: "返回全州指南",
   },
   "Party unavailable": {
     en: "Party unavailable",
