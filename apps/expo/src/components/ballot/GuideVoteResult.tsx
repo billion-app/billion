@@ -2,6 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { useIsFocused } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import type { GuideListStamp } from "./guide-list-stamp";
 import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { Text } from "~/components/Themed";
@@ -16,10 +17,24 @@ export type GuideVote =
   | Reported["candidates"][string]
   | Reported["measures"][string];
 
+/** `row` is the short Elections tab line; `spoken` adds votes, reporting and time. */
+type VoteLabelForm = "full" | "row" | "spoken";
+
+export function formatReportedAt(iso: string, language: string) {
+  return new Date(iso).toLocaleString(language, {
+    timeZone: "America/Los_Angeles",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+}
+
 export function useGuideVoteLabel(
   result: GuideVote | undefined,
   status: Snapshot["status"] | "loading",
-  accessible = false,
+  form: VoteLabelForm = "full",
 ) {
   const { t, language } = useAppTranslation();
   const percent = (value: number) =>
@@ -36,26 +51,45 @@ export function useGuideVoteLabel(
     );
   if (!result.totalVotes) return t("No votes counted yet");
   if ("yes" in result) {
+    if (form === "row")
+      return result.yes.standing === "tied"
+        ? t("Tied")
+        : result.yes.standing === "leading"
+          ? `${t("Yes")} ${percent(result.yes.share)} · ${t("ahead")}`
+          : `${t("No")} ${percent(result.no.share)} · ${t("ahead")}`;
     const label = `${t("Yes")} ${percent(result.yes.share)} · ${t("No")} ${percent(result.no.share)} · ${t(result.yes.standing === "tied" ? "Tied" : result.yes.standing === "leading" ? "Yes is ahead" : "No is ahead")}`;
-    return accessible
+    return form === "spoken"
       ? `${label}. ${t("Yes")} ${count(result.yes.votes)}, ${t("No")} ${count(result.no.votes)}. ${result.reportingLabel}. ${new Date(result.reportedAt).toLocaleString(language)}`
       : label;
   }
+  if (form === "row")
+    return result.standing === "leading"
+      ? `${percent(result.share)} · ${t("Leading")}`
+      : result.standing === "tied"
+        ? `${percent(result.share)} · ${t("Tied")}`
+        : percent(result.share);
   const label = `${percent(result.share)} · ${t("{count} votes", { count: count(result.votes) })}${result.standing === "leading" ? ` · ${t("Leading")}` : result.standing === "tied" ? ` · ${t("Tied")}` : ` · ${t("{rank} of {total}", { rank: result.rank, total: result.fieldSize })}`}`;
-  return accessible
+  return form === "spoken"
     ? `${label}. ${result.reportingLabel}. ${new Date(result.reportedAt).toLocaleString(language)}`
     : label;
 }
 
+/**
+ * `row` drops the results label and timestamp because the Elections tab
+ * states them once for the whole list.
+ */
 export function GuideVoteResult({
   result,
   status,
+  variant = "full",
 }: {
   result?: GuideVote;
   status: Snapshot["status"] | "loading";
+  variant?: "full" | "row";
 }) {
-  const label = useGuideVoteLabel(result, status);
+  const label = useGuideVoteLabel(result, status, variant);
   const { language, t } = useAppTranslation();
+  const full = variant === "full";
   return (
     <View style={s.container} accessible={false}>
       {result && result.totalVotes > 0 && (
@@ -85,25 +119,50 @@ export function GuideVoteResult({
           />
         </View>
       )}
-      {result && result.totalVotes > 0 && (
+      {full && result && result.totalVotes > 0 && (
         <Text style={s.timestamp}>{t("Reported results")}</Text>
       )}
       <Text style={s.label}>{label}</Text>
-      {result && (
+      {full && result && (
         <Text style={s.timestamp}>
-          {new Date(result.reportedAt).toLocaleString(language, {
-            timeZone: "America/Los_Angeles",
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-            timeZoneName: "short",
-          })}
+          {formatReportedAt(result.reportedAt, language)}
         </Text>
       )}
     </View>
   );
 }
+const POLL_NOTE = {
+  loading: "Checking polls…",
+  unavailable: "Polling unavailable",
+  none: "No polls in our sources",
+  other: "No other polls in our sources",
+} as const;
+
+export function GuideListStampLine({ stamp }: { stamp: GuideListStamp }) {
+  const { t, language } = useAppTranslation();
+  const time =
+    stamp.results && formatReportedAt(stamp.results.reportedAt, language);
+  const polls = stamp.polls && t(POLL_NOTE[stamp.polls]);
+  return (
+    <Text
+      style={s.timestamp}
+      accessibilityLabel={[
+        stamp.results &&
+          [t("Reported results"), stamp.results.reportingLabel, time]
+            .filter(Boolean)
+            .join(", "),
+        polls,
+      ]
+        .filter(Boolean)
+        .join(". ")}
+    >
+      {[stamp.results && `${t("Reported results")} · ${time}`, polls]
+        .filter(Boolean)
+        .join(" · ")}
+    </Text>
+  );
+}
+
 export function GuideVoteDetails({
   electionDate,
   candidateKey,

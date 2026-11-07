@@ -18,6 +18,11 @@ export const electionStrings = {
       es: "Condados de Alameda, Contra Costa, San Francisco, San Mateo y Santa Clara. Consulte la boleta de su condado.",
       zh: "适用于阿拉米达、康特拉科斯塔、旧金山、圣马特奥和圣克拉拉县。请核对您所在县的选票。",
     },
+  "About this regional measure": {
+    en: "About this regional measure",
+    es: "Acerca de esta medida regional",
+    zh: "关于此地区性提案",
+  },
   "Official measure text is shown as published.": {
     en: "Official measure text is shown as published.",
     es: "El texto oficial de la medida se muestra tal como fue publicado.",
@@ -397,6 +402,7 @@ export const electionStrings = {
     zh: "已报告结果",
   },
   Poll: { en: "Poll", es: "Encuesta", zh: "民调" },
+  Polls: { en: "Polls", es: "Encuestas", zh: "民调" },
   Close: { en: "Close", es: "Cerrar", zh: "关闭" },
   "Expand poll": {
     en: "Expand poll",
@@ -526,6 +532,17 @@ export const electionStrings = {
   },
   Tied: { en: "Tied", es: "Empate", zh: "平票" },
   Leading: { en: "Leading", es: "En cabeza", zh: "领先" },
+  ahead: { en: "ahead", es: "adelante", zh: "领先" },
+  "No polls in our sources": {
+    en: "No polls in our sources",
+    es: "No hay encuestas en nuestras fuentes",
+    zh: "我们的来源暂无民调",
+  },
+  "No other polls in our sources": {
+    en: "No other polls in our sources",
+    es: "No hay otras encuestas en nuestras fuentes",
+    zh: "我们的来源暂无其他民调",
+  },
   "{count} votes": {
     en: "{count} votes",
     es: "{count} votos",
