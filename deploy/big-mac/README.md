@@ -11,6 +11,7 @@ change here is a change to a running service.
 | ------------------------------ | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `com.billion.supervisor.plist` | `~/Library/LaunchAgents/` | The scraper supervisor (`apps/supervisor`), which owns every scheduled and manual job                           |
 | `billion-supervisor`           | `~/.local/bin/`           | The wrapper launchd execs — resolves the pinned image, mounts state, runs the container                         |
+| `com.billion.autodeploy.plist` | `~/Library/LaunchAgents/` | Runs `billion-autodeploy` every 120 seconds                                                                     |
 | `billion-autodeploy`           | `~/.local/bin/`           | The existing automatic deployment service checks merged CI images and waits for scraper work to finish          |
 | `com.billion.flux-api.plist`   | `~/Library/LaunchAgents/` | The local FLUX HTTP server that generates header art when the hosted provider is unavailable                    |
 | `Modelfile.billion-scraper`    | `ollama create`           | Pins the local LLM to a 32K context; the full advertised window costs startup latency and memory for no benefit |
@@ -28,8 +29,8 @@ pnpm deploy:scraper            # deploy current origin/main
 pnpm deploy:scraper --dry-run  # check without touching the host
 ```
 
-The FLUX plist and the Modelfile are installed by hand; they change rarely and
-have no deploy step of their own.
+The FLUX and autodeploy plists and the Modelfile are installed by hand; they
+change rarely and have no deploy step of their own.
 
 ## Automatic deployment waits for scraper work
 
