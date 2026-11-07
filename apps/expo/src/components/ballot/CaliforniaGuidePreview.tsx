@@ -234,20 +234,6 @@ function MeasureRow({
   );
 }
 
-function GovernorResult({ name, result }: { name: string; result: GuideVote }) {
-  const label = useGuideVoteLabel(result, "reported", "spoken");
-  return (
-    <View
-      accessible
-      accessibilityLabel={`${name}, ${label}`}
-      style={{ padding: 14 }}
-    >
-      <Text style={s.rowTitle}>{name}</Text>
-      <GuideVoteResult result={result} status="reported" variant="row" />
-    </View>
-  );
-}
-
 function GuideLinkRow({
   icon,
   title,
@@ -636,18 +622,6 @@ export function CaliforniaGuidePreview({
                       title={tx("Governor poll")}
                       poll={results.governor.poll}
                     />
-                  </View>
-                )}
-                {results?.governor.kind === "official" && (
-                  <View style={s.standingRow}>
-                    <Text style={s.rowTitle}>{tx("Governor")}</Text>
-                    {results.governor.candidates.map((candidate) => (
-                      <GovernorResult
-                        key={candidate.name}
-                        name={candidate.name}
-                        result={candidate.result}
-                      />
-                    ))}
                   </View>
                 )}
                 <ScrollView
