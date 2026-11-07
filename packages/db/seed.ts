@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import type { BillBriefRecord } from "@acme/validators";
+import { BillBriefRecordSchema } from "@acme/validators";
 
 import { clampBillDescription } from "./src/bill-description";
 import { db } from "./src/client";
@@ -62,8 +63,17 @@ const bills = [
     chamber: "House",
     summary:
       "Authorizes $200 billion over 10 years for infrastructure modernization including roads, bridges, and transit.",
-    fullText:
-      "Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled, SECTION 1. SHORT TITLE. This Act may be cited as the 'Infrastructure Modernization Act of 2025'. SECTION 2. FINDINGS. Congress finds that the nation's infrastructure is in critical need of repair and modernization...",
+    fullText: `Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled.
+
+SECTION 1. SHORT TITLE. This Act may be cited as the 'Infrastructure Modernization Act of 2025'.
+
+SECTION 2. FINDINGS. Congress finds that the nation's infrastructure is in critical need of repair and modernization.
+
+SECTION 3. SURFACE TRANSPORTATION AUTHORIZATION. There is authorized to be appropriated $200,000,000,000 for fiscal years 2026 through 2035 for the repair and modernization of roads, bridges, and public transit systems. State shares shall account for population, road conditions, and public transit ridership.
+
+SECTION 4. TRANSIT MODERNIZATION GRANTS. The Secretary of Transportation shall award competitive grants to eligible local governments for light rail and bus rapid transit projects.
+
+SECTION 5. RURAL CONNECTIVITY. The Secretary shall reserve funds for broadband infrastructure serving rural communities.`,
     aiGeneratedArticle: `# What This Means For You
 Your daily commute could get a lot better. This bill allocates $200 billion to fix crumbling roads and bridges and expand public transit options.
 
@@ -93,8 +103,17 @@ Supporters argue the bill is long overdue, pointing to the American Society of C
     chamber: "Senate",
     summary:
       "Establishes federal data privacy standards requiring companies to obtain consent before collecting personal data.",
-    fullText:
-      "Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled, SECTION 1. SHORT TITLE. This Act may be cited as the 'Digital Privacy Protection Act'. SECTION 2. PURPOSE. The purpose of this Act is to establish comprehensive federal data privacy protections. SECTION 3. INDIVIDUAL DATA RIGHTS. A covered entity shall provide an individual with the right to access and delete personal data collected about the individual.",
+    fullText: `Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled.
+
+SECTION 1. SHORT TITLE. This Act may be cited as the 'Digital Privacy Protection Act'.
+
+SECTION 2. PURPOSE. The purpose of this Act is to establish comprehensive federal data privacy protections.
+
+SECTION 3. INDIVIDUAL DATA RIGHTS. A covered entity shall provide an individual with the right to access and delete personal data collected about the individual.
+
+SECTION 4. AFFIRMATIVE CONSENT. A covered entity shall obtain affirmative express consent before collecting personal data beyond what is reasonably necessary to provide a product or service, and before selling personal data to a third party.
+
+SECTION 5. MINORS. A covered entity may not sell the personal data of an individual the entity knows is under 16 years of age.`,
     aiGeneratedArticle: `# What This Means For You
 Companies would need your permission before collecting or selling your personal data, and you'd have the right to see and delete what they've gathered.
 
@@ -124,8 +143,17 @@ Privacy advocates praise the bill as a necessary step but criticize exceptions t
     chamber: "House",
     summary:
       "Provides $50 billion for water infrastructure upgrades and lead pipe replacement in communities with contaminated water systems.",
-    fullText:
-      "Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled, SECTION 1. SHORT TITLE. This Act may be cited as the 'Clean Water Access Act'. SECTION 2. FINDINGS. Congress finds that millions of Americans lack access to clean, safe drinking water...",
+    fullText: `Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled.
+
+SECTION 1. SHORT TITLE. This Act may be cited as the 'Clean Water Access Act'.
+
+SECTION 2. FINDINGS. Congress finds that millions of Americans lack access to clean, safe drinking water.
+
+SECTION 3. WATER INFRASTRUCTURE GRANTS. There is authorized to be appropriated $50,000,000,000 for fiscal years 2026 through 2035 for grants to replace lead service lines and modernize drinking water treatment facilities.
+
+SECTION 4. PRIORITY. The Administrator shall give priority to communities with documented drinking water contamination and to low-income communities that have borne disproportionate environmental harms.
+
+SECTION 5. PUBLIC REPORTING. The Administrator shall publish water quality testing results received under this Act on a publicly accessible website.`,
     aiGeneratedArticle: `# What This Means For You
 If you live in a community with aging water infrastructure, this bill could fund the replacement of lead pipes and upgrade your local water treatment facility.
 
@@ -155,8 +183,17 @@ Supporters point to the moral imperative of clean water access, citing ongoing h
     chamber: "Senate",
     summary:
       "Requires AI impact assessments and public disclosure for automated decision-making in hiring, lending, and criminal justice.",
-    fullText:
-      "Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled, SECTION 1. SHORT TITLE. This Act may be cited as the 'AI Accountability and Transparency Act'. SECTION 2. DEFINITIONS. In this Act: (1) AUTOMATED DECISION SYSTEM...",
+    fullText: `Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled.
+
+SECTION 1. SHORT TITLE. This Act may be cited as the 'AI Accountability and Transparency Act'.
+
+SECTION 2. DEFINITIONS. The term 'high-impact automated decision system' means an automated system used to make or substantially influence a decision concerning employment, lending, housing, health care, or criminal justice.
+
+SECTION 3. NOTICE AND EXPLANATION. A person subject to a decision made or substantially influenced by a high-impact automated decision system shall receive notice of that use and a plain-language explanation of the principal factors considered by the system.
+
+SECTION 4. IMPACT ASSESSMENTS. A covered entity shall complete an annual impact assessment that evaluates accuracy, discrimination risks, data practices, and available appeal procedures.
+
+SECTION 5. REGISTRATION. A covered entity shall register each high-impact automated decision system with the Federal Trade Commission before deployment.`,
     aiGeneratedArticle: `# What This Means For You
 If AI was used to deny you a loan, reject your job application, or influence a court decision about you, this bill would give you the right to know — and to challenge it.
 
@@ -186,8 +223,17 @@ Tech companies warn that overly prescriptive regulation could stifle innovation 
     chamber: "House",
     summary:
       "Expands Low-Income Housing Tax Credit, provides grants for zoning reform, and invests $30 billion in public housing rehabilitation.",
-    fullText:
-      "Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled, SECTION 1. SHORT TITLE. This Act may be cited as the 'Affordable Housing Expansion Act'...",
+    fullText: `Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled.
+
+SECTION 1. SHORT TITLE. This Act may be cited as the 'Affordable Housing Expansion Act'.
+
+SECTION 2. LOW-INCOME HOUSING TAX CREDIT. The State housing credit ceiling under section 42 of the Internal Revenue Code shall be increased by 50 percent for calendar years 2026 through 2035.
+
+SECTION 3. HOUSING SUPPLY GRANTS. The Secretary of Housing and Urban Development shall award competitive grants to state and local governments that adopt reforms allowing more housing near jobs and public transportation.
+
+SECTION 4. PUBLIC HOUSING REHABILITATION. There is appropriated $30,000,000,000 to repair and modernize public housing properties.
+
+SECTION 5. TENANT PROTECTIONS. A covered landlord may evict a tenant only for good cause and may not require a security deposit greater than one month of rent.`,
     aiGeneratedArticle: `# What This Means For You
 If you're struggling with rising rents, this bill aims to increase the supply of affordable housing in your area through a combination of tax incentives and direct investment.
 
@@ -416,14 +462,15 @@ Free speech advocates are split: some see algorithmic curation as protected expr
  *
  * Indexed to match `bills` above.
  */
-const billBriefs: (Omit<
+type SeedBillBrief = Omit<
   BillBriefRecord,
-  "generatedAt" | "modelVersion"
-> | null)[] = [
+  "generatedAt" | "modelVersion" | "verifiedQuotes"
+>;
+
+const billBriefs: SeedBillBrief[] = [
   {
     version: 8,
     legalStatus: "proposed",
-    verifiedQuotes: 1,
     summary:
       "States would get **ten years of road and bridge funding authority**, but Congress would still approve the actual money each year.",
     hook: "If this bill becomes law, states would get **a longer window to plan road and bridge repairs**, while cities could apply for **new public-transit money**. The $200 billion is a maximum, not guaranteed money; Congress would still decide how much can actually be spent each year.",
@@ -545,7 +592,6 @@ const billBriefs: (Omit<
   {
     version: 8,
     legalStatus: "proposed",
-    verifiedQuotes: 2,
     summary:
       "Companies would need permission to collect or sell personal data, and people could **review and delete what companies hold**.",
     hook: "If passed, the bill would require companies to **get permission before collecting or selling personal data**. People across the country could also **review and delete information held about them**, although the text does not settle whether **stronger state privacy laws** would remain in place.",
@@ -639,6 +685,295 @@ const billBriefs: (Omit<
         },
       ],
     },
+    reading: [],
+  },
+  {
+    version: 8,
+    legalStatus: "proposed",
+    summary:
+      "A new **$50 billion grant program** would replace lead service lines and modernize drinking-water treatment plants.",
+    hook: "If passed, the bill would make **$50 billion available over ten years** for lead-pipe replacement and treatment-plant upgrades. Communities with documented contamination and low incomes would receive **priority for grants**, while reported test results would move to **a public website**.",
+    facts: [
+      {
+        label: "Funding authority",
+        value: "$50B",
+        note: "Maximum for fiscal years 2026 through 2035.",
+        quote: {
+          text: "There is authorized to be appropriated $50,000,000,000 for fiscal years 2026 through 2035",
+          locator: "Sec. 3",
+        },
+      },
+      { label: "Chamber status", value: "Introduced" },
+    ],
+    changes: [
+      {
+        kind: "funds",
+        title: "Lead-pipe and treatment-plant grants",
+        before:
+          "Water utilities now combine **local revenue, state aid, and existing federal programs** to pay for major replacements.",
+        after:
+          "The bill would create **ten years of federal grant authority** for replacing lead service lines and upgrading drinking-water treatment facilities.",
+        quote: {
+          text: "for grants to replace lead service lines and modernize drinking water treatment facilities",
+          locator: "Sec. 3",
+        },
+      },
+      {
+        kind: "requires",
+        title: "Priority for contaminated communities",
+        before:
+          "Existing programs use their own scoring rules, so contamination and household income **do not always receive the same weight**.",
+        after:
+          "The EPA would have to prioritize communities with **documented contamination** and low-income communities facing disproportionate environmental harms.",
+        quote: {
+          text: "The Administrator shall give priority to communities with documented drinking water contamination and to low-income communities that have borne disproportionate environmental harms",
+          locator: "Sec. 4",
+        },
+      },
+      {
+        kind: "creates",
+        title: "Public water-quality results website",
+        before:
+          "Water test results are published through **different state and local systems**, with varying levels of detail.",
+        after:
+          "The EPA would publish testing results submitted under this bill on **one publicly accessible website**.",
+        quote: {
+          text: "The Administrator shall publish water quality testing results received under this Act on a publicly accessible website",
+          locator: "Sec. 5",
+        },
+      },
+    ],
+    affected: [
+      {
+        group: "Residents served by contaminated water systems",
+        takeaway:
+          "Residents could see **faster lead-pipe replacement and treatment upgrades** if their utility wins a grant.",
+        effect:
+          "Their communities would receive priority in the grant process, but **the bill does not guarantee a grant to every eligible system**.",
+        direction: "gains",
+      },
+      {
+        group: "Local drinking-water utilities",
+        takeaway:
+          "Utilities could apply for **new federal support for expensive capital projects**.",
+        effect:
+          "Utilities replacing lead lines or modernizing treatment plants could receive grants and would submit test results for **federal public reporting**.",
+        direction: "mixed",
+      },
+    ],
+    unknowns: [
+      "Congress would still need to **approve yearly spending**, so the full $50 billion is not guaranteed.",
+      "The bill does not specify **grant sizes, matching requirements, or application deadlines**.",
+      "The text does not say how quickly the public website must post **new or corrected test results**.",
+    ],
+    terms: [
+      {
+        term: "Lead service line",
+        plain:
+          "The pipe connecting a building to a water main; replacing it removes **a common source of lead in drinking water**.",
+      },
+    ],
+    reading: [],
+  },
+  {
+    version: 8,
+    legalStatus: "proposed",
+    summary:
+      "People would receive **notice and an explanation when AI shapes a high-impact decision** about them.",
+    hook: "If passed, the bill would require **notice and a plain-language explanation** when automated systems influence decisions in employment, lending, housing, health care, or criminal justice. Organizations would also complete **annual impact assessments** and register covered systems with the FTC before using them.",
+    facts: [
+      {
+        label: "Covered areas",
+        value: "5",
+        note: "Jobs, lending, housing, health care, and criminal justice.",
+      },
+      { label: "Review cycle", value: "Annual" },
+      { label: "Chamber status", value: "Passed Committee" },
+    ],
+    changes: [
+      {
+        kind: "requires",
+        title: "Notice when AI influences a decision",
+        before:
+          "People may not know whether an automated system **helped decide a job, loan, home, care, or justice outcome**.",
+        after:
+          "A person would receive **notice and a plain-language explanation** of the main factors considered by a covered system.",
+        quote: {
+          text: "A person subject to a decision made or substantially influenced by a high-impact automated decision system shall receive notice of that use and a plain-language explanation of the principal factors considered by the system",
+          locator: "Sec. 3",
+        },
+      },
+      {
+        kind: "requires",
+        title: "Annual reviews of high-impact AI systems",
+        before:
+          "Federal law does not impose **one general annual review standard** across all five covered decision areas.",
+        after:
+          "Organizations would review each covered system every year for **accuracy, discrimination risks, data practices, and appeal procedures**.",
+        quote: {
+          text: "A covered entity shall complete an annual impact assessment that evaluates accuracy, discrimination risks, data practices, and available appeal procedures",
+          locator: "Sec. 4",
+        },
+      },
+      {
+        kind: "requires",
+        title: "FTC registration before deployment",
+        before:
+          "Organizations can deploy many automated decision systems **without listing them in a single federal registry**.",
+        after:
+          "An organization would have to **register each covered system with the FTC before deployment**.",
+        quote: {
+          text: "A covered entity shall register each high-impact automated decision system with the Federal Trade Commission before deployment",
+          locator: "Sec. 5",
+        },
+      },
+    ],
+    affected: [
+      {
+        group: "Job applicants, borrowers, tenants, patients, and defendants",
+        takeaway:
+          "People would gain **notice and an explanation when covered AI affects a decision**.",
+        effect:
+          "They could learn that AI was used and see its principal factors, but **the excerpt does not create a specific right to reverse the result**.",
+        direction: "gains",
+      },
+      {
+        group: "Organizations using high-impact automated systems",
+        takeaway:
+          "Organizations would take on **annual review, explanation, and registration duties**.",
+        effect:
+          "Before deployment and every year afterward, covered organizations would document how systems work and assess **accuracy and discrimination risks**.",
+        direction: "loses",
+      },
+    ],
+    unknowns: [
+      "The excerpt does not define **how much influence makes a system 'substantially' responsible** for a decision.",
+      "The bill does not state **which penalties apply** when an organization fails to register or provide notice.",
+      "An assessment must examine appeal procedures, but the excerpt does not create **a uniform appeal process**.",
+    ],
+    terms: [
+      {
+        term: "Impact assessment",
+        plain:
+          "A documented review of how a system performs and whom it may affect, including **accuracy and discrimination risks**.",
+      },
+    ],
+    reading: [],
+  },
+  {
+    version: 8,
+    legalStatus: "proposed",
+    summary:
+      "The bill would **expand affordable-housing tax credits and fund public-housing repairs** while adding tenant rules.",
+    hook: "If passed, the bill would **increase federal affordable-housing tax credits by 50 percent**, offer grants to governments that allow more homes near jobs and transit, and put **$30 billion into public-housing repairs**. It would also cap security deposits and require good cause for eviction from covered rentals.",
+    facts: [
+      {
+        label: "Tax-credit increase",
+        value: "50%",
+        note: "For calendar years 2026 through 2035.",
+        quote: {
+          text: "The State housing credit ceiling under section 42 of the Internal Revenue Code shall be increased by 50 percent for calendar years 2026 through 2035",
+          locator: "Sec. 2",
+        },
+      },
+      {
+        label: "Public-housing repairs",
+        value: "$30B",
+        quote: {
+          text: "There is appropriated $30,000,000,000 to repair and modernize public housing properties",
+          locator: "Sec. 4",
+        },
+      },
+      { label: "Chamber status", value: "In Committee" },
+    ],
+    changes: [
+      {
+        kind: "expands",
+        title: "More affordable-housing tax credits",
+        before:
+          "Each state receives an annual ceiling for federal credits that help finance **income-restricted rental housing**.",
+        after:
+          "The bill would raise each state's housing-credit ceiling by **50 percent for ten calendar years**.",
+        quote: {
+          text: "The State housing credit ceiling under section 42 of the Internal Revenue Code shall be increased by 50 percent for calendar years 2026 through 2035",
+          locator: "Sec. 2",
+        },
+      },
+      {
+        kind: "creates",
+        title: "Housing grants tied to local rule changes",
+        before:
+          "State and local governments decide where denser housing is allowed, while federal housing grants use **separate eligibility rules**.",
+        after:
+          "Governments that allow more homes near jobs and transit could compete for **new federal housing-supply grants**.",
+        quote: {
+          text: "The Secretary of Housing and Urban Development shall award competitive grants to state and local governments that adopt reforms allowing more housing near jobs and public transportation",
+          locator: "Sec. 3",
+        },
+      },
+      {
+        kind: "funds",
+        title: "Public-housing repairs and modernization",
+        before:
+          "Public-housing agencies pay for major repairs through **existing federal capital funds and local resources**.",
+        after:
+          "The bill would provide **$30 billion directly for repairing and modernizing public housing properties**.",
+        quote: {
+          text: "There is appropriated $30,000,000,000 to repair and modernize public housing properties",
+          locator: "Sec. 4",
+        },
+      },
+      {
+        kind: "restricts",
+        title: "Good-cause evictions and deposit cap",
+        before:
+          "Eviction reasons and security-deposit limits currently **vary by state, city, and type of housing**.",
+        after:
+          "Covered landlords could evict only for good cause and could charge **no more than one month's rent as a deposit**.",
+        quote: {
+          text: "A covered landlord may evict a tenant only for good cause and may not require a security deposit greater than one month of rent",
+          locator: "Sec. 5",
+        },
+      },
+    ],
+    affected: [
+      {
+        group: "Low-income renters and public-housing residents",
+        takeaway:
+          "Renters could gain **more income-restricted homes, repaired properties, and deposit limits**.",
+        effect:
+          "The bill could support more affordable units and repairs while adding tenant protections, but **the timing and location of new homes would depend on later projects**.",
+        direction: "gains",
+      },
+      {
+        group: "Affordable-housing developers",
+        takeaway:
+          "Developers could compete for **a larger pool of federal housing tax credits**.",
+        effect:
+          "A higher state credit ceiling could help finance more projects, although developers would still need **state awards and other project funding**.",
+        direction: "gains",
+      },
+      {
+        group: "State and local governments",
+        takeaway:
+          "Governments could receive grants after **changing rules to allow more housing near jobs and transit**.",
+        effect:
+          "Local governments would keep control of their rules, but access to the new grant program would depend on **adopting qualifying housing reforms**.",
+        direction: "mixed",
+      },
+    ],
+    unknowns: [
+      "The bill does not estimate **how many homes the larger tax-credit ceiling would finance**.",
+      "HUD would still need to define **which local housing reforms qualify** for competitive grants.",
+      "The excerpt does not define **good cause or which landlords are covered** by the tenant rules.",
+    ],
+    terms: [
+      {
+        term: "Low-Income Housing Tax Credit",
+        plain:
+          "A federal tax credit states award to projects that keep some rents affordable; it **helps finance construction or rehabilitation**.",
+      },
+    ],
     reading: [],
   },
 ];
@@ -760,67 +1095,98 @@ const billLenses = [
   },
 ];
 
+function prepareBillBriefs(): BillBriefRecord[] {
+  if (billBriefs.length !== bills.length) {
+    throw new Error(
+      `Expected one structured brief per seeded bill; found ${billBriefs.length} briefs for ${bills.length} bills.`,
+    );
+  }
+
+  return billBriefs.map((brief, index) => {
+    const bill = bills[index];
+    if (!bill) throw new Error(`Missing seeded bill at index ${index}.`);
+
+    const quotes = [
+      ...brief.facts.flatMap((fact) => (fact.quote ? [fact.quote] : [])),
+      ...brief.changes.flatMap((change) =>
+        change.quote ? [change.quote] : [],
+      ),
+    ];
+    const ungroundedQuote = quotes.find(
+      (quote) => quote.text.length < 20 || !bill.fullText.includes(quote.text),
+    );
+    if (ungroundedQuote) {
+      throw new Error(
+        `Structured brief quote is not grounded in ${bill.billNumber}: ${ungroundedQuote.text}`,
+      );
+    }
+
+    return BillBriefRecordSchema.parse({
+      ...brief,
+      verifiedQuotes: quotes.length,
+      generatedAt: now.toISOString(),
+      modelVersion: "seed",
+    });
+  });
+}
+
 async function seed() {
   assertSeedTargetIsLocal();
+  const preparedBriefs = prepareBillBriefs();
 
   console.log("Seeding database...\n");
 
-  console.log("Inserting bills...");
-  const insertedBills = await db
+  console.log("Inserting or refreshing bills...");
+  const seededBills = await db
     .insert(Bill)
     .values(bills)
-    .onConflictDoNothing()
+    .onConflictDoUpdate({
+      target: [Bill.billNumber, Bill.sourceWebsite],
+      set: {
+        title: sql`excluded.title`,
+        description: sql`excluded.description`,
+        sponsor: sql`excluded.sponsor`,
+        status: sql`excluded.status`,
+        introducedDate: sql`excluded.introduced_date`,
+        congress: sql`excluded.congress`,
+        chamber: sql`excluded.chamber`,
+        summary: sql`excluded.summary`,
+        fullText: sql`excluded.full_text`,
+        aiGeneratedArticle: sql`excluded.ai_generated_article`,
+        thumbnailUrl: sql`excluded.thumbnail_url`,
+        url: sql`excluded.url`,
+        contentHash: sql`excluded.content_hash`,
+        versions: sql`excluded.versions`,
+        updatedAt: now,
+      },
+    })
     .returning({
-      id: Bill.id,
-      title: Bill.title,
-      contentHash: Bill.contentHash,
-    });
-  console.log(`  ${insertedBills.length} bills inserted`);
-
-  // Resolve every fixture after the insert instead of relying on RETURNING.
-  // RETURNING only includes newly inserted rows, which meant re-running the
-  // seed against an existing local database never added or refreshed briefs.
-  const seededBills = await db
-    .select({
       id: Bill.id,
       billNumber: Bill.billNumber,
       contentHash: Bill.contentHash,
-    })
-    .from(Bill)
-    .where(
-      and(
-        eq(Bill.sourceWebsite, "congress.gov"),
-        inArray(
-          Bill.billNumber,
-          bills.map((bill) => bill.billNumber),
-        ),
-      ),
-    );
+    });
+  console.log(`  ${seededBills.length} bills inserted or refreshed`);
 
   console.log("Inserting bill briefs...");
   const briefRecords = seededBills.flatMap((bill) => {
     const fixtureIndex = bills.findIndex(
       (fixture) => fixture.billNumber === bill.billNumber,
     );
-    const brief = billBriefs[fixtureIndex];
+    const brief = preparedBriefs[fixtureIndex];
     return brief
       ? [
           {
             contentType: "bill" as const,
             contentId: bill.id,
             contentHash: bill.contentHash,
-            brief: {
-              ...brief,
-              generatedAt: now.toISOString(),
-              modelVersion: "seed",
-            },
+            brief,
             modelVersion: "seed",
           },
         ]
       : [];
   });
   if (briefRecords.length === 0) {
-    console.log("  0 briefs inserted (no new bills to link)");
+    console.log("  0 briefs inserted (no seeded bills to link)");
   } else {
     const insertedBriefs = await db
       .insert(ContentBrief)
@@ -905,7 +1271,7 @@ async function seed() {
 
   console.log("Inserting videos (feed items)...");
   console.log(
-    `\nDone! Seeded ${insertedBills.length} bills, ${insertedGov.length} gov content, and ${insertedCases.length} court cases.`,
+    `\nDone! Seeded or refreshed ${seededBills.length} bills, inserted ${insertedGov.length} gov content items, and inserted ${insertedCases.length} court cases.`,
   );
   process.exit(0);
 }

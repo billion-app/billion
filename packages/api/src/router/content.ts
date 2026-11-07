@@ -19,12 +19,12 @@ import {
   GovernmentContent,
   SavedArticle,
 } from "@acme/db/schema";
-import { parseBillBriefRecord } from "@acme/validators";
 
 import type { ContentJurisdiction } from "../lib/content-jurisdiction";
 import { toBillTimelineActions } from "../lib/bill-actions";
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
 import { projectBillStatus } from "../lib/bill-status";
+import { parseCurrentContentBrief } from "../lib/content-brief";
 import {
   billJurisdiction,
   displaySessionLabel,
@@ -154,16 +154,21 @@ async function getLensData(
   return lens?.lensData ?? null;
 }
 
-// Look up the cached structured brief for a content item. Rows written by an
-// older shipped shapes are normalized here, so the client can treat a present
-// brief as renderable while the scraper refreshes stale rows independently.
-// Bills are the only type generating briefs today.
+// Look up the cached structured brief for a content item. Older stored shapes
+// are normalized here, but a brief derived from different source content stays
+// hidden until the scraper refreshes it. Bills are the only type generating
+// briefs today.
 async function getBrief(
   contentId: string,
   contentType: "bill" | "government_content" | "court_case",
+  sourceContentHash: string,
 ) {
   const [row] = await db
-    .select({ id: ContentBrief.id, brief: ContentBrief.brief })
+    .select({
+      id: ContentBrief.id,
+      brief: ContentBrief.brief,
+      contentHash: ContentBrief.contentHash,
+    })
     .from(ContentBrief)
     .where(
       and(
@@ -173,7 +178,7 @@ async function getBrief(
     )
     .limit(1);
   if (!row) return null;
-  const parsed = parseBillBriefRecord(row.brief);
+  const parsed = parseCurrentContentBrief(row, sourceContentHash);
   if (!parsed) return null;
 
   // Change artwork is stored per change rather than inside the brief JSON, so
@@ -902,7 +907,7 @@ export const contentRouter = {
               ).catch(() => undefined)
             : undefined,
           getLensData(b.id, "bill"),
-          getBrief(b.id, "bill"),
+          getBrief(b.id, "bill", b.contentHash),
         ]);
         const sponsor = sponsorIdentity
           ? {

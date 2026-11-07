@@ -185,5 +185,6 @@ pnpm --filter @acme/scraper run retroactive-briefs --dry-run
 ```
 
 New and changed bills get briefs automatically as part of the normal scrape
-(`upsertBillBrief` in `utils/db/operations.ts`). `pnpm db:seed` writes two
-example briefs so the UI is visible locally without an LLM key.
+(`upsertBillBrief` in `utils/db/operations.ts`). `pnpm db:seed` writes a current
+structured brief for every seeded bill so the UI is visible locally without an
+LLM key. Rerunning the seed refreshes the fixture-owned bill rows and briefs.
