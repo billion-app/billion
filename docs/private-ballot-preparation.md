@@ -12,9 +12,9 @@ uses the supplied election and contests in
 Preparation is unavailable for unidentified elections and duplicate contest
 snapshots. The standalone [archive](../apps/expo/src/app/ballot-preparation.tsx)
 reads local preparation without fetching a ballot, requiring an account, or
-requiring the provider to continue listing an older election. The new personalized
-Elections entry owned by #418 still needs to expose the archive in its production
-invitation and validate the real ballot flow.
+requiring the provider to continue listing an older election. The address
+ballot links to the archive; the Elections tab and How to Vote guide do not.
+The real ballot flow still needs production validation (#418).
 
 ## Persistence and privacy
 
