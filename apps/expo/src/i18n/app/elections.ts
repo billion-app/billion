@@ -397,6 +397,7 @@ export const electionStrings = {
     zh: "已报告结果",
   },
   Poll: { en: "Poll", es: "Encuesta", zh: "民调" },
+  Polls: { en: "Polls", es: "Encuestas", zh: "民调" },
   Close: { en: "Close", es: "Cerrar", zh: "关闭" },
   "Expand poll": {
     en: "Expand poll",

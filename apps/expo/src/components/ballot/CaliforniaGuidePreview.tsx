@@ -401,14 +401,10 @@ export function CaliforniaGuidePreview({
         contentContainerStyle={s.screen}
         showsVerticalScrollIndicator={false}
         ListHeaderComponentStyle={{
-          marginBottom:
-            tab === "measures" &&
-            (hasBoldedTitles || language !== "en" || stamp)
-              ? 12
-              : 22,
+          marginBottom: tab === "measures" ? 12 : 22,
         }}
         ListHeaderComponent={
-          <View style={{ gap: 22 }}>
+          <View style={{ gap: 14 }}>
             <View style={s.intro}>
               <Text style={s.kicker}>
                 {tx("California · General election")}
@@ -452,17 +448,6 @@ export function CaliforniaGuidePreview({
               }}
             />
 
-            {guide && (
-              <View style={s.pollToggle}>
-                <Text style={s.toggleText}>{tx("Show polls")}</Text>
-                <Switch
-                  accessibilityLabel={tx("Show polls")}
-                  value={showPolls}
-                  onValueChange={setShowPolls}
-                  hitSlop={8}
-                />
-              </View>
-            )}
             {query.isPending && <ActivityIndicator color={P.inkOnNight} />}
             {query.isError && (
               <Card>
@@ -586,119 +571,124 @@ export function CaliforniaGuidePreview({
               </View>
             )}
             {guide && (
-              <>
-                {tab === "offices" ? (
-                  <View style={s.list}>
-                    {stamp && <GuideListStampLine stamp={stamp} />}
-                    {showPolls && results?.governor.kind === "poll" && (
-                      <View style={s.standingRow}>
-                        <GuidePollResult
-                          title={tx("Governor poll")}
-                          poll={results.governor.poll}
-                        />
-                      </View>
-                    )}
-                    {results?.governor.kind === "official" && (
-                      <View style={s.standingRow}>
-                        <Text style={s.rowTitle}>{tx("Governor")}</Text>
-                        {results.governor.candidates.map((candidate) => (
-                          <GovernorResult
-                            key={candidate.name}
-                            name={candidate.name}
-                            result={candidate.result}
-                          />
-                        ))}
-                      </View>
-                    )}
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      style={s.officeChips}
-                      contentContainerStyle={s.officeChipRow}
-                      accessibilityLabel={tx("Filter by office")}
-                    >
-                      {[
-                        { slug: "all", label: tx("All offices") },
-                        ...offices.map((group) => ({
-                          slug: group.slug,
-                          label: translateAppLabel(
-                            language,
-                            group.name ?? tx("Statewide office"),
-                          ),
-                        })),
-                      ].map((chip) => (
-                        <Pill
-                          key={chip.slug}
-                          label={chip.label}
-                          active={officeFilter === chip.slug}
-                          onPress={() => setOfficeFilter(chip.slug)}
-                        />
-                      ))}
-                    </ScrollView>
-                    {offices
-                      .filter(
-                        (group) =>
-                          officeFilter === "all" || group.slug === officeFilter,
-                      )
-                      .map((group) => (
-                        <View key={group.slug} style={s.officeGroup}>
-                          <View style={s.officeHead}>
-                            <Text
-                              accessibilityRole="header"
-                              style={s.officeName}
-                            >
-                              {translateAppLabel(
-                                language,
-                                group.name ?? tx("Statewide office"),
-                              )}
-                            </Text>
-                            <Text style={s.officeCount}>
-                              {tx("candidate.count", {
-                                count: group.candidates.length,
-                              })}
-                            </Text>
-                          </View>
-                          <View style={s.officeCard}>
-                            {group.candidates.map((candidate, index) => (
-                              <CandidateRow
-                                key={`${candidate.officeSlug}:${candidate.name}`}
-                                candidate={candidate}
-                                result={officialCandidate(
-                                  results?.candidates[
-                                    `${candidate.officeSlug}:${candidate.name}`
-                                  ],
-                                )}
-                                last={index === group.candidates.length - 1}
-                              />
-                            ))}
-                          </View>
-                        </View>
-                      ))}
-                    <View style={s.officeGroup}>
-                      <GuideLinkRow
-                        icon="users"
-                        title={tx("All races and candidates")}
-                        note={tx("District, judicial and local contests")}
-                        onPress={() => router.push("/candidate-research")}
-                      />
-                    </View>
-                  </View>
-                ) : (
-                  <View style={s.list}>
-                    {(hasBoldedTitles || language !== "en") && (
+              <View style={s.listMeta}>
+                <View style={s.metaRow}>
+                  {tab === "measures" &&
+                    (hasBoldedTitles || language !== "en") && (
                       <View style={s.aiNote}>
                         <Icon name="sparkle" size={13} color={P.quiet} />
-                        <Text style={s.note}>
+                        <Text style={s.metaNote}>
                           {language === "en"
                             ? tx("Official titles · bold added by Billion")
                             : t("reader.translatedTitles")}
                         </Text>
                       </View>
                     )}
-                    {stamp && <GuideListStampLine stamp={stamp} />}
+                  <View style={s.pollToggle}>
+                    <Text style={s.toggleText}>{tx("Polls")}</Text>
+                    <Switch
+                      accessibilityLabel={tx("Show polls")}
+                      value={showPolls}
+                      onValueChange={setShowPolls}
+                      hitSlop={8}
+                    />
+                  </View>
+                </View>
+                {stamp && <GuideListStampLine stamp={stamp} />}
+              </View>
+            )}
+            {guide && tab === "offices" && (
+              <View style={s.list}>
+                {showPolls && results?.governor.kind === "poll" && (
+                  <View style={s.standingRow}>
+                    <GuidePollResult
+                      title={tx("Governor poll")}
+                      poll={results.governor.poll}
+                    />
                   </View>
                 )}
-              </>
+                {results?.governor.kind === "official" && (
+                  <View style={s.standingRow}>
+                    <Text style={s.rowTitle}>{tx("Governor")}</Text>
+                    {results.governor.candidates.map((candidate) => (
+                      <GovernorResult
+                        key={candidate.name}
+                        name={candidate.name}
+                        result={candidate.result}
+                      />
+                    ))}
+                  </View>
+                )}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={s.officeChips}
+                  contentContainerStyle={s.officeChipRow}
+                  accessibilityLabel={tx("Filter by office")}
+                >
+                  {[
+                    { slug: "all", label: tx("All offices") },
+                    ...offices.map((group) => ({
+                      slug: group.slug,
+                      label: translateAppLabel(
+                        language,
+                        group.name ?? tx("Statewide office"),
+                      ),
+                    })),
+                  ].map((chip) => (
+                    <Pill
+                      key={chip.slug}
+                      label={chip.label}
+                      active={officeFilter === chip.slug}
+                      onPress={() => setOfficeFilter(chip.slug)}
+                    />
+                  ))}
+                </ScrollView>
+                {offices
+                  .filter(
+                    (group) =>
+                      officeFilter === "all" || group.slug === officeFilter,
+                  )
+                  .map((group) => (
+                    <View key={group.slug} style={s.officeGroup}>
+                      <View style={s.officeHead}>
+                        <Text accessibilityRole="header" style={s.officeName}>
+                          {translateAppLabel(
+                            language,
+                            group.name ?? tx("Statewide office"),
+                          )}
+                        </Text>
+                        <Text style={s.officeCount}>
+                          {tx("candidate.count", {
+                            count: group.candidates.length,
+                          })}
+                        </Text>
+                      </View>
+                      <View style={s.officeCard}>
+                        {group.candidates.map((candidate, index) => (
+                          <CandidateRow
+                            key={`${candidate.officeSlug}:${candidate.name}`}
+                            candidate={candidate}
+                            result={officialCandidate(
+                              results?.candidates[
+                                `${candidate.officeSlug}:${candidate.name}`
+                              ],
+                            )}
+                            last={index === group.candidates.length - 1}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  ))}
+                <View style={s.officeGroup}>
+                  <GuideLinkRow
+                    icon="users"
+                    title={tx("All races and candidates")}
+                    note={tx("District, judicial and local contests")}
+                    onPress={() => router.push("/candidate-research")}
+                  />
+                </View>
+              </View>
             )}
           </View>
         }
@@ -741,16 +731,25 @@ const s = StyleSheet.create({
     lineHeight: 21,
     color: P.inkOnNight,
   },
+  listMeta: { gap: 2 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  metaNote: {
+    flexShrink: 1,
+    fontFamily: fontBody.regular,
+    fontSize: 12,
+    lineHeight: 18,
+    color: P.quiet,
+  },
   pollToggle: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 16,
+    gap: 8,
     minHeight: 44,
+    marginLeft: "auto",
   },
   toggleText: {
     fontFamily: fontBody.semibold,
-    fontSize: 14,
+    fontSize: 13,
     color: P.inkOnNight,
   },
   screen: {
@@ -792,7 +791,7 @@ const s = StyleSheet.create({
     lineHeight: 19,
     color: P.quiet,
   },
-  aiNote: { flexDirection: "row", alignItems: "center", gap: 6 },
+  aiNote: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
   list: { gap: 12 },
   row: {
     flexDirection: "row",
