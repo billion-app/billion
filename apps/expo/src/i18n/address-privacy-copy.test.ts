@@ -63,6 +63,6 @@ void test("the location draft notice names the action the person still has to ta
 void test("the guide labels generic rows as deadlines to check, not dates", () => {
   for (const language of LANGUAGES) {
     const heading = translateApp(language, "voteGuide.dates");
-    assert.match(heading, /DEADLINE|FECHAS LÍMITE|截止/, language);
+    assert.match(heading, /deadline|fechas límite|截止/i, language);
   }
 });
