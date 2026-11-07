@@ -18,6 +18,11 @@ export const electionStrings = {
       es: "Condados de Alameda, Contra Costa, San Francisco, San Mateo y Santa Clara. Consulte la boleta de su condado.",
       zh: "适用于阿拉米达、康特拉科斯塔、旧金山、圣马特奥和圣克拉拉县。请核对您所在县的选票。",
     },
+  "About this regional measure": {
+    en: "About this regional measure",
+    es: "Acerca de esta medida regional",
+    zh: "关于此地区性提案",
+  },
   "Official measure text is shown as published.": {
     en: "Official measure text is shown as published.",
     es: "El texto oficial de la medida se muestra tal como fue publicado.",

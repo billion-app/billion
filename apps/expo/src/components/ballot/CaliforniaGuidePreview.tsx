@@ -3,12 +3,14 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  LayoutAnimation,
   ScrollView,
   StyleSheet,
   Switch,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useReducedMotion } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useIsFocused, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -290,6 +292,8 @@ export function CaliforniaGuidePreview({
 
   const [tab, setTab] = useState<GuideTab>("measures");
   const [officeFilter, setOfficeFilter] = useState("all");
+  const [regionalScopeOpen, setRegionalScopeOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
   const { showPolls, setShowPolls } = usePollVisibility();
   const focused = useIsFocused();
   const query = useQuery(
@@ -525,14 +529,41 @@ export function CaliforniaGuidePreview({
             )}
             {tab === "measures" && regional && (
               <View style={s.officeGroup}>
-                <Text accessibilityRole="header" style={s.officeName}>
-                  {tx("Bay Area regional measure")}
-                </Text>
-                <Text style={s.regionalScope}>
-                  {tx(
-                    "Alameda, Contra Costa, San Francisco, San Mateo and Santa Clara counties. Check your county ballot.",
-                  )}
-                </Text>
+                <View style={s.regionalHead}>
+                  <Text
+                    accessibilityRole="header"
+                    style={[s.officeName, s.regionalEyebrow]}
+                  >
+                    {tx("Bay Area regional measure")}
+                  </Text>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={tx("About this regional measure")}
+                    accessibilityState={{ expanded: regionalScopeOpen }}
+                    hitSlop={8}
+                    onPress={() => {
+                      if (!reduceMotion)
+                        LayoutAnimation.configureNext(
+                          LayoutAnimation.Presets.easeInEaseOut,
+                        );
+                      setRegionalScopeOpen((open) => !open);
+                    }}
+                    style={s.infoButton}
+                  >
+                    <Icon
+                      name="info"
+                      size={15}
+                      color={regionalScopeOpen ? P.inkOnNight : P.quiet}
+                    />
+                  </TouchableOpacity>
+                </View>
+                {regionalScopeOpen && (
+                  <Text style={s.regionalScope}>
+                    {tx(
+                      "Alameda, Contra Costa, San Francisco, San Mateo and Santa Clara counties. Check your county ballot.",
+                    )}
+                  </Text>
+                )}
                 {regional.measures.map((measure) => (
                   <TouchableOpacity
                     key={measure.id}
@@ -725,6 +756,15 @@ export function CaliforniaGuidePreview({
 }
 
 const s = StyleSheet.create({
+  regionalHead: { flexDirection: "row", alignItems: "center", gap: 4 },
+  /** Hugs its text so the info button sits beside the eyebrow, not at the edge. */
+  regionalEyebrow: { flexGrow: 0, flexShrink: 1 },
+  infoButton: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   regionalScope: {
     fontFamily: fontBody.regular,
     fontSize: 14,
