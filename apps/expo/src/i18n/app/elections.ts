@@ -155,11 +155,6 @@ export const electionStrings = {
     es: "Retención judicial",
     zh: "法官留任投票",
   },
-  "Statewide, district and judicial contests.": {
-    en: "Statewide, district and judicial contests.",
-    es: "Contiendas estatales, de distrito y judiciales.",
-    zh: "全州、选区和司法选举。",
-  },
   "Browse the candidate roster": {
     en: "Browse the candidate roster",
     es: "Explorar la lista de candidatos",
@@ -271,10 +266,56 @@ export const electionStrings = {
     zh: "加州候选人",
   },
   "Show polls": { en: "Show polls", es: "Mostrar encuestas", zh: "显示民调" },
-  "Polls are hidden until you choose to show them.": {
-    en: "Polls are hidden until you choose to show them.",
-    es: "Las encuestas se ocultan hasta que elijas verlas.",
-    zh: "民调默认隐藏，选择后才会显示。",
+  "California · General election": {
+    en: "California · General election",
+    es: "California · Elección general",
+    zh: "加州 · 普选",
+  },
+  "{date} · {count} days away": {
+    en: {
+      one: "{date} · {count} day away",
+      other: "{date} · {count} days away",
+    },
+    es: {
+      one: "{date} · falta {count} día",
+      other: "{date} · faltan {count} días",
+    },
+    zh: "{date} · 还有 {count} 天",
+  },
+  "Plan how you’ll vote": {
+    en: "Plan how you’ll vote",
+    es: "Planifica cómo votarás",
+    zh: "规划你的投票方式",
+  },
+  "Mail, drop box, early, or Election Day": {
+    en: "Mail, drop box, early, or Election Day",
+    es: "Por correo, en buzón, anticipadamente o el Día de la Elección",
+    zh: "邮寄、投递箱、提前投票或选举日投票",
+  },
+  "Offices {count}": {
+    en: "Offices {count}",
+    es: "Cargos {count}",
+    zh: "职位 {count}",
+  },
+  "All races and candidates": {
+    en: "All races and candidates",
+    es: "Todas las contiendas y candidaturas",
+    zh: "所有选举与候选人",
+  },
+  "District, judicial and local contests": {
+    en: "District, judicial and local contests",
+    es: "Contiendas de distrito, judiciales y locales",
+    zh: "选区、司法和地方选举",
+  },
+  "Find my full ballot": {
+    en: "Find my full ballot",
+    es: "Buscar mi boleta completa",
+    zh: "查找我的完整选票",
+  },
+  "Local races and measures depend on your address.": {
+    en: "Local races and measures depend on your address.",
+    es: "Las contiendas y medidas locales dependen de tu dirección.",
+    zh: "地方选举和提案取决于你的地址。",
   },
   "Checking polls…": {
     en: "Checking polls…",
@@ -297,11 +338,6 @@ export const electionStrings = {
     en: "Governor poll",
     es: "Encuesta de gobernador",
     zh: "州长民调",
-  },
-  "Candidates in the official guide {count}": {
-    en: "Candidates in the official guide {count}",
-    es: "Candidatos en la guía oficial {count}",
-    zh: "官方指南中的候选人 {count}",
   },
   "No poll available in our sources": {
     en: "No poll available in our sources",

@@ -3,13 +3,13 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Linking,
   ScrollView,
   StyleSheet,
   Switch,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useIsFocused, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
@@ -19,8 +19,10 @@ import type { GuideVote } from "./GuideVoteResult";
 import type { IconName } from "~/components/ui";
 import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
+import { LanguageButton } from "~/components/LanguageButton";
 import { Text } from "~/components/Themed";
-import { Card, Icon, NavHeader, Pill, Segmented } from "~/components/ui";
+import { Card, Icon, Pill, Segmented } from "~/components/ui";
+import { posthog } from "~/config/posthog";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useIdleBallotPreloading } from "~/hooks/useIdleBallotPreloading";
 import { useLanguage } from "~/hooks/useLanguage";
@@ -37,8 +39,8 @@ import {
   DigestPalette as P,
 } from "~/styles";
 import { trpc } from "~/utils/api";
-import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { guideCandidateRoute } from "~/utils/candidate-explainer";
+import { daysUntil } from "~/utils/dates";
 import {
   propositionDetailRoute,
   splitOfficialTitle,
@@ -62,40 +64,12 @@ function officialCandidate(
 ) {
   return standing?.kind === "official" ? standing.result : undefined;
 }
-type GuideTab = "candidates" | "measures";
+type GuideTab = "measures" | "offices";
 
 const MEASURE_VIEWABILITY = { itemVisiblePercentThreshold: 1 };
 
 const COUNTY_OFFICES_URL =
   "https://www.sos.ca.gov/elections/voting-resources/county-elections-offices";
-
-function SourceRow({
-  icon,
-  label,
-  url,
-  last,
-}: {
-  icon: IconName;
-  label: string;
-  url: string;
-  last?: boolean;
-}) {
-  return (
-    <TouchableOpacity
-      accessibilityRole="link"
-      accessibilityLabel={label}
-      activeOpacity={0.8}
-      onPress={() => void Linking.openURL(url).catch(() => undefined)}
-      style={[s.sourceRow, !last && s.sourceRule]}
-    >
-      <View style={s.tile}>
-        <Icon name={icon} size={17} color={P.primary} />
-      </View>
-      <Text style={s.sourceLabel}>{label}</Text>
-      <Icon name="external" size={16} color={P.primary} />
-    </TouchableOpacity>
-  );
-}
 
 function officeGroups(candidates: readonly Candidate[]) {
   const groups = new Map<
@@ -298,17 +272,49 @@ function MeasureRow({
   );
 }
 
+function GuideLinkRow({
+  icon,
+  title,
+  note,
+  onPress,
+}: {
+  icon: IconName;
+  title: string;
+  note: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${note}`}
+      activeOpacity={0.8}
+      onPress={onPress}
+      style={s.row}
+    >
+      <View style={s.tile} accessible={false}>
+        <Icon name={icon} size={17} color={P.linkOnNight} />
+      </View>
+      <View style={s.rowCopy}>
+        <Text style={s.rowTitle}>{title}</Text>
+        <Text style={s.note}>{note}</Text>
+      </View>
+      <Icon name="chevR" size={18} color={P.primary} />
+    </TouchableOpacity>
+  );
+}
+
 export function CaliforniaGuidePreview({
   onOpenBallot,
 }: {
+  /** Present only while the address ballot lookup is live. */
   onOpenBallot?: () => void;
 }) {
-  const { t: tx, language: uiLanguage } = useAppTranslation();
+  const { t: tx, formatDate } = useAppTranslation();
 
   const { language, t } = useLanguage();
   const router = useRouter();
 
-  const [tab, setTab] = useState<GuideTab>("candidates");
+  const [tab, setTab] = useState<GuideTab>("measures");
   const [officeFilter, setOfficeFilter] = useState("all");
   const { showPolls, setShowPolls } = usePollVisibility();
   const focused = useIsFocused();
@@ -352,14 +358,22 @@ export function CaliforniaGuidePreview({
   });
   const hasBoldedTitles = !!guide?.measures.some((m) => m.displayTitle);
   const offices = guide ? officeGroups(guide.candidates) : [];
+  const daysAway = guide ? daysUntil(guide.electionDate) : 0;
+  const electionDay = guide
+    ? formatDate(guide.electionDate, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      })
+    : "";
   return (
-    <View
+    <SafeAreaView
+      edges={["top"]}
       style={{ flex: 1, backgroundColor: P.canvas }}
       onTouchStart={preloading.onTouchStart}
       onTouchEnd={preloading.onTouchEnd}
       onTouchCancel={preloading.onTouchCancel}
     >
-      <NavHeader title={tx("California guide")} large />
       <FlatList
         key={tab}
         data={tab === "measures" ? guide?.measures : []}
@@ -392,14 +406,25 @@ export function CaliforniaGuidePreview({
         ListHeaderComponent={
           <View style={{ gap: 22 }}>
             <View style={s.intro}>
-              {guide && (
-                <Text style={s.kicker}>
-                  {tx("{date} · General election", {
-                    date: ballotElectionDate(guide.electionDate, uiLanguage),
-                  })}
+              <Text style={s.kicker}>
+                {tx("California · General election")}
+              </Text>
+              <View style={s.titleRow}>
+                <Text accessibilityRole="header" style={s.headline}>
+                  {tx("elections.tabTitle")}
                 </Text>
-              )}
-              {!guide && (
+                <LanguageButton compact />
+              </View>
+              {guide ? (
+                <Text style={s.meta}>
+                  {daysAway > 0
+                    ? tx("{date} · {count} days away", {
+                        date: electionDay,
+                        count: daysAway,
+                      })
+                    : electionDay}
+                </Text>
+              ) : (
                 <Text style={s.introText}>
                   {query.isPending
                     ? tx("Checking the statewide preview…")
@@ -410,20 +435,27 @@ export function CaliforniaGuidePreview({
               )}
             </View>
 
+            <GuideLinkRow
+              icon="vote"
+              title={tx("Plan how you’ll vote")}
+              note={tx("Mail, drop box, early, or Election Day")}
+              onPress={() => {
+                posthog.capture("how_to_vote_opened", {
+                  entry_point: "elections_tab",
+                  days_until_election: guide ? daysAway : null,
+                });
+                router.push("/how-to-vote-guide");
+              }}
+            />
+
             {guide && (
               <View style={s.pollToggle}>
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={s.actionText}>{tx("Show polls")}</Text>
-                  <Text style={s.pollToggleHint}>
-                    {tx("Polls are hidden until you choose to show them.")}
-                  </Text>
-                </View>
+                <Text style={s.toggleText}>{tx("Show polls")}</Text>
                 <Switch
                   accessibilityLabel={tx("Show polls")}
                   value={showPolls}
                   onValueChange={setShowPolls}
                   hitSlop={8}
-                  style={{ height: 32, width: 56 }}
                 />
               </View>
             )}
@@ -476,20 +508,20 @@ export function CaliforniaGuidePreview({
                   }}
                   options={[
                     {
-                      id: "candidates",
-                      label: tx("Candidates"),
-                      icon: "vote",
-                    },
-                    {
                       id: "measures",
                       label: tx("Measures {count}", {
                         count: guide.measures.length,
                       }),
                       icon: "scale",
                     },
+                    {
+                      id: "offices",
+                      label: tx("Offices {count}", { count: offices.length }),
+                      icon: "vote",
+                    },
                   ]}
                 />
-                {tab === "candidates" ? (
+                {tab === "offices" ? (
                   <View style={s.list}>
                     {showPolls && results?.governor.kind === "poll" && (
                       <View style={s.standingRow}>
@@ -513,34 +545,6 @@ export function CaliforniaGuidePreview({
                         ))}
                       </View>
                     )}
-                    <TouchableOpacity
-                      accessibilityRole="button"
-                      accessibilityLabel={`${tx("Browse the candidate roster")}. ${tx("Statewide, district and judicial contests.")}`}
-                      onPress={() => router.push("/candidate-research")}
-                      style={[s.sourceRow, { minHeight: 56 }]}
-                    >
-                      <View style={{ flex: 1, gap: 4 }}>
-                        <Text style={s.rowTitle}>
-                          {tx("Browse the candidate roster")}
-                        </Text>
-                        <Text style={s.note}>
-                          {tx("Statewide, district and judicial contests.")}
-                        </Text>
-                      </View>
-                      <Icon name="chevR" size={18} color={P.primary} />
-                    </TouchableOpacity>
-                    <View style={s.statementsHead}>
-                      <Text accessibilityRole="header" style={s.sectionTitle}>
-                        {tx("Candidates in the official guide {count}", {
-                          count: guide.candidates.length,
-                        })}
-                      </Text>
-                      <Text style={s.note}>
-                        {tx(
-                          "Statewide candidates listed in California's voter guide. Check your county ballot for all contests.",
-                        )}
-                      </Text>
-                    </View>
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
@@ -607,6 +611,14 @@ export function CaliforniaGuidePreview({
                           </View>
                         </View>
                       ))}
+                    <View style={s.officeGroup}>
+                      <GuideLinkRow
+                        icon="users"
+                        title={tx("All races and candidates")}
+                        note={tx("District, judicial and local contests")}
+                        onPress={() => router.push("/candidate-research")}
+                      />
+                    </View>
                   </View>
                 ) : (
                   <View style={s.list}>
@@ -627,55 +639,34 @@ export function CaliforniaGuidePreview({
           </View>
         }
         ListFooterComponent={
-          <View
-            style={{
-              gap: 22,
-              marginTop: tab === "measures" && guide?.measures.length ? 22 : 0,
-            }}
-          >
-            {guide && (
-              <View style={s.footer}>
-                {onOpenBallot && (
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    onPress={onOpenBallot}
-                    style={s.ballotButton}
-                  >
-                    <Text style={s.ballotButtonText}>
-                      {tx("Find my official ballot")}
-                    </Text>
-                    <Icon name="arrowRight" size={17} color={P.inkOnNight} />
-                  </TouchableOpacity>
-                )}
-                <Card flush style={s.sources}>
-                  <SourceRow
-                    icon="vote"
-                    label={tx("Official election results")}
-                    url="https://electionresults.sos.ca.gov/"
-                  />
-                  <SourceRow
-                    icon="book"
-                    label={tx("Official voter guide")}
-                    url={guide.sourceUrl}
-                  />
-                  <SourceRow
-                    icon="vote"
-                    label={tx("Check your registration")}
-                    url="https://voterstatus.sos.ca.gov/EN/Authenticate"
-                  />
-                  <SourceRow
-                    icon="pin"
-                    label={tx("County elections office")}
-                    url={COUNTY_OFFICES_URL}
-                    last
-                  />
-                </Card>
-              </View>
-            )}
-          </View>
+          guide && onOpenBallot ? (
+            <View
+              style={[
+                s.footer,
+                {
+                  marginTop:
+                    tab === "measures" && guide.measures.length ? 22 : 0,
+                },
+              ]}
+            >
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={onOpenBallot}
+                style={s.ballotButton}
+              >
+                <Text style={s.ballotButtonText}>
+                  {tx("Find my full ballot")}
+                </Text>
+                <Icon name="arrowRight" size={17} color={P.inkOnNight} />
+              </TouchableOpacity>
+              <Text style={s.footerNote}>
+                {tx("Local races and measures depend on your address.")}
+              </Text>
+            </View>
+          ) : null
         }
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -683,13 +674,13 @@ const s = StyleSheet.create({
   pollToggle: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: 16,
     minHeight: 44,
   },
-  pollToggleHint: {
-    fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 19,
+  toggleText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
     color: P.inkOnNight,
   },
   screen: {
@@ -697,7 +688,8 @@ const s = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 160,
   },
-  intro: { gap: 10 },
+  intro: { gap: 8 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   kicker: {
     ...DigestType.sectionEyebrow,
     fontSize: 11,
@@ -710,17 +702,19 @@ const s = StyleSheet.create({
     lineHeight: 38,
     letterSpacing: -0.6,
     color: P.inkOnNight,
+    flex: 1,
+  },
+  meta: {
+    fontFamily: fontBody.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: P.quiet,
   },
   introText: {
     fontFamily: fontBody.regular,
     fontSize: 15,
     lineHeight: 22,
     color: P.quiet,
-  },
-  actionText: {
-    fontFamily: fontBody.semibold,
-    fontSize: 13,
-    color: P.inkOnNight,
   },
   note: {
     fontFamily: fontBody.regular,
@@ -730,7 +724,6 @@ const s = StyleSheet.create({
   },
   aiNote: { flexDirection: "row", alignItems: "center", gap: 6 },
   list: { gap: 12 },
-  /** Matches the Elections hub tool cards (`entryTool`). */
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -779,19 +772,6 @@ const s = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     letterSpacing: 0.2,
-    color: P.inkOnNight,
-  },
-  rowNote: {
-    fontFamily: fontBody.regular,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: P.quiet,
-  },
-  statementsHead: { gap: 4 },
-  sectionTitle: {
-    fontFamily: fontEditorial.bold,
-    fontSize: 20,
-    lineHeight: 26,
     color: P.inkOnNight,
   },
   officeChips: {
@@ -862,24 +842,13 @@ const s = StyleSheet.create({
     lineHeight: 22,
     color: P.inkOnNight,
   },
-  footer: { gap: 12, paddingBottom: 18 },
-  sources: { borderRadius: 14 },
-  sourceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingHorizontal: 14,
-    minHeight: 60,
-  },
-  sourceRule: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: DigestHair.cardBorder,
-  },
-  sourceLabel: {
-    flex: 1,
-    fontFamily: fontBody.semibold,
-    fontSize: 14,
-    color: P.inkOnNight,
+  footer: { gap: 10, paddingBottom: 18 },
+  footerNote: {
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    lineHeight: 19,
+    color: P.quiet,
+    textAlign: "center",
   },
   retryButton: {
     minHeight: 48,
