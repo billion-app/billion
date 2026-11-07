@@ -17,6 +17,8 @@ const { values, positionals } = parseArgs({
     "request-reason": { type: "string" },
     "refresh-current": { type: "boolean", default: false },
     "finance-only": { type: "boolean", default: false },
+    "finance-cache-only": { type: "boolean", default: false },
+    "narrative-only": { type: "boolean", default: false },
     "san-jose-manifest": { type: "string" },
     "state-scope-only": { type: "boolean", default: false },
     "prepare-policy": { type: "string" },
@@ -41,7 +43,7 @@ function bound(name: keyof typeof values, maximum: number) {
 async function main() {
   if (values.help) {
     console.log(
-      "Usage: california-research <plan|reconcile|coverage|request> [--snapshot ID|latest] [--policy VERSION] [--apply]\nReconcile defaults to actual ballot demand; --race selects explicit operator races. Request persists explicit --race keys with --request-reason and --apply, without source or model calls. Finance-only refresh requires --finance-only --refresh-current and explicit --race keys with already published reviewed profiles. Reconcile accepts --max-races, --max-candidates, --max-source-requests, --max-source-bytes, --max-model-calls and --max-input-tokens. Concurrency is 1. Planning without --apply performs no database writes.",
+      "Usage: california-research <plan|reconcile|coverage|request> [--snapshot ID|latest] [--policy VERSION] [--apply]\nReconcile defaults to actual ballot demand; --race selects explicit operator races. Request persists explicit --race keys with --request-reason and --apply, without source or model calls. Finance-only refresh requires --finance-only --refresh-current and explicit --race keys with already published reviewed profiles. Narrative-only research requires --narrative-only and explicit --race keys, acquires fresh nonfinancial evidence, and preserves current eligible releases. It cannot be combined with --finance-only. Reconcile accepts --max-races, --max-candidates, --max-source-requests, --max-source-bytes, --max-model-calls and --max-input-tokens. Finance cache-only additionally requires --finance-cache-only and --max-races 1, uses strictly validated complete raw API query observations, and forbids FEC API network requests. Concurrency is 1. Planning without --apply performs no database writes.",
     );
     return;
   }
@@ -53,6 +55,28 @@ async function main() {
     throw new Error(
       "Usage: california-research <plan|reconcile|coverage> [--snapshot ID] [--policy VERSION] [--apply]. Reconcile requires --apply and explicit bounds.",
     );
+  if (
+    values["finance-cache-only"] &&
+    (command !== "reconcile" ||
+      !values["finance-only"] ||
+      !values["refresh-current"] ||
+      values.race?.length !== 1 ||
+      values["max-races"] !== "1" ||
+      values["prepare-policy"])
+  )
+    throw new Error(
+      "Finance cache-only requires reconcile, finance-only, refresh-current, one explicit race, max-races 1 and no preparation policy",
+    );
+  if (values["narrative-only"]) {
+    if (values["finance-only"])
+      throw new Error(
+        "Narrative-only and finance-only research are mutually exclusive",
+      );
+    if (command !== "reconcile" || !values.race?.length)
+      throw new Error(
+        "Narrative-only research requires reconcile and explicit --race keys",
+      );
+  }
   if (command === "plan") {
     const sanJoseManifest: unknown = values["san-jose-manifest"]
       ? JSON.parse(await readFile(values["san-jose-manifest"], "utf8"))
@@ -132,6 +156,8 @@ async function main() {
     raceKeys: values.race,
     refreshCurrent: values["refresh-current"],
     financeOnly: values["finance-only"],
+    financeCacheOnly: values["finance-cache-only"],
+    narrativeOnly: values["narrative-only"],
     preparationPolicy,
     bounds: {
       maxRaces: bound("max-races", 1000),

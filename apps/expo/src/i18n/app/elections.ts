@@ -2,6 +2,53 @@
 import type { Catalog } from "./types";
 
 export const electionStrings = {
+  "Regional measure information could not load.": {
+    en: "Regional measure information could not load.",
+    es: "No se pudo cargar la información de la medida regional.",
+    zh: "无法加载地区性提案信息。",
+  },
+  "Bay Area regional measure": {
+    en: "Bay Area regional measure",
+    es: "Medida regional del Área de la Bahía",
+    zh: "湾区地区性提案",
+  },
+  "Alameda, Contra Costa, San Francisco, San Mateo and Santa Clara counties. Check your county ballot.":
+    {
+      en: "Alameda, Contra Costa, San Francisco, San Mateo and Santa Clara counties. Check your county ballot.",
+      es: "Condados de Alameda, Contra Costa, San Francisco, San Mateo y Santa Clara. Consulte la boleta de su condado.",
+      zh: "适用于阿拉米达、康特拉科斯塔、旧金山、圣马特奥和圣克拉拉县。请核对您所在县的选票。",
+    },
+  "Official measure text is shown as published.": {
+    en: "Official measure text is shown as published.",
+    es: "El texto oficial de la medida se muestra tal como fue publicado.",
+    zh: "官方提案文本按发布原文显示。",
+  },
+  "Statewide propositions": {
+    en: "Statewide propositions",
+    es: "Propuestas estatales",
+    zh: "全州提案",
+  },
+  "Official ballot question": {
+    en: "Official ballot question",
+    es: "Pregunta oficial de la boleta",
+    zh: "官方选票问题",
+  },
+  "Official impartial analysis": {
+    en: "Official impartial analysis",
+    es: "Análisis imparcial oficial",
+    zh: "官方公正分析",
+  },
+  "Official argument in favor": {
+    en: "Official argument in favor",
+    es: "Argumento oficial a favor",
+    zh: "官方支持论点",
+  },
+  "Official argument against": {
+    en: "Official argument against",
+    es: "Argumento oficial en contra",
+    zh: "官方反对论点",
+  },
+
   "Source dated {date}": {
     en: "Source dated {date}",
     es: "Fuente fechada el {date}",

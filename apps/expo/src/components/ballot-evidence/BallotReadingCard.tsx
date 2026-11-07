@@ -19,12 +19,14 @@ import { BallotText as Text } from "./BallotText";
 export function BallotReadingText({
   text,
   source = false,
+  collapsible = true,
 }: {
   text: string;
   source?: boolean;
+  collapsible?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const long = text.length > 600;
+  const long = collapsible && text.length > 600;
   return (
     <View style={{ gap: 8 }}>
       <Text

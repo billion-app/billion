@@ -58,6 +58,10 @@ import {
   officialGuideCacheParams,
 } from "./official-guide-cache";
 import {
+  CA_REGIONAL_MEASURES_ENDPOINT,
+  currentRegionalMeasures,
+} from "./regional-measures-cache";
+import {
   TRILLION_ADDRESS_HASH,
   TRILLION_ENDPOINT,
   trillionCacheParams,
@@ -148,6 +152,21 @@ export async function getCaliforniaGuide() {
     >,
   );
   return currentCaliforniaGuide(value);
+}
+
+export async function getCaliforniaRegionalMeasures() {
+  const payload = currentRegionalMeasures(
+    await getCached<unknown>("__global__", CA_REGIONAL_MEASURES_ENDPOINT, {
+      electionDate: CA_GENERAL_ELECTION_DATE,
+    }),
+  );
+  if (!payload) return null;
+  return {
+    ...payload,
+    measures: payload.measures.map(
+      ({ fullText: _fullText, ...measure }) => measure,
+    ),
+  };
 }
 
 export async function getCaliforniaGuideStandings() {

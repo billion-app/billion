@@ -36,6 +36,7 @@ Source limits and generation budgets are different. `--max-items` limits source 
 | `open-states`           | State legislation through Open States                       | `bill`                                         |
 | `scc-cvig`              | Santa Clara County voter-guide PDFs                         | Candidate statements in `civic_api_cache`      |
 | `santa-cruz-locations`  | Election-specific Santa Cruz vote-center lists              | County locations in `civic_api_cache`          |
+| `ca-regional-measures`  | Official five-county Regional Transit Measure RTM           | Regional source records in `civic_api_cache`   |
 | `ca-official-guide`     | Date-scoped California official measure and candidate guide | Official guide records in `civic_api_cache`    |
 | `ca-election-logistics` | California SOS election-specific key dates                  | Statewide voting guidance in `civic_api_cache` |
 | `ca-sos-statements`     | California candidate-statement pages and PDF fallback       | Candidate statements in `civic_api_cache`      |
@@ -324,6 +325,31 @@ requires an explicit output path, and production apply requires `--yes`.
 
 ## Ballot source collection
 
+`ca-regional-measures` collects the November 3, 2026 Regional Transit Measure
+from the Public Transit Revenue Measure District and San Mateo County Elections.
+It preserves the official district overview, ballot question and extracted legal
+text in a separate `ca-regional-measures-v1` cache. The ballot question uses a
+transcription reviewed against the resolution PDF page 8, printed page 7. The
+PDF text layer misreads the commas after "everyone" and "workers" as periods.
+The parser accepts only the reviewed question or that exact extraction variant,
+after whitespace normalization. Any other question change requires source review
+and fails the refresh before a cache write. The full legal text remains exactly
+as extracted. It also records official PDF
+links for the impartial analysis and primary arguments. Those scanned documents
+are linked, not summarized. The collector makes no model calls. `CA_REGIONAL_MEASURES_MAX_ITEMS` defaults
+to 1, the only supported collection size. `--max-items` overrides this value.
+
+Check the selected database host before this bounded write:
+
+```bash
+SCRAPER_MAX_NEW_ITEMS_PER_RUN=0 pnpm --filter @acme/scraper start ca-regional-measures --max-items 1 --concurrency 1
+```
+
+The collection fails if the district scope, election date, ballot question or
+required document links cannot be verified. A failure preserves the previous
+cache. The daily supervisor job refreshes this separate seven-day cache.
+Registering the job does not deploy it.
+
 `ca-official-guide` discovers the linked measure and candidate pages in the
 California Secretary of State guide. It preserves official summaries, Yes/No
 vote meanings, fiscal impacts, published pro/con summaries, candidate statements,
@@ -596,6 +622,17 @@ race keys to refresh a release inside the ordinary 12-hour reuse window. It
 still fetches current sources and requires independent review; it does not reset
 old drafts or relax publication checks.
 
+To research fresh candidate narrative without collecting financial records, add
+`--narrative-only` to a bounded reconciliation with explicit `--race` keys. It
+requires the ordinary `--apply`, approved `--policy`, source and model budgets.
+It cannot be combined with `--finance-only`. The collector uses no prior dossier,
+retained narrative or finance cache and makes no finance-specific source requests.
+Financial records stay unavailable, with the existing public absence disclosure.
+Current eligible race releases are preserved even with `--refresh-current`.
+Fresh substantive candidate Record or Priorities, independent review, source age
+and whole-race publication checks still apply. This scope does not complete
+financial research or clear previous rejected or unknown model attempts.
+
 To update financial research without regenerating unchanged campaign prose, add
 `--finance-only` to an explicit `--refresh-current` reconciliation. Every selected
 candidate must already have a published revision with matching author and reviewer
@@ -612,3 +649,23 @@ queries require another request. This reduces repeated requests after a failed
 review without extending source freshness or clearing the failed attempt. HTTP
 failure messages identify only the source origin and path. A bounded numeric
 `Retry-After` value is included when the source supplies one.
+
+During an active API backoff, an operator can explicitly select
+`--finance-cache-only --finance-only --refresh-current --race <one-race-key> --max-races 1`.
+This mode supports one House race and excludes preparation policies, discovery and
+browser rendering. It validates each cache owner's exact dossier, identity, roster,
+query, body hash, complete pagination and original twelve-hour age. The collector
+then resolves the current full race scope and acquires both candidates before any
+model dispatch. Missing exact API queries fail before DNS or HTTP; initial API
+URLs and redirects to API hosts are forbidden. Static official files and retained
+nonfinancial archives are still fetched over HTTP. The SOS roster fetch refuses
+redirects in this mode.
+
+An immutable `finance_cache_preflight` artifact records both completed acquisitions,
+their dossier and source-set digests, each consumed raw query's original observation
+and lookup time, and the unchanged provider retry fact. CLI results and work
+checkpoints report cache hits, misses, denials and non-API transport attempts.
+These are application acquisition counters, not an independent packet trace.
+Cache-only research does not make the provider eligible, clear retry metadata,
+renew source clocks, import model approvals or relax whole-profile review and
+publication gates. Ordinary finance-only commands remain deferred during backoff.

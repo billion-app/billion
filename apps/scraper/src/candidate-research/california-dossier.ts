@@ -5,6 +5,11 @@ import type {
   CandidateEvidenceDossier,
 } from "@acme/validators";
 import {
+  campaignOwnershipDigest,
+  validateCampaignOwnership,
+} from "@acme/api/lib/campaign-ownership";
+import { validateCampaignRenderSources } from "@acme/api/lib/campaign-render-archive";
+import {
   candidateDossierSemanticProjection,
   candidateDossierSourceProjection,
   candidateEvidenceDossierSchema,
@@ -23,6 +28,18 @@ export function validateCaliforniaDossier(
 ): CandidateEvidenceDossier {
   const dossier = candidateEvidenceDossierSchema.parse(value);
   validateCampaignContactDestination(dossier);
+  validateCampaignOwnership(dossier);
+  validateCampaignRenderSources(
+    dossier.sources,
+    dossier.campaignOwnershipProof
+      ? {
+          candidateId: dossier.identity.candidateId,
+          ownershipDigest: campaignOwnershipDigest(
+            dossier.campaignOwnershipProof,
+          ),
+        }
+      : undefined,
+  );
   const sources = new Map(dossier.sources.map((source) => [source.id, source]));
   if (sources.size !== dossier.sources.length)
     throw new Error("Duplicate dossier sources");
@@ -77,7 +94,7 @@ export function validateCaliforniaDossier(
   }
   for (const entry of dossier.evidence) {
     const source = sources.get(entry.sourceId);
-    if (source?.format === "image")
+    if (source?.format === "image" || source?.format === "render_archive")
       throw new Error("Image archives cannot supply textual quote evidence");
     if (!source?.text.includes(entry.excerpt))
       throw new Error("Evidence must quote its archived source exactly");

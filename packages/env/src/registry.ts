@@ -91,6 +91,11 @@ const scraperCostDefinitions = [
 ] as const;
 const scraperSourceLimitDefinitions = [
   [
+    "CA_REGIONAL_MEASURES_MAX_ITEMS",
+    "California regional measure collections per run (must be 1).",
+    "1",
+  ],
+  [
     "CA_POLLING_MAX_ITEMS",
     "California statewide polling reports per run (1–4).",
     "4",
@@ -726,6 +731,24 @@ export const envRegistry = [
     secret: true,
     setupUrl: "https://aistudio.google.com/app/apikey",
     requirements: {},
+    schema: string,
+  }),
+  define({
+    key: "SCRAPER_RENDERER_BASE_URL",
+    description:
+      "Private authenticated network-none campaign browser host URL.",
+    group: "Scraper operations",
+    secret: false,
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "SCRAPER_RENDERER_TOKEN",
+    description:
+      "Private campaign browser host capability token (at least 32 characters).",
+    group: "Scraper operations",
+    secret: true,
+    requirements: { scraper: "optional" },
     schema: string,
   }),
   define({

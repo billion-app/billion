@@ -78,6 +78,21 @@ void test("partial failures and interrupted imports still need images", () => {
   }
 });
 
+void test("regional measure cache refreshes do not request artwork", () => {
+  const regionalJob = jobs.find(
+    (job) => job.id === "ca-regional-measures-daily",
+  );
+  assert.ok(regionalJob);
+  assert.equal(
+    contentImageFollowUp(
+      jobs,
+      { [regionalJob.id]: finished(14) },
+      new Date(at(16)),
+    ),
+    undefined,
+  );
+});
+
 void test("failed image passes retry after backoff even within the same scheduled day", () => {
   const state = {
     [targeted.id]: finished(12),

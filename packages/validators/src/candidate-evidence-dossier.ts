@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 
 import type { CandidateBrief } from "./candidate-brief";
 import type { CandidateResearchQuality } from "./candidate-research";
+import { campaignOwnershipProofSchema } from "./campaign-acquisition";
 import {
   candidateBriefIdentitySchema,
   candidateEvidenceAttributionSchema,
@@ -74,6 +75,7 @@ export const candidateEvidenceDossierSchema = z
     createdAt: z.iso.datetime(),
     finance: campaignFinanceSchema.nullable().optional(),
     campaignContactProof: campaignContactProofSchema.optional(),
+    campaignOwnershipProof: campaignOwnershipProofSchema.optional(),
     financeIdentityProof: z
       .object({
         candidateId: z.string().regex(/^H[A-Z0-9]{8}$/),
@@ -95,7 +97,11 @@ export const candidateEvidenceDossierSchema = z
           toSourceId: text,
           url: z.url(),
           anchorText: text,
-          relation: z.enum(["official_contact", "same_origin_campaign"]),
+          relation: z.enum([
+            "official_contact",
+            "same_origin_campaign",
+            "qualified_party_discovery",
+          ]),
         }),
       )
       .max(20)
@@ -119,6 +125,7 @@ export const candidateEvidenceDossierSchema = z
           identityQualification: z.enum([
             "official_roster",
             "official_cross_link",
+            "qualified_party_discovery",
             "exact_election_office",
           ]),
           attribution: candidateEvidenceAttributionSchema.optional(),
@@ -332,14 +339,24 @@ export function candidateDossierSourceProjection(
   sources: CandidateEvidenceDossier["sources"],
 ) {
   return sources
-    .map(({ id, url, publisher, format, contentHash, byteHash }) => ({
-      id,
-      url,
-      publisher,
-      format,
-      contentHash,
-      ...(format === "image" && byteHash ? { byteHash } : {}),
-    }))
+    .map(
+      ({ id, url, publisher, format, contentHash, byteHash, acquisition }) => ({
+        id,
+        url,
+        publisher,
+        format,
+        contentHash,
+        ...(format === "image" && byteHash ? { byteHash } : {}),
+        ...(acquisition
+          ? {
+              acquisition: {
+                kind: acquisition.kind,
+                semanticDigest: acquisition.semanticDigest,
+              },
+            }
+          : {}),
+      }),
+    )
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 

@@ -1,0 +1,109 @@
+{
+  "acquisition": {
+    "field": "acquisition",
+    "deepEqual": true,
+    "archived": {
+      "kind": "rendered_campaign_v1",
+      "pageIndex": 0,
+      "semanticDigest": "1fe3be031ec2e15993420697fd25090587dd2768fd15ee53e1041203d5944213",
+      "archiveSourceId": "campaign-render-archive-1fe3be031ec2e15993420697fd25090587dd2768fd15ee53e1041203d5944213"
+    },
+    "dossier": {
+      "kind": "rendered_campaign_v1",
+      "archiveSourceId": "campaign-render-archive-1fe3be031ec2e15993420697fd25090587dd2768fd15ee53e1041203d5944213",
+      "pageIndex": 0,
+      "semanticDigest": "1fe3be031ec2e15993420697fd25090587dd2768fd15ee53e1041203d5944213"
+    }
+  },
+  "httpObservation": {
+    "field": "httpObservation",
+    "deepEqual": true,
+    "archived": {
+      "kind": "campaign_http_document_v1",
+      "responses": [
+        {
+          "url": "http://xavierbecerra2026.com/",
+          "mime": "text/html; charset=UTF-8",
+          "status": 301,
+          "bodyHash": "4b21ec9f2d34c5dd9632a7f6e62459ea387ee56abf36285e59ba4f3fb930af5c",
+          "location": "https://xavierbecerra2026.com/",
+          "bodyBytes": 534,
+          "startedAt": "2026-11-02T02:26:54.472Z",
+          "bodyBase64": "PGh0bWw+DQo8aGVhZD48dGl0bGU+MzAxIE1vdmVkIFBlcm1hbmVudGx5PC90aXRsZT48L2hlYWQ+DQo8Ym9keT4NCjxjZW50ZXI+PGgxPjMwMSBNb3ZlZCBQZXJtYW5lbnRseTwvaDE+PC9jZW50ZXI+DQo8aHI+PGNlbnRlcj5jbG91ZGZsYXJlPC9jZW50ZXI+DQo8c2NyaXB0IHR5cGU9Im1vZHVsZSIgc3JjPSJodHRwczovL3N0YXRpYy5jbG91ZGZsYXJlaW5zaWdodHMuY29tL2JlYWNvbi5taW4uanMvdmNlNzAxODIzZTc4YzQzMDFhMzViN2UwNzI5NGQ4NzMwMTc5MjA4ODgxNDA5MiIgaW50ZWdyaXR5PSJzaGE1MTItVUtOazhHYnhrQUJ4S2NYWXVMa08xNkVsZUxHVWtjdkpXdHBTTm1FeEUwVG9vM1phRkF4VHNjTldFYzFPZEF2NS9CaWtIYXdhcFNDYWlEMlhDbXArQnc9PSIgZGF0YS1jZi1iZWFjb249J3sidmVyc2lvbiI6IjIwMjQuMTEuMCIsInRva2VuIjoiNDBjMTVhNDBlZWNlNGU4NTllMGYzYTI5OTBjOGQ5Y2IiLCJyIjoxLCJzcGEiOjJ9JyBjcm9zc29yaWdpbj0iYW5vbnltb3VzIj48L3NjcmlwdD4KPC9ib2R5Pg0KPC9odG1sPg0K",
+          "completedAt": "2026-11-02T02:26:54.550Z"
+        },
+        {
+          "url": "https://xavierbecerra2026.com/",
+          "mime": "text/html",
+          "status": 301,
+          "bodyHash": "9afb972fb8581f47d780299f185dfc4969423586d38cd31ed3b808a8c79d2302",
+          "location": "https://www.xavierbecerra2026.com/",
+          "bodyBytes": 541,
+          "startedAt": "2026-11-02T02:26:54.550Z",
+          "bodyBase64": "PGh0bWw+DQo8aGVhZD48dGl0bGU+MzAxIE1vdmVkIFBlcm1hbmVudGx5PC90aXRsZT48L2hlYWQ+DQo8Ym9keT4NCjxjZW50ZXI+PGgxPjMwMSBNb3ZlZCBQZXJtYW5lbnRseTwvaDE+PC9jZW50ZXI+DQo8aHI+PGNlbnRlcj5uZ2lueC1yYy8xLjMxLjEuMTwvY2VudGVyPg0KPHNjcmlwdCB0eXBlPSJtb2R1bGUiIHNyYz0iaHR0cHM6Ly9zdGF0aWMuY2xvdWRmbGFyZWluc2lnaHRzLmNvbS9iZWFjb24ubWluLmpzL3ZjZTcwMTgyM2U3OGM0MzAxYTM1YjdlMDcyOTRkODczMDE3OTIwODg4MTQwOTIiIGludGVncml0eT0ic2hhNTEyLVVLTms4R2J4a0FCeEtjWFl1TGtPMTZFbGVMR1VrY3ZKV3RwU05tRXhFMFRvbzNaYUZBeFRzY05XRWMxT2RBdjUvQmlrSGF3YXBTQ2FpRDJYQ21wK0J3PT0iIGRhdGEtY2YtYmVhY29uPSd7InZlcnNpb24iOiIyMDI0LjExLjAiLCJ0b2tlbiI6IjQwYzE1YTQwZWVjZTRlODU5ZTBmM2EyOTkwYzhkOWNiIiwiciI6MSwic3BhIjoyfScgY3Jvc3NvcmlnaW49ImFub255bW91cyI+PC9zY3JpcHQ+CjwvYm9keT4NCjwvaHRtbD4NCg==",
+          "completedAt": "2026-11-02T02:26:54.653Z"
+        },
+        {
+          "url": "https://www.xavierbecerra2026.com/",
+          "mime": "text/html; charset=UTF-8",
+          "status": 200,
+          "bodyHash": "5b520fad6a9e9f81bfbc355bd946304096736676ca9d1b3c5ce351eaf0b7c639",
+          "location": null,
+          "bodyBytes": 158928,
+          "startedAt": "2026-11-02T02:26:54.653Z",
+          "completedAt": "2026-11-02T02:26:54.807Z"
+        }
+      ]
+    },
+    "dossier": {
+      "kind": "campaign_http_document_v1",
+      "responses": [
+        {
+          "url": "http://xavierbecerra2026.com/",
+          "status": 301,
+          "mime": "text/html; charset=UTF-8",
+          "location": "https://xavierbecerra2026.com/",
+          "bodyHash": "4b21ec9f2d34c5dd9632a7f6e62459ea387ee56abf36285e59ba4f3fb930af5c",
+          "bodyBytes": 534,
+          "startedAt": "2026-11-02T02:26:54.472Z",
+          "completedAt": "2026-11-02T02:26:54.550Z",
+          "bodyBase64": "PGh0bWw+DQo8aGVhZD48dGl0bGU+MzAxIE1vdmVkIFBlcm1hbmVudGx5PC90aXRsZT48L2hlYWQ+DQo8Ym9keT4NCjxjZW50ZXI+PGgxPjMwMSBNb3ZlZCBQZXJtYW5lbnRseTwvaDE+PC9jZW50ZXI+DQo8aHI+PGNlbnRlcj5jbG91ZGZsYXJlPC9jZW50ZXI+DQo8c2NyaXB0IHR5cGU9Im1vZHVsZSIgc3JjPSJodHRwczovL3N0YXRpYy5jbG91ZGZsYXJlaW5zaWdodHMuY29tL2JlYWNvbi5taW4uanMvdmNlNzAxODIzZTc4YzQzMDFhMzViN2UwNzI5NGQ4NzMwMTc5MjA4ODgxNDA5MiIgaW50ZWdyaXR5PSJzaGE1MTItVUtOazhHYnhrQUJ4S2NYWXVMa08xNkVsZUxHVWtjdkpXdHBTTm1FeEUwVG9vM1phRkF4VHNjTldFYzFPZEF2NS9CaWtIYXdhcFNDYWlEMlhDbXArQnc9PSIgZGF0YS1jZi1iZWFjb249J3sidmVyc2lvbiI6IjIwMjQuMTEuMCIsInRva2VuIjoiNDBjMTVhNDBlZWNlNGU4NTllMGYzYTI5OTBjOGQ5Y2IiLCJyIjoxLCJzcGEiOjJ9JyBjcm9zc29yaWdpbj0iYW5vbnltb3VzIj48L3NjcmlwdD4KPC9ib2R5Pg0KPC9odG1sPg0K"
+        },
+        {
+          "url": "https://xavierbecerra2026.com/",
+          "status": 301,
+          "mime": "text/html",
+          "location": "https://www.xavierbecerra2026.com/",
+          "bodyHash": "9afb972fb8581f47d780299f185dfc4969423586d38cd31ed3b808a8c79d2302",
+          "bodyBytes": 541,
+          "startedAt": "2026-11-02T02:26:54.550Z",
+          "completedAt": "2026-11-02T02:26:54.653Z",
+          "bodyBase64": "PGh0bWw+DQo8aGVhZD48dGl0bGU+MzAxIE1vdmVkIFBlcm1hbmVudGx5PC90aXRsZT48L2hlYWQ+DQo8Ym9keT4NCjxjZW50ZXI+PGgxPjMwMSBNb3ZlZCBQZXJtYW5lbnRseTwvaDE+PC9jZW50ZXI+DQo8aHI+PGNlbnRlcj5uZ2lueC1yYy8xLjMxLjEuMTwvY2VudGVyPg0KPHNjcmlwdCB0eXBlPSJtb2R1bGUiIHNyYz0iaHR0cHM6Ly9zdGF0aWMuY2xvdWRmbGFyZWluc2lnaHRzLmNvbS9iZWFjb24ubWluLmpzL3ZjZTcwMTgyM2U3OGM0MzAxYTM1YjdlMDcyOTRkODczMDE3OTIwODg4MTQwOTIiIGludGVncml0eT0ic2hhNTEyLVVLTms4R2J4a0FCeEtjWFl1TGtPMTZFbGVMR1VrY3ZKV3RwU05tRXhFMFRvbzNaYUZBeFRzY05XRWMxT2RBdjUvQmlrSGF3YXBTQ2FpRDJYQ21wK0J3PT0iIGRhdGEtY2YtYmVhY29uPSd7InZlcnNpb24iOiIyMDI0LjExLjAiLCJ0b2tlbiI6IjQwYzE1YTQwZWVjZTRlODU5ZTBmM2EyOTkwYzhkOWNiIiwiciI6MSwic3BhIjoyfScgY3Jvc3NvcmlnaW49ImFub255bW91cyI+PC9zY3JpcHQ+CjwvYm9keT4NCjwvaHRtbD4NCg=="
+        },
+        {
+          "url": "https://www.xavierbecerra2026.com/",
+          "status": 200,
+          "mime": "text/html; charset=UTF-8",
+          "location": null,
+          "bodyHash": "5b520fad6a9e9f81bfbc355bd946304096736676ca9d1b3c5ce351eaf0b7c639",
+          "bodyBytes": 158928,
+          "startedAt": "2026-11-02T02:26:54.653Z",
+          "completedAt": "2026-11-02T02:26:54.807Z"
+        }
+      ]
+    }
+  },
+  "campaignOwnershipProof": {
+    "kind": "qualified_party_campaign_v1",
+    "listedUrl": "http://xavierbecerra2026.com/",
+    "partyName": "Democratic Party",
+    "legalOwner": "Paid for by Becerra for Governor 2026",
+    "contactExcerpt": "Xavier Becerra Democratic\n330 N Brand Blvd Ste 700\nGlendale, CA 91203\nVoting Rights Attorney",
+    "candidateAnchor": "Xavier Becerra",
+    "registrySourceId": "source-67c6652cc1d1e213aa7833f1",
+    "partyListSourceId": "source-1709fb079a788f5378482cf1",
+    "partyWebsiteAnchor": "http://www.cadem.org/",
+    "destinationSourceId": "source-425e49c3333c3d13eea063b9",
+    "currentContactSourceId": "source-90b1b6450c20d43a0fbc84a1"
+  }
+}

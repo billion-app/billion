@@ -2,6 +2,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod/v4";
 
 import type {
+  CaliforniaReviewHistory,
+  CaliforniaReviewScope,
+} from "@acme/api/lib/california-review-history";
+import type {
   CaliforniaRaceTarget,
   CaliforniaRosterSnapshot,
   CandidateBrief,
@@ -12,6 +16,7 @@ import type {
 } from "@acme/validators";
 import {
   evidenceHashKey,
+  ResearchEligibleRaceConflict,
   ResearchReviewCollectionConflict,
 } from "@acme/api/lib/candidate-brief-publication";
 import {
@@ -23,6 +28,7 @@ import {
   researchSourceSchema,
 } from "@acme/validators";
 
+import type { CaliforniaFecRetry } from "./california-fec-retry.js";
 import type { CaliforniaReviewedNarrativeCoverage } from "./california-finance-baseline.js";
 import type { CaliforniaRosterObservation } from "./california-roster-observation.js";
 import {
@@ -46,7 +52,16 @@ import {
   collectCaliforniaEvidence,
   fetchBoundedCaliforniaSource,
 } from "./california-evidence.js";
+import {
+  californiaFecRetryDeferReason,
+  mergeCaliforniaFecRetry,
+  readCaliforniaFecRetry,
+} from "./california-fec-retry.js";
 import { readFinanceNarrativeBaselines } from "./california-finance-baseline.js";
+import {
+  CaliforniaFinanceCacheOnly,
+  CaliforniaFinanceCacheUnavailable,
+} from "./california-finance-cache-only.js";
 import { qualifyPublishedFinanceNarrative } from "./california-finance-refresh.js";
 import {
   observedRosterSources,
@@ -64,6 +79,7 @@ import {
   isCaliforniaSourceUnavailable,
   sourceAcquisitionFailure,
 } from "./california-source-availability.js";
+import { hash } from "./sources.js";
 
 export interface CaliforniaBounds {
   maxRaces: number;
@@ -96,7 +112,11 @@ export interface CaliforniaWorkCheckpoint {
   >;
   reason?: string;
   attemptedAt?: string;
+  fecRetry?: CaliforniaFecRetry;
   rosterCheckArtifactKey?: string;
+  acquisitionMode?: "finance_cache_only";
+  financeCachePreflightArtifactKey?: string;
+  financeCacheAcquisition?: ReturnType<CaliforniaFinanceCacheOnly["receipt"]>;
 }
 export interface CaliforniaPreparationPolicy {
   approved: true;
@@ -145,6 +165,7 @@ export interface CaliforniaPublishedCoverage {
 }
 export interface CaliforniaDependencies {
   now(): string;
+  reviewHistory(scope: CaliforniaReviewScope): Promise<CaliforniaReviewHistory>;
   demandedRaceKeys(snapshot: CaliforniaRosterSnapshot): Promise<string[]>;
   readPublishedCoverage(
     snapshotId: string,
@@ -198,6 +219,11 @@ export interface CaliforniaDependencies {
     candidateId?: string;
     document: unknown;
     workLease: Lease;
+    reviewAdmission?: {
+      scope: CaliforniaReviewScope;
+      brief: CandidateBrief;
+      proof: string;
+    };
     collectionReviewAttempt?: {
       key: string;
       collectionId: string;
@@ -217,8 +243,9 @@ export interface CaliforniaDependencies {
       race: CaliforniaRaceTarget;
       member: CaliforniaRaceTarget["members"][number];
       previousDossier?: CandidateEvidenceDossier;
-      researchScope?: "finance_refresh";
+      researchScope?: "finance_refresh" | "narrative_only";
       cachedFinanceDossier?: { digest: string; document: unknown };
+      financeCacheOnly?: CaliforniaFinanceCacheOnly;
     },
     budget: {
       request(): void;
@@ -231,6 +258,7 @@ export interface CaliforniaDependencies {
   saveCollection(
     document: CandidateResearchCollectionDocument,
     lease?: Lease,
+    options?: { preserveEligibleRace?: boolean },
   ): Promise<{ collectionId: string; changed: boolean; checkedAt: string }>;
   attest(input: {
     collectionId: string;
@@ -240,12 +268,17 @@ export interface CaliforniaDependencies {
     dossier: CandidateEvidenceDossier;
     workLease?: Lease;
   }): Promise<unknown>;
-  publish(collectionId: string, lease: Lease): Promise<{ releaseId: string }>;
+  publish(
+    collectionId: string,
+    lease: Lease,
+    options?: { preserveEligibleRace?: boolean },
+  ): Promise<{ releaseId: string }>;
   fail(
     raceKey: string,
     reason: string,
     lease?: Lease,
     attempted?: CaliforniaWorkCheckpoint,
+    options?: { preserveEligibleRace?: boolean },
   ): Promise<void>;
   invalidateElection(input: {
     electionDate: string;
@@ -257,6 +290,7 @@ export async function fetchCaliforniaPlan(
   electionDate: string,
   budget?: { request(): void; bytes(amount: number): void },
   expectedSource?: CaliforniaRosterSnapshot["source"],
+  financeCacheOnly?: CaliforniaFinanceCacheOnly,
 ): Promise<CaliforniaRosterSnapshot> {
   if (electionDate !== "2026-11-03")
     throw new Error(
@@ -266,7 +300,22 @@ export async function fetchCaliforniaPlan(
   const url = "https://media.sos.ca.gov/media/C26GG.txt";
   let response: Response;
   try {
-    response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+    financeCacheOnly?.beforeDns(url);
+    financeCacheOnly?.beforeTransport(url);
+    response = await fetch(url, {
+      signal: AbortSignal.timeout(30_000),
+      ...(financeCacheOnly ? { redirect: "manual" as const } : {}),
+    });
+    if (
+      financeCacheOnly &&
+      [301, 302, 303, 307, 308].includes(response.status)
+    ) {
+      await response.body?.cancel().catch(() => undefined);
+      throw new CaliforniaFinanceCacheUnavailable(
+        url,
+        "Roster redirects are forbidden in cache-only mode",
+      );
+    }
   } catch (error) {
     throw sourceAcquisitionFailure(url, error);
   }
@@ -314,6 +363,8 @@ export async function fetchCaliforniaPlan(
       "California Secretary of State",
       "pdf",
       budget ?? { request() {}, bytes() {} },
+      undefined,
+      { financeCacheOnly },
     );
   } catch (error) {
     if (rawChanged && isCaliforniaSourceUnavailable(error))
@@ -332,6 +383,7 @@ export async function fetchCaliforniaPlan(
 }
 export async function createCaliforniaDependencies(
   preparationPolicy?: CaliforniaPreparationPolicy,
+  financeCacheOnly?: CaliforniaFinanceCacheOnly,
 ): Promise<CaliforniaDependencies> {
   const [
     { db },
@@ -557,7 +609,8 @@ export async function createCaliforniaDependencies(
       }),
     beginSourceCheck: (electionDate) =>
       store.beginCaliforniaSourceCheck(db, electionDate),
-    fetchRoster: fetchCaliforniaPlan,
+    fetchRoster: (date, budget, expected) =>
+      fetchCaliforniaPlan(date, budget, expected, financeCacheOnly),
     listWork: (id) => store.listCaliforniaRaceWork(db, id),
     claim: (input) => store.claimCaliforniaRaceWork(db, input),
     checkpoint: (lease, status, value) =>
@@ -566,6 +619,7 @@ export async function createCaliforniaDependencies(
         status,
         checkpoint: value,
       }),
+    reviewHistory: (scope) => store.readCaliforniaModelHistory(db, scope),
     artifact: (key) => store.getCaliforniaResearchArtifact(db, key),
     hasArtifact: (key) => store.hasCaliforniaResearchArtifact(db, key),
     reserveDispatch: (input) => store.claimCaliforniaModelDispatch(input, db),
@@ -573,6 +627,7 @@ export async function createCaliforniaDependencies(
     investigate: async (input, budget) => {
       let supplementalSources: ResearchSource[] | undefined;
       if (
+        input.researchScope !== "narrative_only" &&
         preparationPolicy &&
         ["ca-house-17-2026", "ca-lieutenant-governor-2026"].includes(
           input.race.raceKey,
@@ -636,7 +691,20 @@ export async function createCaliforniaDependencies(
       return collectCaliforniaEvidence(
         { ...input, supplementalSources },
         {
-          fetch: (id, url, publisher, format, apiKey) =>
+          campaignRenderer: financeCacheOnly
+            ? undefined
+            : {
+                configuration:
+                  process.env.SCRAPER_RENDERER_BASE_URL &&
+                  process.env.SCRAPER_RENDERER_TOKEN
+                    ? {
+                        baseUrl: process.env.SCRAPER_RENDERER_BASE_URL,
+                        token: process.env.SCRAPER_RENDERER_TOKEN,
+                      }
+                    : undefined,
+                budget,
+              },
+          fetch: (id, url, publisher, format, apiKey, sourceOptions) =>
             fetchBoundedCaliforniaSource(
               id,
               url,
@@ -644,8 +712,22 @@ export async function createCaliforniaDependencies(
               format,
               budget,
               apiKey,
+              {
+                ...sourceOptions,
+                financeCacheOnly,
+                ...(input.researchScope === "narrative_only"
+                  ? { researchScope: input.researchScope }
+                  : {}),
+              },
             ),
-          search: (query, discover) => library.search(query, discover),
+          search: (query, discover) => {
+            if (financeCacheOnly)
+              throw new CaliforniaFinanceCacheUnavailable(
+                "https://api.open.fec.gov/",
+                "Discovery is forbidden in cache-only finance",
+              );
+            return library.search(query, discover);
+          },
           budget: {
             request: () => budget.request(),
             bytes: () => {},
@@ -658,10 +740,11 @@ export async function createCaliforniaDependencies(
     },
     author: authorCaliforniaBrief,
     review: reviewCaliforniaBrief,
-    saveCollection: (document, lease) =>
+    saveCollection: (document, lease, options) =>
       collection.saveResearchCollection(document, db, {
         workLease: lease,
         stagedPolicyVersion: preparationPolicy?.version,
+        preserveEligibleRace: options?.preserveEligibleRace,
       }),
     attest: async (input) =>
       service.recordResearchAiReview({
@@ -676,17 +759,19 @@ export async function createCaliforniaDependencies(
           findings: input.review.findings,
         },
       }),
-    publish: (id, lease) =>
+    publish: (id, lease, options) =>
       service.publishResearchCollection({
         workLease: lease,
+        preserveEligibleRace: options?.preserveEligibleRace,
         collectionId: id,
         actorId: "california-research-service",
       }),
     invalidateElection: (input) =>
       collection.invalidateResearchElection(input, db),
-    fail: (key, reason, lease, attempted) =>
+    fail: (key, reason, lease, attempted, options) =>
       collection.failResearchRefresh(key, reason, db, {
         workLease: lease,
+        preserveEligibleRace: options?.preserveEligibleRace,
         attempted: attempted
           ? {
               attemptedAt: attempted.attemptedAt!,
@@ -974,11 +1059,21 @@ export async function reconcile(
     raceKeys?: string[];
     refreshCurrent?: boolean;
     financeOnly?: boolean;
+    financeCacheOnly?: boolean;
+    narrativeOnly?: boolean;
     preparationPolicy?: CaliforniaPreparationPolicy;
   },
   provided?: CaliforniaDependencies,
 ) {
   positiveBounds(input.bounds);
+  if (input.narrativeOnly && input.financeOnly)
+    throw new Error(
+      "Narrative-only and finance-only research are mutually exclusive",
+    );
+  if (input.narrativeOnly && !input.raceKeys?.length)
+    throw new Error(
+      "Narrative-only research requires explicit operator race keys",
+    );
   if (input.financeOnly && (!input.refreshCurrent || !input.raceKeys?.length))
     throw new Error(
       "Finance-only research requires explicit races and --refresh-current",
@@ -987,8 +1082,28 @@ export async function reconcile(
     throw new Error(
       "Refreshing current research requires explicit operator race keys",
     );
+  if (
+    input.financeCacheOnly &&
+    (!input.financeOnly ||
+      !input.refreshCurrent ||
+      input.raceKeys?.length !== 1 ||
+      input.bounds.maxRaces !== 1 ||
+      input.preparationPolicy)
+  )
+    throw new Error(
+      "Finance cache-only requires one explicit finance refresh race, maxRaces 1 and no preparation policy",
+    );
+  const financeCacheOnly = input.financeCacheOnly
+    ? new CaliforniaFinanceCacheOnly(
+        () => provided?.now() ?? new Date().toISOString(),
+      )
+    : undefined;
   const deps =
-    provided ?? (await createCaliforniaDependencies(input.preparationPolicy));
+    provided ??
+    (await createCaliforniaDependencies(
+      input.preparationPolicy,
+      financeCacheOnly,
+    ));
   if (
     input.preparationPolicy &&
     (input.preparationPolicy.version !== input.policyVersion ||
@@ -1036,6 +1151,7 @@ export async function reconcile(
     reason?: string;
     releaseId?: string;
     collectionId?: string;
+    financeCachePreflightArtifactKey?: string;
   }[] = [];
   const raceKeys = input.raceKeys ?? (await deps.demandedRaceKeys(snapshot));
   const initialRaces = snapshot.races;
@@ -1045,6 +1161,14 @@ export async function reconcile(
     throw new Error(
       "Requested race key is absent from the authoritative snapshot",
     );
+  if (
+    financeCacheOnly &&
+    snapshot.races.some(
+      (race) =>
+        raceKeys.includes(race.raceKey) && race.officeFamily !== "us_house",
+    )
+  )
+    throw new Error("Finance cache-only is limited to a federal House race");
   if (!raceKeys.length)
     return {
       snapshotId: snapshot.id,
@@ -1102,6 +1226,8 @@ export async function reconcile(
             publisher,
             format,
             budget,
+            undefined,
+            { financeCacheOnly },
           );
         },
       );
@@ -1163,6 +1289,14 @@ export async function reconcile(
       row.checkpoint as CaliforniaWorkCheckpoint,
     ]),
   );
+  let fecRetry = work.reduce<CaliforniaFecRetry | undefined>(
+    (retained, row) =>
+      mergeCaliforniaFecRetry(
+        retained,
+        readCaliforniaFecRetry(row.checkpoint, deps.now()),
+      ),
+    undefined,
+  );
   const due = (race: CaliforniaRaceTarget) => {
     const checkpoint = checkpoints.get(race.raceKey);
     return checkpoint?.releaseId
@@ -1210,6 +1344,40 @@ export async function reconcile(
         current.jurisdiction === race.jurisdiction &&
         current.electionDate === race.electionDate,
     );
+    const fecDeferReason =
+      race.officeFamily === "us_house" && !input.narrativeOnly
+        ? californiaFecRetryDeferReason(fecRetry, deps.now())
+        : undefined;
+    const automaticNarrative =
+      !!fecDeferReason && !input.financeOnly && !input.narrativeOnly;
+    const acquisitionScope = input.financeOnly
+      ? ("finance_refresh" as const)
+      : input.narrativeOnly || automaticNarrative
+        ? ("narrative_only" as const)
+        : ("full" as const);
+    if ((input.narrativeOnly || automaticNarrative) && publicRace) {
+      outcomes.push({
+        raceKey: race.raceKey,
+        status: "current",
+        releaseId: publicRace.releaseId,
+      });
+      continue;
+    }
+    if (fecDeferReason && input.financeOnly && !financeCacheOnly) {
+      outcomes.push({
+        raceKey: race.raceKey,
+        status: "pending",
+        reason: fecDeferReason,
+      });
+      continue;
+    }
+    const financeComplete = race.members.every((member) =>
+      publicRace?.members.some(
+        (current) =>
+          current.candidateId === member.candidateId &&
+          !!current.brief?.research?.finance?.observation,
+      ),
+    );
     const narrativeRace =
       input.financeOnly && narrativeCoverage
         ? narrativeCoverage.races.find(
@@ -1221,6 +1389,10 @@ export async function reconcile(
         : publicRace;
     if (
       !input.refreshCurrent &&
+      (race.officeFamily !== "us_house" ||
+        input.financeOnly ||
+        input.narrativeOnly ||
+        financeComplete) &&
       prior?.releaseId &&
       publicRace?.releaseId === prior.releaseId &&
       publicRace.policyVersion === input.policyVersion &&
@@ -1262,21 +1434,58 @@ export async function reconcile(
     const attemptPrior = (lease.checkpoint ?? prior) as
       | CaliforniaWorkCheckpoint
       | undefined;
+    const attemptFecRetry = mergeCaliforniaFecRetry(
+      fecRetry,
+      readCaliforniaFecRetry(attemptPrior, deps.now()),
+    );
     let savedCollectionId: string | undefined;
+    let financeCachePreflightArtifactKey: string | undefined;
     const candidateProvenance: NonNullable<
       CaliforniaWorkCheckpoint["candidateProvenance"]
     > = {};
     try {
+      if (automaticNarrative) {
+        const currentCoverage = await deps.readPublishedCoverage(
+          snapshot.id,
+          snapshot.electionDate,
+        );
+        const currentRace = currentCoverage.races.find(
+          (current) =>
+            current.contestId === race.contestId &&
+            current.jurisdiction === race.jurisdiction &&
+            current.electionDate === race.electionDate,
+        );
+        if (currentRace) {
+          if (
+            !(await deps.checkpoint(
+              lease,
+              "complete",
+              lease.checkpoint as CaliforniaWorkCheckpoint,
+            ))
+          )
+            throw new Error(
+              "Race lease expired before preservation checkpoint",
+            );
+          outcomes.push({
+            raceKey: race.raceKey,
+            status: "current",
+            releaseId: currentRace.releaseId,
+          });
+          continue;
+        }
+      }
       const investigated: {
         dossier: CandidateEvidenceDossier;
         authored: Awaited<ReturnType<typeof authorCaliforniaBrief>>;
         reviewed: Awaited<ReturnType<typeof reviewCaliforniaBrief>>;
       }[] = [];
-      for (const member of race.members) {
-        usage.candidates++;
+      const loadContext = async (
+        member: CaliforniaRaceTarget["members"][number],
+      ) => {
         const previousDossierEpoch =
           attemptPrior?.dossierReviewEpochs?.[member.candidateId] ?? 0;
         const previousDossierDigest =
+          acquisitionScope !== "narrative_only" &&
           previousDossierEpoch === lease.reviewEpoch
             ? (publicRace?.members.find(
                 (current) => current.candidateId === member.candidateId,
@@ -1288,7 +1497,9 @@ export async function reconcile(
               `dossier:${previousDossierDigest}`,
             )) as CandidateEvidenceDossier | null)
           : null;
-        const publishedMember = narrativeRace?.members.find(
+        const publishedMember = (
+          acquisitionScope === "narrative_only" ? undefined : narrativeRace
+        )?.members.find(
           (current) => current.candidateId === member.candidateId,
         );
         const publishedDossier = publishedMember?.author?.dossierDigest
@@ -1321,14 +1532,55 @@ export async function reconcile(
             ? null
             : await deps.artifact(`dossier:${acquisitionDigest}`)
           : null;
+        return {
+          member,
+          previousDossier,
+          publishedMember,
+          publishedDossier,
+          acquisitionDigest,
+          acquisitionDossier,
+        };
+      };
+      const contexts = financeCacheOnly
+        ? await Promise.all(race.members.map(loadContext))
+        : undefined;
+      for (const context of contexts ?? []) {
+        if (
+          context.acquisitionDigest &&
+          context.acquisitionDossier &&
+          context.publishedDossier
+        )
+          financeCacheOnly!.seed({
+            digest: context.acquisitionDigest,
+            document: context.acquisitionDossier,
+            expected: context.publishedDossier,
+          });
+      }
+      const acquire = async (
+        context: Awaited<ReturnType<typeof loadContext>>,
+      ) => {
+        const {
+          member,
+          previousDossier,
+          publishedMember,
+          publishedDossier,
+          acquisitionDigest,
+          acquisitionDossier,
+        } = context;
+        usage.candidates++;
         const dossier = await deps.investigate(
           {
             snapshot,
             race,
             member,
-            previousDossier: input.financeOnly
-              ? publishedDossier!
-              : (previousDossier ?? undefined),
+            financeCacheOnly,
+            ...(acquisitionScope === "narrative_only"
+              ? { researchScope: "narrative_only" as const }
+              : {
+                  previousDossier: input.financeOnly
+                    ? publishedDossier!
+                    : (previousDossier ?? undefined),
+                }),
             ...(input.financeOnly
               ? {
                   researchScope: "finance_refresh" as const,
@@ -1390,6 +1642,13 @@ export async function reconcile(
           throw new Error(
             "Finance-only refresh changed nonfinancial context or has no financial observation",
           );
+        return { member, dossier, retainedNarrative };
+      };
+      const prepare = async ({
+        member,
+        dossier,
+        retainedNarrative,
+      }: Awaited<ReturnType<typeof acquire>>) => {
         investigated.push(
           await prepareReviewedCaliforniaCandidate(
             {
@@ -1406,6 +1665,40 @@ export async function reconcile(
             deps,
           ),
         );
+      };
+      if (financeCacheOnly) {
+        const acquired = [];
+        for (const context of contexts!) acquired.push(await acquire(context));
+        financeCacheOnly.assertReady(
+          race.members.map((member) => member.candidateId),
+        );
+        const document = {
+          ...financeCacheOnly.receipt(),
+          checkedAt: deps.now(),
+          retainedProviderRetry: attemptFecRetry ?? null,
+          raceKey: race.raceKey,
+          candidates: acquired.map(({ dossier }) => ({
+            candidateId: dossier.identity.candidateId,
+            dossierDigest: dossier.dossierDigest,
+            sourceSetDigest: dossier.sourceSetDigest,
+          })),
+        };
+        financeCachePreflightArtifactKey = `finance-cache-preflight:${hash(JSON.stringify(document))}`;
+        await deps.saveArtifact({
+          key: financeCachePreflightArtifactKey,
+          kind: "finance_cache_preflight",
+          raceKey: race.raceKey,
+          document,
+        });
+        for (const candidate of acquired) {
+          financeCacheOnly.assertReady(
+            race.members.map((member) => member.candidateId),
+          );
+          await prepare(candidate);
+        }
+      } else {
+        for (const member of race.members)
+          await prepare(await acquire(await loadContext(member)));
       }
       const sourceMap = new Map<string, ResearchSource>([
         [
@@ -1459,7 +1752,9 @@ export async function reconcile(
         author: item.authored.attestation,
         dossier: item.dossier,
       }));
-      const saved = await deps.saveCollection(document, lease);
+      const saved = await deps.saveCollection(document, lease, {
+        preserveEligibleRace: automaticNarrative,
+      });
       savedCollectionId = saved.collectionId;
       for (const item of investigated) {
         const attest = () =>
@@ -1503,6 +1798,7 @@ export async function reconcile(
       if (input.preparationPolicy) {
         if (
           !(await deps.checkpoint(lease, "complete", {
+            ...(attemptFecRetry ? { fecRetry: attemptFecRetry } : {}),
             collectionId: saved.collectionId,
             rosterCheckArtifactKey,
             candidateProvenance,
@@ -1535,8 +1831,18 @@ export async function reconcile(
         });
         continue;
       }
-      const release = await deps.publish(saved.collectionId, lease);
+      const release = await deps.publish(saved.collectionId, lease, {
+        preserveEligibleRace: automaticNarrative,
+      });
       const checkpoint = {
+        ...(financeCacheOnly
+          ? {
+              acquisitionMode: "finance_cache_only" as const,
+              financeCachePreflightArtifactKey,
+              financeCacheAcquisition: financeCacheOnly.receipt(),
+            }
+          : {}),
+        ...(attemptFecRetry ? { fecRetry: attemptFecRetry } : {}),
         collectionId: saved.collectionId,
         rosterCheckArtifactKey,
         candidateProvenance,
@@ -1567,6 +1873,7 @@ export async function reconcile(
         raceKey: race.raceKey,
         status: "published",
         releaseId: release.releaseId,
+        ...(financeCacheOnly ? { financeCachePreflightArtifactKey } : {}),
       });
     } catch (error) {
       const reason =
@@ -1578,6 +1885,9 @@ export async function reconcile(
           : "blocked";
       const checkpoint: CaliforniaWorkCheckpoint = {
         ...attemptPrior,
+        acquisitionMode: financeCacheOnly ? "finance_cache_only" : undefined,
+        financeCachePreflightArtifactKey,
+        financeCacheAcquisition: financeCacheOnly?.receipt(),
         rosterCheckArtifactKey,
         collectionId: savedCollectionId ?? attemptPrior?.collectionId,
         candidateProvenance: {
@@ -1614,23 +1924,56 @@ export async function reconcile(
         attemptedAt: deps.now(),
         reason,
       };
+      const observedRetry = mergeCaliforniaFecRetry(
+        attemptFecRetry,
+        readCaliforniaFecRetry(checkpoint, deps.now()),
+      );
+      if (observedRetry) checkpoint.fecRetry = observedRetry;
+      fecRetry = mergeCaliforniaFecRetry(fecRetry, observedRetry);
       if (
         error instanceof RequiredCaliforniaSourceFailure ||
         error instanceof CaliforniaCitedSourceFailure
       ) {
-        await deps.fail(race.raceKey, reason, lease, checkpoint);
+        try {
+          await deps.fail(race.raceKey, reason, lease, checkpoint, {
+            preserveEligibleRace: automaticNarrative,
+          });
+        } catch (preservationError) {
+          if (
+            !automaticNarrative ||
+            !(preservationError instanceof ResearchEligibleRaceConflict)
+          )
+            throw preservationError;
+          if (!(await deps.checkpoint(lease, status, checkpoint)))
+            throw new Error(
+              "Race lease expired before preservation checkpoint",
+              {
+                cause: preservationError,
+              },
+            );
+        }
       } else if (!(await deps.checkpoint(lease, status, checkpoint))) {
         throw new Error("Race lease expired before failure checkpoint", {
           cause: error,
         });
       }
-      outcomes.push({ raceKey: race.raceKey, status, reason });
+      outcomes.push({
+        raceKey: race.raceKey,
+        status,
+        reason,
+        ...(financeCacheOnly ? { financeCachePreflightArtifactKey } : {}),
+      });
     }
   }
   return {
     snapshotId: snapshot.id,
     scopeLabel: snapshot.scopeLabel,
     rosterCheckArtifactKey,
+    ...(financeCacheOnly
+      ? {
+          financeCacheAcquisition: financeCacheOnly.receipt(),
+        }
+      : {}),
     usage,
     outcomes,
     prepared: outcomes.filter((item) => item.status === "prepared").length,

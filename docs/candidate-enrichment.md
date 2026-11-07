@@ -60,6 +60,23 @@ ballot candidate. Other candidates load background immediately, even when the
 unused guide query has never fetched. A supplied ballot biography still avoids
 the background request.
 
+## California research sources and chapters
+
+The [California evidence collector](../apps/scraper/src/candidate-research/california-evidence.ts)
+checks official office responsibilities separately from candidate claims.
+Controller and Treasurer use their official functions pages. Governor, Attorney
+General, Insurance Commissioner and Superintendent use the official voter guide's
+institutional introduction, ending before the candidate statements. A missing-page
+response or a page without the required office provision leaves a required
+authority gap; a successful HTTP response alone does not qualify it.
+
+Campaign publisher disclosures establish who publishes a page, not who made
+every statement on it. The collector retains the surrounding footer context
+and rejects quoted disclosures and third-party reporting. Word-internal
+apostrophes in ordinary contractions do not turn a genuine disclosure into a
+quotation. Candidate statements and same-origin campaign pages still retain
+their own attribution and citations.
+
 ## California research refresh failures
 
 California research is scheduled by complete race demand, not by the full
@@ -127,6 +144,16 @@ This does not require invented claims: if the context still cannot establish
 candidate research, an accurately sourced finance-only brief remains eligible
 for independent review. The original draft and correction slot remain immutable.
 
+A correction must preserve the meaning of its cited passage. If the passage
+supports a claim but the claim names the wrong page, the author fixes the page
+description rather than switching citations to fit that mistaken label. A changed
+citation must support the full claim, including whether it describes past work
+or a current commitment. Unsupported claims can be omitted; the existing single
+correction limit and independent review still apply.
+The shared correction contract is versioned for both ordinary authors and retained
+finance narratives, so older cached author artifacts cannot stand in for the
+changed contract.
+
 An approved review belongs to its saved collection. If replacing one candidate's
 draft creates a new collection, an unchanged opponent needs a review for that
 collection too. The worker reuses the author and obtains a collection-scoped
@@ -174,6 +201,22 @@ is preferred; the existing public demonstration key is subject to a shared
 quota. A transient failure stops acquisition without extending an earlier
 publication's original 24-hour expiry. The collector does not publish a replacement
 summary-only record after a required component fails.
+
+Before claiming a finance-bearing House race, the coordinator checks every loaded
+work checkpoint for a previously observed FEC API Retry-After. The shared key
+uses the longest absolute deadline plus sixty seconds of safety, across races
+and API paths. A new 429 also defers later House races in the same serial run.
+Existing current-release shortcuts, statewide research and explicit narrative-only
+research keep their admission behavior. Required roster validation still runs.
+
+The optional `fecRetry` checkpoint field retains the original resource,
+observation time, Retry-After and absolute deadline through later failures,
+preparation and publication. Exact legacy diagnostics can supply this fact when
+it has not yet been saved separately. Invalid known FEC retry metadata defers
+finance work until it can be reconciled. A deferred race stays pending without a
+claim, candidate acquisition, model call or work-checkpoint rewrite. Deferral does
+not renew source observations, review epochs or publication expiry. Overwritten
+historical diagnostics cannot be recovered automatically from the latest row.
 
 `finance.observation` records four separate outcomes. The campaign summary keeps
 its reported coverage and explicitly supplied spending, cash, debt and individual
@@ -241,17 +284,72 @@ and membership stay fixed. Binary proofs remain strict. Nonbinary comparisons
 use extracted text rather than volatile HTML bytes or historical redirect chains.
 
 The author receives the qualified published narrative through the existing output
-schema. Its actual first response must reproduce that narrative exactly. The
-compiler regenerates financial records, evidence observations and coverage text
+schema. The finance author returns the complete narrative as an exact JSON string
+in a required `retainedNarrativeJson` field. Its response schema permits only that
+string, including every chapter, claim, citation and array order. The parser
+reads the returned string and checks the narrative again before compilation; it
+does not substitute the old narrative when output is missing or changed. Every
+response, including a correction, must reproduce that narrative exactly. This is
+a constrained copy, not an approval of current truth. The compiler regenerates
+financial records, evidence observations and coverage text
 from the current dossier. A fresh independent reviewer assesses the complete new
 profile. Historical approval cannot approve a new financial revision. The existing
-single correction can repair reviewer findings, and rejected or unknown attempts
-remain terminal for the same input. A correction receives another review only
+single correction can repair a copying error but cannot rewrite the retained
+political text. A reviewer rejection that requires changed political text blocks
+this finance refresh. Ordinary research can reassess that text separately.
+Rejected or unknown attempts remain terminal for the same input. A correction receives another review only
 when its compiled reader-facing content changes. New revision IDs, author IDs,
 observation timestamps and correction metadata do not count as a repair. An
 unchanged saved correction cannot use a cached approval or dispatch another
 review. Compiler-owned coverage describes what the brief presents without
 exposing collection-workflow commentary.
+
+The same rejection rule applies before every initial, corrected and
+collection-bound review, including cached approvals after a writer version
+change. The API reads complete immutable candidate/race history and pairs each
+review with its exact author, dossier, source set and policy. Reader-visible
+content uses the shared `candidatePublicContentProjection`; new revision IDs,
+writer metadata and observation clocks cannot erase an earlier rejection.
+Genuinely changed claims, chapter placement, citation targets or validated source
+sets may receive another independent review under the existing bounds. Claim IDs
+and public evidence IDs are presentation graph labels. The projection normalizes
+them by chapter/claim order and evidence order, including headline, promise and
+citation references. It preserves prose, ordering, citation targets and financial
+entity IDs. Exact private revision, dossier and attestation hashes remain intact.
+
+A private dossier digest change alone cannot erase a rejection or unresolved
+review when candidate, race, policy and source set stay the same. Private-only
+qualification repairs can therefore remain conservatively blocked. The source-set
+digest also contains source metadata; this comparison does not establish that
+all possible source aliases are semantically equivalent. Historical invocation
+pairing and current author/source/collection validation still require exact
+dossier bindings.
+
+History reads first select scoped artifact metadata, then enforce 512 rows and
+8 MB of decoded payload before returning documents. Database statement and lock
+timeouts fail closed. These limits bound results and waiting time, not physical
+scan cost; the artifact table currently has no composite candidate-history index.
+Malformed, orphaned, conflicting or incomplete history never means permission to
+review. Legacy canonical author/review records are discovered without a new
+semantic index or backfill.
+
+Reviewer reservation rechecks the history proof under the same candidate history
+lock used for canonical outcome writes. An unresolved earlier reviewer dispatch
+blocks a replacement, even after lease loss. Late outcomes remain immutable audit
+evidence. Conflicting results for one canonical key are retained separately and
+block admission. Approval recording and publication recheck the same history
+under the transaction lock. This fences new approvals and releases; it does not
+retroactively withdraw an otherwise valid existing publication. These boundaries
+live in `california-review-history.ts`, `california-roster-store.ts` and
+`california-candidate-preparation.ts`.
+
+Model packets first use the existing 120 KB limit, selecting 500 characters of
+surrounding archive context or, when needed, the cited passages without extra
+context. A complete federal finance review that still exceeds this limit can use
+up to 160 KB, with the same context selection and every source excerpt and brief
+field retained. This allowance does not apply to author or nonfinancial review
+packets. Previously admitted packets keep their exact projection. Larger packets
+still fail closed, and the total invocation and input-token budgets do not change.
 
 The finance-refresh prompt has its own version. These versions also identify the
 trusted compiler's output contract. Cache keys include the current
@@ -260,6 +358,15 @@ IDs. Repeating the same refresh cannot obtain a new attempt merely because the
 previous publication changed those IDs. Ordinary research still discovers new
 campaign material. The targeted operator command is documented in the
 [scraper CLI guide](../apps/scraper/README.md#candidate-research-demand).
+
+The finance author returns the complete retained political narrative as one JSON
+string. Finance contract v6 sends a required plain string field to the provider,
+then locally requires exact equality with the canonical retained JSON before
+decoding it. The ordinary author schema, exact narrative digest and full independent
+review still apply. No omitted prose is filled from the baseline. Earlier finance
+author contracts cannot supply cached approval for v6. This is a conservative
+provider-compatibility adaptation after a genuine v5 schema rejection; the original
+specific provider-validation reason was not retained and remains unknown.
 
 A finance-only restart can reuse full official FEC query responses from its latest
 saved acquisition dossier for up to 12 hours. These source checks apply when
@@ -272,6 +379,21 @@ reused. The ordinary publication expiry still starts at the oldest actual source
 observation. Reusing a query does not adopt a rejected model output or clear a
 review failure.
 
+An explicit cache-only House refresh can proceed during provider backoff only when
+both candidates' exact raw API queries pass the same cache checks. When eligible
+observations differ only in their original retrieval time, the cache selects the
+oldest complete source object, independent of candidate order. Its owners are only
+the dossiers containing that exact observation; a later clock is never blended
+into it. Every other metadata or body difference remains a conflict. It acquires the
+whole race before any author or reviewer. The private cache cannot fall through to
+HTTP, and the static acquisition adapter denies API hosts before DNS and after each
+redirect. Browser rendering and discovery are excluded. Fresh static records and
+nonfinancial source revalidation remain required. An immutable preflight binds the
+original observations and completed dossier digests, while work checkpoints retain
+the original provider Retry-After. A cache-only success establishes no new provider
+eligibility. The [CLI guide](../apps/scraper/README.md#candidate-research-demand)
+describes the explicit mode and its application-level counters.
+
 If a release expires before a finance-only restart, a private baseline reader can
 recover its reviewed narrative. It selects the latest release before checking
 revocation, current policy, roster membership and the exact approved revisions.
@@ -280,3 +402,51 @@ unavailable to public readers until fresh evidence and new independent reviews
 produce a current release. A newer revoked release cannot revive an older
 approval. Retained nonfinancial evidence still requires fresh qualification, and
 the twelve-hour query cache limit remains unchanged.
+
+## Fresh narrative-only research
+
+An explicit bounded narrative-only reconciliation acquires current nonfinancial
+evidence without reusing old dossiers, financial query caches or reviewed prose.
+It skips all finance-specific identity and source acquisition. The dossier records
+null finance and an honest gap with no checked financial sources. The existing
+public compiler describes financial amounts as unavailable, never zero.
+
+This scope preserves current eligible race releases and requires substantive
+candidate Record or Priorities with the ordinary author, independent review,
+source freshness and whole-race gates. It does not change policy or clear prior
+model failures. The [scraper CLI guide](../apps/scraper/README.md#candidate-research-demand)
+describes its operator flags.
+
+The normal demanded-race worker also chooses this fresh narrative scope for an
+unavailable House race while retained FEC retry metadata defers finance. Any
+eligible whole-race release takes precedence, including a current narrative
+release. Ordinary explicit finance-only work stays deferred; the separately
+selected cache-only contract above cannot make API requests. Invalid known retry metadata
+still blocks finance, and narrative checkpoints retain the original provider fact.
+The first actual 429 remains a failed ordinary attempt. Only a later scheduled
+tick can select narrative for that same race. Later unavailable races in the same
+serial run can use the newly observed deferral without another FEC attempt.
+
+When FEC eligibility returns, the twelve-hour current shortcut requires a finance
+observation for every authoritative House member. Missing briefs or observations
+admit ordinary full acquisition. A valid threshold statement with null amounts
+still counts as an observation. This predicate schedules acquisition; it does not
+replace finance validation or guarantee a successful successor.
+
+The worker rereads eligible coverage after claiming an automatic fallback lease.
+If another publication won, it releases its lease with the unchanged checkpoint.
+Automatic fallback collection saving, publication, and source-failure handling
+also check actual release eligibility under the existing policy transaction lock.
+An intervening policy adoption cannot be withdrawn or overwritten by a narrative
+result. A publication conflict remains a truthful failed attempt rather
+than borrowing another release or advancing its source clocks. The configured
+worker has concurrency one, and production operators serialize runs. These
+protections do not promise uninterrupted pages. Demand, budgets, source quality,
+independent review, whole-race gates, and the twenty-four-hour expiry still apply;
+the normal job checks demanded races every thirty minutes.
+
+### Campaign acquisition capability
+
+The California Governor adapter can acquire a successful thin campaign module shell through a separately hosted network-none Chromium capability. All browser assets still use the researcher's pinned public GET transport and shared limits. A typed private archive binds actual response bytes, rendered visible DOM and extracted evidence; it does not replace ordinary HTTP source provenance. Renderer absence fails closed with a source gap. [Host setup and the normal data flow](../deploy/big-mac/campaign-renderer/README.md) explain deployment, isolation, cleanup and archive replay.
+
+A distinct qualified-party discovery proof can bind an otherwise missing current SOS campaign website to the exact current candidate. It preserves the missing contact field and verifies official party registration, the election/office/full-name campaign link, actual redirects and the campaign's legal publisher. This proof establishes source ownership, not personal speech attribution or a state endorsement.

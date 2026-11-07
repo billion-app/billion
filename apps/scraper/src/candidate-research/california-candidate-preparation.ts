@@ -1,9 +1,11 @@
 import { z } from "zod/v4";
 
+import type { CaliforniaReviewScope } from "@acme/api/lib/california-review-history";
 import type { CandidateEvidenceDossier } from "@acme/validators";
+import { evaluateCaliforniaSemanticReview } from "@acme/api/lib/california-review-history";
 import {
   candidateBriefSchema,
-  candidateFinanceSemanticProjection,
+  candidatePublicContentProjection,
   hasSubstantiveCandidateResearch,
 } from "@acme/validators";
 
@@ -41,6 +43,7 @@ type PreparationDependencies = Pick<
   | "artifact"
   | "saveArtifact"
   | "reserveDispatch"
+  | "reviewHistory"
   | "author"
   | "review"
   | "authorConfigurationKey"
@@ -105,32 +108,37 @@ function canonicalValue(value: unknown): unknown {
 const feedbackHash = (value: CaliforniaAuthorCorrection) =>
   evidenceDigest(canonicalValue(value));
 
-function publicContentDigest(brief: AuthorResult["brief"]) {
-  const {
-    revisionId: _revision,
-    supersedes: _supersedes,
-    createdAt: _created,
-    authorId: _author,
-    authorship: _authorship,
-    correction: _correction,
-    evidence,
-    research,
-    ...content
-  } = candidateBriefSchema.parse(brief);
-  return evidenceDigest(
-    canonicalValue({
-      ...content,
-      evidence: evidence.map(({ retrievedAt: _retrieved, ...entry }) => entry),
-      ...(research
-        ? {
-            research: {
-              ...research,
-              finance: candidateFinanceSemanticProjection(research.finance),
-            },
-          }
-        : {}),
-    }),
-  );
+const publicContentDigest = (brief: AuthorResult["brief"]) =>
+  evidenceDigest(candidatePublicContentProjection(brief));
+function reviewScope(
+  input: Parameters<typeof prepareReviewedCaliforniaCandidate>[0],
+): CaliforniaReviewScope {
+  return {
+    raceKey: input.raceKey,
+    candidateId: input.candidateId,
+    dossierDigest: input.dossier.dossierDigest,
+    sourceSetDigest: input.dossier.sourceSetDigest,
+    policyVersion: input.policyVersion,
+    identity: input.dossier.identity,
+  };
+}
+async function semanticAdmission(
+  input: Parameters<typeof prepareReviewedCaliforniaCandidate>[0],
+  brief: AuthorResult["brief"],
+  deps: PreparationDependencies,
+) {
+  const scope = reviewScope(input);
+  const result = evaluateCaliforniaSemanticReview({
+    history: await deps.reviewHistory(scope),
+    scope,
+    brief,
+    now: deps.now(),
+  });
+  if (result.kind === "unavailable")
+    throw new Error(
+      `Candidate semantic review history is unavailable: ${result.reason}`,
+    );
+  return result;
 }
 
 export class PendingCandidateResearchGap extends Error {}
@@ -314,6 +322,23 @@ function modelDispatch(
         input.bounds.maxInputTokens
     )
       throw new CaliforniaBudgetReached("model calls or input tokens");
+    let reviewAdmission: Parameters<
+      PreparationDependencies["reserveDispatch"]
+    >[0]["reviewAdmission"];
+    if (kind === "review") {
+      if (!modelInput.brief)
+        throw new Error("Reviewer dispatch requires its exact proposed brief");
+      const admission = await semanticAdmission(input, modelInput.brief, deps);
+      if (admission.kind !== "clear")
+        throw new Error(
+          "Immutable reviewer history rejected unchanged public content before dispatch",
+        );
+      reviewAdmission = {
+        scope: reviewScope(input),
+        brief: modelInput.brief,
+        proof: admission.proof,
+      };
+    }
     const reserved = await deps.reserveDispatch({
       key: `dispatch:${key}`,
       raceKey: input.raceKey,
@@ -321,6 +346,7 @@ function modelDispatch(
       document: { startedAt: deps.now(), costUsd: null },
       workLease: lease,
       collectionReviewAttempt,
+      reviewAdmission,
     });
     if (!reserved)
       throw new Error(
@@ -342,6 +368,7 @@ function modelDispatch(
       throw error;
     }
     account(result.attestation.usage);
+    const canonicalResult = (await save(key, kind, result)) as T;
     if (
       rejectedCorrectionKey &&
       "verdict" in result &&
@@ -353,7 +380,7 @@ function modelDispatch(
         reviewed: result,
       });
     }
-    return (await save(key, kind, result)) as T;
+    return canonicalResult;
   }
   return { remember, save, invoke };
 }
@@ -507,6 +534,31 @@ export async function prepareReviewedCaliforniaCandidate(
         "The authored brief does not yet present a publishable account of this candidate's priorities, record, or campaign finances.",
       );
     }
+    const semantic = await semanticAdmission(input, authored.brief, deps);
+    if (semantic.kind === "rejected") {
+      remember(semantic.authorKey);
+      remember(semantic.reviewKey);
+      if (
+        !correction &&
+        (actionableReason(semantic.review.overallReason) ||
+          semantic.review.findings.some(
+            (finding) => !finding.supported && actionableReason(finding.reason),
+          ))
+      )
+        return {
+          kind: "correction",
+          triggerArtifactKey: semantic.reviewKey,
+          feedback: {
+            kind: "review_rejection",
+            previousBrief: semantic.author.brief,
+            overallReason: semantic.review.overallReason ?? null,
+            findings: semantic.review.findings,
+          },
+        };
+      throw new Error(
+        "Immutable independent review rejected this unchanged public content; bounded correction is exhausted or unavailable",
+      );
+    }
     const reviewKey = candidateReviewKey(authored, input, deps);
     remember(reviewKey);
     const rejectedKey = `review-rejected:${reviewRevisionKey(authored, dossier, policyVersion)}`;
@@ -655,6 +707,11 @@ export async function reviewPreparedCaliforniaCandidateForCollection(
   )
     throw new Error(
       "Collection review recovery requires an exact previously approved revision",
+    );
+  const semantic = await semanticAdmission(input, authored.brief, deps);
+  if (semantic.kind === "rejected")
+    throw new Error(
+      "Immutable independent review rejected unchanged public content before collection admission",
     );
   const { remember, save, invoke } = modelDispatch(input, deps);
   const revisionKey = reviewRevisionKey(authored, dossier, policyVersion);

@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import test from "node:test";
 
 import type { ResearchSource } from "@acme/validators";
+import { candidateDossierSemanticProjection } from "@acme/validators";
 
 import { publicSourceAddresses } from "../research/pages.js";
 import { buildCaliforniaDossier } from "./california-dossier.js";
@@ -16,6 +17,7 @@ import {
   fetchBoundedCaliforniaSource,
   qualifiedCandidatePage,
 } from "./california-evidence.js";
+import { CaliforniaFinanceCacheOnly } from "./california-finance-cache-only.js";
 import { decodeCaliforniaRoster } from "./california-roster.js";
 import {
   CaliforniaSourceHttpError,
@@ -1241,6 +1243,24 @@ test("only unquoted legal publisher disclosures qualify filed destinations", asy
   for (const [disclosure, accepted] of [
     ["<footer>Paid for by Anne J. Kepner for Trustee.</footer>", true],
     [
+      "<footer>If you've saved your payment information, you can donate. Paid for by Anne J. Kepner for Trustee.</footer>",
+      true,
+    ],
+    [
+      "<footer>If you’ve saved your payment information, you can donate. Paid for by Anne J. Kepner for Trustee.</footer>",
+      true,
+    ],
+    [
+      "<footer>The candidate's campaign. Paid for by Anne J. Kepner for Trustee.</footer>",
+      true,
+    ],
+    ["<footer>‘Paid for by Anne J. Kepner for Trustee.’</footer>", false],
+    [
+      "<footer><div>According to the campaign, Paid for by Anne J. Kepner for Trustee.</div></footer>",
+      false,
+    ],
+    ["<footer>Paid for by Some Other Person for Trustee.</footer>", false],
+    [
       '<div class="legal-disclaimer">Authorized and paid for by Anne J. Kepner for Trustee.</div>',
       true,
     ],
@@ -2329,4 +2349,464 @@ test("failed transport diagnostics identify only the public resource and numeric
       return true;
     },
   );
+});
+
+test("captured Bonta footer preserves a genuine disclosure after a contraction", async () => {
+  const footer = await readFile(
+    new URL("./fixtures/bonta-campaign-footer.html", import.meta.url),
+    "utf8",
+  );
+  assert.match(footer, /you(?:'|’)ve/);
+  const archive = await fetchBoundedCaliforniaSource(
+    "campaign",
+    "https://robbonta.com/",
+    "robbonta.com",
+    "html",
+    { request() {}, bytes() {} },
+    undefined,
+    {
+      addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+      transport: async () =>
+        new Response(
+          `<html><body><main>Rob Bonta</main>${footer}</body></html>`,
+        ),
+    },
+  );
+  const [substantive, disclosure] = archive.text.split(
+    "\nCampaign publisher disclosure (identity only):\n",
+  );
+  assert.match(
+    disclosure!,
+    /Paid for by Rob Bonta for CA Attorney General 2026/,
+  );
+  assert.equal(
+    substantive!
+      .split("\nLinked source navigation (discovery only):\n")[0]!
+      .includes("Paid for by"),
+    false,
+  );
+});
+
+test("captured statewide authority pages require their office provision and reject missing-page content", async () => {
+  const pages = JSON.parse(
+    await readFile(
+      new URL("./fixtures/statewide-authority-pages.json", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    office: string;
+    url: string;
+    text?: string;
+    html?: string;
+    introduction?: string;
+  }[];
+  const { snapshot } = await fixture();
+  for (const page of pages) {
+    const race = snapshot.races.find(
+      (target) => target.office === page.office,
+    )!;
+    assert.ok(race, page.office);
+    const member = race.members[0]!;
+    const variants = [
+      "actual",
+      "wrong-office",
+      "soft404",
+      "truncated",
+      ...(page.introduction
+        ? ["missing-introduction", "truncated-introduction", "wrong-heading"]
+        : []),
+      ...(page.introduction ||
+      page.office === "Superintendent of Public Instruction"
+        ? ["candidate-quotation"]
+        : []),
+      ...(page.office === "Controller" ? ["fragment"] : []),
+    ];
+    for (const variant of variants) {
+      const dossier = await collectCaliforniaEvidence(
+        { snapshot, race, member },
+        {
+          now: () => now,
+          sharedSources: new Map(),
+          budget: { request() {}, bytes() {} },
+          search: async () => ({ sources: [] }),
+          fetch: async (id, url, publisher, format) => {
+            if (url !== page.url)
+              return source(
+                id,
+                url,
+                "Official source without a listed candidate statement or campaign website.",
+              );
+            const actual =
+              page.html ??
+              `<html><body><main>${page.text}</main></body></html>`;
+            const body = page.text ?? "";
+            const bodies: Record<string, string> = {
+              "wrong-office":
+                "The mayor administers the city budget and oversees municipal departments.",
+              fragment:
+                "As the chief fiscal officer of California, this page is unavailable while maintenance continues.",
+              soft404: `The page you requested is not found. ${body}`,
+              "candidate-quotation": `${member.name} says: ${body}`,
+              truncated: body.slice(0, 150),
+              "missing-introduction": body.replace(page.introduction ?? "", ""),
+              "truncated-introduction": body.replace(
+                page.introduction ?? "",
+                page.introduction?.slice(0, -40) ?? "",
+              ),
+              "wrong-heading": body.replace(
+                `${page.office} Candidate Statements`,
+                "Governor Candidate Statements",
+              ),
+            };
+            const html =
+              variant === "actual"
+                ? actual
+                : `<html><main>${bodies[variant]}</main></html>`;
+            return fetchBoundedCaliforniaSource(
+              id,
+              url,
+              publisher,
+              format,
+              { request() {}, bytes() {} },
+              undefined,
+              {
+                addresses: async () => [
+                  { address: "93.184.216.34", family: 4 },
+                ],
+                transport: async () => new Response(html),
+              },
+            ).then((archive) => ({ ...archive, fetchedAt: now }));
+          },
+        },
+      );
+      const authority = dossier.evidence.find(
+        (entry) => entry.role === "office_authority",
+      );
+      if (variant === "actual") {
+        assert.ok(authority, page.office);
+        const observed = dossier.sources.find(
+          (entry) => entry.id === authority.sourceId,
+        )!;
+        assert.ok(observed.text.includes(authority.excerpt));
+        assert.doesNotMatch(
+          authority.excerpt,
+          /page you requested is not found/i,
+        );
+        if (page.introduction) {
+          assert.equal(authority.excerpt, page.introduction);
+          for (const candidate of race.members)
+            assert.equal(authority.excerpt.includes(candidate.name), false);
+          assert.equal(authority.origin, "primary_record");
+          assert.equal(
+            authority.identityQualification,
+            "exact_election_office",
+          );
+        }
+        if (page.office === "Superintendent of Public Instruction") {
+          assert.match(authority.excerpt, /governing boards/);
+          assert.doesNotMatch(authority.excerpt, /Richard Barrera|Sonja Shaw/);
+        }
+      } else {
+        assert.equal(authority, undefined, `${page.office}: ${variant}`);
+        assert.ok(
+          dossier.gaps.some(
+            (gap) => gap.dimension === "mechanisms" && gap.required,
+          ),
+        );
+      }
+    }
+  }
+});
+
+for (const name of ["Peter Coe Verbica", "Jimmy Panetta"]) {
+  test(`narrative-only acquires fresh ${name} evidence without any finance request`, async () => {
+    const f = await capturedHouseCampaign(name);
+    let blockedFinanceRequests = 0;
+    const fetch = f.deps.fetch;
+    f.deps.fetch = async (id, url) => {
+      if (/fec\.gov|fec\.gov\/|\/ccl\//.test(url)) {
+        blockedFinanceRequests++;
+        throw new Error("Finance transport is prohibited in this fixture");
+      }
+      return fetch(id, url);
+    };
+    const dossier = await collectCaliforniaEvidence(
+      { ...f, researchScope: "narrative_only" },
+      f.deps,
+    );
+    assert.equal(blockedFinanceRequests, 0);
+    assert.equal(dossier.classification, "supported");
+    assert.equal(dossier.finance, null);
+    assert.equal(dossier.financeIdentityProof, undefined);
+    assert.equal(
+      dossier.evidence.some((entry) => entry.role === "finance"),
+      false,
+    );
+    assert.deepEqual(
+      dossier.gaps.find((gap) => gap.dimension === "finance"),
+      {
+        dimension: "finance",
+        code: "source_unavailable",
+        message:
+          "Campaign-finance research is still pending for this candidate.",
+        checkedSourceIds: [],
+        required: false,
+      },
+    );
+    const later = await collectCaliforniaEvidence(
+      { ...f, researchScope: "narrative_only" },
+      { ...f.deps, now: () => "2026-10-30T13:00:00.000Z" },
+    );
+    assert.deepEqual(
+      candidateDossierSemanticProjection(later),
+      candidateDossierSemanticProjection(dossier),
+    );
+    const candidateEvidence = dossier.evidence.find(
+      (entry) => entry.role === "campaign_material",
+    );
+    assert.ok(candidateEvidence);
+    const candidateSource = f.sources.find((entry) =>
+      entry.text.includes(candidateEvidence.excerpt),
+    )!;
+    assert.ok(candidateSource);
+    candidateSource.text +=
+      "\nNew current campaign proposal for this offline fixture.";
+    candidateSource.contentHash = createHash("sha256")
+      .update(candidateSource.text)
+      .digest("hex");
+    f.deps.sharedSources.clear();
+    const fresh = await collectCaliforniaEvidence(
+      { ...f, researchScope: "narrative_only" },
+      f.deps,
+    );
+    assert.notEqual(fresh.dossierDigest, dossier.dossierDigest);
+    assert.ok(
+      fresh.sources.some((entry) =>
+        entry.text.includes("New current campaign proposal"),
+      ),
+    );
+    assert.equal(blockedFinanceRequests, 0);
+    const stale = {
+      ...dossier,
+      sources: [
+        ...dossier.sources,
+        source(
+          "old-finance-query",
+          "https://api.open.fec.gov/v1/reports/house/",
+          "old official finance response",
+        ),
+        source(
+          "C12345678:old-row",
+          "https://api.open.fec.gov/v1/reports/house/",
+          "old derived finance row",
+        ),
+      ],
+    };
+    let fetches = 0;
+    for (const conflicting of [
+      { previousDossier: stale },
+      {
+        cachedFinanceDossier: {
+          digest: dossier.dossierDigest,
+          document: stale,
+        },
+      },
+      {
+        previousDossier: stale,
+        cachedFinanceDossier: {
+          digest: dossier.dossierDigest,
+          document: stale,
+        },
+      },
+    ]) {
+      await assert.rejects(
+        collectCaliforniaEvidence(
+          { ...f, ...conflicting, researchScope: "narrative_only" },
+          {
+            ...f.deps,
+            fetch: async () => {
+              fetches++;
+              throw new Error("must not fetch");
+            },
+          },
+        ),
+        /fresh inputs without prior dossiers or finance caches/,
+      );
+    }
+    assert.equal(fetches, 0);
+  });
+}
+
+const excludedFinanceUrls = [
+  "https://api.open.fec.gov/v1/candidates/",
+  "https://www.fec.gov/data/candidate/H0CA00001/",
+  "https://www.fec.gov/files/bulk-downloads/2026/cn26.zip",
+  "https://docquery.fec.gov/dcdev/posted/1856505.fec",
+  "https://api.open.fec.gov./v1/candidates/",
+  "https://docquery.fec.gov./dcdev/posted/1856505.fec",
+];
+
+test("narrative-only filters discovered federal finance pages before fetching", async () => {
+  const f = await capturedHouseCampaign("Peter Coe Verbica");
+  const dossier = await collectCaliforniaEvidence(
+    { ...f, researchScope: "narrative_only" },
+    {
+      ...f.deps,
+      search: async () => ({
+        sources: excludedFinanceUrls.map((url) => ({ url })),
+      }),
+    },
+  );
+  assert.equal(dossier.classification, "supported");
+  assert.equal(dossier.finance, null);
+  assert.equal(
+    f.fetched.some((url) => excludedFinanceUrls.includes(url)),
+    false,
+  );
+  assert.deepEqual(
+    dossier.gaps.find((gap) => gap.dimension === "finance")?.checkedSourceIds,
+    [],
+  );
+});
+
+for (const url of excludedFinanceUrls) {
+  test(`narrative-only transport refuses ${url} before DNS and transport`, async () => {
+    const requested: string[] = [];
+    const resolved: string[] = [];
+    const controls = {
+      researchScope: "narrative_only" as const,
+      addresses: async (current: string) => {
+        resolved.push(current);
+        return [{ address: "93.184.216.34", family: 4 as const }];
+      },
+      transport: async (current: string) => {
+        requested.push(current);
+        return new Response(null, { status: 302, headers: { location: url } });
+      },
+    };
+    for (const initial of [url, "https://campaign.example/redirect"]) {
+      requested.length = 0;
+      resolved.length = 0;
+      await assert.rejects(
+        fetchBoundedCaliforniaSource(
+          "fixture",
+          initial,
+          "fixture",
+          "html",
+          { request() {}, bytes() {} },
+          undefined,
+          controls,
+        ),
+        /excludes federal finance sources/,
+      );
+      assert.deepEqual(requested, initial === url ? [] : [initial]);
+      assert.deepEqual(resolved, initial === url ? [] : [initial]);
+    }
+  });
+}
+
+for (const destination of [
+  "https://api.open.fec.gov/v1/candidates/",
+  "https://api.open.fec.gov./v1/candidates/",
+]) {
+  test(`narrative-only HTML archiving rejects ${destination} before its DNS or transport`, async () => {
+    const requested: string[] = [];
+    const resolved: string[] = [];
+    const initial = "https://campaign.example/";
+    await assert.rejects(
+      fetchBoundedCaliforniaSource(
+        "campaign-fixture",
+        initial,
+        "campaign fixture",
+        "html",
+        { request() {}, bytes() {} },
+        undefined,
+        {
+          researchScope: "narrative_only",
+          archiveHtml: true,
+          addresses: async (current) => {
+            resolved.push(current);
+            return [{ address: "93.184.216.34", family: 4 }];
+          },
+          transport: async (current) => {
+            requested.push(current);
+            return new Response("Redirecting", {
+              status: 302,
+              headers: { location: destination, "content-type": "text/html" },
+            });
+          },
+        },
+      ),
+      /excludes federal finance sources/,
+    );
+    assert.deepEqual(requested, [initial]);
+    assert.deepEqual(resolved, [initial]);
+  });
+}
+
+test("narrative-only HTML acquisition retains the raw ownership archive", async () => {
+  const url = "https://campaign.example/";
+  const html =
+    "<html><body><main>A current candidate explains plans to improve housing, protect schools and reduce household costs.</main><footer>Paid for by Example Candidate for Governor 2026</footer></body></html>";
+  const result = await fetchBoundedCaliforniaSource(
+    "campaign-fixture",
+    url,
+    "campaign fixture",
+    "html",
+    { request() {}, bytes() {} },
+    undefined,
+    {
+      researchScope: "narrative_only",
+      archiveHtml: true,
+      addresses: async () => [{ address: "93.184.216.34", family: 4 }],
+      transport: async () =>
+        new Response(html, { headers: { "content-type": "text/html" } }),
+    },
+  );
+  assert.equal(
+    Buffer.from(result.binaryBase64 ?? "", "base64").toString(),
+    html,
+  );
+  assert.equal(result.httpObservation?.responses.at(-1)?.url, url);
+  assert.equal(result.httpObservation?.responses.at(-1)?.status, 200);
+  assert.ok(result.text.includes("A current candidate explains plans"));
+});
+
+test("cache-only evidence excludes non-House, renderer and supplemental acquisition paths before fetch", async () => {
+  const { snapshot, race } = await fixture();
+  const policy = new CaliforniaFinanceCacheOnly(() => now);
+  for (const variant of ["non-house", "renderer", "supplemental"] as const) {
+    await assert.rejects(
+      collectCaliforniaEvidence(
+        {
+          snapshot,
+          race:
+            variant === "non-house"
+              ? race
+              : { ...race, officeFamily: "us_house" },
+          member: race.members[0]!,
+          researchScope: "finance_refresh",
+          financeCacheOnly: policy,
+          ...(variant === "supplemental"
+            ? {
+                supplementalSources: [
+                  source("untrusted", "https://example.gov/", "untrusted"),
+                ],
+              }
+            : {}),
+        },
+        {
+          ...(variant === "renderer"
+            ? { campaignRenderer: { budget: { request() {}, bytes() {} } } }
+            : {}),
+          fetch: async () => assert.fail("No source transport permitted"),
+          search: async () => assert.fail("No discovery permitted"),
+          now: () => now,
+          sharedSources: new Map(),
+          budget: { request() {}, bytes() {} },
+        },
+      ),
+      /static House refresh adapter/,
+    );
+  }
 });

@@ -14,10 +14,14 @@ import type {
   CandidateResearchCollectionDocument,
   ResearchSource,
 } from "@acme/validators";
-import { ResearchReviewCollectionConflict } from "@acme/api/lib/candidate-brief-publication";
+import {
+  ResearchEligibleRaceConflict,
+  ResearchReviewCollectionConflict,
+} from "@acme/api/lib/candidate-brief-publication";
 import {
   candidateBriefSchema,
   candidateEvidenceDossierSchema,
+  candidatePublicContentProjection,
   deriveCandidateResearchQuality,
 } from "@acme/validators";
 
@@ -94,6 +98,10 @@ async function fixture() {
     races: [original.races[0]!, original.races[2]!],
   };
   const artifacts = new Map<string, unknown>();
+  const artifactMetadata = new Map<
+    string,
+    { kind: string; raceKey: string; candidateId?: string }
+  >();
   const rows = new Map<
     string,
     { raceKey: string; status: string; checkpoint: unknown }
@@ -115,7 +123,10 @@ async function fixture() {
     actorId: role === "author" ? brief.authorId : `reviewer:${randomUUID()}`,
     runId: randomUUID(),
     configuredModel: role,
-    actualModel: role,
+    actualModel:
+      role === "author" && brief.authorship.kind === "generated"
+        ? brief.authorship.model
+        : role,
     provider: "fixture",
     requestId: null,
     promptVersion: "fixture",
@@ -149,6 +160,42 @@ async function fixture() {
       rows.set(lease.key, { raceKey: lease.key, status, checkpoint: value });
       return true;
     },
+    reviewHistory: async (scope) => ({
+      kind: "complete",
+      proof: "fixture-history",
+      artifacts: [...artifacts].flatMap(([key, document]) => {
+        const metadata = artifactMetadata.get(key);
+        if (
+          metadata &&
+          (metadata.raceKey !== scope.raceKey ||
+            metadata.candidateId !== scope.candidateId)
+        )
+          return [];
+        const kind = key.startsWith("dispatch:")
+          ? "model_dispatch"
+          : key.startsWith("author:") || key.startsWith("author-correction:")
+            ? "author"
+            : key.startsWith("review:")
+              ? "review"
+              : key.startsWith("review-rejected:")
+                ? "model_review_rejection"
+                : key.startsWith("correction-rejected:")
+                  ? "model_correction_rejection"
+                  : null;
+        return kind
+          ? [
+              {
+                key,
+                kind,
+                document,
+                raceKey: scope.raceKey,
+                candidateId: scope.candidateId,
+                createdAt: new Date("2026-10-30T00:00:00.000Z"),
+              },
+            ]
+          : [];
+      }),
+    }),
     artifact: async (key) => artifacts.get(key) ?? null,
     hasArtifact: async (key) => artifacts.has(key),
     reserveDispatch: async (input) => {
@@ -168,10 +215,22 @@ async function fixture() {
         artifacts.set(key, { collectionId, reviewKey });
       }
       artifacts.set(input.key, input.document);
+      artifactMetadata.set(input.key, {
+        kind: "model_dispatch",
+        raceKey: input.raceKey,
+        candidateId: input.candidateId,
+      });
       return true;
     },
     saveArtifact: async (input) => {
-      if (!artifacts.has(input.key)) artifacts.set(input.key, input.document);
+      if (!artifacts.has(input.key)) {
+        artifacts.set(input.key, input.document);
+        artifactMetadata.set(input.key, {
+          kind: input.kind,
+          raceKey: input.raceKey,
+          candidateId: input.candidateId,
+        });
+      }
       return artifacts.get(input.key);
     },
     investigate: async ({ race, member }) => {
@@ -3552,4 +3611,1471 @@ test("historical narrative preserves exact author values regardless JSONB object
   (artifacts[0]!.author as Record<string, unknown>).unexpectedProof =
     "not in signed attestation";
   assert.equal(qualifyFinanceNarrativeBaseline(input), null);
+});
+
+test("narrative-only requires explicit races and excludes finance-only before acquisition", async () => {
+  const f = await fixture();
+  const input = {
+    snapshotId: f.snapshot.id,
+    policyVersion: "policy",
+    bounds,
+    narrativeOnly: true,
+  };
+  await assert.rejects(
+    reconcile(input, f.deps),
+    /requires explicit operator race keys/,
+  );
+  await assert.rejects(
+    reconcile({ ...input, financeOnly: true }, f.deps),
+    /mutually exclusive/,
+  );
+  assert.equal(f.stats.investigations, 0);
+  assert.equal(f.stats.authors, 0);
+});
+
+for (const priorEpoch of [3, 4]) {
+  test(`narrative-only excludes retained epoch-${priorEpoch} dossier and narrative inputs`, async () => {
+    const f = await fixture();
+    const race = f.snapshot.races[0]!;
+    f.rows.set(race.raceKey, {
+      raceKey: race.raceKey,
+      status: "blocked",
+      checkpoint: {
+        releaseId: "revoked-release",
+        dossierDigests: Object.fromEntries(
+          race.members.map((member) => [
+            member.candidateId,
+            "old-finance-dossier",
+          ]),
+        ),
+        dossierReviewEpochs: Object.fromEntries(
+          race.members.map((member) => [member.candidateId, priorEpoch]),
+        ),
+        candidateProvenance: Object.fromEntries(
+          race.members.map((member) => [
+            member.candidateId,
+            { dossierDigest: "old-finance-cache" },
+          ]),
+        ),
+      },
+    });
+    const claim = f.deps.claim;
+    f.deps.claim = async (input) => ({
+      ...(await claim(input))!,
+      reviewEpoch: 4,
+    });
+    const artifact = f.deps.artifact;
+    f.deps.artifact = async (key) => {
+      assert.ok(
+        !key.includes("old-finance"),
+        "historical finance must not be loaded",
+      );
+      return artifact(key);
+    };
+    f.deps.readFinanceNarrativeBaselines = async () => {
+      throw new Error("must not read retained narrative");
+    };
+    const investigate = f.deps.investigate;
+    f.deps.investigate = async (input, budget) => {
+      assert.equal(input.researchScope, "narrative_only");
+      assert.equal("previousDossier" in input, false);
+      assert.equal("cachedFinanceDossier" in input, false);
+      return investigate(input, budget);
+    };
+    const author = f.deps.author;
+    f.deps.author = async (input) => {
+      assert.equal(input.retainedNarrative, undefined);
+      return author(input);
+    };
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        narrativeOnly: true,
+        raceKeys: [race.raceKey],
+      },
+      f.deps,
+    );
+    assert.equal(result.completed, 1);
+    assert.equal(f.stats.authors, race.members.length);
+    assert.equal(f.stats.reviews, race.members.length);
+  });
+}
+
+test("narrative-only preserves actual current coverage despite stale checkpoints and explicit refresh", async () => {
+  const f = await fixture();
+  const race = f.snapshot.races[0]!;
+  f.deps.readPublishedCoverage = async () => ({
+    snapshotId: f.snapshot.id,
+    races: [
+      {
+        contestId: race.contestId,
+        jurisdiction: race.jurisdiction,
+        electionDate: race.electionDate,
+        releaseId: "current-eligible-release",
+        sourceCheckedAt: f.deps.now(),
+        policyVersion: "policy",
+        members: race.members.map((member) => ({
+          candidateId: member.candidateId,
+          revisionId: randomUUID(),
+          collectionId: null,
+          author: null,
+          reviewer: null,
+        })),
+      },
+    ],
+  });
+  f.deps.claim = async () => {
+    throw new Error("must not replace current coverage");
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      narrativeOnly: true,
+      refreshCurrent: true,
+      raceKeys: [race.raceKey],
+    },
+    f.deps,
+  );
+  assert.equal(result.outcomes[0]?.status, "current");
+  assert.equal(f.stats.investigations, 0);
+  assert.equal(f.stats.authors, 0);
+});
+
+test("narrative-only without substantive candidate evidence stays pending without model dispatch", async () => {
+  const f = await fixture();
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (...args) => {
+    const dossier = await investigate(...args);
+    return buildCaliforniaDossier({
+      ...dossier,
+      evidence: dossier.evidence.filter((entry) => entry.role === "roster"),
+      sources: dossier.sources.filter((entry) => entry.id === "roster"),
+      finance: null,
+    });
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      narrativeOnly: true,
+      raceKeys: [f.snapshot.races[0]!.raceKey],
+    },
+    f.deps,
+  );
+  assert.equal(result.completed, 0);
+  assert.equal(result.outcomes[0]?.status, "pending");
+  assert.equal(f.stats.authors, 0);
+  assert.equal(f.stats.reviews, 0);
+  assert.equal(f.stats.releases, 0);
+});
+
+test("narrative-only fails closed when canonical review history is unavailable", async () => {
+  const f = await fixture();
+  let historyReads = 0;
+  f.deps.reviewHistory = async () => {
+    historyReads++;
+    return {
+      kind: "unavailable",
+      reason: "Fixture cannot establish complete canonical history",
+    };
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      narrativeOnly: true,
+      raceKeys: [f.snapshot.races[0]!.raceKey],
+    },
+    f.deps,
+  );
+  assert.equal(result.blocked, 1);
+  assert.match(
+    result.outcomes[0]?.reason ?? "",
+    /semantic review history is unavailable/,
+  );
+  assert.ok(historyReads > 0);
+  assert.equal(f.stats.reviews, 0);
+  assert.equal(f.stats.releases, 0);
+});
+
+test("narrative-only gap changes cannot repeat review of unchanged rejected public content", async () => {
+  const f = await fixture();
+  const investigated: CandidateEvidenceDossier[] = [];
+  const publicContent: ReturnType<typeof candidatePublicContentProjection>[] =
+    [];
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (input, budget) => {
+    const dossier = await investigate(input, budget);
+    const fresh =
+      input.researchScope === "narrative_only"
+        ? buildCaliforniaDossier({
+            ...dossier,
+            finance: null,
+            gaps: [
+              ...dossier.gaps,
+              {
+                dimension: "finance",
+                code: "source_unavailable",
+                message:
+                  "Campaign-finance research is still pending for this candidate.",
+                checkedSourceIds: [],
+                required: false,
+              },
+            ],
+          })
+        : dossier;
+    investigated.push(fresh);
+    return fresh;
+  };
+  const author = f.deps.author;
+  f.deps.author = async (input) => {
+    const result = await author(input);
+    assert.equal(result.attestation.dossierDigest, input.dossier.dossierDigest);
+    assert.equal(
+      result.attestation.sourceSetDigest,
+      input.dossier.sourceSetDigest,
+    );
+    publicContent.push(candidatePublicContentProjection(result.brief));
+    return result;
+  };
+  const review = f.deps.review;
+  f.deps.review = async (input) => ({
+    ...(await review(input)),
+    verdict: "reject",
+  });
+  for (const narrativeOnly of [false, true]) {
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        narrativeOnly,
+        raceKeys: [f.snapshot.races[0]!.raceKey],
+      },
+      f.deps,
+    );
+    assert.equal(result.blocked, 1);
+  }
+  assert.equal(investigated.length, 2);
+  assert.notEqual(
+    investigated[0]!.dossierDigest,
+    investigated[1]!.dossierDigest,
+  );
+  assert.equal(
+    investigated[0]!.sourceSetDigest,
+    investigated[1]!.sourceSetDigest,
+  );
+  assert.deepEqual(investigated[0]!.sources, investigated[1]!.sources);
+  assert.deepEqual(investigated[0]!.evidence, investigated[1]!.evidence);
+  assert.deepEqual(investigated[0]!.identity, investigated[1]!.identity);
+  assert.ok(publicContent.length >= 2);
+  for (const content of publicContent)
+    assert.deepEqual(content, publicContent[0]);
+  assert.equal(f.stats.reviews, 1);
+  assert.equal(f.stats.releases, 0);
+});
+
+const capturedFecRetryCheckpoints = [
+  {
+    raceKey: "ca-sos-2026-11-03-110000160000",
+    status: "blocked",
+    checkpoint: {
+      attemptedAt: "2026-11-02T01:25:47.641Z",
+      reason:
+        "Source request failed (429); source https://api.open.fec.gov/v1/reports/house-senate/; retry after 17281 seconds",
+      releaseId: "f3e2a1b8-bcb2-40f2-b6c1-de827cc57db4",
+      sourceCheckedAt: "2026-10-31T23:17:17.827Z",
+    },
+  },
+  {
+    raceKey: "ca-sos-2026-11-03-110000190000",
+    status: "blocked",
+    checkpoint: {
+      attemptedAt: "2026-11-02T01:25:50.091Z",
+      reason:
+        "Source request failed (429); source https://api.open.fec.gov/v1/schedules/schedule_e/by_candidate/; retry after 9525 seconds",
+      releaseId: "9a53f718-f9ff-41fa-8b4b-ee1ac8911d42",
+      sourceCheckedAt: "2026-11-01T04:36:16.776Z",
+    },
+  },
+];
+
+test("FEC retry captured restart defers explicit finance-only work without claims or work mutations", async () => {
+  const f = await fixture();
+  const race = f.allRaces.find(
+    (target) => target.officeFamily === "us_house" && target.district === "10",
+  )!;
+  f.snapshot.races = [race];
+  f.deps.now = () => "2026-11-02T02:00:00.000Z";
+  for (const row of capturedFecRetryCheckpoints)
+    f.rows.set(row.raceKey, structuredClone(row));
+  const before = structuredClone([...f.rows]);
+  for (const method of [
+    "claim",
+    "investigate",
+    "author",
+    "review",
+    "checkpoint",
+    "fail",
+    "publish",
+  ] as const)
+    f.deps[method] = async () => {
+      assert.fail(`deferred attempt called ${method}`);
+    };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      raceKeys: [race.raceKey],
+      financeOnly: true,
+      refreshCurrent: true,
+    },
+    f.deps,
+  );
+  assert.equal(result.remaining, 1);
+  assert.equal(result.outcomes[0]!.status, "pending");
+  assert.match(result.outcomes[0]!.reason!, /2026-11-02T06:14:48.641Z/);
+  assert.equal(result.usage.races, 0);
+  assert.equal(result.usage.candidates, 0);
+  assert.equal(result.usage.modelCalls, 0);
+  assert.deepEqual([...f.rows], before);
+});
+
+for (const [now, admitted] of [
+  ["2026-11-02T06:14:48.640Z", false],
+  ["2026-11-02T06:14:48.641Z", true],
+] as const)
+  test(`FEC retry selects ${admitted ? "ordinary finance" : "fresh narrative"} at the original maximum plus safety ${now}`, async () => {
+    const f = await fixture();
+    const race = f.allRaces.find(
+      (target) => target.officeFamily === "us_house",
+    )!;
+    f.snapshot.races = [race];
+    f.deps.now = () => now;
+    for (const row of capturedFecRetryCheckpoints)
+      f.rows.set(row.raceKey, structuredClone(row));
+    let claims = 0;
+    let investigations = 0;
+    const claim = f.deps.claim;
+    f.deps.claim = async (input) => {
+      claims++;
+      return claim(input);
+    };
+    f.deps.investigate = async (request) => {
+      investigations++;
+      assert.equal(
+        request.researchScope,
+        admitted ? undefined : "narrative_only",
+      );
+      throw new Error("Synthetic acquisition boundary reached");
+    };
+    await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        raceKeys: [race.raceKey],
+      },
+      f.deps,
+    );
+    assert.equal(claims, 1);
+    assert.equal(investigations, 1);
+    assert.equal(f.stats.authors, 0);
+    assert.equal(f.stats.reviews, 0);
+  });
+
+test("FEC retry first observed response selects fresh narrative for the next House race without rerunning the failed race", async () => {
+  const f = await fixture();
+  f.snapshot.races = f.allRaces.filter(
+    (target) =>
+      target.officeFamily === "us_house" &&
+      ["16", "19"].includes(target.district!),
+  );
+  f.deps.now = () => "2026-11-02T02:00:00.000Z";
+  let claims = 0;
+  let investigations = 0;
+  const claim = f.deps.claim;
+  f.deps.claim = async (input) => {
+    claims++;
+    return claim(input);
+  };
+  f.deps.investigate = async (request) => {
+    investigations++;
+    assert.equal(
+      request.researchScope,
+      investigations === 1 ? undefined : "narrative_only",
+    );
+    if (investigations > 1) throw new Error("Synthetic nonfinancial stop");
+    throw new CaliforniaSourceHttpError(429, {
+      resource: "https://api.open.fec.gov/v1/reports/house-senate/",
+      retryAfterSeconds: 3600,
+    });
+  };
+  const result = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      raceKeys: f.snapshot.races.map((race) => race.raceKey),
+    },
+    f.deps,
+  );
+  assert.equal(claims, 2);
+  assert.equal(investigations, 2);
+  assert.deepEqual(
+    result.outcomes.map((outcome) => outcome.status),
+    ["blocked", "blocked"],
+  );
+  assert.match(result.outcomes[1]!.reason!, /Synthetic nonfinancial stop/);
+  assert.equal(f.rows.size, 2);
+  const saved = [...f.rows.values()][0]!.checkpoint as CaliforniaWorkCheckpoint;
+  assert.equal(saved.attemptedAt, "2026-11-02T02:00:00.000Z");
+  assert.deepEqual(saved.fecRetry, {
+    resource: "https://api.open.fec.gov/v1/reports/house-senate/",
+    attemptedAt: "2026-11-02T02:00:00.000Z",
+    retryAfterSeconds: 3600,
+    notBefore: "2026-11-02T03:00:00.000Z",
+  });
+  const scopes: unknown[] = [];
+  f.deps.investigate = async (request) => {
+    scopes.push(request.researchScope);
+    throw new Error("Synthetic next tick stop");
+  };
+  await reconcile(
+    { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+    f.deps,
+  );
+  assert.deepEqual(scopes, ["narrative_only", "narrative_only"]);
+});
+
+for (const scenario of ["narrative", "statewide", "current"] as const)
+  test(`FEC retry preserves the existing ${scenario} admission path`, async () => {
+    const f = await fixture();
+    const race = f.allRaces.find((target) =>
+      scenario === "statewide"
+        ? target.officeFamily !== "us_house"
+        : target.officeFamily === "us_house",
+    )!;
+    f.snapshot.races = [race];
+    f.deps.now = () => "2026-11-02T02:00:00.000Z";
+    for (const row of capturedFecRetryCheckpoints)
+      f.rows.set(row.raceKey, structuredClone(row));
+    let claims = 0;
+    const claim = f.deps.claim;
+    f.deps.claim = async (input) => {
+      claims++;
+      return claim(input);
+    };
+    f.deps.investigate = async () => {
+      throw new Error("Synthetic acquisition boundary reached");
+    };
+    if (scenario === "current") {
+      f.rows.set(race.raceKey, {
+        raceKey: race.raceKey,
+        status: "complete",
+        checkpoint: {
+          releaseId: "current-release",
+          sourceCheckedAt: "2026-11-02T01:00:00.000Z",
+        },
+      });
+      f.deps.readPublishedCoverage = async () => ({
+        snapshotId: f.snapshot.id,
+        races: [
+          {
+            contestId: race.contestId,
+            jurisdiction: race.jurisdiction,
+            electionDate: race.electionDate,
+            releaseId: "current-release",
+            sourceCheckedAt: "2026-11-02T01:00:00.000Z",
+            policyVersion: "policy",
+            members: [],
+          },
+        ],
+      });
+    }
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        raceKeys: [race.raceKey],
+        narrativeOnly: scenario === "narrative",
+        includePilotRaces: true,
+      },
+      f.deps,
+    );
+    assert.equal(claims, scenario === "current" ? 0 : 1);
+    assert.equal(
+      result.outcomes[0]!.status,
+      scenario === "current" ? "current" : "blocked",
+    );
+    assert.equal(f.stats.authors, 0);
+    assert.equal(f.stats.reviews, 0);
+  });
+
+for (const bad of [
+  {
+    attemptedAt: "not-a-time",
+    reason: capturedFecRetryCheckpoints[0]!.checkpoint.reason,
+  },
+  {
+    attemptedAt: "2026-11-02T01:25:47.641Z",
+    reason:
+      "Source request failed (429); source https://api.open.fec.gov/v1/reports/house-senate/",
+  },
+  {
+    attemptedAt: "2026-11-03T01:25:47.641Z",
+    reason: capturedFecRetryCheckpoints[0]!.checkpoint.reason,
+  },
+])
+  test(`FEC retry malformed known response fails closed without refreshing attempt clocks ${bad.attemptedAt} ${bad.reason}`, async () => {
+    const f = await fixture();
+    const race = f.allRaces.find(
+      (target) => target.officeFamily === "us_house",
+    )!;
+    f.snapshot.races = [race];
+    f.deps.now = () => "2026-11-02T02:00:00.000Z";
+    f.rows.set("unselected-provider-observation", {
+      raceKey: "unselected-provider-observation",
+      status: "blocked",
+      checkpoint: bad,
+    });
+    const before = structuredClone([...f.rows]);
+    f.deps.claim = async () =>
+      assert.fail("malformed retry metadata admitted a claim");
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        raceKeys: [race.raceKey],
+        financeOnly: true,
+        refreshCurrent: true,
+      },
+      f.deps,
+    );
+    assert.equal(result.outcomes[0]!.status, "pending");
+    assert.match(result.outcomes[0]!.reason!, /FEC|retry/i);
+    assert.deepEqual([...f.rows], before);
+  });
+
+for (const outcome of [
+  "shorter429",
+  "unrelated-failure",
+  "publication",
+  "preparation",
+] as const)
+  test(`FEC retry longest original observation survives ${outcome} checkpoint replacement`, async () => {
+    const f = await fixture();
+    const race = f.allRaces.find(
+      (target) => target.officeFamily === "us_house",
+    )!;
+    f.snapshot.races = [race];
+    const originalFact = {
+      resource: "https://api.open.fec.gov/v1/reports/house-senate/",
+      attemptedAt: "2026-10-30T11:00:00.000Z",
+      retryAfterSeconds: 7200,
+      notBefore: "2026-10-30T13:00:00.000Z",
+    };
+    f.rows.set(race.raceKey, {
+      raceKey: race.raceKey,
+      status: "blocked",
+      checkpoint: {
+        attemptedAt: originalFact.attemptedAt,
+        reason:
+          "Source request failed (429); source https://api.open.fec.gov/v1/reports/house-senate/; retry after 7200 seconds",
+      },
+    });
+    const investigate = f.deps.investigate;
+    f.deps.investigate = async (...args) => {
+      if (outcome === "shorter429")
+        throw new CaliforniaSourceHttpError(429, {
+          resource:
+            "https://api.open.fec.gov/v1/schedules/schedule_e/by_candidate/",
+          retryAfterSeconds: 600,
+        });
+      if (outcome === "unrelated-failure")
+        throw new Error("Synthetic campaign source failure");
+      return buildCaliforniaDossier({
+        ...(await investigate(...args)),
+        officeKind: "federal_legislative",
+      });
+    };
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        raceKeys: [race.raceKey],
+        narrativeOnly: true,
+        ...(outcome === "preparation"
+          ? {
+              preparationPolicy: {
+                approved: true as const,
+                version: "policy",
+                automation: {},
+                approvedBy: "fixture operator",
+                statement:
+                  "The synthetic fixture operator authorizes this local fixture preparation with no live models or external source calls and no publication to a shared database.",
+              },
+            }
+          : {}),
+      },
+      f.deps,
+    );
+    assert.equal(
+      result.outcomes[0]!.status,
+      outcome === "publication"
+        ? "published"
+        : outcome === "preparation"
+          ? "prepared"
+          : "blocked",
+    );
+    const checkpoint = f.rows.get(race.raceKey)!
+      .checkpoint as CaliforniaWorkCheckpoint;
+    assert.deepEqual(checkpoint.fecRetry, originalFact);
+    if (outcome === "shorter429" || outcome === "unrelated-failure")
+      assert.equal(checkpoint.attemptedAt, "2026-10-30T12:00:00.000Z");
+  });
+
+for (const failure of [
+  new CaliforniaSourceHttpError(503, {
+    resource: "https://api.open.fec.gov/v1/reports/house-senate/",
+    retryAfterSeconds: 3600,
+  }),
+  new CaliforniaSourceHttpError(429, {
+    resource: "https://campaign.example.org/issues/",
+    retryAfterSeconds: 3600,
+  }),
+])
+  test(`FEC retry leaves unrelated acquisition failure admission unchanged ${failure.message}`, async () => {
+    const f = await fixture();
+    f.snapshot.races = f.allRaces.filter(
+      (target) =>
+        target.officeFamily === "us_house" &&
+        ["16", "19"].includes(target.district!),
+    );
+    let claims = 0;
+    const claim = f.deps.claim;
+    f.deps.claim = async (input) => {
+      claims++;
+      return claim(input);
+    };
+    f.deps.investigate = async () => {
+      throw failure;
+    };
+    const result = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        raceKeys: f.snapshot.races.map((race) => race.raceKey),
+      },
+      f.deps,
+    );
+    assert.equal(claims, 2);
+    assert.deepEqual(
+      result.outcomes.map((outcome) => outcome.status),
+      ["blocked", "blocked"],
+    );
+    for (const row of f.rows.values())
+      assert.equal(
+        (row.checkpoint as CaliforniaWorkCheckpoint).fecRetry,
+        undefined,
+      );
+  });
+
+test("FEC retry reevaluates eligibility after earlier statewide work advances the run clock", async () => {
+  const f = await fixture();
+  const statewide = f.allRaces.find(
+    (race) => race.officeFamily === "statewide",
+  )!;
+  const house = f.allRaces.find(
+    (race) => race.officeFamily === "us_house" && race.district === "10",
+  )!;
+  assert.ok(statewide.raceKey.localeCompare(house.raceKey) < 0);
+  f.snapshot.races = [statewide, house];
+  let now = "2026-11-02T06:14:48.640Z";
+  f.deps.now = () => now;
+  for (const row of capturedFecRetryCheckpoints)
+    f.rows.set(row.raceKey, structuredClone(row));
+  const investigated: string[] = [];
+  f.deps.investigate = async ({ race }) => {
+    investigated.push(race.raceKey);
+    if (race.raceKey === statewide.raceKey) now = "2026-11-02T06:14:48.641Z";
+    throw new Error("Synthetic acquisition boundary reached");
+  };
+  await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      raceKeys: [statewide.raceKey, house.raceKey],
+      includePilotRaces: true,
+    },
+    f.deps,
+  );
+  assert.deepEqual(investigated, [statewide.raceKey, house.raceKey]);
+});
+
+test("FEC retry invalid retained observation survives narrative failure and blocks a later finance-only restart", async () => {
+  const f = await fixture();
+  const race = f.allRaces.find((target) => target.officeFamily === "us_house")!;
+  f.snapshot.races = [race];
+  f.rows.set(race.raceKey, {
+    raceKey: race.raceKey,
+    status: "blocked",
+    checkpoint: {
+      attemptedAt: "not-a-time",
+      reason: capturedFecRetryCheckpoints[0]!.checkpoint.reason,
+    },
+  });
+  f.deps.investigate = async () => {
+    throw new Error("Synthetic nonfinancial source failure");
+  };
+  const input = {
+    snapshotId: f.snapshot.id,
+    policyVersion: "policy",
+    bounds,
+    raceKeys: [race.raceKey],
+  };
+  const first = await reconcile({ ...input, narrativeOnly: true }, f.deps);
+  assert.equal(first.outcomes[0]!.status, "blocked");
+  const saved = f.rows.get(race.raceKey)!
+    .checkpoint as CaliforniaWorkCheckpoint;
+  assert.ok(saved.fecRetry && "invalid" in saved.fecRetry);
+  assert.equal(saved.fecRetry.attemptedAt, "not-a-time");
+  const before = structuredClone([...f.rows]);
+  f.deps.claim = async () =>
+    assert.fail("invalid retained metadata admitted a claim");
+  const second = await reconcile(
+    { ...input, financeOnly: true, refreshCurrent: true },
+    f.deps,
+  );
+  assert.equal(second.outcomes[0]!.status, "pending");
+  assert.deepEqual([...f.rows], before);
+});
+
+async function automaticNarrativeFixture() {
+  const f = await fixture();
+  const race = f.allRaces.find(
+    (race) => race.officeFamily === "us_house" && race.district === "19",
+  )!;
+  f.snapshot.races = [race];
+  const retry = {
+    resource: "https://api.open.fec.gov/v1/reports/house-senate/",
+    attemptedAt: "2026-10-30T11:00:00.000Z",
+    retryAfterSeconds: 7200,
+    notBefore: "2026-10-30T13:00:00.000Z",
+  };
+  f.rows.set("shared-provider-observation", {
+    raceKey: "shared-provider-observation",
+    status: "blocked",
+    checkpoint: { fecRetry: retry },
+  });
+  return { ...f, race, retry };
+}
+
+async function eligibleHouseCoverage(
+  f: Awaited<ReturnType<typeof automaticNarrativeFixture>>,
+  finance: boolean,
+) {
+  const members = [];
+  for (const member of f.race.members) {
+    const dossier = await f.deps.investigate(
+      { snapshot: f.snapshot, race: f.race, member },
+      { request() {}, bytes() {} },
+    );
+    const { brief } = await f.deps.author({ dossier, policyVersion: "policy" });
+    if (finance) {
+      brief.research = {
+        headlineClaimId: "candidate-claim",
+        promises: [],
+        financeGap: null,
+        finance: {
+          committeeId: "C00000001",
+          committeeName: "Synthetic threshold committee",
+          periodStart: "2025-01-01",
+          periodEnd: "2026-09-30",
+          currency: "USD",
+          coverage: "partial",
+          coverageNote:
+            "Official threshold statement; no financial totals reported.",
+          updatedAt: f.deps.now(),
+          filingEvidenceIds: ["candidate-record"],
+          receipts: null,
+          donors: [],
+          donorCoverage: "unavailable",
+          outsideSpending: null,
+          observation: {
+            schemaVersion: 1,
+            summary: {
+              status: "unavailable",
+              reason: "No totals reported.",
+              evidenceIds: ["candidate-record"],
+            },
+            donorSelection: {
+              status: "unavailable",
+              reason: "No transactions reported.",
+              evidenceIds: ["candidate-record"],
+            },
+            independentExpenditures: {
+              status: "unavailable",
+              reason: "No periodic reports.",
+              evidenceIds: ["candidate-record"],
+            },
+            filingStatus: {
+              status: "available",
+              basis: "official_filing_index",
+              kind: "committee_threshold_statement",
+              latestForm: "F3",
+              observedForms: ["F3"],
+              statement: "No threshold financial totals reported.",
+              periodStart: "2025-01-01",
+              periodEnd: "2026-09-30",
+              updatedAt: f.deps.now(),
+              evidenceIds: ["candidate-record"],
+            },
+          },
+        },
+      };
+    }
+    members.push({
+      candidateId: member.candidateId,
+      revisionId: brief.revisionId,
+      collectionId: null,
+      author: null,
+      reviewer: null,
+      brief: candidateBriefSchema.parse(brief),
+    });
+  }
+  f.stats.authors = 0;
+  f.stats.investigations = 0;
+  return {
+    contestId: f.race.contestId,
+    jurisdiction: f.race.jurisdiction,
+    electionDate: f.race.electionDate,
+    releaseId: "actual-eligible-release",
+    sourceCheckedAt: "2026-10-29T15:00:00.000Z",
+    policyVersion: "policy",
+    members,
+  };
+}
+
+for (const finance of [false, true])
+  for (const refreshCurrent of [false, true])
+    test(`automatic fallback preserves actual eligible ${finance ? "finance" : "narrative"} coverage with stale checkpoint and refresh=${refreshCurrent}`, async () => {
+      const f = await automaticNarrativeFixture();
+      const current = await eligibleHouseCoverage(f, finance);
+      f.deps.readPublishedCoverage = async () => ({
+        snapshotId: f.snapshot.id,
+        races: [current],
+      });
+      f.rows.set(f.race.raceKey, {
+        raceKey: f.race.raceKey,
+        status: "blocked",
+        checkpoint: {
+          releaseId: "different-old-release",
+          sourceCheckedAt: "2026-10-28T00:00:00.000Z",
+        },
+      });
+      const before = structuredClone([...f.rows]);
+      const coverageBefore = structuredClone(current);
+      for (const method of [
+        "claim",
+        "investigate",
+        "author",
+        "review",
+        "checkpoint",
+        "fail",
+        "publish",
+      ] as const)
+        f.deps[method] = async () =>
+          assert.fail(`current release must not call ${method}`);
+      const result = await reconcile(
+        {
+          snapshotId: f.snapshot.id,
+          policyVersion: "policy",
+          bounds,
+          raceKeys: [f.race.raceKey],
+          refreshCurrent,
+        },
+        f.deps,
+      );
+      assert.equal(result.outcomes[0]!.status, "current");
+      assert.equal(result.outcomes[0]!.releaseId, current.releaseId);
+      assert.equal(result.usage.races, 0);
+      assert.equal(result.usage.modelCalls, 0);
+      assert.deepEqual([...f.rows], before);
+      assert.deepEqual(current, coverageBefore);
+    });
+
+for (const epoch of [3, 4])
+  test(`automatic demanded-race fallback acquires every member fresh without epoch-${epoch} old inputs`, async () => {
+    const f = await automaticNarrativeFixture();
+    f.rows.set(f.race.raceKey, {
+      raceKey: f.race.raceKey,
+      status: "blocked",
+      checkpoint: {
+        releaseId: "expired-release",
+        dossierDigests: Object.fromEntries(
+          f.race.members.map((member) => [
+            member.candidateId,
+            "old-finance-dossier",
+          ]),
+        ),
+        dossierReviewEpochs: Object.fromEntries(
+          f.race.members.map((member) => [member.candidateId, epoch]),
+        ),
+        candidateProvenance: Object.fromEntries(
+          f.race.members.map((member) => [
+            member.candidateId,
+            { dossierDigest: "old-finance-cache" },
+          ]),
+        ),
+      },
+    });
+    const claim = f.deps.claim;
+    f.deps.claim = async (input) => ({
+      ...(await claim(input))!,
+      reviewEpoch: 4,
+    });
+    const artifact = f.deps.artifact;
+    f.deps.artifact = async (key) => {
+      assert.ok(!key.includes("old-finance"));
+      return artifact(key);
+    };
+    f.deps.readFinanceNarrativeBaselines = async () =>
+      assert.fail("automatic fallback loaded published narrative");
+    const investigate = f.deps.investigate;
+    const seen: string[] = [];
+    f.deps.investigate = async (input, budget) => {
+      seen.push(input.member.candidateId);
+      assert.equal(input.researchScope, "narrative_only");
+      assert.equal("previousDossier" in input, false);
+      assert.equal("cachedFinanceDossier" in input, false);
+      return buildCaliforniaDossier({
+        ...(await investigate(input, budget)),
+        officeKind: "federal_legislative",
+        finance: null,
+      });
+    };
+    const author = f.deps.author;
+    f.deps.author = async (input) => {
+      assert.equal(input.retainedNarrative, undefined);
+      return author(input);
+    };
+    const saveCollection = f.deps.saveCollection;
+    f.deps.saveCollection = async (...args) => {
+      assert.equal(args[2]?.preserveEligibleRace, true);
+      return saveCollection(...args);
+    };
+    const publish = f.deps.publish;
+    f.deps.publish = async (...args) => {
+      assert.equal(args[2]?.preserveEligibleRace, true);
+      return publish(...args);
+    };
+    const result = await reconcile(
+      { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+      f.deps,
+    );
+    assert.equal(result.completed, 1);
+    assert.deepEqual(
+      seen,
+      f.race.members.map((member) => member.candidateId),
+    );
+    assert.equal(f.stats.authors, f.race.members.length);
+    assert.equal(f.stats.reviews, f.race.members.length);
+    assert.deepEqual(
+      (f.rows.get(f.race.raceKey)!.checkpoint as CaliforniaWorkCheckpoint)
+        .fecRetry,
+      f.retry,
+    );
+  });
+
+for (const state of [
+  "narrative",
+  "mixed",
+  "missing-brief",
+  "complete-threshold",
+] as const)
+  test(`API eligibility resumes finance acquisition for ${state} coverage at the safety boundary`, async () => {
+    const f = await automaticNarrativeFixture();
+    const current = await eligibleHouseCoverage(f, true);
+    if (state === "narrative")
+      for (const member of current.members)
+        member.brief.research!.finance = null;
+    if (state === "mixed") current.members[0]!.brief.research!.finance = null;
+    const coverage = {
+      ...current,
+      members: current.members.map((member, index) =>
+        state === "missing-brief" && index === 0
+          ? { ...member, brief: null }
+          : member,
+      ),
+    };
+    f.deps.now = () => "2026-10-30T13:01:00.000Z";
+    f.deps.readPublishedCoverage = async () => ({
+      snapshotId: f.snapshot.id,
+      races: [coverage],
+    });
+    f.rows.set(f.race.raceKey, {
+      raceKey: f.race.raceKey,
+      status: "complete",
+      checkpoint: {
+        releaseId: current.releaseId,
+        sourceCheckedAt: "2026-10-30T12:30:00.000Z",
+      },
+    });
+    let calls = 0;
+    f.deps.investigate = async (input) => {
+      calls++;
+      assert.equal(input.researchScope, undefined);
+      throw new Error("Ordinary finance acquisition admitted");
+    };
+    const result = await reconcile(
+      { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+      f.deps,
+    );
+    assert.equal(calls, state === "complete-threshold" ? 0 : 1);
+    assert.equal(
+      result.outcomes[0]!.status,
+      state === "complete-threshold" ? "current" : "blocked",
+    );
+  });
+
+test("automatic fallback preserves a publication that arrives between planning and its owned lease", async () => {
+  const f = await automaticNarrativeFixture();
+  const current = await eligibleHouseCoverage(f, true);
+  let reads = 0;
+  f.deps.readPublishedCoverage = async () => ({
+    snapshotId: f.snapshot.id,
+    races: ++reads === 1 ? [] : [current],
+  });
+  const winningCheckpoint = {
+    releaseId: current.releaseId,
+    sourceCheckedAt: current.sourceCheckedAt!,
+    fecRetry: f.retry,
+  };
+  const claim = f.deps.claim;
+  f.deps.claim = async (input) => ({
+    ...(await claim(input))!,
+    checkpoint: winningCheckpoint,
+  });
+  f.deps.investigate = async () =>
+    assert.fail("must preserve winner before source work");
+  const checkpoints: unknown[] = [];
+  const checkpoint = f.deps.checkpoint;
+  f.deps.checkpoint = async (lease, status, document) => {
+    checkpoints.push(structuredClone(document));
+    assert.equal(status, "complete");
+    return checkpoint(lease, status, document);
+  };
+  const result = await reconcile(
+    { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+    f.deps,
+  );
+  assert.equal(result.outcomes[0]!.status, "current");
+  assert.equal(result.outcomes[0]!.releaseId, current.releaseId);
+  assert.deepEqual(checkpoints, [winningCheckpoint]);
+  assert.equal(result.usage.candidates, 0);
+  assert.equal(f.stats.authors, 0);
+  assert.equal(f.stats.releases, 0);
+});
+
+for (const failure of ["empty-evidence", "rejected", "unknown-review"] as const)
+  test(`automatic fallback retains whole-race and canonical ${failure} gates across ticks`, async () => {
+    const f = await automaticNarrativeFixture();
+    const investigate = f.deps.investigate;
+    f.deps.investigate = async (input, budget) => {
+      assert.equal(input.researchScope, "narrative_only");
+      const dossier = await investigate(input, budget);
+      return buildCaliforniaDossier({
+        ...dossier,
+        officeKind: "federal_legislative",
+        finance: null,
+        ...(failure === "empty-evidence"
+          ? {
+              evidence: dossier.evidence.filter(
+                (entry) => entry.role === "roster",
+              ),
+              sources: dossier.sources.filter((entry) => entry.id === "roster"),
+            }
+          : {}),
+      });
+    };
+    const review = f.deps.review;
+    let reviewCalls = 0;
+    f.deps.review = async (input) => {
+      reviewCalls++;
+      if (failure === "unknown-review")
+        throw new Error("Provider review outcome unknown");
+      return { ...(await review(input)), verdict: "reject" };
+    };
+    for (let tick = 0; tick < 2; tick++) {
+      const result = await reconcile(
+        { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+        f.deps,
+      );
+      assert.equal(
+        result.outcomes[0]!.status,
+        failure === "empty-evidence" ? "pending" : "blocked",
+      );
+      assert.equal(result.completed, 0);
+      assert.deepEqual(
+        (f.rows.get(f.race.raceKey)!.checkpoint as CaliforniaWorkCheckpoint)
+          .fecRetry,
+        f.retry,
+      );
+    }
+    assert.equal(reviewCalls, failure === "empty-evidence" ? 0 : 1);
+    assert.equal(f.stats.releases, 0);
+    if (failure === "empty-evidence") assert.equal(f.stats.authors, 0);
+  });
+
+for (const fails of [false, true])
+  test(`automatic fallback preserves invalid known global retry metadata after ${fails ? "failure" : "success"}`, async () => {
+    const f = await automaticNarrativeFixture();
+    const invalid = {
+      invalid: true as const,
+      reason:
+        "Retained FEC retry metadata is invalid; finance research deferred",
+      attemptedAt: "not-a-time",
+    };
+    f.rows.set("shared-provider-observation", {
+      raceKey: "shared-provider-observation",
+      status: "blocked",
+      checkpoint: { fecRetry: invalid },
+    });
+    const investigate = f.deps.investigate;
+    f.deps.investigate = async (input, budget) => {
+      assert.equal(input.researchScope, "narrative_only");
+      if (fails) throw new Error("Nonfinancial source failure");
+      return investigate(input, budget);
+    };
+    const result = await reconcile(
+      { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+      f.deps,
+    );
+    assert.equal(result.outcomes[0]!.status, fails ? "blocked" : "published");
+    assert.deepEqual(
+      (f.rows.get(f.race.raceKey)!.checkpoint as CaliforniaWorkCheckpoint)
+        .fecRetry,
+      invalid,
+    );
+    f.deps.claim = async () =>
+      assert.fail("finance-only admitted invalid retry metadata");
+    const deferred = await reconcile(
+      {
+        snapshotId: f.snapshot.id,
+        policyVersion: "policy",
+        bounds,
+        raceKeys: [f.race.raceKey],
+        financeOnly: true,
+        refreshCurrent: true,
+      },
+      f.deps,
+    );
+    assert.equal(deferred.outcomes[0]!.status, "pending");
+  });
+
+test("automatic narrative scope stays within its race and existing run candidate bounds", async () => {
+  const f = await automaticNarrativeFixture();
+  const statewide = f.allRaces.find(
+    (race) => race.officeFamily === "statewide",
+  )!;
+  f.snapshot.races = [f.race, statewide];
+  const scopes: { raceKey: string; scope: unknown }[] = [];
+  f.deps.investigate = async (input) => {
+    scopes.push({ raceKey: input.race.raceKey, scope: input.researchScope });
+    throw new Error("Stop at acquisition boundary");
+  };
+  await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds,
+      includePilotRaces: true,
+    },
+    f.deps,
+  );
+  assert.equal(scopes.length, 2);
+  assert.deepEqual(
+    scopes.find((scope) => scope.raceKey === f.race.raceKey),
+    { raceKey: f.race.raceKey, scope: "narrative_only" },
+  );
+  assert.deepEqual(
+    scopes.find((scope) => scope.raceKey === statewide.raceKey),
+    { raceKey: statewide.raceKey, scope: undefined },
+  );
+  scopes.length = 0;
+  const bounded = await reconcile(
+    {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds: { ...bounds, maxCandidates: 1 },
+      includePilotRaces: true,
+    },
+    f.deps,
+  );
+  assert.equal(scopes.length, 0);
+  assert.ok(bounded.outcomes.every((outcome) => outcome.status === "pending"));
+  assert.equal(bounded.usage.races, 0);
+});
+
+test("automatic fallback source failure releases its lease when preservation prevents invalidation", async () => {
+  const f = await automaticNarrativeFixture();
+  const investigate = f.deps.investigate;
+  f.deps.investigate = async (...args) =>
+    buildCaliforniaDossier({
+      ...(await investigate(...args)),
+      gaps: [
+        {
+          dimension: "record",
+          code: "source_unavailable",
+          message: "Required current record could not be fetched.",
+          checkedSourceIds: [],
+          required: true,
+        },
+      ],
+    });
+  let failures = 0;
+  f.deps.fail = async (_key, _reason, _lease, _attempted, options) => {
+    failures++;
+    assert.equal(options?.preserveEligibleRace, true);
+    throw new ResearchEligibleRaceConflict();
+  };
+  const result = await reconcile(
+    { snapshotId: f.snapshot.id, policyVersion: "policy", bounds },
+    f.deps,
+  );
+  assert.equal(failures, 1);
+  assert.equal(result.outcomes[0]!.status, "blocked");
+  assert.match(result.outcomes[0]!.reason!, /Required candidate source/);
+  assert.equal(f.rows.get(f.race.raceKey)!.status, "blocked");
+  assert.deepEqual(
+    (f.rows.get(f.race.raceKey)!.checkpoint as CaliforniaWorkCheckpoint)
+      .fecRetry,
+    f.retry,
+  );
+  assert.equal(f.stats.releases, 0);
+});
+
+for (const secondFails of [true, false, "secret"] as const)
+  test(`cache-only acquires the complete race before any model when second acquisition ${secondFails ? "fails" : "succeeds"}`, async () => {
+    const f = await automaticNarrativeFixture();
+    f.rows.delete("shared-provider-observation");
+    const financeCoverage = await eligibleHouseCoverage(f, true);
+    const investigate = f.deps.investigate;
+    f.deps.investigate = async (...args) =>
+      buildCaliforniaDossier({
+        ...(await investigate(...args)),
+        officeKind: "federal_legislative",
+      });
+    const originalAuthor = f.deps.author;
+    const briefs = new Map<string, CandidateBrief>();
+    f.deps.author = async (input) => {
+      const result = await originalAuthor(input);
+      result.attestation.actualModel = "fixture";
+      briefs.set(input.dossier.identity.candidateId, result.brief);
+      return result;
+    };
+    const input = {
+      snapshotId: f.snapshot.id,
+      policyVersion: "policy",
+      bounds: { ...bounds, maxRaces: 1 },
+      raceKeys: [f.race.raceKey],
+    };
+    assert.equal((await reconcile(input, f.deps)).completed, 1);
+    const prior = structuredClone(
+      f.rows.get(f.race.raceKey)!.checkpoint,
+    ) as CaliforniaWorkCheckpoint;
+    f.deps.readPublishedCoverage = async () => ({
+      snapshotId: f.snapshot.id,
+      races: [
+        {
+          contestId: f.race.contestId,
+          jurisdiction: f.race.jurisdiction,
+          electionDate: f.race.electionDate,
+          releaseId: prior.releaseId!,
+          sourceCheckedAt: prior.sourceCheckedAt!,
+          policyVersion: "policy",
+          members: f.race.members.map((member) => {
+            const proof = prior.candidateProvenance![member.candidateId]!;
+            return {
+              candidateId: member.candidateId,
+              revisionId: proof.revisionId!,
+              collectionId: prior.collectionId!,
+              brief: briefs.get(member.candidateId),
+              author: proof.author!,
+              reviewer: proof.reviewer!,
+            };
+          }),
+        },
+      ],
+    });
+    f.rows.set("shared-provider-observation", {
+      raceKey: "shared-provider-observation",
+      status: "blocked",
+      checkpoint: { fecRetry: f.retry },
+    });
+    const events: string[] = [];
+    f.deps.investigate = async (request) => {
+      events.push(`acquire:${request.member.candidateId}`);
+      assert(request.financeCacheOnly);
+      if (secondFails && events.length === 2) {
+        if (secondFails === "secret")
+          request.financeCacheOnly.beforeDns(
+            "https://SYNTHETIC_CREDENTIAL_SENTINEL:SYNTHETIC_CREDENTIAL_SENTINEL@api.open.fec.gov/v1/filings/?api_key=SYNTHETIC_CREDENTIAL_SENTINEL&token=SYNTHETIC_CREDENTIAL_SENTINEL#SYNTHETIC_CREDENTIAL_SENTINEL",
+          );
+        throw new Error("Second candidate exact query is missing");
+      }
+      const old = request.previousDossier!;
+      const record = old.evidence.find(
+        (entry) => entry.role === "candidate_record",
+      )!;
+      const finance = structuredClone(
+        financeCoverage.members[0]!.brief.research!.finance!,
+      );
+      const replace = (value: unknown): unknown =>
+        Array.isArray(value)
+          ? value.map(replace)
+          : value && typeof value === "object"
+            ? Object.fromEntries(
+                Object.entries(value).map(([key, value]) => [
+                  key,
+                  key === "evidenceIds" || key === "filingEvidenceIds"
+                    ? ["synthetic-finance"]
+                    : replace(value),
+                ]),
+              )
+            : value;
+      const dossier = buildCaliforniaDossier({
+        ...old,
+        evidence: [
+          ...old.evidence,
+          { ...record, id: "synthetic-finance", role: "finance" },
+        ],
+        finance: replace(finance) as NonNullable<
+          CandidateEvidenceDossier["finance"]
+        >,
+      });
+      const url =
+        "https://api.open.fec.gov/v1/reports/house-senate/?cycle=2026&committee_id=C00000001&per_page=100&page=1&most_recent=true";
+      const text = JSON.stringify({
+        pagination: { is_count_exact: true, page: 1, pages: 1, count: 0 },
+        results: [],
+      });
+      const cached = buildCaliforniaDossier({
+        ...dossier,
+        sources: [
+          ...dossier.sources,
+          {
+            id: `fec-${hash(url).slice(0, 20)}`,
+            url,
+            publisher: "Federal Election Commission",
+            format: "json",
+            fetchedAt: f.deps.now(),
+            contentHash: hash(text),
+            text,
+          },
+        ],
+      });
+      request.financeCacheOnly.seed({
+        digest: cached.dossierDigest,
+        document: cached,
+        expected: old,
+      });
+      request.financeCacheOnly.read(url, request.member.candidateId);
+      request.financeCacheOnly.complete(request.member.candidateId);
+      return cached;
+    };
+    f.deps.author = async () => {
+      events.push("author");
+      throw new Error(
+        "No provider invocation permitted by this acquisition test",
+      );
+    };
+    f.deps.review = async () => assert.fail("No reviewer permitted");
+    const result = await reconcile(
+      {
+        ...input,
+        financeOnly: true,
+        refreshCurrent: true,
+        financeCacheOnly: true,
+      },
+      f.deps,
+    );
+    assert.equal(
+      JSON.stringify({
+        result,
+        checkpoint: f.rows.get(f.race.raceKey)!.checkpoint,
+      }).includes("SYNTHETIC_CREDENTIAL_SENTINEL"),
+      false,
+    );
+    assert.equal(result.completed, 0);
+    assert.deepEqual(
+      events,
+      [
+        ...f.race.members.map((member) => `acquire:${member.candidateId}`),
+        ...(secondFails ? [] : ["author"]),
+      ],
+      JSON.stringify(result.outcomes),
+    );
+    assert.match(
+      result.outcomes[0]!.reason!,
+      secondFails === "secret"
+        ? /FEC API network acquisition is forbidden/
+        : secondFails
+          ? /Second candidate exact query/
+          : /No provider invocation/,
+    );
+    assert.equal(result.usage.modelCalls, secondFails ? 0 : 1);
+    if (!secondFails) {
+      const key = result.outcomes[0]!.financeCachePreflightArtifactKey!;
+      const preflight = f.artifacts.get(key) as {
+        retainedProviderRetry: unknown;
+        candidates: unknown[];
+      };
+      assert.deepEqual(preflight.retainedProviderRetry, f.retry);
+      assert.equal(preflight.candidates.length, 2);
+    }
+    assert.deepEqual(
+      (f.rows.get(f.race.raceKey)!.checkpoint as CaliforniaWorkCheckpoint)
+        .fecRetry,
+      f.retry,
+    );
+    assert("financeCacheAcquisition" in result);
+    assert.equal(result.financeCacheAcquisition?.apiTransportAttempts, 0);
+  });
+
+test("cache-only admission rejects broad scopes before sources and models", async () => {
+  const f = await fixture();
+  for (const change of [
+    {},
+    { financeOnly: true },
+    { financeOnly: true, refreshCurrent: true, raceKeys: ["one", "two"] },
+  ])
+    await assert.rejects(
+      reconcile(
+        {
+          snapshotId: f.snapshot.id,
+          policyVersion: "policy",
+          bounds,
+          financeCacheOnly: true,
+          ...change,
+        },
+        f.deps,
+      ),
+      /Finance(?: cache)?-only/,
+    );
+  assert.equal(f.stats.investigations, 0);
+  assert.equal(f.stats.authors, 0);
 });

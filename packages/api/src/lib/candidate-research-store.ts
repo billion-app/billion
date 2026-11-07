@@ -23,7 +23,12 @@ import {
   getCurrentCaliforniaRosterId,
   invalidateCaliforniaResearchState,
 } from "./california-roster-store";
-import { briefDigest, briefIdentityKey } from "./candidate-brief-publication";
+import { validateCampaignRenderSources } from "./campaign-render-archive";
+import {
+  briefDigest,
+  briefIdentityKey,
+  ResearchEligibleRaceConflict,
+} from "./candidate-brief-publication";
 import {
   candidatePublicationPolicy,
   readCandidateRace,
@@ -177,6 +182,52 @@ export async function activeResearchPolicy(
     ? { approved: true, version: policy.version, automation: policy.automation }
     : candidatePublicationPolicy;
 }
+export async function assertNoEligibleResearchRace(
+  tx: ResearchTransaction,
+  race: Pick<
+    CandidateResearchCollectionDocument["manifest"],
+    "jurisdiction" | "electionDate" | "contestId"
+  >,
+) {
+  const [existing] = await tx
+    .select()
+    .from(CandidateRaceRelease)
+    .where(
+      and(
+        sql`${CandidateRaceRelease.document}->>'contestId' = ${race.contestId}`,
+        sql`${CandidateRaceRelease.document}->>'electionDate' = ${race.electionDate}`,
+        sql`${CandidateRaceRelease.document}->>'jurisdiction' = ${race.jurisdiction}`,
+      ),
+    )
+    .orderBy(
+      desc(CandidateRaceRelease.createdAt),
+      desc(CandidateRaceRelease.id),
+    )
+    .limit(1);
+  if (!existing) return;
+  const ids = existing.document.members.map((m) => m.revisionId);
+  const revisions = await tx
+    .select()
+    .from(CandidateBriefRevision)
+    .where(inArray(CandidateBriefRevision.id, ids));
+  const events = await tx
+    .select()
+    .from(CandidateBriefReviewEvent)
+    .where(inArray(CandidateBriefReviewEvent.revisionId, ids));
+  if (
+    readCandidateRace({
+      manifest: existing.document,
+      revokedReason: existing.revokedReason,
+      revisions,
+      events,
+      policy: await activeResearchPolicy(tx),
+      now: new Date().toISOString(),
+      currentRoster: await resolveCurrentResearchRoster(tx, existing.document),
+    })
+  )
+    throw new ResearchEligibleRaceConflict();
+}
+
 export function researchSourceDigest(
   document: CandidateResearchCollectionDocument,
 ) {
@@ -194,6 +245,9 @@ export function researchSourceDigest(
         s.format,
         s.contentHash,
         ...(modern && s.format === "image" && s.byteHash ? [s.byteHash] : []),
+        ...(s.acquisition
+          ? [s.acquisition.kind, s.acquisition.semanticDigest]
+          : []),
       ])
       .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
     document.problems,
@@ -234,9 +288,14 @@ export function researchObservationBound(
 export async function saveResearchCollection(
   value: unknown,
   database: ResearchDatabase = db,
-  options?: { workLease?: ResearchWorkLease; stagedPolicyVersion?: string },
+  options?: {
+    workLease?: ResearchWorkLease;
+    stagedPolicyVersion?: string;
+    preserveEligibleRace?: boolean;
+  },
 ) {
   const document = candidateResearchCollectionSchema.parse(value);
+  validateCampaignRenderSources(document.sources);
   for (const source of document.sources) {
     if (
       createHash("sha256").update(source.text).digest("hex") !==
@@ -279,6 +338,8 @@ export async function saveResearchCollection(
         "Active automation policy does not accept legacy research collections",
       );
     await assertResearchWorkLease(tx, options?.workLease, document);
+    if (options?.preserveEligibleRace)
+      await assertNoEligibleResearchRace(tx, document.manifest);
     const [prior] = await tx
       .select()
       .from(CandidateResearchCollection)
@@ -466,6 +527,7 @@ export async function failResearchRefresh(
   options?: {
     workLease?: ResearchWorkLease;
     stagedPolicyVersion?: string;
+    preserveEligibleRace?: boolean;
     attempted?: {
       attemptedAt: string;
       checkpoint: Record<string, unknown>;
@@ -492,6 +554,7 @@ export async function failResearchRefresh(
       throw new Error("Research attempt requires a current work lease");
   }
   await database.transaction(async (tx) => {
+    await lockPilot(tx, "policy");
     const [selected] = await tx
       .select()
       .from(CandidateResearchCollection)
@@ -542,6 +605,8 @@ export async function failResearchRefresh(
         throw new Error("Research collection election changed");
       await lockResearchRace(tx, prior.document.manifest);
       await assertResearchWorkLease(tx, lease, prior.document, true);
+      if (options?.preserveEligibleRace)
+        await assertNoEligibleResearchRace(tx, prior.document.manifest);
       await saveAttempt();
       await invalidateRace(tx, prior.document.manifest, reason);
       await requireFreshResearchReview(tx, prior.pilotKey, reason);
@@ -585,6 +650,8 @@ export async function failResearchRefresh(
       );
     await lockResearchRace(tx, race);
     await activeResearchWorkLease(tx, lease, pilotKey);
+    if (options.preserveEligibleRace)
+      await assertNoEligibleResearchRace(tx, race);
     await saveAttempt();
     await requireFreshResearchReview(tx, pilotKey, reason);
   });

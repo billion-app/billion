@@ -25,6 +25,9 @@ export default defineConfig({
     rollupOptions: {
       external: externalizeRuntimeDependency,
       input: {
+        "campaign-browser-host": fileURLToPath(
+          new URL("./src/campaign-browser-host-entry.ts", import.meta.url),
+        ),
         "california-research": fileURLToPath(
           new URL("./src/california-research.ts", import.meta.url),
         ),

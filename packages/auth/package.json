@@ -13,7 +13,7 @@
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "format": "prettier --check . --ignore-path ../../.gitignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
-    "generate": "pnpx @better-auth/cli generate --config script/auth-cli.ts --output ../db/src/auth-schema.ts",
+    "generate": "auth generate --config script/auth-cli.ts --output ../db/src/auth-schema.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -21,7 +21,7 @@
     "@acme/env": "workspace:*",
     "@t3-oss/env-nextjs": "^0.13.11",
     "better-auth": "catalog:",
-    "next": "^16.2.6",
+    "next": "^16.4.5",
     "react": "catalog:react19",
     "react-dom": "catalog:react19",
     "zod": "catalog:"
@@ -30,8 +30,8 @@
     "@acme/eslint-config": "workspace:*",
     "@acme/prettier-config": "workspace:*",
     "@acme/tsconfig": "workspace:*",
-    "@better-auth/cli": "catalog:",
     "@types/react": "catalog:react19",
+    "auth": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:"

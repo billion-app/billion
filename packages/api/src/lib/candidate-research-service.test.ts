@@ -1,22 +1,27 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
   campaignFinanceSchema,
+  campaignOwnershipProofSchema,
   candidateDossierSemanticProjection,
   candidateDossierSourceProjection,
   candidateModelAttestationSchema,
   candidateResearchCollectionSchema,
+  researchSourceSchema,
 } from "@acme/validators";
 
 import {
   briefDigest,
   evidenceHashKey,
+  ResearchEligibleRaceConflict,
   ResearchReviewCollectionConflict,
 } from "./candidate-brief-publication";
 import { readCandidateRace } from "./candidate-race-release";
 import { validResearchAttestation } from "./candidate-research-attestation";
+import { researchSourceMatchesArchive } from "./candidate-research-service";
 
 function required<T>(value: T | undefined): T {
   assert.ok(value);
@@ -572,6 +577,258 @@ void test(
 );
 
 void test(
+  "automatic narrative publication preserves finance adopted after the fallback decision",
+  { skip: !process.env.CANDIDATE_RESEARCH_TEST_DATABASE_URL },
+  async () => {
+    const url = required(process.env.CANDIDATE_RESEARCH_TEST_DATABASE_URL);
+    const target = new URL(url);
+    assert.ok(
+      ["localhost", "127.0.0.1"].includes(target.hostname) &&
+        target.pathname.endsWith("_test"),
+    );
+    process.env.POSTGRES_URL = url;
+    const { db } = await import("@acme/db/client");
+    const { eq, inArray, sql } = await import("@acme/db");
+    const {
+      CandidateBriefReviewEvent: Event,
+      CandidateBriefRevision: Revision,
+      CandidateResearchCollection: Collection,
+      CandidateResearchPolicy: Policy,
+      CandidateRaceRelease: Release,
+    } = await import("@acme/db/schema");
+    const {
+      saveResearchCollection,
+      researchSourceDigest,
+      failResearchRefresh,
+    } = await import("./candidate-research-store");
+    const { publishResearchCollection, adoptResearchPolicy } =
+      await import("./candidate-research-service");
+    const version = `fallback-preservation-${randomUUID()}`;
+    const finance = fixture();
+    const financeBrief = required(finance.briefs[0]);
+    financeBrief.research = {
+      headlineClaimId: "record-claim",
+      promises: [],
+      finance: campaignFinanceSchema.parse({
+        committeeId: "C00000001",
+        committeeName: "Synthetic committee",
+        periodStart: "2026-01-01",
+        periodEnd: "2026-10-01",
+        currency: "USD",
+        coverage: "partial",
+        coverageNote: "Synthetic publication preservation fixture",
+        updatedAt: financeBrief.createdAt,
+        filingEvidenceIds: ["record"],
+        receipts: {
+          totalCents: 100,
+          breakdown: {
+            individuals: 100,
+            committees: 0,
+            self_contributions: 0,
+            candidate_loans: 0,
+            transfers: 0,
+            other: 0,
+          },
+          refundsCents: null,
+        },
+        donors: [],
+        donorCoverage: "unavailable",
+        outsideSpending: null,
+      }),
+      financeGap: null,
+    };
+    const narrative = structuredClone(finance);
+    narrative.researchVersion = "narrative-preservation-fixture";
+    const narrativeBrief = required(narrative.briefs[0]);
+    narrativeBrief.revisionId = randomUUID();
+    narrativeBrief.research = {
+      headlineClaimId: "record-claim",
+      promises: [],
+      finance: null,
+      financeGap:
+        "Financial records were not collected in this narrative-only research run.",
+    };
+    required(narrative.manifest.members[0]).revisionId =
+      narrativeBrief.revisionId;
+    const revisionIds = [financeBrief.revisionId, narrativeBrief.revisionId];
+    const collectionIds: string[] = [];
+    const releaseIds: string[] = [];
+    try {
+      assert.deepEqual(
+        await db
+          .select()
+          .from(Release)
+          .where(
+            sql`${Release.document}->>'contestId' = ${finance.manifest.contestId}`,
+          ),
+        [],
+        "Fallback decision observes no published race",
+      );
+      const savedFinance = await saveResearchCollection(finance, db, {
+        stagedPolicyVersion: version,
+        preserveEligibleRace: true,
+      });
+      collectionIds.push(savedFinance.collectionId);
+      await db.insert(Event).values({
+        revisionId: financeBrief.revisionId,
+        actorId: "independent-fixture",
+        action: "approve",
+        policyVersion: version,
+        reason: "Exact synthetic finance revision review",
+      });
+      const adopted = await adoptResearchPolicy({
+        policy: {
+          version,
+          approvedBy: "fixture-owner",
+          statement:
+            "This synthetic policy authorizes reviewed fixture publications only inside the disposable local regression test database.",
+        },
+        collectionIds: [savedFinance.collectionId],
+      });
+      releaseIds.push(...adopted.releaseIds);
+      const beforeSave = await db
+        .select()
+        .from(Collection)
+        .where(eq(Collection.id, savedFinance.collectionId));
+      const beforeRelease = await db
+        .select()
+        .from(Release)
+        .where(inArray(Release.id, releaseIds));
+      await assert.rejects(
+        saveResearchCollection(narrative, db, { preserveEligibleRace: true }),
+        ResearchEligibleRaceConflict,
+      );
+      await assert.rejects(
+        saveResearchCollection(finance, db, { preserveEligibleRace: true }),
+        ResearchEligibleRaceConflict,
+      );
+      await assert.rejects(
+        failResearchRefresh(
+          finance.pilotKey,
+          "Synthetic required source failure",
+          db,
+          {
+            preserveEligibleRace: true,
+          },
+        ),
+        ResearchEligibleRaceConflict,
+      );
+      assert.deepEqual(
+        await db
+          .select()
+          .from(Collection)
+          .where(eq(Collection.id, savedFinance.collectionId)),
+        beforeSave,
+        "Changed acquisition, unchanged acquisition and source failure preserve the collected finance state",
+      );
+      assert.deepEqual(
+        await db.select().from(Release).where(inArray(Release.id, releaseIds)),
+        beforeRelease,
+        "Acquisition and failure do not withdraw finance or refresh its clocks",
+      );
+      const narrativeCollectionId = randomUUID();
+      await db.insert(Revision).values({
+        id: narrativeBrief.revisionId,
+        identityKey: JSON.stringify([
+          narrativeBrief.identity.jurisdiction,
+          narrativeBrief.identity.electionDate,
+          narrativeBrief.identity.contestId,
+          narrativeBrief.identity.candidateId,
+        ]),
+        revisionDigest: briefDigest(narrativeBrief),
+        document: narrativeBrief,
+      });
+      await db.insert(Collection).values({
+        id: narrativeCollectionId,
+        pilotKey: narrative.pilotKey,
+        sourceDigest: researchSourceDigest(narrative),
+        document: narrative,
+        checkedAt: new Date(narrative.manifest.sourceCheckedAt),
+      });
+      collectionIds.push(narrativeCollectionId);
+      await db.insert(Event).values({
+        revisionId: narrativeBrief.revisionId,
+        actorId: "independent-fixture",
+        action: "approve",
+        policyVersion: version,
+        reason: "Exact synthetic narrative revision review",
+      });
+      const before = await db
+        .select()
+        .from(Release)
+        .where(inArray(Release.id, releaseIds));
+      assert.ok(
+        readCandidateRace({
+          manifest: required(before[0]).document,
+          revokedReason: null,
+          revisions: [
+            {
+              id: financeBrief.revisionId,
+              document: financeBrief,
+              revisionDigest: briefDigest(financeBrief),
+            },
+          ],
+          events: await db
+            .select()
+            .from(Event)
+            .where(eq(Event.revisionId, financeBrief.revisionId)),
+          policy: { approved: true, version },
+          now: new Date().toISOString(),
+        })?.briefs.every((brief) => brief.research?.finance),
+      );
+      await assert.rejects(
+        publishResearchCollection({
+          collectionId: narrativeCollectionId,
+          actorId: "fixture-owner",
+          preserveEligibleRace: true,
+        }),
+        ResearchEligibleRaceConflict,
+      );
+      assert.deepEqual(
+        await db.select().from(Release).where(inArray(Release.id, releaseIds)),
+        before,
+        "Preservation does not mutate original source or expiry clocks",
+      );
+      const explicit = await publishResearchCollection({
+        collectionId: narrativeCollectionId,
+        actorId: "fixture-owner",
+      });
+      releaseIds.push(explicit.releaseId);
+      assert.notEqual(explicit.releaseId, adopted.releaseIds[0]);
+      await db
+        .update(Release)
+        .set({ revokedReason: "Synthetic withdrawal" })
+        .where(eq(Release.id, explicit.releaseId));
+      const guardedSaved = await saveResearchCollection(narrative, db, {
+        preserveEligibleRace: true,
+      });
+      assert.equal(guardedSaved.collectionId, narrativeCollectionId);
+      const restored = await publishResearchCollection({
+        collectionId: guardedSaved.collectionId,
+        actorId: "fixture-owner",
+        preserveEligibleRace: true,
+      });
+      releaseIds.push(restored.releaseId);
+      assert.notEqual(
+        restored.releaseId,
+        explicit.releaseId,
+        "A revoked latest release allows fresh publication without reviving older eligible finance",
+      );
+    } finally {
+      if (releaseIds.length)
+        await db.delete(Release).where(inArray(Release.id, releaseIds));
+      await db.delete(Event).where(inArray(Event.revisionId, revisionIds));
+      if (collectionIds.length)
+        await db
+          .delete(Collection)
+          .where(inArray(Collection.id, collectionIds));
+      await db.delete(Revision).where(inArray(Revision.id, revisionIds));
+      await db.delete(Policy).where(eq(Policy.version, version));
+    }
+  },
+);
+
+void test(
   "expired race attempts cannot save or publish over a newer durable generation",
   { skip: !process.env.CANDIDATE_RESEARCH_TEST_DATABASE_URL },
   async () => {
@@ -701,6 +958,7 @@ void test(
     const { eq, inArray } = await import("@acme/db");
     const {
       CaliforniaRoster: Roster,
+      CaliforniaResearchArtifact: Artifact,
       CaliforniaRaceWork: Work,
       CandidateBriefRevision: Revision,
       CandidateBriefReviewEvent: Event,
@@ -719,6 +977,7 @@ void test(
       saveCaliforniaRoster,
       claimCaliforniaRaceWork,
       beginCaliforniaSourceCheck,
+      saveCaliforniaResearchArtifact,
     } = await import("./california-roster-store");
     const {
       recordResearchAiReview,
@@ -993,6 +1252,7 @@ void test(
       excludedContests: [],
       countyCoverage: [],
     });
+    const ownedArtifactKeys: string[] = [];
     const collectionIds: string[] = [],
       releaseIds: string[] = [],
       revisionIds = [brief.revisionId];
@@ -1952,7 +2212,102 @@ void test(
         }),
         ResearchReviewCollectionConflict,
       );
+      const proposedArtifact = required(
+        pairChanged.candidateArtifacts?.find(
+          (entry) =>
+            entry.candidateId === unchangedPairBrief.identity.candidateId,
+        ),
+      );
+      const authorKey = `author:publication-history:${randomUUID()}`;
+      const reviewKey = `review:publication-history:${randomUUID()}`;
+      ownedArtifactKeys.push(authorKey, `dispatch:${reviewKey}`, reviewKey);
+      await saveCaliforniaResearchArtifact(db, {
+        key: authorKey,
+        kind: "author",
+        raceKey: pairChanged.pilotKey,
+        candidateId: proposedArtifact.candidateId,
+        document: {
+          brief: unchangedPairBrief,
+          attestation: proposedArtifact.author,
+        },
+      });
+      const pendingStartedAt = new Date().toISOString();
+      await db.insert(Artifact).values({
+        key: `dispatch:${reviewKey}`,
+        kind: "model_dispatch",
+        raceKey: pairChanged.pilotKey,
+        candidateId: proposedArtifact.candidateId,
+        document: { startedAt: pendingStartedAt, costUsd: null },
+      });
+      const eventsBefore = await db
+        .select()
+        .from(Event)
+        .where(inArray(Event.revisionId, revisionIds));
+      const releasesBefore = await db
+        .select()
+        .from(Release)
+        .where(inArray(Release.id, releaseIds));
+      for (const late of [false, true]) {
+        if (late)
+          await saveCaliforniaResearchArtifact(db, {
+            key: reviewKey,
+            kind: "review",
+            raceKey: pairChanged.pilotKey,
+            candidateId: proposedArtifact.candidateId,
+            document: {
+              verdict: "reject",
+              overallReason:
+                "Synthetic late reviewer response rejects unchanged public content.",
+              findings: freshPairReview.findings,
+              attestation: {
+                ...freshPairReview.reviewer,
+                runId: randomUUID(),
+                actorId: `late-reviewer:${randomUUID()}`,
+                startedAt: pendingStartedAt,
+                completedAt: new Date().toISOString(),
+              },
+            },
+          });
+        const expected = late
+          ? /rejected this unchanged public content/
+          : /unsettled|canonical result/;
+        await assert.rejects(
+          recordResearchAiReview({
+            collectionId: pairResumed.collectionId,
+            revisionId: unchangedPairBrief.revisionId,
+            attestation: freshPairReview,
+            workLease: pairLease,
+          }),
+          expected,
+        );
+        await assert.rejects(
+          publishResearchCollection({
+            collectionId: pairResumed.collectionId,
+            actorId: "fixture-service",
+            workLease: pairLease,
+          }),
+          expected,
+        );
+        assert.deepEqual(
+          await db
+            .select()
+            .from(Event)
+            .where(inArray(Event.revisionId, revisionIds)),
+          eventsBefore,
+        );
+        assert.deepEqual(
+          await db
+            .select()
+            .from(Release)
+            .where(inArray(Release.id, releaseIds)),
+          releasesBefore,
+        );
+      }
     } finally {
+      if (ownedArtifactKeys.length)
+        await db
+          .delete(Artifact)
+          .where(inArray(Artifact.key, ownedArtifactKeys));
       if (releaseIds.length)
         await db.delete(Release).where(inArray(Release.id, releaseIds));
       await db.delete(Event).where(inArray(Event.revisionId, revisionIds));
@@ -2514,5 +2869,152 @@ void test("observation bound uses current sources and required roster checks, no
   assert.equal(
     researchObservationBound(document).toISOString(),
     document.manifest.sourceCheckedAt,
+  );
+});
+
+void test("archived source binding ignores captured JSONB object key order and preserves all values", () => {
+  const capture = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/jsonb-source-binding.json", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    acquisition: { archived: unknown; dossier: unknown };
+    httpObservation: { archived: unknown; dossier: unknown };
+    campaignOwnershipProof: unknown;
+  };
+  const base = required(fixture().sources[0]);
+  const proofs = {
+    campaignOwnershipProof: campaignOwnershipProofSchema.parse(
+      capture.campaignOwnershipProof,
+    ),
+  };
+  const archived = {
+    ...researchSourceSchema.parse({
+      ...base,
+      format: "html",
+      byteHash: "a".repeat(64),
+      acquisition: capture.acquisition.archived,
+      httpObservation: capture.httpObservation.archived,
+      retrievalUrls: ["https://example.org/start", "https://example.org/end"],
+    }),
+    acquisition: capture.acquisition.archived,
+    httpObservation: capture.httpObservation.archived,
+  } as ReturnType<typeof researchSourceSchema.parse>;
+  const source = researchSourceSchema.parse({
+    ...archived,
+    acquisition: capture.acquisition.dossier,
+    httpObservation: capture.httpObservation.dossier,
+  });
+  assert.notEqual(
+    JSON.stringify(archived.acquisition),
+    JSON.stringify(source.acquisition),
+  );
+  assert.notEqual(
+    JSON.stringify(archived.httpObservation),
+    JSON.stringify(source.httpObservation),
+  );
+  assert.equal(researchSourceMatchesArchive(archived, source, proofs), true);
+  for (const field of [
+    "id",
+    "url",
+    "contentHash",
+    "text",
+    "format",
+    "byteHash",
+    "binaryBase64",
+  ] as const) {
+    assert.equal(
+      researchSourceMatchesArchive(
+        { ...archived, [field]: "changed" },
+        source,
+        proofs,
+      ),
+      false,
+      field,
+    );
+  }
+  assert.equal(
+    researchSourceMatchesArchive(
+      {
+        ...archived,
+        retrievalUrls: [...required(archived.retrievalUrls)].reverse(),
+      },
+      source,
+      proofs,
+    ),
+    false,
+  );
+  assert.equal(
+    researchSourceMatchesArchive(
+      { ...archived, acquisition: undefined },
+      source,
+      proofs,
+    ),
+    false,
+  );
+  const acquisition = required(source.acquisition);
+  assert.equal(acquisition.kind, "rendered_campaign_v1");
+  for (const change of [
+    { pageIndex: acquisition.pageIndex + 1 },
+    { archiveSourceId: "different-archive" },
+    { semanticDigest: "b".repeat(64) },
+  ]) {
+    assert.equal(
+      researchSourceMatchesArchive(
+        { ...archived, acquisition: { ...acquisition, ...change } },
+        source,
+        proofs,
+      ),
+      false,
+    );
+  }
+  const observation = required(source.httpObservation);
+  assert.equal(
+    researchSourceMatchesArchive(
+      {
+        ...archived,
+        httpObservation: {
+          ...observation,
+          responses: [...observation.responses].reverse(),
+        },
+      },
+      source,
+      proofs,
+    ),
+    false,
+  );
+  const response = required(observation.responses[0]);
+  for (const field of Object.keys(response)) {
+    const changed = {
+      ...response,
+      [field]:
+        typeof response[field as keyof typeof response] === "number"
+          ? -1
+          : "changed",
+    };
+    assert.equal(
+      researchSourceMatchesArchive(
+        {
+          ...archived,
+          httpObservation: {
+            ...observation,
+            responses: [changed, ...observation.responses.slice(1)],
+          },
+        },
+        source,
+        proofs,
+      ),
+      false,
+      field,
+    );
+  }
+  assert.equal(
+    researchSourceMatchesArchive(
+      { ...base, httpObservation: undefined },
+      { ...base },
+      {},
+    ),
+    true,
   );
 });

@@ -4,8 +4,9 @@ import { backoffMinutes, wasInterrupted } from "./schedule.js";
 /** All content imports, including manifest-driven jobs with resolved args. */
 export function producesContent(job: JobDefinition): boolean {
   if (job.script === "main.js") {
-    // These two sources only write ballot/candidate caches, not feed content.
-    return !["scc-cvig", "ca-sos-statements"].includes(job.args[0] ?? "");
+    return !["scc-cvig", "ca-sos-statements", "ca-regional-measures"].includes(
+      job.args[0] ?? "",
+    );
   }
   return ["reprocess-content.js", "backfill-bill-descriptions.js"].includes(
     job.script,

@@ -1,6 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 
-import type { CandidateRaceManifest } from "@acme/validators";
+import type {
+  CandidateEvidenceDossier,
+  CandidateRaceManifest,
+  ResearchSource,
+} from "@acme/validators";
 import { and, desc, eq, inArray, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
@@ -28,6 +33,12 @@ import type {
   ResearchWorkLease,
 } from "./candidate-research-store";
 import { verifyStoredCampaignContactProof } from "./california-campaign-contact";
+import { assertCaliforniaSemanticReviewClear } from "./california-review-history";
+import {
+  campaignOwnershipDigest,
+  validateCampaignOwnership,
+} from "./campaign-ownership";
+import { validateCampaignRenderSources } from "./campaign-render-archive";
 import {
   briefDigest,
   briefIdentityKey,
@@ -41,6 +52,7 @@ import {
 } from "./candidate-research-attestation";
 import {
   activeResearchPolicy,
+  assertNoEligibleResearchRace,
   assertResearchWorkLease,
   lockPilot,
   lockResearchElection,
@@ -99,6 +111,43 @@ async function currentRoster(
     throw new Error("Race roster changed");
   return roster;
 }
+export function researchSourceMatchesArchive(
+  archived: ResearchSource,
+  source: ResearchSource,
+  proofs: Pick<
+    CandidateEvidenceDossier,
+    "campaignContactProof" | "campaignOwnershipProof"
+  >,
+) {
+  return (
+    archived.id === source.id &&
+    archived.url === source.url &&
+    archived.contentHash === source.contentHash &&
+    archived.text === source.text &&
+    archived.format === source.format &&
+    (source.id !== proofs.campaignContactProof?.destinationSourceId ||
+      JSON.stringify(archived.retrievalUrls ?? null) ===
+        JSON.stringify(source.retrievalUrls ?? null)) &&
+    isDeepStrictEqual(
+      archived.acquisition ?? null,
+      source.acquisition ?? null,
+    ) &&
+    (!(
+      source.format === "image" ||
+      source.acquisition !== undefined ||
+      proofs.campaignOwnershipProof !== undefined
+    ) ||
+      (archived.byteHash === source.byteHash &&
+        archived.binaryBase64 === source.binaryBase64 &&
+        (!proofs.campaignOwnershipProof ||
+          (isDeepStrictEqual(
+            archived.httpObservation ?? null,
+            source.httpObservation ?? null,
+          ) &&
+            JSON.stringify(archived.retrievalUrls ?? null) ===
+              JSON.stringify(source.retrievalUrls ?? null)))))
+  );
+}
 export async function recordResearchAiReview(
   input: {
     collectionId: string;
@@ -130,6 +179,18 @@ export async function recordResearchAiReview(
     );
     if (!artifact) throw new Error("Missing immutable author artifact");
     const dossier = candidateEvidenceDossierSchema.parse(artifact.dossier);
+    validateCampaignOwnership(dossier);
+    validateCampaignRenderSources(
+      dossier.sources,
+      dossier.campaignOwnershipProof
+        ? {
+            candidateId: dossier.identity.candidateId,
+            ownershipDigest: campaignOwnershipDigest(
+              dossier.campaignOwnershipProof,
+            ),
+          }
+        : undefined,
+    );
     await verifyStoredCampaignContactProof(
       tx,
       row.document.rosterSnapshotId,
@@ -141,20 +202,8 @@ export async function recordResearchAiReview(
       briefIdentityKey(dossier.identity) !== briefIdentityKey(brief.identity) ||
       dossier.sources.some(
         (source) =>
-          !row.document.sources.some(
-            (archived) =>
-              archived.id === source.id &&
-              archived.url === source.url &&
-              archived.contentHash === source.contentHash &&
-              archived.text === source.text &&
-              archived.format === source.format &&
-              (source.id !==
-                dossier.campaignContactProof?.destinationSourceId ||
-                JSON.stringify(archived.retrievalUrls ?? null) ===
-                  JSON.stringify(source.retrievalUrls ?? null)) &&
-              (source.format !== "image" ||
-                (archived.byteHash === source.byteHash &&
-                  archived.binaryBase64 === source.binaryBase64)),
+          !row.document.sources.some((archived) =>
+            researchSourceMatchesArchive(archived, source, dossier),
           ),
       )
     )
@@ -263,6 +312,20 @@ export async function recordResearchAiReview(
       attestation.reviewer.policyVersion !== policy.version
     )
       throw new Error("Review revision or policy does not match");
+    if (attestation.verdict === "approve")
+      await assertCaliforniaSemanticReviewClear(
+        tx,
+        {
+          raceKey: row.pilotKey,
+          candidateId: brief.identity.candidateId,
+          dossierDigest: dossier.dossierDigest,
+          sourceSetDigest: dossier.sourceSetDigest,
+          policyVersion: policy.version,
+          identity: brief.identity,
+        },
+        brief,
+        artifact.author,
+      );
     const reused = await tx
       .select()
       .from(CandidateBriefReviewEvent)
@@ -315,6 +378,7 @@ async function publishInTransaction(
   policy: Awaited<ReturnType<typeof activeResearchPolicy>>,
   workLease?: ResearchWorkLease,
   cutover = false,
+  preserveEligibleRace = false,
 ) {
   const row = await currentResearchCollection(tx, collectionId);
   if (!cutover) await assertResearchWorkLease(tx, workLease, row.document);
@@ -399,6 +463,28 @@ async function publishInTransaction(
     throw new Error(
       "Policy and independent approval for every exact revision are required",
     );
+  for (const artifact of row.document.candidateArtifacts ?? []) {
+    const brief = row.document.briefs.find(
+      (entry) => entry.identity.candidateId === artifact.candidateId,
+    );
+    if (!brief)
+      throw new Error(
+        "Missing candidate brief for final semantic history admission",
+      );
+    await assertCaliforniaSemanticReviewClear(
+      tx,
+      {
+        raceKey: row.pilotKey,
+        candidateId: artifact.candidateId,
+        dossierDigest: artifact.dossierDigest,
+        sourceSetDigest: artifact.sourceSetDigest,
+        policyVersion: policy.version,
+        identity: brief.identity,
+      },
+      brief,
+      artifact.author,
+    );
+  }
   const [existing] = await tx
     .select()
     .from(CandidateRaceRelease)
@@ -414,6 +500,7 @@ async function publishInTransaction(
       desc(CandidateRaceRelease.id),
     )
     .limit(1);
+  if (preserveEligibleRace) await assertNoEligibleResearchRace(tx, manifest);
   if (
     existing &&
     !existing.revokedReason &&
@@ -438,6 +525,7 @@ export async function publishResearchCollection(
     collectionId: string;
     actorId: string;
     workLease?: ResearchWorkLease;
+    preserveEligibleRace?: boolean;
   },
   database: ResearchDatabase = db,
 ) {
@@ -449,6 +537,8 @@ export async function publishResearchCollection(
       input.actorId,
       await activeResearchPolicy(tx),
       input.workLease,
+      false,
+      input.preserveEligibleRace,
     );
   });
 }

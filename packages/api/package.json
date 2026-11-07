@@ -63,6 +63,10 @@
       "types": "./dist/lib/measure-sources/disabled/vig-archive.d.ts",
       "default": "./src/lib/measure-sources/disabled/vig-archive.ts"
     },
+    "./lib/regional-measures-cache": {
+      "types": "./dist/lib/regional-measures-cache.d.ts",
+      "default": "./src/lib/regional-measures-cache.ts"
+    },
     "./lib/official-guide-cache": {
       "types": "./dist/lib/official-guide-cache.d.ts",
       "default": "./src/lib/official-guide-cache.ts"
@@ -126,6 +130,22 @@
     "./lib/california-catalog-status": {
       "types": "./dist/lib/california-catalog-status.d.ts",
       "default": "./src/lib/california-catalog-status.ts"
+    },
+    "./lib/california-review-history": {
+      "types": "./dist/lib/california-review-history.d.ts",
+      "default": "./src/lib/california-review-history.ts"
+    },
+    "./lib/campaign-source-html": {
+      "types": "./dist/lib/campaign-source-html.d.ts",
+      "default": "./src/lib/campaign-source-html.ts"
+    },
+    "./lib/campaign-render-archive": {
+      "types": "./dist/lib/campaign-render-archive.d.ts",
+      "default": "./src/lib/campaign-render-archive.ts"
+    },
+    "./lib/campaign-ownership": {
+      "types": "./dist/lib/campaign-ownership.d.ts",
+      "default": "./src/lib/campaign-ownership.ts"
     }
   },
   "license": "MIT",
@@ -144,12 +164,13 @@
     "@acme/db": "workspace:*",
     "@acme/env": "workspace:*",
     "@acme/validators": "workspace:*",
-    "@ai-sdk/deepseek": "^1.0.0",
-    "@ai-sdk/groq": "^1.0.0",
-    "@ai-sdk/openai": "^2.0.0",
+    "@ai-sdk/deepseek": "^2.0.80",
+    "@ai-sdk/groq": "^3.0.82",
+    "@ai-sdk/openai": "^3.0.139",
     "@openrouter/ai-sdk-provider": "^2.10.0",
     "@trpc/server": "catalog:",
-    "ai": "^6.0.141",
+    "ai": "^6.0.325",
+    "cheerio": "^1.2.0",
     "superjson": "2.2.6",
     "zod": "catalog:"
   },
@@ -160,7 +181,7 @@
     "@types/pg": "^8.20.0",
     "eslint": "catalog:",
     "prettier": "catalog:",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.15",
     "typescript": "catalog:"
   },
   "prettier": "@acme/prettier-config"

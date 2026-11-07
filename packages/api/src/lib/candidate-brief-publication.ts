@@ -109,6 +109,15 @@ export function publishableRace(
   return { status: "published" as const, briefs };
 }
 
+export class ResearchEligibleRaceConflict extends Error {
+  constructor() {
+    super(
+      "Automatic narrative research cannot replace a currently eligible race",
+    );
+    this.name = "ResearchEligibleRaceConflict";
+  }
+}
+
 export class ResearchReviewCollectionConflict extends Error {
   constructor(
     readonly collectionId: string,

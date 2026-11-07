@@ -6,6 +6,12 @@ interface SyncStorage {
   setItem: (key: string, value: string) => void;
 }
 
+/** Better Auth's Expo client reads cookies synchronously and writes them async. */
+interface AuthStorage extends SyncStorage {
+  getItemAsync: (key: string) => Promise<string | null>;
+  setItemAsync: (key: string, value: string) => Promise<void>;
+}
+
 interface AsyncStorage {
   getItemAsync: (key: string) => Promise<string | null>;
   setItemAsync: (key: string, value: string) => Promise<void>;
@@ -26,7 +32,7 @@ const getWebStorage = () =>
   ).localStorage;
 
 /* eslint-disable @typescript-eslint/no-unnecessary-condition -- localStorage may be undefined at runtime */
-export const authStorage: SyncStorage = {
+export const authStorage: AuthStorage = {
   getItem(key) {
     if (Platform.OS === "web") {
       const storage = getWebStorage();
@@ -44,10 +50,27 @@ export const authStorage: SyncStorage = {
 
     SecureStore.setItem(key, value);
   },
+  async getItemAsync(key) {
+    if (Platform.OS === "web") {
+      const storage = getWebStorage();
+      return storage ? storage.getItem(key) : null;
+    }
+
+    return SecureStore.getItemAsync(key);
+  },
+  async setItemAsync(key, value) {
+    if (Platform.OS === "web") {
+      const storage = getWebStorage();
+      if (storage) storage.setItem(key, value);
+      return;
+    }
+
+    await SecureStore.setItemAsync(key, value);
+  },
 };
 
 /** Small, non-sensitive device preferences that must be available at first paint. */
-export const preferenceStorage = authStorage;
+export const preferenceStorage: SyncStorage = authStorage;
 
 export const sessionStorage: AsyncStorage = {
   async getItemAsync(key) {

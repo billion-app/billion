@@ -21,6 +21,7 @@ import {
 } from "./california-candidate-preparation.js";
 import {
   buildCaliforniaDossier,
+  californiaResearchVersion,
   evidenceDigest,
 } from "./california-dossier.js";
 import {
@@ -65,12 +66,55 @@ function diagnostic(
 function fixture() {
   const dossier = fixtureDossier();
   const artifacts = new Map<string, unknown>();
+  const artifactMetadata = new Map<
+    string,
+    { kind: string; raceKey: string; candidateId?: string }
+  >();
   const calls: { role: string; correction?: unknown }[] = [];
   const deps: Dependencies = {
     now: () => "2026-10-30T00:00:00.000Z",
+    reviewHistory: async (scope) => ({
+      kind: "complete",
+      proof: "fixture-history",
+      artifacts: [...artifacts].flatMap(([key, document]) => {
+        const metadata = artifactMetadata.get(key);
+        if (
+          metadata &&
+          (metadata.raceKey !== scope.raceKey ||
+            metadata.candidateId !== scope.candidateId)
+        )
+          return [];
+        const kind = key.startsWith("dispatch:")
+          ? "model_dispatch"
+          : key.startsWith("author:") || key.startsWith("author-correction:")
+            ? "author"
+            : key.startsWith("review:")
+              ? "review"
+              : key.startsWith("review-rejected:")
+                ? "model_review_rejection"
+                : key.startsWith("correction-rejected:")
+                  ? "model_correction_rejection"
+                  : null;
+        return kind
+          ? [
+              {
+                key,
+                kind,
+                document,
+                raceKey: scope.raceKey,
+                candidateId: scope.candidateId,
+                createdAt: new Date("2026-10-30T00:00:00.000Z"),
+              },
+            ]
+          : [];
+      }),
+    }),
     artifact: async (key) => artifacts.get(key) ?? null,
-    saveArtifact: async ({ key, document }) => {
-      if (!artifacts.has(key)) artifacts.set(key, document);
+    saveArtifact: async ({ key, document, kind, raceKey, candidateId }) => {
+      if (!artifacts.has(key)) {
+        artifacts.set(key, document);
+        artifactMetadata.set(key, { kind, raceKey, candidateId });
+      }
       return artifacts.get(key);
     },
     reserveDispatch: async (input) => {
@@ -91,14 +135,19 @@ function fixture() {
         artifacts.set(key, { collectionId, reviewKey });
       }
       artifacts.set(key, document);
+      artifactMetadata.set(key, {
+        kind: "model_dispatch",
+        raceKey: input.raceKey,
+        candidateId: input.candidateId,
+      });
       return true;
     },
     author: async (input) => {
       calls.push({ role: "author", correction: input.correction });
       return authorCaliforniaBrief(input, {
         now: deps.now,
-        invoke: async () => ({
-          output: {
+        invoke: async () => {
+          const output = {
             priorities: {
               claims: [
                 {
@@ -118,14 +167,25 @@ function fixture() {
             tradeoffs: { claims: [] },
             unknowns: { claims: [] },
             terms: [],
-          },
-          configuredModel: "fixture",
-          actualModel: "fixture",
-          provider: "fixture",
-          requestId: "request",
-          usage: { inputTokens: 100, outputTokens: 50 },
-          costUsd: null,
-        }),
+          };
+          return {
+            output: input.retainedNarrative
+              ? {
+                  retainedNarrativeJson: JSON.stringify(
+                    californiaAuthorOutputSchema(
+                      californiaAuthorEvidence(input.dossier),
+                    ).parse(output),
+                  ),
+                }
+              : output,
+            configuredModel: "fixture",
+            actualModel: "fixture",
+            provider: "fixture",
+            requestId: "request",
+            usage: { inputTokens: 100, outputTokens: 50 },
+            costUsd: null,
+          };
+        },
       });
     },
     review: async ({ authorAttestation }) => {
@@ -1356,14 +1416,14 @@ test("unknown collection reviewer dispatch cannot be replayed after lease reclai
       },
       f.deps,
     ),
-    /unfinished or rejected collection review/,
+    /unsettled or its canonical result is missing/,
   );
   await assert.rejects(
     reviewPreparedCaliforniaCandidateForCollection(
       { ...input, collectionId: randomUUID() },
       f.deps,
     ),
-    /unfinished or rejected collection review/,
+    /unsettled or its canonical result is missing/,
   );
   assert.equal(reviews, 1);
 });
@@ -1394,7 +1454,7 @@ test("ordinary preparation cannot bypass an unknown collection review with cache
       f.deps.reviewerConfigurationKey = "new-configuration";
     await assert.rejects(
       prepareReviewedCaliforniaCandidate(input, f.deps),
-      /unfinished or rejected collection review/,
+      /unsettled or its canonical result is missing/,
     );
     assert.equal(f.calls.length, calls, change);
     assert.equal(input.usage.modelCalls, 0, change);
@@ -1428,7 +1488,7 @@ test("collection rejection is durable across target changes and uses the existin
       { ...input, collectionId: randomUUID() },
       f.deps,
     ),
-    /already rejected/,
+    /rejected unchanged public content|already rejected|unsettled or its canonical result is missing/,
   );
   assert.equal(f.calls.length, calls);
   f.deps.review = review;
@@ -1462,7 +1522,7 @@ test("collection rejection fences target changes even when saving the review res
       { ...input, collectionId: randomUUID() },
       f.deps,
     ),
-    /already rejected/,
+    /rejected unchanged public content|already rejected|unsettled or its canonical result is missing/,
   );
   assert.equal(f.calls.length, calls);
 });
@@ -1580,7 +1640,7 @@ test("finance refresh cache binds narrative rather than changing publication run
   );
   assert.equal(
     first.authored.attestation.promptVersion,
-    "california-finance-refresh-v2",
+    "california-finance-refresh-v6",
   );
   const count = f.calls.length;
   const second = await prepareReviewedCaliforniaCandidate(
@@ -1603,6 +1663,81 @@ test("finance refresh cache binds narrative rather than changing publication run
     second.authored.attestation.runId,
   );
 });
+
+for (const legacyVersion of [
+  "california-finance-refresh-v2",
+  "california-finance-refresh-v3",
+  "california-finance-refresh-v4",
+  "california-finance-refresh-v5",
+]) {
+  test(`finance refresh v6 does not reuse a ${legacyVersion} author artifact`, async () => {
+    const original = fixture();
+    const input = original.fresh();
+    const retainedNarrative = retainedFixture(input.dossier);
+    const prepared = await prepareReviewedCaliforniaCandidate(
+      { ...input, retainedNarrative },
+      original.deps,
+    );
+    const legacyKey = `author:${evidenceDigest([
+      input.dossier.dossierDigest,
+      input.policyVersion,
+      californiaResearchVersion,
+      legacyVersion,
+      "fixture",
+      retainedNarrative.semanticDigest,
+    ])}`;
+    const legacy = structuredClone(prepared.authored);
+    legacy.attestation.promptVersion = legacyVersion;
+    assert.equal(legacy.brief.authorship?.kind, "generated");
+    if (legacy.brief.authorship?.kind === "generated")
+      legacy.brief.authorship.promptVersion = legacyVersion;
+    legacy.attestation.revisionDigest = evidenceDigest(legacy.brief);
+    const current = fixture();
+    current.artifacts.set(legacyKey, legacy);
+    const refreshed = await prepareReviewedCaliforniaCandidate(
+      { ...current.fresh(), retainedNarrative },
+      current.deps,
+    );
+    assert.equal(current.calls.length, 2);
+    assert.notEqual(
+      refreshed.authored.attestation.runId,
+      legacy.attestation.runId,
+    );
+    assert.equal(
+      refreshed.authored.attestation.promptVersion,
+      "california-finance-refresh-v6",
+    );
+    assert.deepEqual(current.artifacts.get(legacyKey), legacy);
+  });
+}
+
+test("a finance review correction cannot rewrite narrative or obtain another review", async () => {
+  const f = fixture();
+  const input = f.fresh();
+  const retainedNarrative = retainedFixture(input.dossier);
+  const review = f.deps.review;
+  f.deps.review = async (request) => ({
+    ...(await review(request)),
+    verdict: "reject",
+    overallReason: "The political wording needs to change.",
+  });
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate({ ...input, retainedNarrative }, f.deps),
+    (error: unknown) => error instanceof CaliforniaModelInvocationError,
+  );
+  assert.equal(f.calls.filter((call) => call.role === "author").length, 2);
+  assert.equal(f.calls.filter((call) => call.role === "reviewer").length, 1);
+  const saved = structuredClone([...f.artifacts]);
+  const retry = f.fresh();
+  await assert.rejects(
+    prepareReviewedCaliforniaCandidate({ ...retry, retainedNarrative }, f.deps),
+    /Saved author failure/,
+  );
+  assert.equal(f.calls.length, 3);
+  assert.equal(retry.usage.modelCalls, 0);
+  assert.deepEqual([...f.artifacts], saved);
+});
+
 test("unknown finance refresh dispatch remains terminal for identical semantic content", async () => {
   const f = fixture();
   const input = f.fresh();
@@ -1704,3 +1839,183 @@ for (const outcome of ["unknown", "rejected"] as const) {
     assert.equal(JSON.stringify([...f.artifacts]), artifacts);
   });
 }
+
+async function seedLegacyRejectedPublicContent(f: ReturnType<typeof fixture>) {
+  const authored = await f.deps.author({
+    dossier: f.fresh().dossier,
+    policyVersion: f.fresh().policyVersion,
+  });
+  authored.brief.authorship = {
+    kind: "generated",
+    model: authored.attestation.actualModel,
+    promptVersion: "california-author-v17",
+  };
+  authored.attestation.promptVersion = "california-author-v17";
+  authored.attestation.revisionDigest = evidenceDigest(authored.brief);
+  const reviewed = await f.deps.review({
+    brief: authored.brief,
+    dossier: f.fresh().dossier,
+    policyVersion: f.fresh().policyVersion,
+    authorAttestation: authored.attestation,
+  });
+  reviewed.verdict = "reject";
+  reviewed.overallReason =
+    "This exact public proposition repeats a plan as an independently established result.";
+  f.artifacts.set("author:legacy-v17", structuredClone(authored));
+  f.artifacts.set("review:legacy-v17", structuredClone(reviewed));
+  f.calls.length = 0;
+  return { authored, reviewed };
+}
+for (const mode of [
+  "initial",
+  "cached_approval",
+  "new_owner",
+  "new_reviewer",
+  "collection",
+  "claim_ids",
+  "claim_ids_cached",
+  "claim_ids_collection",
+] as const)
+  test(`canonical writer-17 rejection blocks metadata-only ${mode} review without an index`, async () => {
+    const f = fixture();
+    const { authored, reviewed } = await seedLegacyRejectedPublicContent(f);
+    const original = JSON.stringify([...f.artifacts]);
+    const newer = structuredClone(authored);
+    newer.brief.revisionId = randomUUID();
+    newer.brief.authorship = {
+      kind: "generated",
+      model: newer.attestation.actualModel,
+      promptVersion: "california-author-v18",
+    };
+    if (mode.startsWith("claim_ids")) {
+      const names = new Map(
+        newer.brief.sections.flatMap((section) =>
+          section.claims.map((claim) => [claim.id, `renamed-${claim.id}`]),
+        ),
+      );
+      for (const section of newer.brief.sections)
+        for (const claim of section.claims)
+          claim.id = names.get(claim.id) ?? claim.id;
+      if (newer.brief.research) {
+        const headline = newer.brief.research.headlineClaimId;
+        if (headline)
+          newer.brief.research.headlineClaimId =
+            names.get(headline) ?? headline;
+        for (const promise of newer.brief.research.promises)
+          promise.claimId = names.get(promise.claimId) ?? promise.claimId;
+      }
+    }
+    newer.attestation = {
+      ...newer.attestation,
+      promptVersion: "california-author-v18",
+      runId: randomUUID(),
+      revisionDigest: evidenceDigest(newer.brief),
+    };
+    f.deps.author = async () => {
+      f.calls.push({ role: "author" });
+      return structuredClone(newer);
+    };
+    const input = f.fresh();
+    if (mode === "new_owner")
+      input.lease = {
+        ...input.lease,
+        owner: randomUUID(),
+        generation: 70,
+        reviewEpoch: 12,
+      };
+    if (mode === "new_reviewer")
+      f.deps.reviewerConfigurationKey = "new-reviewer-configuration";
+    let cachedReviewReads = 0;
+    const artifact = f.deps.artifact;
+    if (mode === "cached_approval" || mode === "claim_ids_cached")
+      f.deps.artifact = async (key) => {
+        if (key.startsWith("review:") && key !== "review:legacy-v17") {
+          cachedReviewReads++;
+          return { ...reviewed, verdict: "approve" };
+        }
+        return artifact(key);
+      };
+    if (mode === "collection" || mode === "claim_ids_collection") {
+      f.artifacts.set("author:newer", newer);
+      await assert.rejects(
+        reviewPreparedCaliforniaCandidateForCollection(
+          {
+            ...input,
+            collectionId: randomUUID(),
+            prepared: {
+              dossier: input.dossier,
+              authored: newer,
+              reviewed: {
+                ...reviewed,
+                verdict: "approve",
+                attestation: {
+                  ...reviewed.attestation,
+                  revisionDigest: newer.attestation.revisionDigest,
+                },
+              },
+            },
+          },
+          f.deps,
+        ),
+        /rejected unchanged public content/,
+      );
+    } else
+      await assert.rejects(
+        prepareReviewedCaliforniaCandidate(input, f.deps),
+        /did not change the rejected public content/,
+      );
+    assert.equal(f.calls.filter((call) => call.role === "reviewer").length, 0);
+    assert.equal(cachedReviewReads, 0);
+    assert.equal(
+      JSON.stringify(
+        [...f.artifacts].filter(([key]) => key.endsWith("legacy-v17")),
+      ),
+      original,
+    );
+  });
+
+test("genuinely changed content after a canonical legacy rejection receives ordinary independent review", async () => {
+  const f = fixture();
+  await seedLegacyRejectedPublicContent(f);
+  const author = f.deps.author;
+  f.deps.author = async (input) => {
+    const result = await author(input);
+    result.brief.sections[0]!.claims[0]!.text =
+      "Morgan Lee proposes additional public-library funding.";
+    result.attestation.revisionDigest = evidenceDigest(result.brief);
+    return result;
+  };
+  const prepared = await prepareReviewedCaliforniaCandidate(f.fresh(), f.deps);
+  assert.equal(prepared.reviewed.verdict, "approve");
+  assert.equal(f.calls.filter((call) => call.role === "reviewer").length, 1);
+});
+for (const failure of [
+  "unavailable",
+  "orphan",
+  "malformed",
+  "unknown_dispatch",
+] as const)
+  test(`incomplete ${failure} canonical history never admits a reviewer`, async () => {
+    const f = fixture();
+    await seedLegacyRejectedPublicContent(f);
+    if (failure === "unavailable")
+      f.deps.reviewHistory = async () => ({
+        kind: "unavailable",
+        reason: "History completeness limit exceeded",
+      });
+    if (failure === "orphan") f.artifacts.delete("author:legacy-v17");
+    if (failure === "malformed")
+      f.artifacts.set("review:legacy-v17", {
+        verdict: "reject",
+        attestation: {},
+      });
+    if (failure === "unknown_dispatch")
+      f.artifacts.set("dispatch:review:legacy-lost", {
+        startedAt: f.deps.now(),
+      });
+    await assert.rejects(
+      prepareReviewedCaliforniaCandidate(f.fresh(), f.deps),
+      /history is unavailable/,
+    );
+    assert.equal(f.calls.filter((call) => call.role === "reviewer").length, 0);
+  });
