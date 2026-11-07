@@ -9,9 +9,9 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.15",
     "typescript": "catalog:",
-    "vite": "^8.1.4"
+    "vite": "^8.3.6"
   },
   "scripts": {
     "dev": "tsx src/main.ts",
