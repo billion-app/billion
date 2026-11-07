@@ -1,0 +1,276 @@
+{
+  "checkout": "2002ecd0",
+  "measurement": "Read-only production aggregates. Serialized JSON/text byte estimates are not wire bytes or billed egress. Cumulative statistics are not restricted to the billing period.",
+  "snapshot": {
+    "capturedAt": "2026-10-20T23:54:39.769Z",
+    "row_sizes": [
+      {
+        "kind": "bill",
+        "n": "914",
+        "full_json_bytes": "38769586",
+        "avg_json_bytes": "42417",
+        "source_bytes": "21443010",
+        "versions_bytes": "1828",
+        "search_vector_bytes": "13520011"
+      },
+      {
+        "kind": "government_content",
+        "n": "194",
+        "full_json_bytes": "4104700",
+        "avg_json_bytes": "21158",
+        "source_bytes": "1565358",
+        "versions_bytes": "388",
+        "search_vector_bytes": "1478835"
+      },
+      {
+        "kind": "court_case",
+        "n": "56",
+        "full_json_bytes": "4247292",
+        "avg_json_bytes": "75845",
+        "source_bytes": "2413280",
+        "versions_bytes": "112",
+        "search_vector_bytes": "1634380"
+      }
+    ],
+    "card_sizes": [
+      {
+        "n": "914",
+        "card_bytes": "3496772"
+      }
+    ],
+    "translation_bytes": [
+      {
+        "content_type": "bill",
+        "language": "es",
+        "n": "4",
+        "payload_bytes": "50327"
+      },
+      {
+        "content_type": "court_case",
+        "language": "es",
+        "n": "1",
+        "payload_bytes": "3618"
+      },
+      {
+        "content_type": "government_content",
+        "language": "es",
+        "n": "2",
+        "payload_bytes": "11203"
+      },
+      {
+        "content_type": "court_case",
+        "language": "zh",
+        "n": "56",
+        "payload_bytes": "296443"
+      },
+      {
+        "content_type": "government_content",
+        "language": "zh",
+        "n": "194",
+        "payload_bytes": "1164392"
+      },
+      {
+        "content_type": "bill",
+        "language": "zh",
+        "n": "914",
+        "payload_bytes": "7987277"
+      }
+    ],
+    "brief_lens_bytes": [
+      {
+        "kind": "brief",
+        "n": "969",
+        "json_bytes": "6981826"
+      },
+      {
+        "kind": "lens",
+        "n": "848",
+        "json_bytes": "7239129"
+      }
+    ],
+    "inline_images": [
+      {
+        "n": "0",
+        "images": "0",
+        "raw_bytes": null
+      }
+    ],
+    "activity": [
+      {
+        "queryid": "-1405140374245854",
+        "calls": "99",
+        "rows": "72",
+        "prefix": "select \"id\", \"bill_number\", \"title\", \"description\", \"sponsor\", \"status\", \"introduced_date\", \"congres"
+      },
+      {
+        "queryid": "-1043118427115203488",
+        "calls": "92",
+        "rows": "262",
+        "prefix": "select \"id\", \"content_type\", \"content_id\", \"language\", \"source_hash\", \"payload\", \"model_version\", \"c"
+      },
+      {
+        "queryid": "-4058419347247062599",
+        "calls": "74",
+        "rows": "884",
+        "prefix": "select \"id\", \"content_type\", \"content_id\", \"language\", \"source_hash\", \"payload\", \"model_version\", \"c"
+      },
+      {
+        "queryid": "8364957106974482023",
+        "calls": "505",
+        "rows": "505",
+        "prefix": "select \"id\", \"bill_number\", \"title\", \"source_website\", \"url\", \"description\", \"content_hash\", \"summar"
+      },
+      {
+        "queryid": "-6235719700606638490",
+        "calls": "4",
+        "rows": "4",
+        "prefix": "select \"id\", \"title\", \"bill_number\", \"status\", \"actions\" from \"bill\" where \"bill\".\"id\" = $1 limit $2"
+      },
+      {
+        "queryid": "-2416025542765878352",
+        "calls": "212",
+        "rows": "3936",
+        "prefix": "select \"id\", \"content_type\", \"content_id\", \"language\", \"source_hash\", \"payload\", \"model_version\", \"c"
+      },
+      {
+        "queryid": "-6974263832691259588",
+        "calls": "211",
+        "rows": "176",
+        "prefix": "select \"id\", \"bill_number\", \"title\", \"description\", \"sponsor\", \"status\", \"introduced_date\", \"congres"
+      },
+      {
+        "queryid": "3523792792087805997",
+        "calls": "176184",
+        "rows": "137801",
+        "prefix": "select \"id\", \"bill_number\", \"title\", \"description\", \"sponsor\", \"status\", \"introduced_date\", \"last_ac"
+      }
+    ],
+    "window": [
+      {
+        "stats_reset": "2026-06-29T23:38:13.194Z"
+      }
+    ]
+  },
+  "activity_samples": [
+    {
+      "at": "2026-10-20T23:55:05.406Z",
+      "rows": [
+        {
+          "queryid": "3523792792087805997",
+          "calls": "176210",
+          "rows": "137824",
+          "prefix": "select \"id\", \"bill_number\", \"title\", \"description\", \"sponsor\", \"status\", \"introduced_date\", \"last_action_at\", \"congress\", \"chamber\", \"summary\", \"full_text\", \"ai_generated_article\", \"thumbnail_url\", \"a"
+        },
+        {
+          "queryid": "-8062415072211274228",
+          "calls": "174788",
+          "rows": "173281",
+          "prefix": "select \"id\", \"content_type\", \"content_id\", \"language\", \"source_hash\", \"payload\", \"model_version\", \"created_at\", \"updated_at\" from \"content_translation\" where (\"content_translation\".\"content_id\" in ($1"
+        },
+        {
+          "queryid": "3805241862815706162",
+          "calls": "16953",
+          "rows": "169031",
+          "prefix": "select \"id\" from (((select \"id\" from \"bill\") union all (select \"id\" from \"government_content\")) union all (select \"id\" from \"court_case\")) \"readers\" where \"readers\".\"id\" > $1 order by \"readers\".\"id\" a"
+        },
+        {
+          "queryid": "9120463943001377044",
+          "calls": "159",
+          "rows": "1600",
+          "prefix": "select \"id\" from (((select \"id\" from \"bill\") union all (select \"id\" from \"government_content\")) union all (select \"id\" from \"court_case\")) \"readers\" order by \"readers\".\"id\" asc limit $1"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-20T23:55:35.508Z",
+      "rows": [
+        {
+          "queryid": "3523792792087805997",
+          "calls": "176240",
+          "rows": "137850",
+          "prefix": "select \"id\", \"bill_number\", \"title\", \"description\", \"sponsor\", \"status\", \"introduced_date\", \"last_action_at\", \"congress\", \"chamber\", \"summary\", \"full_text\", \"ai_generated_article\", \"thumbnail_url\", \"a"
+        },
+        {
+          "queryid": "-8062415072211274228",
+          "calls": "174818",
+          "rows": "173311",
+          "prefix": "select \"id\", \"content_type\", \"content_id\", \"language\", \"source_hash\", \"payload\", \"model_version\", \"created_at\", \"updated_at\" from \"content_translation\" where (\"content_translation\".\"content_id\" in ($1"
+        },
+        {
+          "queryid": "3805241862815706162",
+          "calls": "16956",
+          "rows": "169061",
+          "prefix": "select \"id\" from (((select \"id\" from \"bill\") union all (select \"id\" from \"government_content\")) union all (select \"id\" from \"court_case\")) \"readers\" where \"readers\".\"id\" > $1 order by \"readers\".\"id\" a"
+        },
+        {
+          "queryid": "9120463943001377044",
+          "calls": "159",
+          "rows": "1600",
+          "prefix": "select \"id\" from (((select \"id\" from \"bill\") union all (select \"id\" from \"government_content\")) union all (select \"id\" from \"court_case\")) \"readers\" order by \"readers\".\"id\" asc limit $1"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-20T23:56:05.614Z",
+      "rows": [
+        {
+          "queryid": "3523792792087805997",
+          "calls": "176276",
+          "rows": "137880",
+          "prefix": "select \"id\", \"bill_number\", \"title\", \"description\", \"sponsor\", \"status\", \"introduced_date\", \"last_action_at\", \"congress\", \"chamber\", \"summary\", \"full_text\", \"ai_generated_article\", \"thumbnail_url\", \"a"
+        },
+        {
+          "queryid": "-8062415072211274228",
+          "calls": "174853",
+          "rows": "173346",
+          "prefix": "select \"id\", \"content_type\", \"content_id\", \"language\", \"source_hash\", \"payload\", \"model_version\", \"created_at\", \"updated_at\" from \"content_translation\" where (\"content_translation\".\"content_id\" in ($1"
+        },
+        {
+          "queryid": "3805241862815706162",
+          "calls": "16960",
+          "rows": "169101",
+          "prefix": "select \"id\" from (((select \"id\" from \"bill\") union all (select \"id\" from \"government_content\")) union all (select \"id\" from \"court_case\")) \"readers\" where \"readers\".\"id\" > $1 order by \"readers\".\"id\" a"
+        },
+        {
+          "queryid": "9120463943001377044",
+          "calls": "159",
+          "rows": "1600",
+          "prefix": "select \"id\" from (((select \"id\" from \"bill\") union all (select \"id\" from \"government_content\")) union all (select \"id\" from \"court_case\")) \"readers\" order by \"readers\".\"id\" asc limit $1"
+        }
+      ]
+    }
+  ],
+  "worker_log_summary": {
+    "tail_entries": 250,
+    "scanned": 2488,
+    "ready": 2488,
+    "queued": 0,
+    "failed": 0,
+    "completed_sweeps": 2
+  },
+  "additional_aggregates": {
+    "recent_federal_21_rows": {
+      "full_json_bytes": 210276,
+      "card_json_bytes": 26796,
+      "note": "Column comparison without enacted-bill discovery filter"
+    },
+    "storage_objects": {
+      "count": 2215,
+      "bytes": 371784863,
+      "average_bytes": 167849,
+      "maximum_bytes": 421344
+    },
+    "featured_discovery_filtered_variants": [
+      {
+        "calls": 321,
+        "rows": 108681,
+        "average_rows": 338.6
+      },
+      {
+        "calls": 298,
+        "rows": 42586,
+        "average_rows": 142.9
+      }
+    ]
+  }
+}
