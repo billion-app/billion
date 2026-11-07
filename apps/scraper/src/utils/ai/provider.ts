@@ -136,13 +136,6 @@ function getFallbackModel(
       specificationVersion: "v3",
       transformParams: async ({ params }) => ({
         ...params,
-        // AI SDK v6 adapts model results but forwards input tools unchanged.
-        // The v2 OpenAI provider expects the historical native-tool tag.
-        tools: params.tools?.map((tool) =>
-          tool.type === "provider"
-            ? { ...tool, type: "provider-defined" }
-            : tool,
-        ) as typeof params.tools,
         providerOptions: {
           ...params.providerOptions,
           openai: {
@@ -496,12 +489,9 @@ export async function generateWebSearch(
     const result = await generateText({
       model,
       tools: {
-        // OpenAI SDK v2 names this discriminator provider-defined; AI SDK v6
-        // accepts provider; model middleware maps it back at the boundary.
-        web_search: {
-          ...provider.tools.webSearchPreview({ searchContextSize: "low" }),
-          type: "provider",
-        } as Tool<any, any>,
+        web_search: provider.tools.webSearchPreview({
+          searchContextSize: "low",
+        }),
       },
       prompt,
       maxRetries: 0,
