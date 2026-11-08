@@ -3,6 +3,7 @@ import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated from "react-native-reanimated";
 import Svg, { Line, Path } from "react-native-svg";
 
+import type { BillChangeContext } from "./bill-article";
 import type { BillBriefData, BriefQuote } from "./BillBrief";
 import type { IconName } from "./Icon";
 import type { StringKey } from "~/i18n/strings";
@@ -48,7 +49,7 @@ export function BillChangeMap({
   testIDPrefix = "overview",
   presentation = "story",
 }: {
-  data: BillBriefData;
+  data: BillChangeContext;
   onViewSource?: (quote: BriefQuote) => void;
   initialOpenIndex?: number | null;
   testIDPrefix?: string;

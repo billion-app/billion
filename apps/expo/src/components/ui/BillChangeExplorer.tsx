@@ -10,7 +10,8 @@ import {
 import Animated, { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import type { BillBriefData, BriefQuote } from "./BillBrief";
+import type { BillChangeContext } from "./bill-article";
+import type { BriefQuote } from "./BillBrief";
 import { useLanguage } from "~/hooks/useLanguage";
 import {
   BillReaderPalette as R,
@@ -32,7 +33,7 @@ export function BillChangeExplorer({
   testIDPrefix = "overview",
   presentation = "story",
 }: {
-  data: BillBriefData;
+  data: BillChangeContext;
   onViewSource?: (quote: BriefQuote) => void;
   showFirstTitle?: boolean;
   testIDPrefix?: string;

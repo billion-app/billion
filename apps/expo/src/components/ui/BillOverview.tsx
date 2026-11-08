@@ -1,4 +1,5 @@
 import type { ImageSource } from "expo-image";
+import type { LayoutChangeEvent } from "react-native";
 import { useRef, useState } from "react";
 import {
   Modal,
@@ -13,6 +14,7 @@ import Animated, { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Markdown from "@ronradtke/react-native-markdown-display";
 
+import type { ArticleBlockData, BillArticleData } from "./bill-article";
 import type { BillBriefData, BriefQuote } from "./BillBrief";
 import { useLanguage } from "~/hooks/useLanguage";
 import {
@@ -24,8 +26,13 @@ import {
   BillReaderType as T,
 } from "~/styles";
 import { ArticleOpening } from "./ArticleOpening";
-import { getBillFactFigure } from "./bill-fact-figure";
-import { getBillVisualKind } from "./bill-visual";
+import {
+  articleBlocks,
+  articleChanges,
+  changeContext,
+  figureForBlock,
+  figureShowsTimeline,
+} from "./bill-article";
 import { BillChangeExplanation } from "./BillChangeExplanation";
 import { BillChangeExplorer } from "./BillChangeExplorer";
 import { BillChangeMap } from "./BillChangeMap";
@@ -36,8 +43,12 @@ import { readerLayout, ReaderReveal } from "./ReaderMotion";
 import { ReaderPressable } from "./ReaderPressable";
 import { ReaderText } from "./ReaderText";
 
+type Person = BillBriefData["affected"][number];
+
+// The story presentation renders the blocks a casual reader needs first. Depth
+// blocks (glossary, history, arguments, outside reading) live in the full brief.
 export function BillOverview({
-  data,
+  article,
   officialTitle,
   billNumber,
   imageSource,
@@ -47,7 +58,7 @@ export function BillOverview({
   onViewSource,
   onJump,
 }: {
-  data: BillBriefData;
+  article: BillArticleData;
   officialTitle: string;
   billNumber?: string | null;
   imageSource?: ImageSource;
@@ -62,33 +73,204 @@ export function BillOverview({
   const { fontScale } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
   const rootY = useRef(0);
-  const figureY = useRef(0);
-  const sectionY = useRef<
-    Partial<Record<"changes" | "people" | "questions", number>>
-  >({});
-  const hasDeck = !!data.summary?.trim();
-  const [person, setPerson] = useState<number | null>(null);
+  const blockY = useRef<Record<number, number>>({});
+  const hasDeck = !!article.summary?.trim();
+  const [activePerson, setPerson] = useState<Person | null>(null);
   const [questionsOpen, setQuestionsOpen] = useState(false);
   const [storyVisible, setStoryVisible] = useState(false);
   const [contentsOpen, setContentsOpen] = useState(false);
-  const activePerson = person === null ? null : data.affected[person];
-  const lead = data.changes[0];
-  const firstUnknown = data.unknowns[0];
-  const story = data.deepDive;
-  const figure = getBillFactFigure(data.facts);
-  const showChangeMap = getBillVisualKind(data.facts) === "changes";
+  const changes = articleChanges(article);
+  const unknowns = articleBlocks(article, "unknowns").flatMap(
+    (block) => block.items,
+  );
+  const people = articleBlocks(article, "affected").flatMap(
+    (block) => block.items,
+  );
+  const story = articleBlocks(article, "furtherReading").find(
+    (block) => block.deepDive,
+  )?.deepDive;
   // A provision label can depend on context the opening has not supplied yet.
   // Older briefs keep their source title until a standalone headline is authored.
-  const headline = data.headline ?? officialTitle;
-  const state = t(
-    readerLegalContext(data.legalStatus, data.sourceStatus).statusKey,
-  );
+  const headline = article.headline ?? officialTitle;
+  const legal = readerLegalContext(article.legalStatus, article.sourceStatus);
+  const state = t(legal.statusKey);
+  const jumpTo = (index: number, offset = 0) => {
+    const y = blockY.current[index];
+    if (y !== undefined)
+      onJump?.(
+        Math.max(0, rootY.current + y + offset - S.group),
+        !reduceMotion,
+      );
+  };
   const markdownStyles = getMarkdownStyles({
     ...darkTheme,
     foreground: R.text,
     accent: R.link,
     muted: R.surface,
   });
+
+  const renderBlock = (block: ArticleBlockData, index: number) => {
+    const onLayout = (event: LayoutChangeEvent) => {
+      blockY.current[index] = event.nativeEvent.layout.y;
+    };
+    switch (block.type) {
+      case "changes": {
+        const lead = block.items[0];
+        if (!lead) return null;
+        const map = block.display === "map";
+        return (
+          <Animated.View
+            key={index}
+            style={s.changes}
+            layout={readerLayout}
+            onLayout={onLayout}
+          >
+            {map || block.items.length <= 1 ? (
+              <Text
+                style={s.sectionHeading}
+                accessibilityRole="header"
+                testID="overview-main-change"
+              >
+                {t(legal.scenarioKey)}
+              </Text>
+            ) : null}
+            {!map && block.items.length > 1 ? (
+              <BillChangeExplorer
+                data={changeContext(article, block.items)}
+                onViewSource={onViewSource}
+              />
+            ) : (
+              <BillChangeExplanation
+                change={lead}
+                presentation="story"
+                showScenario={false}
+                index={0}
+                legalStatus={article.legalStatus}
+                sourceStatus={article.sourceStatus}
+                sourceLabel={article.sourceLabel}
+                terms={article.terms}
+                onViewSource={onViewSource}
+              />
+            )}
+            {map ? (
+              <BillChangeMap
+                data={changeContext(article, block.items)}
+                onViewSource={onViewSource}
+              />
+            ) : null}
+          </Animated.View>
+        );
+      }
+      case "figure": {
+        const figure = figureForBlock(block);
+        return figure ? (
+          <Animated.View key={index} layout={readerLayout} onLayout={onLayout}>
+            <BillFactFigure
+              figure={figure}
+              timeline={figureShowsTimeline(block)}
+              onViewSource={onViewSource}
+              changes={changes}
+              legalStatus={article.legalStatus}
+              sourceStatus={article.sourceStatus}
+              onInspect={onJump ? (y) => jumpTo(index, y) : undefined}
+            />
+          </Animated.View>
+        ) : null;
+      }
+      case "affected":
+        return (
+          <Animated.View
+            key={index}
+            layout={readerLayout}
+            style={s.section}
+            testID="overview-people"
+            onLayout={onLayout}
+          >
+            <Text style={s.sectionHeading} accessibilityRole="header">
+              {t("readerUi.whoCouldBeAffected")}
+            </Text>
+            {block.items.map((item, itemIndex) => (
+              <Animated.View
+                key={itemIndex}
+                layout={readerLayout}
+                style={s.person}
+              >
+                <ReaderPressable
+                  style={s.personToggle}
+                  onPress={() => setPerson(item)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: activePerson === item }}
+                  accessibilityLabel={item.group}
+                  testID={"overview-person-" + people.indexOf(item)}
+                >
+                  <Text style={s.personName}>{item.group}</Text>
+                  <Icon name="chevR" size={17} color={R.muted} />
+                </ReaderPressable>
+              </Animated.View>
+            ))}
+          </Animated.View>
+        );
+      case "unknowns": {
+        const [first, ...rest] = block.items;
+        if (!first) return null;
+        return (
+          <Animated.View
+            key={index}
+            layout={readerLayout}
+            style={s.uncertainty}
+            testID="overview-uncertainty"
+            onLayout={onLayout}
+          >
+            <Text style={s.sectionHeading} accessibilityRole="header">
+              {t("readerUi.whatRemainsUnclear")}
+            </Text>
+            <ReaderText text={first} terms={article.terms} />
+            {questionsOpen ? (
+              <ReaderReveal style={s.questions}>
+                {rest.map((text, textIndex) => (
+                  <ReaderText
+                    key={textIndex}
+                    text={text}
+                    terms={article.terms}
+                  />
+                ))}
+              </ReaderReveal>
+            ) : null}
+            {rest.length ? (
+              <ReaderPressable
+                style={s.textAction}
+                onPress={() => setQuestionsOpen((value) => !value)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: questionsOpen }}
+                testID="overview-more-questions"
+              >
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  <Icon
+                    name={questionsOpen ? "minus" : "help"}
+                    size={16}
+                    color={R.muted}
+                  />
+                </View>
+                <Text style={s.quietAction}>
+                  {t(
+                    questionsOpen
+                      ? "readerUi.fewerQuestions"
+                      : "readerUi.moreQuestions",
+                  )}
+                </Text>
+              </ReaderPressable>
+            ) : null}
+          </Animated.View>
+        );
+      }
+      default:
+        // Depth blocks belong to the full brief; unknown blocks are skipped.
+        return null;
+    }
+  };
 
   return (
     <Animated.View
@@ -112,10 +294,10 @@ export function BillOverview({
           </>
         }
       />
-      {hasDeck && data.summary ? (
+      {hasDeck && article.summary ? (
         <ReaderText
-          text={data.summary}
-          terms={data.terms}
+          text={article.summary}
+          terms={article.terms}
           style={s.deck}
           emphasize={false}
         />
@@ -142,157 +324,7 @@ export function BillOverview({
           </ReaderPressable>
         ) : null}
       </View>
-      {lead ? (
-        <Animated.View
-          style={s.changes}
-          layout={readerLayout}
-          onLayout={(event) => {
-            sectionY.current.changes = event.nativeEvent.layout.y;
-          }}
-        >
-          {showChangeMap || data.changes.length <= 1 ? (
-            <Text
-              style={s.sectionHeading}
-              accessibilityRole="header"
-              testID="overview-main-change"
-            >
-              {t(
-                readerLegalContext(data.legalStatus, data.sourceStatus)
-                  .scenarioKey,
-              )}
-            </Text>
-          ) : null}
-          {!showChangeMap && data.changes.length > 1 ? (
-            <BillChangeExplorer data={data} onViewSource={onViewSource} />
-          ) : (
-            <BillChangeExplanation
-              change={lead}
-              presentation="story"
-              showScenario={false}
-              index={0}
-              legalStatus={data.legalStatus}
-              sourceStatus={data.sourceStatus}
-              sourceLabel={data.sourceLabel}
-              terms={data.terms}
-              onViewSource={onViewSource}
-            />
-          )}
-          {showChangeMap ? (
-            <BillChangeMap data={data} onViewSource={onViewSource} />
-          ) : null}
-          {figure ? (
-            <View
-              onLayout={(event) => {
-                figureY.current = event.nativeEvent.layout.y;
-              }}
-            >
-              <BillFactFigure
-                figure={figure}
-                onViewSource={onViewSource}
-                changes={data.changes}
-                legalStatus={data.legalStatus}
-                sourceStatus={data.sourceStatus}
-                onInspect={
-                  onJump
-                    ? (y) =>
-                        onJump(
-                          Math.max(
-                            0,
-                            rootY.current +
-                              (sectionY.current.changes ?? 0) +
-                              figureY.current +
-                              y -
-                              S.group,
-                          ),
-                          !reduceMotion,
-                        )
-                    : undefined
-                }
-              />
-            </View>
-          ) : null}
-        </Animated.View>
-      ) : null}
-
-      {data.affected.length ? (
-        <Animated.View
-          layout={readerLayout}
-          style={s.section}
-          testID="overview-people"
-          onLayout={(event) => {
-            sectionY.current.people = event.nativeEvent.layout.y;
-          }}
-        >
-          <Text style={s.sectionHeading} accessibilityRole="header">
-            {t("readerUi.whoCouldBeAffected")}
-          </Text>
-          {data.affected.map((item, index) => (
-            <Animated.View key={index} layout={readerLayout} style={s.person}>
-              <ReaderPressable
-                style={s.personToggle}
-                onPress={() => setPerson(index)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: person === index }}
-                accessibilityLabel={item.group}
-                testID={"overview-person-" + index}
-              >
-                <Text style={s.personName}>{item.group}</Text>
-                <Icon name="chevR" size={17} color={R.muted} />
-              </ReaderPressable>
-            </Animated.View>
-          ))}
-        </Animated.View>
-      ) : null}
-
-      {firstUnknown ? (
-        <Animated.View
-          layout={readerLayout}
-          style={s.uncertainty}
-          testID="overview-uncertainty"
-          onLayout={(event) => {
-            sectionY.current.questions = event.nativeEvent.layout.y;
-          }}
-        >
-          <Text style={s.sectionHeading} accessibilityRole="header">
-            {t("readerUi.whatRemainsUnclear")}
-          </Text>
-          <ReaderText text={firstUnknown} terms={data.terms} />
-          {questionsOpen ? (
-            <ReaderReveal style={s.questions}>
-              {data.unknowns.slice(1).map((text, index) => (
-                <ReaderText key={index} text={text} terms={data.terms} />
-              ))}
-            </ReaderReveal>
-          ) : null}
-          {data.unknowns.length > 1 ? (
-            <ReaderPressable
-              style={s.textAction}
-              onPress={() => setQuestionsOpen((value) => !value)}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: questionsOpen }}
-              testID="overview-more-questions"
-            >
-              <View
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-              >
-                <Icon
-                  name={questionsOpen ? "minus" : "help"}
-                  size={16}
-                  color={R.muted}
-                />
-              </View>
-              <Text style={s.quietAction}>
-                {t(
-                  questionsOpen
-                    ? "readerUi.fewerQuestions"
-                    : "readerUi.moreQuestions",
-                )}
-              </Text>
-            </ReaderPressable>
-          ) : null}
-        </Animated.View>
-      ) : null}
+      {article.blocks.map(renderBlock)}
 
       <Animated.View layout={readerLayout} style={s.ending}>
         <View style={s.readingLinks}>
@@ -393,7 +425,7 @@ export function BillOverview({
               </Text>
             </View>
             {activePerson ? (
-              <ReaderText text={activePerson.effect} terms={data.terms} />
+              <ReaderText text={activePerson.effect} terms={article.terms} />
             ) : null}
             <Text style={s.sourceIdentity}>{t("readerUi.billionAi")}</Text>
           </ScrollView>
@@ -440,23 +472,29 @@ export function BillOverview({
                   key: "changes",
                   icon: "sliders",
                   label: "readerUi.changeQuestion",
-                  visible: !!lead,
+                  index: article.blocks.findIndex(
+                    (block) => block.type === "changes" && block.items.length,
+                  ),
                 },
                 {
                   key: "people",
                   icon: "users",
                   label: "readerUi.peopleQuestion",
-                  visible: data.affected.length > 0,
+                  index: article.blocks.findIndex(
+                    (block) => block.type === "affected",
+                  ),
                 },
                 {
                   key: "questions",
                   icon: "help",
                   label: "readerUi.unknownQuestion",
-                  visible: data.unknowns.length > 0,
+                  index: article.blocks.findIndex(
+                    (block) => block.type === "unknowns",
+                  ),
                 },
               ] as const
             )
-              .filter((item) => item.visible)
+              .filter((item) => item.index >= 0)
               .map((item) => (
                 <ReaderPressable
                   key={item.key}
@@ -465,12 +503,7 @@ export function BillOverview({
                   testID={`overview-jump-${item.key}`}
                   onPress={() => {
                     setContentsOpen(false);
-                    const y = sectionY.current[item.key];
-                    if (y !== undefined)
-                      onJump?.(
-                        Math.max(0, rootY.current + y - S.group),
-                        !reduceMotion,
-                      );
+                    jumpTo(item.index);
                   }}
                 >
                   <View
@@ -542,13 +575,13 @@ export function BillOverview({
             >
               {story?.body ?? ""}
             </Markdown>
-            {data.unknowns.length ? (
+            {unknowns.length ? (
               <View style={s.uncertainty}>
                 <Text style={s.sectionHeading}>
                   {t("readerUi.whatRemainsUnclear")}
                 </Text>
-                {data.unknowns.map((text, index) => (
-                  <ReaderText key={index} text={text} terms={data.terms} />
+                {unknowns.map((text, index) => (
+                  <ReaderText key={index} text={text} terms={article.terms} />
                 ))}
               </View>
             ) : null}

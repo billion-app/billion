@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 
+export * from "./article-blocks";
 export * from "./bill-brief";
 export * from "./bill-status";
 export * from "./court-brief";

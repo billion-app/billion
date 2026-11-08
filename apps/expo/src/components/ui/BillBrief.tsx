@@ -27,7 +27,7 @@
  */
 import type { ReactNode } from "react";
 import type { StyleProp, TextProps, TextStyle } from "react-native";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   Modal,
   ScrollView,
@@ -40,6 +40,7 @@ import {
 import * as WebBrowser from "expo-web-browser";
 import Markdown from "@ronradtke/react-native-markdown-display";
 
+import type { ArticleBlockData, BillArticleData } from "./bill-article";
 import type { StringKey } from "~/i18n/strings";
 import { useLanguage } from "~/hooks/useLanguage";
 import {
@@ -51,7 +52,12 @@ import {
   BillReaderPalette as R,
   BillReaderType as T,
 } from "~/styles";
-import { getBillFactFigure } from "./bill-fact-figure";
+import {
+  articleChanges,
+  changeContext,
+  figureForBlock,
+  figureShowsTimeline,
+} from "./bill-article";
 import { BillChangeExplorer } from "./BillChangeExplorer";
 import { BillFactFigure } from "./BillFactFigure";
 import { Icon } from "./Icon";
@@ -649,14 +655,15 @@ function BlockTitle({ children }: { children: string }) {
 }
 
 /* ---------- BillBrief ---------- */
+// The full presentation renders every block the article chose, in its order.
 export function BillBrief({
-  data,
+  article,
   showSummary = true,
   accent = R.link,
   dualLens,
   onViewSource,
 }: {
-  data: BillBriefData;
+  article: BillArticleData;
   showSummary?: boolean;
   accent?: string;
   dualLens?: ReactNode;
@@ -664,64 +671,84 @@ export function BillBrief({
 }) {
   const { t: tr } = useLanguage();
   const { fontScale } = useWindowDimensions();
-  // Keep fast refresh safe while a screen still holds a pre-v5 brief in memory.
-  const reading = data.reading ?? [];
-  const figure = getBillFactFigure(data.facts);
+  const changes = articleChanges(article);
+
+  const renderBlock = (block: ArticleBlockData, key: number) => {
+    switch (block.type) {
+      case "changes":
+        return (
+          <BillChangeExplorer
+            key={key}
+            data={changeContext(article, block.items)}
+            showFirstTitle
+            presentation="comparison"
+            testIDPrefix="brief"
+            onViewSource={onViewSource}
+          />
+        );
+      case "figure": {
+        const figure = figureForBlock(block);
+        return figure ? (
+          <BillFactFigure
+            key={key}
+            figure={figure}
+            timeline={figureShowsTimeline(block)}
+            onViewSource={onViewSource}
+            changes={changes}
+            legalStatus={article.legalStatus}
+            sourceStatus={article.sourceStatus}
+          />
+        ) : null;
+      }
+      case "affected":
+        return (
+          <Fragment key={key}>
+            <BlockTitle>{tr("readerUi.whoAffected")}</BlockTitle>
+            <Affected affected={block.items} />
+          </Fragment>
+        );
+      case "unknowns":
+        return <Unknowns key={key} unknowns={block.items} />;
+      case "glossary":
+        return <Terms key={key} terms={article.terms} />;
+      case "context":
+        return (
+          <WhyNotBefore key={key} context={block.context} accent={accent} />
+        );
+      case "perspectives":
+        return dualLens ? (
+          <OptionalSection key={key} title={tr("readerUi.arguments")}>
+            {dualLens}
+          </OptionalSection>
+        ) : null;
+      case "furtherReading":
+        return (
+          <Fragment key={key}>
+            <BlockTitle>{tr("readerUi.keepReading")}</BlockTitle>
+            <FurtherReading
+              deepDive={block.deepDive}
+              reading={block.reading}
+              accent={accent}
+            />
+          </Fragment>
+        );
+      default:
+        // Content can name blocks this installed app predates.
+        return null;
+    }
+  };
 
   return (
     <View key={fontScale} style={s.root} testID="bill-brief">
       {showSummary && (
         <BillSummary
-          summary={data.summary}
-          text={data.hook}
-          legalStatus={data.legalStatus}
+          summary={article.summary}
+          text={article.hook}
+          legalStatus={article.legalStatus}
           accent={accent}
         />
       )}
-
-      <BillChangeExplorer
-        data={data}
-        showFirstTitle
-        presentation="comparison"
-        testIDPrefix="brief"
-        onViewSource={onViewSource}
-      />
-
-      {figure ? (
-        <BillFactFigure
-          figure={figure}
-          onViewSource={onViewSource}
-          changes={data.changes}
-          legalStatus={data.legalStatus}
-          sourceStatus={data.sourceStatus}
-        />
-      ) : null}
-
-      <BlockTitle>{tr("readerUi.whoAffected")}</BlockTitle>
-      <Affected affected={data.affected} />
-
-      <Unknowns unknowns={data.unknowns} />
-
-      <Terms terms={data.terms} />
-      {data.whyNotBefore ? (
-        <WhyNotBefore context={data.whyNotBefore} accent={accent} />
-      ) : null}
-      {dualLens ? (
-        <OptionalSection title={tr("readerUi.arguments")}>
-          {dualLens}
-        </OptionalSection>
-      ) : null}
-
-      {data.deepDive || reading.length > 0 ? (
-        <>
-          <BlockTitle>{tr("readerUi.keepReading")}</BlockTitle>
-          <FurtherReading
-            deepDive={data.deepDive}
-            reading={reading}
-            accent={accent}
-          />
-        </>
-      ) : null}
+      {article.blocks.map(renderBlock)}
     </View>
   );
 }

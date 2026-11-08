@@ -38,6 +38,7 @@ import {
   Segmented,
 } from "~/components/ui";
 import { ArticleOpening } from "~/components/ui/ArticleOpening";
+import { billArticleFromBrief } from "~/components/ui/bill-article";
 import { BillSummary } from "~/components/ui/BillBrief";
 import { BillOverview } from "~/components/ui/BillOverview";
 import { CourtProceeding, CourtTakeaway } from "~/components/ui/CourtBrief";
@@ -536,6 +537,10 @@ function ArticleDetail({ articleId }: { articleId: string | undefined }) {
     translation?.courtBrief ??
     (content.type === "court_case" ? content.courtBrief : null);
   const lensData = translation?.lensData ?? content.lensData;
+  // Readers render articles; a stored v8 brief is expressed as one.
+  const article = brief
+    ? billArticleFromBrief(brief, { perspectives: Boolean(lensData) })
+    : null;
   const displayTitle = translation?.title ?? content.title;
   const displayDescription = translation?.description ?? content.description;
   const dateLocale =
@@ -717,9 +722,9 @@ function ArticleDetail({ articleId }: { articleId: string | undefined }) {
         showsVerticalScrollIndicator={false}
         directionalLockEnabled
       >
-        {isBill && brief && mode === "explainer" && !readerExpanded ? (
+        {isBill && article && mode === "explainer" && !readerExpanded ? (
           <BillOverview
-            data={brief}
+            article={article}
             officialTitle={displayTitle}
             billNumber={displayBillNumber}
             imageSource={headerImageSource}
@@ -1003,9 +1008,9 @@ function ArticleDetail({ articleId }: { articleId: string | undefined }) {
                   accent={R.link}
                   onViewSource={handleViewSource}
                 />
-              ) : mode === "explainer" && brief ? (
+              ) : mode === "explainer" && article ? (
                 <BillBrief
-                  data={brief}
+                  article={article}
                   showSummary={!isBill}
                   accent={R.link}
                   dualLens={
