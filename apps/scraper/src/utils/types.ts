@@ -19,14 +19,6 @@ export type GovernmentContentData = z.infer<
 >;
 export type CourtCaseData = z.infer<typeof CreateCourtCaseSchema>;
 
-// Image result returned by Google Custom Search
-export interface ImageResult {
-  url: string;
-  alt: string;
-  source: string;
-  sourceUrl: string;
-}
-
 // Metrics tracking for scraper runs (not a database entity)
 export interface ScraperMetrics {
   totalProcessed: number;
@@ -34,7 +26,6 @@ export interface ScraperMetrics {
   existingUnchanged: number;
   existingChanged: number;
   aiArticlesGenerated: number;
-  imagesSearched: number;
 }
 
 // Existing record check result (helper return type, not a database entity)
@@ -45,7 +36,6 @@ export interface ExistingRecordCheck {
   contentHash?: string;
   description?: string | null;
   hasArticle: boolean;
-  hasThumbnail: boolean;
 }
 
 // Scraper interface for the runner

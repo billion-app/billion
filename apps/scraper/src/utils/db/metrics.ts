@@ -17,7 +17,6 @@ let currentMetrics: ScraperMetrics = {
   existingUnchanged: 0,
   existingChanged: 0,
   aiArticlesGenerated: 0,
-  imagesSearched: 0,
 };
 
 /**
@@ -30,7 +29,6 @@ export function resetMetrics(): void {
     existingUnchanged: 0,
     existingChanged: 0,
     aiArticlesGenerated: 0,
-    imagesSearched: 0,
   };
   resetProgress();
   resetCosts();
@@ -83,10 +81,6 @@ export function incrementAIArticlesGenerated(): void {
 /**
  * Increment images searched count
  */
-export function incrementImagesSearched(): void {
-  currentMetrics.imagesSearched++;
-}
-
 /**
  * Print formatted metrics summary
  * @param scraperName - Name of the scraper (for display)
@@ -106,7 +100,6 @@ export function printMetricsSummary(scraperName: string): void {
   printKeyValue("Existing (Unchanged)", currentMetrics.existingUnchanged);
   printKeyValue("Existing (Changed)", currentMetrics.existingChanged);
   printKeyValue("AI Articles Generated", currentMetrics.aiArticlesGenerated);
-  printKeyValue("Images Searched", currentMetrics.imagesSearched);
   printKeyValue("API Calls Saved", `~${apiCallsSaved}`);
   printFooter();
 
@@ -141,12 +134,6 @@ export function printMetricsSummary(scraperName: string): void {
       printKeyValue(
         "FLUX.2 Klein 9B images",
         `${costs.fluxImages} (${formatUsd(costs.fluxCost)})`,
-      );
-    }
-    if (costs.googleSearches > 0) {
-      printKeyValue(
-        "Google searches",
-        `${costs.googleSearches} (${formatUsd(costs.googleSearchCost)})`,
       );
     }
     printKeyValue("Total (estimated)", formatUsd(costs.totalCost));

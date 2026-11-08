@@ -83,11 +83,6 @@ const scraperCostDefinitions = [
     "0.66",
   ],
   ["FLUX_IMAGE_PRICE", "Estimated price per generated BFL image.", "0.015"],
-  [
-    "GOOGLE_SEARCH_PRICE",
-    "Estimated price per Custom Search request.",
-    "0.005",
-  ],
 ] as const;
 const scraperSourceLimitDefinitions = [
   [
@@ -702,25 +697,6 @@ export const envRegistry = [
     group: "Scraper images",
     secret: false,
     defaultValue: "klein",
-    requirements: { scraper: "optional" },
-    schema: string,
-  }),
-  define({
-    key: "GOOGLE_API_KEY",
-    description: "Google Custom Search key.",
-    group: "Google images",
-    secret: true,
-    setupUrl: "https://console.cloud.google.com/apis/credentials",
-    requirements: { nextjs: "optional", scraper: "optional" },
-    schema: string,
-  }),
-  define({
-    key: "GOOGLE_SEARCH_ENGINE_ID",
-    description:
-      "Programmable Search Engine identifier used with GOOGLE_API_KEY.",
-    group: "Google images",
-    secret: false,
-    setupUrl: "https://programmablesearchengine.google.com/",
     requirements: { scraper: "optional" },
     schema: string,
   }),

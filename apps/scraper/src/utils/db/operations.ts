@@ -21,7 +21,6 @@ import type {
 } from "../types.js";
 import { generateBillBrief } from "../ai/bill-brief.js";
 import { generateCourtBrief } from "../ai/court-brief.js";
-import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getTextModelVersion } from "../ai/provider.js";
 import {
   AIRateLimitError,
@@ -32,7 +31,6 @@ import {
   isUsableDualLens,
   needsBillSummaryRegeneration,
 } from "../ai/text-generation.js";
-import { getThumbnailImage } from "../api/google-images.js";
 import { clampBillDescription } from "../bill-description.js";
 import { createContentHash } from "../hash.js";
 import { createLogger } from "../log.js";
@@ -51,7 +49,6 @@ import {
   incrementAIArticlesGenerated,
   incrementExistingChanged,
   incrementExistingUnchanged,
-  incrementImagesSearched,
   incrementNewEntries,
   incrementTotalProcessed,
 } from "./metrics.js";
@@ -286,7 +283,6 @@ async function writeContent(
     });
   let shouldGenerateSummary = false;
   let shouldGenerateArticle = false;
-  let shouldGenerateImage = false;
 
   // Bills are served from their structured brief, not from the long-form
   // article. `article-detail.tsx` renders the brief whenever one exists and
@@ -301,7 +297,6 @@ async function writeContent(
   if (!existing) {
     shouldGenerateSummary = !sourceDescription && hasSummarySource;
     shouldGenerateArticle = generatesArticle && hasUsableText;
-    shouldGenerateImage = hasUsableText;
     progressKind = "new";
     logger.info(`New ${label} detected`);
   } else if (existing.contentHash !== newContentHash) {
@@ -315,8 +310,6 @@ async function writeContent(
       (forceAIRegeneration
         ? hasUsableText
         : hasUsableText && !existing.hasArticle);
-    shouldGenerateImage =
-      (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
     progressKind = "changed";
     logger.info(`Content changed for ${label}`);
   } else {
@@ -333,11 +326,9 @@ async function writeContent(
       (forceAIRegeneration
         ? hasUsableText
         : hasUsableText && !existing.hasArticle);
-    shouldGenerateImage =
-      (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
     progressKind = "unchanged";
     logger.debug(
-      shouldGenerateSummary || shouldGenerateArticle || shouldGenerateImage
+      shouldGenerateSummary || shouldGenerateArticle
         ? `No raw changes for ${label}, backfilling missing AI content`
         : `No changes for ${label}, skipping AI generation`,
     );
@@ -376,7 +367,6 @@ async function writeContent(
   const wantsUpfrontGeneration =
     shouldGenerateSummary ||
     shouldGenerateArticle ||
-    shouldGenerateImage ||
     (input.type === "court_case" &&
       hasUsableText &&
       !(await hasCurrentCourtBrief(existing?.id, newContentHash)));
@@ -399,7 +389,6 @@ async function writeContent(
     // cursor holds and the assets are picked up next run.
     shouldGenerateSummary = false;
     shouldGenerateArticle = false;
-    shouldGenerateImage = false;
     deferredReason = "run budget reached";
     logger.info(
       `${label}: run budget reached, deferring AI enrichment to a later run`,
@@ -652,7 +641,7 @@ async function writeContent(
           ? input.data.type
           : "court case";
 
-    const [description, aiGeneratedArticle, thumbnailUrl] = await Promise.all([
+    const [description, aiGeneratedArticle] = await Promise.all([
       // Summary generation
       (async (): Promise<string | undefined> => {
         if (courtTakeaway) {
@@ -714,33 +703,6 @@ async function writeContent(
         }
         return undefined;
       })(),
-
-      // Thumbnail image search
-      (async (): Promise<string | null | undefined> => {
-        if (shouldGenerateImage) {
-          try {
-            logger.start(`Searching for thumbnail for ${label}`);
-            const searchQuery = await generateImageSearchKeywords(
-              title,
-              fullText || "",
-              articleType,
-            );
-            logger.debug(`Image search query: ${searchQuery}`);
-            const thumbnailResult = await getThumbnailImage(searchQuery);
-            incrementImagesSearched();
-            return thumbnailResult;
-          } catch (error) {
-            if (error instanceof AIRateLimitError) throw error;
-            logger.warn(
-              `Failed to fetch thumbnail for ${label}: ${error instanceof Error ? error.message : error}`,
-            );
-            return null;
-          }
-        } else if (existing?.hasThumbnail) {
-          logger.debug(`Using existing thumbnail for ${label}`);
-        }
-        return undefined;
-      })(),
     ]);
 
     // Only UPDATE if something was generated
@@ -751,20 +713,13 @@ async function writeContent(
     const hasNewDescription =
       description !== undefined &&
       (hasCurrentCourtTakeaway || description !== effectiveDescription);
-    if (
-      hasNewDescription ||
-      aiGeneratedArticle !== undefined ||
-      thumbnailUrl !== undefined
-    ) {
+    if (hasNewDescription || aiGeneratedArticle !== undefined) {
       const { table, idCol } = getUpdateTable(input);
       await db
         .update(table)
         .set({
           ...(hasNewDescription && { description }),
           ...(aiGeneratedArticle !== undefined && { aiGeneratedArticle }),
-          ...(thumbnailUrl !== undefined && {
-            thumbnailUrl: thumbnailUrl || undefined,
-          }),
           updatedAt: new Date(),
         })
         .where(eq(idCol, result.id));

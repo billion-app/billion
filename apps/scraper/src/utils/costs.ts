@@ -5,7 +5,7 @@
  * Override via env vars if needed:
  *   LLM_INPUT_PRICE, LLM_OUTPUT_PRICE, VISION_INPUT_PRICE, VISION_OUTPUT_PRICE,
  *   DEEPSEEK_VISION_INPUT_PRICE, DEEPSEEK_VISION_OUTPUT_PRICE,
- *   FLUX_IMAGE_PRICE, GOOGLE_SEARCH_PRICE
+ *   FLUX_IMAGE_PRICE
  */
 
 // Prices per unit (USD)
@@ -23,8 +23,6 @@ const PRICES = {
     Number(process.env.DEEPSEEK_VISION_OUTPUT_PRICE) || 0.66,
   // FLUX.2 Klein 9B — $/image (1MP / 1024x1024)
   fluxImage: Number(process.env.FLUX_IMAGE_PRICE) || 0.015,
-  // Google Custom Search — $/query (after free tier)
-  googleSearch: Number(process.env.GOOGLE_SEARCH_PRICE) || 0.005,
 };
 
 interface CostState {
@@ -35,7 +33,6 @@ interface CostState {
   deepseekVisionInputTokens: number;
   deepseekVisionOutputTokens: number;
   fluxImages: number;
-  googleSearches: number;
 }
 
 let state: CostState = {
@@ -46,7 +43,6 @@ let state: CostState = {
   deepseekVisionInputTokens: 0,
   deepseekVisionOutputTokens: 0,
   fluxImages: 0,
-  googleSearches: 0,
 };
 
 export function resetCosts(): void {
@@ -58,7 +54,6 @@ export function resetCosts(): void {
     deepseekVisionInputTokens: 0,
     deepseekVisionOutputTokens: 0,
     fluxImages: 0,
-    googleSearches: 0,
   };
 }
 
@@ -90,10 +85,6 @@ export function trackFluxImage(): void {
   state.fluxImages++;
 }
 
-export function trackGoogleSearch(): void {
-  state.googleSearches++;
-}
-
 export interface CostSummary {
   llmInputTokens: number;
   llmOutputTokens: number;
@@ -102,12 +93,10 @@ export interface CostSummary {
   deepseekVisionInputTokens: number;
   deepseekVisionOutputTokens: number;
   fluxImages: number;
-  googleSearches: number;
   llmCost: number;
   visionCost: number;
   deepseekVisionCost: number;
   fluxCost: number;
-  googleSearchCost: number;
   totalCost: number;
 }
 
@@ -123,7 +112,6 @@ export function getCostSummary(): CostSummary {
     (state.deepseekVisionOutputTokens / 1_000_000) *
       PRICES.deepseekVisionOutput;
   const fluxCost = state.fluxImages * PRICES.fluxImage;
-  const googleSearchCost = state.googleSearches * PRICES.googleSearch;
 
   return {
     ...state,
@@ -131,8 +119,6 @@ export function getCostSummary(): CostSummary {
     visionCost,
     deepseekVisionCost,
     fluxCost,
-    googleSearchCost,
-    totalCost:
-      llmCost + visionCost + deepseekVisionCost + fluxCost + googleSearchCost,
+    totalCost: llmCost + visionCost + deepseekVisionCost + fluxCost,
   };
 }

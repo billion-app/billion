@@ -25,8 +25,6 @@ export const scotusConfig = {
       "BFL_MODEL",
       "LOCAL_FLUX_BASE_URL",
       "LOCAL_FLUX_MODEL",
-      "GOOGLE_API_KEY",
-      "GOOGLE_SEARCH_ENGINE_ID",
       "SCOTUS_MAX_ITEMS",
     ],
   },

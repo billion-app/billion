@@ -54,7 +54,6 @@ export async function checkExistingBill(
       contentHash: existing.contentHash,
       description: existing.description,
       hasArticle: !!existing.aiGeneratedArticle,
-      hasThumbnail: !!existing.thumbnailUrl,
     };
   } catch (error) {
     logger.error("Error checking existing bill", error);
@@ -91,7 +90,6 @@ export async function checkExistingGovernmentContent(
       contentHash: existing.contentHash,
       description: existing.description,
       hasArticle: !!existing.aiGeneratedArticle,
-      hasThumbnail: !!existing.thumbnailUrl,
     };
   } catch (error) {
     logger.error("Error checking existing government content", error);
@@ -195,7 +193,6 @@ export async function checkExistingCourtCase(
       contentHash: existing.contentHash,
       description: existing.description,
       hasArticle: !!existing.aiGeneratedArticle,
-      hasThumbnail: !!existing.thumbnailUrl,
     };
   } catch (error) {
     logger.error("Error checking existing court case", error);
