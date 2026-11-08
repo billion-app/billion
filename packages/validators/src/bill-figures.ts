@@ -110,46 +110,52 @@ export function getBillDateMilestones<F extends FigureFact>(
   return new Set(dates.map((point) => point.date)).size >= 2 ? dates : [];
 }
 
-export interface TemperatureFigure<F extends FigureFact = FigureFact> {
-  kind: "temperature";
-  points: [F & { amount: number }, F & { amount: number }];
+/**
+ * Two values of one measure on a shared axis. A heat scale keeps the
+ * thresholds' own padded range; a quantity scale always starts at zero, so the
+ * drawing never exaggerates a small difference between two amounts.
+ */
+export interface ScaleFigure<F extends FigureFact = FigureFact> {
+  kind: "scale";
+  measure: "heat" | "quantity";
+  points: [ScalePoint<F>, ScalePoint<F>];
   supporting: F[];
-  unit: "F" | "C";
   min: number;
   max: number;
 }
+export type ScalePoint<F extends FigureFact> = F & {
+  amount: number;
+  /** The value as drawn beside its marker. */
+  display: string;
+  /** Wording shared by both values, such as "per home". */
+  qualifier?: string;
+};
 export interface MetricFigure<F extends FigureFact = FigureFact> {
   kind: "metrics";
   points: [F, ...F[]];
 }
 
-/** Only a shared, explicit unit earns a scale. Dates and unrelated quantities
- * never become comparable bars; supplied qualifiers stay with every value. */
-export function getBillFactFigure<F extends FigureFact>(
+function scaleOf<F extends FigureFact>(
   facts: readonly F[],
-): TemperatureFigure<F> | MetricFigure<F> | null {
-  const temperatures = facts.flatMap((fact) => {
-    const match =
-      /^(-?\d+(?:\.\d+)?)\s*°([FC])\s+(?:heat index|índice de calor|热指数)$/iu.exec(
-        fact.value.replaceAll("**", "").trim(),
-      );
-    if (!match || !/(?:propos|拟议|提案)/iu.test(fact.note ?? "")) return [];
-    return [
-      {
-        ...fact,
-        amount: Number(match[1]),
-        unit: match[2]?.toUpperCase(),
-        original: fact,
-      },
-    ];
-  });
-  for (const unit of ["F", "C"] as const) {
-    const points = temperatures
-      .filter((point) => point.unit === unit)
-      .sort((a, b) => a.amount - b.amount);
-    // More than two thresholds require a different graphic, not silent omission.
-    if (points.length !== 2) continue;
-    const [first, second] = points;
+  measure: ScaleFigure["measure"],
+  candidates: {
+    fact: F;
+    amount: number;
+    display: string;
+    qualifier?: string;
+    unit: string;
+  }[],
+): ScaleFigure<F> | null {
+  const units = new Map<string, typeof candidates>();
+  for (const candidate of candidates)
+    units.set(candidate.unit, [
+      ...(units.get(candidate.unit) ?? []),
+      candidate,
+    ]);
+  for (const group of units.values()) {
+    // More than two values require a different graphic, not silent omission.
+    if (group.length !== 2) continue;
+    const [first, second] = [...group].sort((a, b) => a.amount - b.amount);
     if (
       !first ||
       !second ||
@@ -159,19 +165,101 @@ export function getBillFactFigure<F extends FigureFact>(
     )
       continue;
     const padding = (second.amount - first.amount) / 2;
+    const point = (candidate: typeof first): ScalePoint<F> => ({
+      ...candidate.fact,
+      amount: candidate.amount,
+      display: candidate.display,
+      ...(candidate.qualifier ? { qualifier: candidate.qualifier } : {}),
+    });
     return {
-      kind: "temperature",
-      points: [first, second],
+      kind: "scale",
+      measure,
+      points: [point(first), point(second)],
       supporting: facts.filter(
-        (fact) => fact !== first.original && fact !== second.original,
+        (fact) => fact !== first.fact && fact !== second.fact,
       ),
-      unit,
-      min: first.amount - padding,
-      max: second.amount + padding,
+      min: measure === "heat" ? first.amount - padding : 0,
+      max: measure === "heat" ? second.amount + padding : second.amount * 1.15,
     };
   }
+  return null;
+}
+
+/** Two proposed heat-index thresholds in one unit. */
+function heatScale<F extends FigureFact>(facts: readonly F[]) {
+  return scaleOf(
+    facts,
+    "heat",
+    facts.flatMap((fact) => {
+      const match =
+        /^(-?\d+(?:\.\d+)?)\s*°([FC])\s+(?:heat index|índice de calor|热指数)$/iu.exec(
+          fact.value.replaceAll("**", "").trim(),
+        );
+      if (!match || !/(?:propos|拟议|提案)/iu.test(fact.note ?? "")) return [];
+      const unit = match[2]?.toUpperCase() ?? "";
+      return [
+        {
+          fact,
+          amount: Number(match[1]),
+          display: `${match[1]}°${unit}`,
+          unit,
+        },
+      ];
+    }),
+  );
+}
+
+/**
+ * Two plain amounts written with the same currency and qualifier, such as
+ * "$25,000 per home" and "$50,000 per home". Prefixed limits ("Up to"),
+ * ranges, percentages and dates keep their own presentations.
+ */
+function quantityScale<F extends FigureFact>(facts: readonly F[]) {
+  return scaleOf(
+    facts,
+    "quantity",
+    facts.flatMap((fact) => {
+      const display = getBillFactDisplay(fact.value);
+      if (!display.numeric || "prefix" in display) return [];
+      const match = /^([$€£¥]?)(\d[\d,]*(?:\.\d+)?)$/u.exec(display.value);
+      if (!match) return [];
+      const amount = Number((match[2] ?? "").replaceAll(",", ""));
+      if (!Number.isFinite(amount) || amount < 0) return [];
+      return [
+        {
+          fact,
+          amount,
+          display: display.value,
+          qualifier: display.qualifier,
+          unit: `${match[1]}|${display.qualifier.toLowerCase()}`,
+        },
+      ];
+    }),
+  );
+}
+
+/** Only a shared, explicit unit earns a scale. Dates and unrelated quantities
+ * never become comparable bars; supplied qualifiers stay with every value.
+ * Without a writer's request, only heat thresholds are drawn on a scale. */
+export function getBillFactFigure<F extends FigureFact>(
+  facts: readonly F[],
+): ScaleFigure<F> | MetricFigure<F> | null {
+  const heat = heatScale(facts);
+  if (heat) return heat;
   const [first, ...rest] = facts;
   return first ? { kind: "metrics", points: [first, ...rest] } : null;
+}
+
+/**
+ * The scale a writer asked for, when the facts support one. Sharing a unit
+ * does not make two amounts comparable (a $200B ceiling and a $5B program
+ * are not one measure), which is why a quantity scale needs the writer's
+ * explicit choice and is never inferred.
+ */
+export function getBillScaleFigure<F extends FigureFact>(
+  facts: readonly F[],
+): ScaleFigure<F> | null {
+  return heatScale(facts) ?? quantityScale(facts);
 }
 
 /** Separate visual emphasis from meaning: the full suffix stays adjacent to
@@ -218,7 +306,7 @@ export function getBillPercent(value: string): number | null {
  * bill gets a parallel map of its supplied changes, including empty facts. */
 export function getBillVisualKind(facts: readonly FigureFact[]) {
   const figure = getBillFactFigure(facts);
-  if (figure?.kind === "temperature") return "temperature";
+  if (figure?.kind === "scale") return "scale";
   if (getBillDateMilestones(facts).length) return "dates";
   if (facts.some((fact) => getBillPercent(fact.value) !== null))
     return "percentage";

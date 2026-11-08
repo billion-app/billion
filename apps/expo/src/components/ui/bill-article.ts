@@ -1,9 +1,10 @@
 import type { ResolvedArticleBlock } from "@acme/validators";
 import { resolveArticleBlocks } from "@acme/validators";
 
+import type { getBillFactFigure } from "./bill-fact-figure";
 import type { BillBriefData } from "./BillBrief";
 import { getBillDateMilestones } from "./bill-date-milestones";
-import { getBillFactFigure } from "./bill-fact-figure";
+import { getBillScaleFigure } from "./bill-fact-figure";
 
 type Change = BillBriefData["changes"][number];
 
@@ -62,14 +63,15 @@ export function articleChanges(article: BillArticleData): Change[] {
 
 /**
  * Honor a block's requested visual only when its facts support it. A
- * scale needs two thresholds in one unit and a timeline needs two complete
+ * scale needs two values of one measure and a timeline needs two complete
  * dates; anything else is drawn as metrics rather than implying a comparison.
  */
 export function figureForBlock(
   block: ArticleBlockOf<"figure">,
 ): ReturnType<typeof getBillFactFigure> {
-  const figure = getBillFactFigure(block.facts);
-  if (figure?.kind !== "temperature" || block.visual === "scale") return figure;
+  const scale =
+    block.visual === "scale" ? getBillScaleFigure(block.facts) : null;
+  if (scale) return scale;
   const [first, ...rest] = block.facts;
   return first ? { kind: "metrics", points: [first, ...rest] } : null;
 }

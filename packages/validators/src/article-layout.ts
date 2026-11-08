@@ -18,7 +18,7 @@ import { z } from "zod";
 export const ArticleFigureVisualSchema = z
   .enum(["scale", "timeline", "metrics"])
   .describe(
-    "'scale' places exactly two proposed thresholds of one unit on a shared axis, such as two heat-index triggers; each value is written as the number, unit and measure (\"87°F heat index\") with a note saying it is proposed. 'timeline' orders two or more complete calendar dates written like \"January 1, 2027\". 'metrics' shows one leading figure with the rest on demand, and a bare percentage such as \"20%\" is drawn on a 0–100% axis. Use 'metrics' whenever values do not share a unit or a chronology.",
+    '\'scale\' places exactly two values of the same measure on a shared axis: two proposed heat-index triggers written like "87°F heat index" with a note saying they are proposed, or two amounts of one quantity written with the same currency and wording, like "$25,000 per home" and "$50,000 per home" (amounts are drawn from zero). Use it only when the two values measure the same thing, such as two thresholds or a current and a proposed amount; sharing a unit alone does not make values comparable. \'timeline\' orders two or more complete calendar dates written like "January 1, 2027". \'metrics\' shows one leading figure with the rest on demand, and a bare percentage such as "20%" is drawn on a 0–100% axis. Use \'metrics\' whenever values do not share a unit or a chronology.',
   );
 export type ArticleFigureVisual = z.infer<typeof ArticleFigureVisualSchema>;
 

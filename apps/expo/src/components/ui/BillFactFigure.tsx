@@ -11,7 +11,7 @@ import {
 import Animated from "react-native-reanimated";
 import Svg, { Circle, Line } from "react-native-svg";
 
-import type { MetricFigure, TemperatureFigure } from "./bill-fact-figure";
+import type { MetricFigure, ScaleFigure } from "./bill-fact-figure";
 import type { BillBriefData, BriefQuote } from "./BillBrief";
 import { useLanguage } from "~/hooks/useLanguage";
 import {
@@ -83,7 +83,7 @@ export function BillFactFigure({
   onInspect,
 }: {
   figure:
-    | TemperatureFigure<BillBriefData["facts"][number]>
+    | ScaleFigure<BillBriefData["facts"][number]>
     | MetricFigure<BillBriefData["facts"][number]>;
   /** Whether the block asked for a chronology; dates otherwise stay metrics. */
   timeline?: boolean;
@@ -109,9 +109,10 @@ export function BillFactFigure({
   const [contentWidth, setContentWidth] = useState(width - S.page * 2);
   const [labelHeights, setLabelHeights] = useState<Record<string, number>>({});
   const [wrappedValue, setWrappedValue] = useState(false);
-  const temperature = figure.kind === "temperature";
-  const dates =
-    temperature || !timeline ? [] : getBillDateMilestones(figure.points);
+  // A scale draws two values on one axis; heat thresholds keep their own copy.
+  const scale = figure.kind === "scale";
+  const heat = figure.kind === "scale" && figure.measure === "heat";
+  const dates = scale || !timeline ? [] : getBillDateMilestones(figure.points);
   const dateIndices = new Set(dates.map((point) => point.index));
   const metricPoints = figure.points.filter(
     (_, index) => !dateIndices.has(index),
@@ -119,13 +120,13 @@ export function BillFactFigure({
   const displayed = metricPoints.map((point) =>
     getBillFactDisplay(point.value),
   );
-  const anchored = !temperature && displayed.some((point) => point.numeric);
-  const textOnly = !temperature && !dates.length && !anchored;
+  const anchored = !scale && displayed.some((point) => point.numeric);
+  const textOnly = !scale && !dates.length && !anchored;
   const visiblePoints =
     anchored && !moreFiguresOpen
       ? getPrimaryMetricFacts(metricPoints)
       : metricPoints;
-  const contextualPoints = !temperature
+  const contextualPoints = !scale
     ? metricPoints.filter(
         (point) =>
           Boolean(getBillMetricComparison(point, changes)) ||
@@ -138,16 +139,16 @@ export function BillFactFigure({
     wrappedValue ||
     fontScale >= 1.3 ||
     contentWidth < 2 * 144 * fontScale + gutter ||
-    (!temperature &&
+    (!scale &&
       displayed.some((point) => !point.numeric || point.value.length > 6));
   const columns = readerColumns(
     contentWidth,
     !stacked && visiblePoints.length > 1 ? 2 : 1,
-    temperature ? 0 : gutter,
+    scale ? 0 : gutter,
     PixelRatio.get(),
   );
   const positions =
-    figure.kind === "temperature"
+    figure.kind === "scale"
       ? figure.points.map((point) =>
           readerScalePosition(
             point.amount,
@@ -157,18 +158,16 @@ export function BillFactFigure({
           ),
         )
       : [];
-  const supporting = figure.kind === "temperature" ? figure.supporting : [];
+  const supporting = figure.kind === "scale" ? figure.supporting : [];
   const sources = [...figure.points, ...supporting].filter(
     (point) => point.quote && onViewSource,
   );
   const showHeading =
-    temperature ||
-    dates.length > 0 ||
-    !displayed.every((point) => point.numeric);
+    scale || dates.length > 0 || !displayed.every((point) => point.numeric);
   const hasDetails =
     contextualPoints.length > 0 ||
     sources.length > 0 ||
-    (temperature &&
+    (scale &&
       (supporting.length > 0 || figure.points.some((point) => point.note)));
   return (
     <Animated.View
@@ -183,8 +182,10 @@ export function BillFactFigure({
           accessibilityRole="header"
         >
           {t(
-            figure.kind === "temperature"
-              ? "readerUi.heatThresholds"
+            figure.kind === "scale"
+              ? heat
+                ? "readerUi.heatThresholds"
+                : "readerUi.onOneScale"
               : dates.length
                 ? "readerUi.keyDates"
                 : displayed.every((point) => point.numeric)
@@ -193,7 +194,7 @@ export function BillFactFigure({
           )}
         </Text>
       ) : null}
-      {temperature ? (
+      {heat ? (
         <Text style={s.context}>{t("readerUi.proposedThresholdsNote")}</Text>
       ) : null}
       {dates.length ? (
@@ -247,7 +248,7 @@ export function BillFactFigure({
           style={[
             s.values,
             !showHeading && { marginTop: 0 },
-            figure.kind === "temperature" && s.thresholdValues,
+            figure.kind === "scale" && s.thresholdValues,
             stacked && s.stacked,
             textOnly && s.textFacts,
             { columnGap: columns.gap },
@@ -297,7 +298,7 @@ export function BillFactFigure({
                 key={index}
                 style={[
                   s.metric,
-                  !metric.numeric && !temperature && s.textFact,
+                  !metric.numeric && !scale && s.textFact,
                   { width: cellWidth },
                 ]}
               >
@@ -308,8 +309,8 @@ export function BillFactFigure({
                   testID={`figure-inspect-${factIndex}`}
                   style={[
                     s.metricHeading,
-                    !metric.numeric && !temperature && s.textFactHeading,
-                    figure.kind === "temperature" && !stacked && s.centered,
+                    !metric.numeric && !scale && s.textFactHeading,
+                    figure.kind === "scale" && !stacked && s.centered,
                     selected && s.selectedMetric,
                   ]}
                 >
@@ -359,19 +360,25 @@ export function BillFactFigure({
                     }}
                     style={[
                       s.value,
-                      !metric.numeric && !temperature && s.textValue,
+                      !metric.numeric && !scale && s.textValue,
                       metric.numeric && s.numericValue,
-                      temperature && s.temperatureValue,
+                      scale && s.scaleValue,
                     ]}
                   >
-                    {figure.kind === "temperature"
-                      ? `${figure.points[index]?.amount ?? ""}°${figure.unit}`
+                    {figure.kind === "scale"
+                      ? (figure.points[index]?.display ?? "")
                       : metric.value}
                   </Text>
+                  {figure.kind === "scale" &&
+                  figure.points[index]?.qualifier ? (
+                    <Text style={s.qualifier}>
+                      {figure.points[index].qualifier}
+                    </Text>
+                  ) : null}
                   {figure.kind === "metrics" && metric.qualifier ? (
                     <Text style={s.qualifier}>{metric.qualifier}</Text>
                   ) : null}
-                  {figure.kind === "temperature" ? (
+                  {figure.kind === "scale" ? (
                     <View style={s.thresholdLabel}>
                       <Text style={[s.label, { flexShrink: 1 }]}>
                         {point.label.replaceAll("**", "")}
@@ -455,7 +462,7 @@ export function BillFactFigure({
           })}
         </View>
       ) : null}
-      {temperature &&
+      {scale &&
       positions.length === 2 &&
       positions.every((position) => position !== null) ? (
         <Svg
@@ -490,11 +497,11 @@ export function BillFactFigure({
           ))}
         </Svg>
       ) : null}
-      {figure.kind === "temperature" && stacked ? (
+      {figure.kind === "scale" && stacked ? (
         <View style={s.thresholdLegend} accessible={false}>
           {figure.points.map((point) => (
             <Text key={point.amount} style={s.thresholdLegendValue}>
-              {point.amount}°{figure.unit}
+              {[point.display, point.qualifier].filter(Boolean).join(" ")}
             </Text>
           ))}
         </View>
@@ -602,7 +609,7 @@ export function BillFactFigure({
                   ? "readerUi.closeDetails"
                   : anchored && metricPoints.length > 1
                     ? "readerUi.allNumbersSources"
-                    : temperature
+                    : heat
                       ? "readerUi.thresholdDetails"
                       : contextualPoints.length
                         ? "readerUi.figureDetails"
@@ -644,7 +651,7 @@ export function BillFactFigure({
                   </View>
                 );
               })}
-              {temperature
+              {scale
                 ? figure.points.map((point, index) =>
                     point.note ? (
                       <View key={index} style={s.detail}>
@@ -736,7 +743,7 @@ const s = StyleSheet.create({
     letterSpacing: -1.2,
     color: R.text,
   },
-  temperatureValue: {
+  scaleValue: {
     fontFamily: fontBody.semibold,
     fontSize: 48,
     lineHeight: 56,

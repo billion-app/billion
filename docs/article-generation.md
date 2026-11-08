@@ -105,7 +105,8 @@ The layout chooses which blocks the article needs, their order, and which visual
 The writer is trusted to choose, not to be honest; [`verifyArticleLayout`](../packages/validators/src/article-blocks.ts) enforces that in code before storage and again in readers:
 
 - References must be in range, and each change or fact appears once.
-- A visual the facts cannot support is drawn as metrics. A scale needs two proposed thresholds in one unit; a timeline needs two complete calendar dates.
+- A visual the facts cannot support is drawn as metrics. A scale needs two values of one measure: two proposed heat-index thresholds, or two amounts written with the same currency and wording ("$15,000 per residence" and "$25,000 per residence"). A timeline needs two complete calendar dates.
+- Quantity scales start at zero, so the drawing cannot exaggerate a small difference. They are drawn only when the writer asks for one: sharing a unit does not make two amounts comparable, so a v8 brief's inferred layout draws only heat thresholds on a scale.
 - Every change, fact, affected group and unknown stays on the page. Omitted ones are appended, because leaving a provision out of the layout would hide it as surely as deleting it. Depth blocks (glossary, history, further reading) may be omitted by choice.
 - The cited arguments live in the separately generated dual lens, so readers add or remove the perspectives block depending on whether a lens exists.
 

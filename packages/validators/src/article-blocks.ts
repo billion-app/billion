@@ -34,6 +34,7 @@ import {
 import {
   getBillDateMilestones,
   getBillFactFigure,
+  getBillScaleFigure,
   getBillVisualKind,
 } from "./bill-figures";
 
@@ -124,9 +125,7 @@ export function supportedFigureVisual(
   facts: readonly FigureFact[],
 ): ArticleFigureVisual {
   if (requested === "scale")
-    return getBillFactFigure(facts)?.kind === "temperature"
-      ? "scale"
-      : "metrics";
+    return getBillScaleFigure(facts) ? "scale" : "metrics";
   if (requested === "timeline")
     return getBillDateMilestones(facts).length ? "timeline" : "metrics";
   return "metrics";
@@ -135,7 +134,7 @@ export function supportedFigureVisual(
 function inferredFigureVisual(
   facts: readonly FigureFact[],
 ): ArticleFigureVisual {
-  if (getBillFactFigure(facts)?.kind === "temperature") return "scale";
+  if (getBillFactFigure(facts)?.kind === "scale") return "scale";
   return getBillDateMilestones(facts).length ? "timeline" : "metrics";
 }
 
