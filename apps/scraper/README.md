@@ -305,7 +305,7 @@ pnpm --filter @acme/scraper retroactive-lenses --type bill --limit 1 --dry-run
 
 Use `reprocess-content --assets briefs` with `--type bill` or
 `--type court_case` to repair structured briefs without also regenerating
-perspectives or feed imagery. Production writes still require `--apply --yes`
+perspectives. Production writes still require `--apply --yes`
 and an explicit limit for court cases.
 
 For a bounded bill-description repair, inspect first, then generate a manifest

@@ -186,14 +186,6 @@ function extraConsistencyIssues(
       "AUTH_DISCORD_ID and AUTH_DISCORD_SECRET must be configured together.",
     );
   }
-  if (
-    Boolean(environment.GOOGLE_API_KEY) !==
-    Boolean(environment.GOOGLE_SEARCH_ENGINE_ID)
-  ) {
-    issues.push(
-      "GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID must both be set for scraper image search.",
-    );
-  }
   return issues;
 }
 

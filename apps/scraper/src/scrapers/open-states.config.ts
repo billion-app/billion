@@ -25,8 +25,6 @@ export const openStatesConfig = {
       "BFL_MODEL",
       "LOCAL_FLUX_BASE_URL",
       "LOCAL_FLUX_MODEL",
-      "GOOGLE_API_KEY",
-      "GOOGLE_SEARCH_ENGINE_ID",
       "OPEN_STATES_MAX_ITEMS",
       "OPEN_STATES_STATES",
       "SCRAPER_SKIP_DUAL_LENS",

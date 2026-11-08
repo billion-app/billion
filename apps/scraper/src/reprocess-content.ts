@@ -15,12 +15,10 @@ import { parseCourtBriefRecord } from "@acme/validators";
 import type { ReprocessMode } from "./utils/reprocessing-policy.js";
 import type { CourtCaseData } from "./utils/types.js";
 import { databaseTarget, databaseTargetMessage } from "./env.js";
-import { generateImageSearchKeywords } from "./utils/ai/image-keywords.js";
 import {
   AIRateLimitError,
   generateAIArticle,
 } from "./utils/ai/text-generation.js";
-import { getThumbnailImage } from "./utils/api/google-images.js";
 import { getCostSummary, resetCosts } from "./utils/costs.js";
 import {
   upsertBillBrief,
@@ -80,7 +78,7 @@ interface ProcessResult {
   errors: string[];
 }
 
-type AssetSelection = "all" | "images" | "briefs";
+type AssetSelection = "all" | "briefs";
 
 function rowState(item: ContentItem) {
   return {
@@ -203,7 +201,7 @@ async function loadContentItems(
 
 async function updateContentAssets(
   item: ContentItem,
-  values: { aiGeneratedArticle?: string; thumbnailUrl?: string },
+  values: { aiGeneratedArticle?: string },
 ): Promise<void> {
   if (Object.keys(values).length === 0) return;
 
@@ -266,7 +264,6 @@ async function processItem(
 
   const errors: string[] = [];
   let replacementArticle: string | undefined;
-  let replacementThumbnail: string | undefined;
   // Bills are read from their structured brief and no longer generate an
   // article, so producing one here would be paid-for content nothing displays —
   // and under `missing` it would recur on every run, because the bill would
@@ -279,15 +276,7 @@ async function processItem(
     (assets === "all" || assets === "briefs") &&
     requiresBrief(item.type) &&
     (mode === "replace" || !item.hasBrief);
-  const imageSearchReady = Boolean(
-    process.env.GOOGLE_API_KEY && process.env.GOOGLE_SEARCH_ENGINE_ID,
-  );
-  const shouldSearchThumbnail =
-    assets !== "briefs" &&
-    imageSearchReady &&
-    (mode === "replace" || !item.thumbnailUrl);
-
-  const [articleResult, thumbnailResult] = await Promise.allSettled([
+  const [articleResult] = await Promise.allSettled([
     shouldGenerateArticle
       ? (async () => {
           for (let attempt = 1; attempt <= 2; attempt++) {
@@ -305,13 +294,6 @@ async function processItem(
           return undefined;
         })()
       : Promise.resolve(undefined),
-    shouldSearchThumbnail
-      ? generateImageSearchKeywords(
-          item.title,
-          fullText,
-          item.articleType,
-        ).then((keywords) => getThumbnailImage(keywords))
-      : Promise.resolve(undefined),
   ]);
 
   if (articleResult.status === "fulfilled") {
@@ -328,19 +310,8 @@ async function processItem(
     );
   }
 
-  if (thumbnailResult.status === "fulfilled") {
-    replacementThumbnail = thumbnailResult.value ?? undefined;
-  } else {
-    errors.push(
-      thumbnailResult.reason instanceof Error
-        ? thumbnailResult.reason.message
-        : String(thumbnailResult.reason),
-    );
-  }
-
   await updateContentAssets(item, {
     ...(replacementArticle && { aiGeneratedArticle: replacementArticle }),
-    ...(replacementThumbnail && { thumbnailUrl: replacementThumbnail }),
   });
 
   const effectiveArticle = replacementArticle ?? item.aiGeneratedArticle;
@@ -498,10 +469,9 @@ const argv = await yargs(hideBin(process.argv))
     description: "Concurrent AI jobs (1-5)",
   })
   .option("assets", {
-    choices: ["all", "images", "briefs"] as const,
+    choices: ["all", "briefs"] as const,
     default: "all" as const,
-    description:
-      "Regenerate every derived asset, feed imagery only, or structured briefs only",
+    description: "Regenerate every derived asset, or structured briefs only",
   })
   .option("apply", {
     type: "boolean",
@@ -577,11 +547,6 @@ async function main(): Promise<void> {
   logger[target.target === "production" ? "warn" : "info"](
     databaseTargetMessage(databaseUrl),
   );
-  if (!process.env.GOOGLE_API_KEY || !process.env.GOOGLE_SEARCH_ENGINE_ID) {
-    logger.info(
-      "Google image search is not configured; existing content thumbnails will be preserved",
-    );
-  }
 
   const types = argv.type === "all" ? CONTENT_TYPES : [argv.type];
   const inventory = new Map<ContentType, ContentItem[]>();
