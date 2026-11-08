@@ -1,6 +1,8 @@
+import { getBillFactDisplay, getBillPercent } from "@acme/validators";
+
 import type { BillBriefData } from "./BillBrief";
-import { getBillDateMilestones } from "./bill-date-milestones";
-import { getBillFactDisplay, getBillFactFigure } from "./bill-fact-figure";
+
+export { getBillPercent, getBillVisualKind } from "@acme/validators";
 
 /** Keep explicit numeric limits and conditions beside the metric, while
  * supporting prose remains available in its details disclosure. */
@@ -33,32 +35,10 @@ export function getBillMetricComparison(
   return baseline && baseline.length <= 160 ? baseline : null;
 }
 
-/** A percentage earns a position on a labelled 0–100% axis, never a pie or
- * invented part-of-whole claim. Ranges and compound values stay written. */
-export function getBillPercent(value: string): number | null {
-  const display = getBillFactDisplay(value);
-  if (!display.numeric || !/^\d+(?:\.\d+)?%$/u.test(display.value)) return null;
-  // A second quantity needs its own explanation, not a single plotted point.
-  if (/\d|%/u.test(display.qualifier)) return null;
-  const amount = Number(display.value.slice(0, -1));
-  return amount >= 0 && amount <= 100 ? amount : null;
-}
-
 /** One leading visual: prefer a supported percentage, otherwise the first
  * supplied fact. The renderer retains the complete list behind More figures. */
 export function getPrimaryMetricFacts(facts: BillBriefData["facts"]) {
   const lead =
     facts.find((fact) => getBillPercent(fact.value) !== null) ?? facts[0];
   return lead ? [lead] : [];
-}
-
-/** Use supplied quantitative evidence when possible; every other structured
- * bill gets a parallel map of its supplied changes, including empty facts. */
-export function getBillVisualKind(facts: BillBriefData["facts"]) {
-  const figure = getBillFactFigure(facts);
-  if (figure?.kind === "temperature") return "temperature";
-  if (getBillDateMilestones(facts).length) return "dates";
-  if (facts.some((fact) => getBillPercent(fact.value) !== null))
-    return "percentage";
-  return "changes";
 }

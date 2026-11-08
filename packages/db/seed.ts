@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { BillBriefRecord } from "@acme/validators";
+import { BILL_BRIEF_VERSION } from "@acme/validators";
 
 import { clampBillDescription } from "./src/bill-description";
 import { db } from "./src/client";
@@ -421,7 +422,7 @@ const billBriefs: (Omit<
   "generatedAt" | "modelVersion"
 > | null)[] = [
   {
-    version: 8,
+    version: BILL_BRIEF_VERSION,
     legalStatus: "proposed",
     verifiedQuotes: 1,
     summary:
@@ -543,7 +544,7 @@ const billBriefs: (Omit<
     ],
   },
   {
-    version: 8,
+    version: BILL_BRIEF_VERSION,
     legalStatus: "proposed",
     verifiedQuotes: 2,
     summary:

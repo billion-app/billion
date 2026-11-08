@@ -1,6 +1,8 @@
 import { z } from "zod/v4";
 
 export * from "./article-blocks";
+export * from "./article-layout";
+export * from "./bill-figures";
 export * from "./bill-brief";
 export * from "./bill-status";
 export * from "./court-brief";

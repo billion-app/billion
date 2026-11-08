@@ -13,7 +13,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 
 import type { BillBriefRecord } from "@acme/validators";
 import { loadRepoEnv } from "@acme/env/load";
-import { BillBriefRecordSchema } from "@acme/validators";
+import { BILL_BRIEF_VERSION, BillBriefRecordSchema } from "@acme/validators";
 
 loadRepoEnv();
 
@@ -127,7 +127,7 @@ const federal: Fixture[] = [
     ],
     // No facts: exercises the change-map visual.
     brief: {
-      version: 8,
+      version: BILL_BRIEF_VERSION,
       legalStatus: "proposed",
       verifiedQuotes: 3,
       headline: "Replacing every lead water pipe within ten years",
@@ -243,7 +243,15 @@ const federal: Fixture[] = [
     ],
     // Two full calendar dates: exercises the dates visual.
     brief: {
-      version: 8,
+      version: BILL_BRIEF_VERSION,
+      // The writer chose the map and moved the dates after the changes.
+      layout: [
+        { type: "changes", display: "map", items: [0, 1] },
+        { type: "affected" },
+        { type: "figure", visual: "timeline", facts: [0, 1] },
+        { type: "unknowns" },
+        { type: "glossary" },
+      ],
       legalStatus: "proposed",
       verifiedQuotes: 3,
       headline:
@@ -353,7 +361,7 @@ const federal: Fixture[] = [
     ],
     // A bare percentage: exercises the percentage visual.
     brief: {
-      version: 8,
+      version: BILL_BRIEF_VERSION,
       legalStatus: "proposed",
       verifiedQuotes: 3,
       headline: "More tax credits to build homes people can afford",
@@ -497,7 +505,7 @@ const federal: Fixture[] = [
     ],
     featured: { order: 2, rationale: "Signed into law this week." },
     brief: {
-      version: 8,
+      version: BILL_BRIEF_VERSION,
       legalStatus: "enacted",
       verifiedQuotes: 2,
       headline: "You can now dispute the government's internet coverage map",
@@ -621,7 +629,17 @@ const california: Fixture[] = [
     featured: { order: 0, rationale: "Passed the Senate on Monday." },
     // Two proposed heat-index thresholds: exercises the temperature visual.
     brief: {
-      version: 8,
+      version: BILL_BRIEF_VERSION,
+      // The writer leads with the thresholds; the exemption stands alone.
+      layout: [
+        { type: "figure", visual: "scale", facts: [0, 1] },
+        { type: "changes", display: "explorer", items: [0, 1] },
+        { type: "figure", visual: "metrics", facts: [2] },
+        { type: "affected" },
+        { type: "perspectives" },
+        { type: "unknowns" },
+        { type: "glossary" },
+      ],
       legalStatus: "proposed",
       verifiedQuotes: 3,
       headline:
@@ -794,7 +812,7 @@ const california: Fixture[] = [
     ],
     featured: { order: 1, rationale: "Senate committee hearing next week." },
     brief: {
-      version: 8,
+      version: BILL_BRIEF_VERSION,
       legalStatus: "proposed",
       verifiedQuotes: 2,
       headline:
@@ -892,7 +910,7 @@ const california: Fixture[] = [
       { date: day(4), text: "Vetoed by Governor.", type: "executive-veto" },
     ],
     brief: {
-      version: 8,
+      version: BILL_BRIEF_VERSION,
       legalStatus: "proposed",
       verifiedQuotes: 2,
       headline: "Free bus and train rides for kids and teens",
@@ -987,7 +1005,7 @@ const california: Fixture[] = [
       },
     ],
     brief: {
-      version: 8,
+      version: BILL_BRIEF_VERSION,
       legalStatus: "proposed",
       verifiedQuotes: 1,
       headline: "Letting builders skip required parking near transit",

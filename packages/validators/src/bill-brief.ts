@@ -41,8 +41,13 @@
  */
 import { z } from "zod";
 
-/** Bump when the shape or generation contract requires cached rows to refresh. */
-export const BILL_BRIEF_VERSION = 8;
+import { ArticleLayoutSchema } from "./article-layout";
+
+/**
+ * Bump when the shape or generation contract changes. Whether cached rows must
+ * refresh is a separate decision: see `isReusableBillBrief`.
+ */
+export const BILL_BRIEF_VERSION = 9;
 
 /**
  * What a provision mechanically does. Deliberately descriptive: a reader can
@@ -453,6 +458,7 @@ export const BillBriefSchema = z.object({
     .describe(
       "Optional outside articles discovered and opened by the research loop. Recommend only sources from the supplied verified reading list and copy each URL exactly.",
     ),
+  layout: ArticleLayoutSchema.optional(),
 });
 export type BillBrief = z.infer<typeof BillBriefSchema>;
 
@@ -478,6 +484,12 @@ export const BillBriefRecordSchema = BillBriefSchema.extend({
   ...BriefRecordMetadataSchema,
 });
 export type BillBriefRecord = z.infer<typeof BillBriefRecordSchema>;
+
+/** The fixed-form brief, before the writer composed a layout. */
+const BillBriefV8RecordSchema = BillBriefSchema.omit({ layout: true }).extend({
+  version: z.literal(8),
+  ...BriefRecordMetadataSchema,
+});
 
 /** The rich brief shape before the opening gained an ultra-short summary. */
 const BillBriefV7RecordSchema = BillBriefSchema.omit({ summary: true }).extend({
@@ -552,6 +564,10 @@ export function parseBillBriefRecord(value: unknown): BillBriefRecord | null {
   const current = BillBriefRecordSchema.safeParse(value);
   if (current.success) return current.data;
 
+  // Readers infer a v8 brief's layout from its content.
+  const v8 = BillBriefV8RecordSchema.safeParse(value);
+  if (v8.success) return { ...v8.data, version: BILL_BRIEF_VERSION };
+
   const v7 = BillBriefV7RecordSchema.safeParse(value);
   if (v7.success) {
     return {
@@ -602,7 +618,18 @@ export function isUsableBillBrief(value: unknown): boolean {
   return parseBillBriefRecord(value) !== null;
 }
 
-/** Whether the scraper can reuse a cached row without regenerating it. */
-export function isCurrentBillBrief(value: unknown): boolean {
-  return BillBriefRecordSchema.safeParse(value).success;
+/**
+ * Whether the scraper can reuse a cached row without regenerating it.
+ *
+ * v8 stays reusable under v9: a v9 brief only adds the writer's layout, and
+ * readers infer an equivalent one for v8 content. Treating v8 as stale would
+ * regenerate every cached brief the scraper next touched, paying for the whole
+ * archive to gain layouts. v8 rows gain one when they refresh for another
+ * reason, such as a source change.
+ */
+export function isReusableBillBrief(value: unknown): boolean {
+  return (
+    BillBriefRecordSchema.safeParse(value).success ||
+    BillBriefV8RecordSchema.safeParse(value).success
+  );
 }
