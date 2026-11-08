@@ -216,9 +216,9 @@ The checked-in `apps/expo/store.config.json` codifies the public URLs. Sync it f
 - **Stray `billion.app` references** in non-shipped code: scraper/measure-source `User-Agent`
   strings and a `civic@billion.app` address (`apps/scraper/...`, `packages/api/src/lib/measure-sources/*`,
   `candidate-sources/*`). Not user-visible, but they point at a domain we don't own.
-- **Contact address — temporary fallback.** The public-facing contact is
-  `thatxliner@gmail.com` across the legal copy, the in-app privacy screen, the Feedback tab,
-  and the `FEEDBACK_TO_EMAIL` default while the organization inbox is unavailable.
+- **Contact address — partly moved.** Bug reports go to `bugs@billion-news.app`: the
+  Feedback tab's email fallback and the `FEEDBACK_TO_EMAIL` default. The legal copy, the in-app
+  privacy and terms screens, and the website support page still use `thatxliner@gmail.com`.
 - **No terms acceptance gate.** First-launch onboarding now exists, but it does not mention or
   link the Terms or Privacy Policy. Add an explicit notice before accounts, purchases, or EU
   availability if affirmative acceptance is required.

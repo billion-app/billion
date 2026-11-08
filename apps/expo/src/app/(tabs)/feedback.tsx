@@ -34,7 +34,7 @@ import { getAppBuildNumber, getAppVersion } from "~/utils/app-version";
 import { buildFeedbackFormUrl } from "~/utils/feedback-form";
 
 // Direct contact remains available as a fallback to the guided form.
-const CONTACT_EMAIL = "thatxliner@gmail.com";
+const CONTACT_EMAIL = "bugs@billion-news.app";
 
 type FeedbackCategory = "bug" | "idea" | "content";
 
