@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.billion.autodeploy</string>
+  <key>ProgramArguments</key>
+  <array><string>/Users/bhu/.local/bin/billion-autodeploy</string></array>
+  <key>RunAtLoad</key><true/>
+  <key>StartInterval</key><integer>120</integer>
+  <key>ProcessType</key><string>Background</string>
+  <key>StandardOutPath</key><string>/Users/bhu/Library/Logs/billion/autodeploy.log</string>
+  <key>StandardErrorPath</key><string>/Users/bhu/Library/Logs/billion/autodeploy.error.log</string>
+</dict>
+</plist>
