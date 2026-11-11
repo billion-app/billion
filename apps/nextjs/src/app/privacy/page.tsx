@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "Privacy Policy — Billion",
 };
 
-const LAST_UPDATED = "October 18, 2026";
+const LAST_UPDATED = "November 10, 2026";
 
 const SECTIONS = [
   {
@@ -31,11 +31,11 @@ const SECTIONS = [
   },
   {
     title: "6. Data Sharing",
-    body: "We share information only with service providers that help us operate Billion, and only as needed to run the service: PostHog for analytics and handled-error diagnostics; Resend for waitlist and some feedback email delivery; Google Forms for guided feedback; Democracy Works for address-based ballot lookups; and the Google Civic Information API for district lookups. If you use device location, the operating system’s geocoder processes coordinates as described in Section 4. Open States supplies public representative data without receiving your street address. We require these providers to protect information they process for us and not use it for their own marketing. We may also disclose information if we are required to by law.",
+    body: "We share information only with service providers that help us operate Billion, and only as needed to run the service: PostHog for analytics and handled-error diagnostics; Resend for waitlist and feedback email delivery; Democracy Works for address-based ballot lookups; and the Google Civic Information API for district lookups. If you use device location, the operating system’s geocoder processes coordinates as described in Section 4. Open States supplies public representative data without receiving your street address. We require these providers to protect information they process for us and not use it for their own marketing. We may also disclose information if we are required to by law.",
   },
   {
     title: "7. Data Retention",
-    body: "Billion does not currently offer a usable account sign-in flow in the app. Your onboarding choices remain on your device until you uninstall the app or the app resets its versioned onboarding record. If an authenticated session already exists, topic and content-type selections may also remain in the account's server record. Mailing list email addresses are retained until you unsubscribe or ask us to delete them. Feedback is retained in Google Forms or email so that we can act on it. Your saved registered address remains on your device until you change or clear it. On iOS, secure storage can survive uninstalling and reinstalling the app; clear the address in the app before uninstalling if you want to remove it. On the web, you can also clear the site’s local storage. Server lookup caches use a hashed address key and may contain normalized address components. Cached results stop being reused after at most thirty days, but expired records can remain stored until they are replaced or deleted. We do not currently run scheduled deletion of expired lookup records. Clearing an address on your device does not delete server records; you can request deletion using the contact below. Analytics and handled-error diagnostic data are retained by our analytics provider according to its retention settings.",
+    body: "Billion does not currently offer a usable account sign-in flow in the app. Your onboarding choices remain on your device until you uninstall the app or the app resets its versioned onboarding record. If an authenticated session already exists, topic and content-type selections may also remain in the account's server record. Mailing list email addresses are retained until you unsubscribe or ask us to delete them. Feedback is retained in email so that we can act on it. Your saved registered address remains on your device until you change or clear it. On iOS, secure storage can survive uninstalling and reinstalling the app; clear the address in the app before uninstalling if you want to remove it. On the web, you can also clear the site’s local storage. Server lookup caches use a hashed address key and may contain normalized address components. Cached results stop being reused after at most thirty days, but expired records can remain stored until they are replaced or deleted. We do not currently run scheduled deletion of expired lookup records. Clearing an address on your device does not delete server records; you can request deletion using the contact below. Analytics and handled-error diagnostic data are retained by our analytics provider according to its retention settings.",
   },
   {
     title: "8. Your Choices",
