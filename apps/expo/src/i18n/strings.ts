@@ -29,6 +29,7 @@ const en = {
   "readerUi.sponsorProfile": "View sponsor profile for {name}",
 
   "readerUi.heatThresholds": "Heat-index thresholds",
+  "readerUi.onOneScale": "Side by side",
   "readerUi.tapFigure": "Tap a figure to explore",
   "readerUi.jumpChanges": "Changes",
   "readerUi.onThisPage": "On this page",
@@ -422,6 +423,7 @@ const es: Dictionary = {
   "readerUi.sponsorProfile": "Ver perfil del patrocinador {name}",
 
   "readerUi.heatThresholds": "Umbrales del índice de calor",
+  "readerUi.onOneScale": "Lado a lado",
   "readerUi.inNumbers": "En cifras",
   "readerUi.metricToday": "Hoy:",
   "readerUi.figureDetails": "Detalles y fuentes",
@@ -790,6 +792,7 @@ const zh: Dictionary = {
   "readerUi.sponsorProfile": "查看提案人 {name} 的资料",
 
   "readerUi.heatThresholds": "热指数阈值",
+  "readerUi.onOneScale": "对比",
   "readerUi.inNumbers": "关键数字",
   "readerUi.metricToday": "当前：",
   "readerUi.figureDetails": "详情与来源",

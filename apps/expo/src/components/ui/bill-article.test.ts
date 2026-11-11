@@ -132,7 +132,7 @@ test("a requested visual is drawn only when its facts support it", () => {
     facts: BillBriefData["facts"],
   ): ArticleBlockOf<"figure"> => ({ type: "figure", visual, facts });
 
-  assert.equal(figureForBlock(figure("scale", heat))?.kind, "temperature");
+  assert.equal(figureForBlock(figure("scale", heat))?.kind, "scale");
   // Thresholds the writer chose to show as metrics are not forced onto a scale.
   assert.equal(figureForBlock(figure("metrics", heat))?.kind, "metrics");
   // A scale request without comparable values degrades to metrics.

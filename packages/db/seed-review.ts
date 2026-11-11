@@ -584,7 +584,7 @@ const fareText =
   "The people of the State of California do enact as follows: SECTION 1. Section 99318 is added to the Public Utilities Code, to read: (a) A transit operator that receives state transit assistance shall provide free fares to any rider 18 years of age or younger. (b) The state shall reimburse a transit operator for lost fare revenue from the Youth Transit Pass Fund, subject to appropriation by the Legislature.";
 
 const wildfireText =
-  "The people of the State of California do enact as follows: SECTION 1. Section 4290.6 is added to the Public Resources Code, to read: (a) The State Fire Marshal shall award grants of up to $25,000 per residence to retrofit homes in very high fire hazard severity zones with ember-resistant vents and noncombustible roofing. (b) A household earning 80 percent or less of the area median income may receive a grant covering the full cost of the retrofit.";
+  "The people of the State of California do enact as follows: SECTION 1. Section 4290.6 is added to the Public Resources Code, to read: (a) The State Fire Marshal shall award grants of $15,000 per residence to retrofit homes in very high fire hazard severity zones with ember-resistant vents and noncombustible roofing. (b) A household earning 80 percent or less of the area median income may instead receive a grant of $25,000 per residence.";
 
 const parkingText =
   "The people of the State of California do enact as follows: SECTION 1. Section 65863.3 is added to the Government Code, to read: A city or county shall not impose a minimum automobile parking requirement on a residential development project located within one-half mile of a major transit stop.";
@@ -784,7 +784,7 @@ const california: Fixture[] = [
     chamber: "Assembly",
     introducedDate: daysAgo(90),
     summary:
-      "Grants up to $25,000 per home for ember-resistant vents and noncombustible roofs.",
+      "Grants of $15,000 per home, or $25,000 for lower-income households, for fire-resistant vents and roofs.",
     fullText: wildfireText,
     url: "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=20252026AB1450",
     thumbnailUrl: "https://picsum.photos/seed/wildfire/800/600",
@@ -814,24 +814,35 @@ const california: Fixture[] = [
     brief: {
       version: BILL_BRIEF_VERSION,
       legalStatus: "proposed",
-      verifiedQuotes: 2,
-      headline:
-        "Up to $25,000 to fireproof homes in the riskiest wildfire areas",
+      verifiedQuotes: 3,
+      headline: "Grants to fireproof homes in the riskiest wildfire areas",
+      // A quantity scale: two grant amounts of one measure, drawn from zero.
+      layout: [
+        { type: "figure", visual: "scale", facts: [0, 1] },
+        { type: "changes", display: "explorer", items: [0] },
+        { type: "affected" },
+        { type: "unknowns" },
+      ],
       summary:
         "The state would pay homeowners in the most fire-prone areas to install **vents and roofs that resist flying embers**, a leading cause of homes burning.",
-      hook: "If passed, homeowners in **very high fire hazard zones** could get up to **$25,000** to retrofit vents and roofs, and lower-income households could have the full cost covered. The text does not say how much total money the program would have.",
+      hook: "If passed, homeowners in **very high fire hazard zones** could get **$15,000** to retrofit vents and roofs, and lower-income households could get $25,000 instead. The text does not say how much total money the program would have.",
       facts: [
         {
-          label: "Maximum grant per home",
-          value: "$25,000",
+          label: "Standard grant",
+          value: "$15,000 per residence",
           quote: {
-            text: "grants of up to $25,000 per residence",
+            text: "grants of $15,000 per residence",
             locator: "Sec. 1(a)",
           },
         },
         {
-          label: "Full cost covered at or below",
-          value: "80% of area median income",
+          label: "Lower-income households",
+          value: "$25,000 per residence",
+          note: "Households earning 80% or less of the area median income.",
+          quote: {
+            text: "may instead receive a grant of $25,000 per residence",
+            locator: "Sec. 1(b)",
+          },
         },
       ],
       changes: [
@@ -841,7 +852,7 @@ const california: Fixture[] = [
           before:
             "Retrofits are mostly **paid out of pocket**, with a few small local programs.",
           after:
-            "The State Fire Marshal would award up to **$25,000 per home** for ember-resistant vents and noncombustible roofing.",
+            "The State Fire Marshal would award **$15,000 per home** for ember-resistant vents and noncombustible roofing, or $25,000 for lower-income households.",
           reader: {
             summary:
               "If you live in one of California's highest-risk fire areas, the state could help pay to make your home harder to ignite.",

@@ -5,6 +5,7 @@ import {
   getBillFactDisplay,
   getBillFactFigure,
   getBillFactSymbol,
+  getBillScaleFigure,
 } from "./bill-fact-figure";
 
 const fact = (
@@ -16,7 +17,7 @@ void test("heat-index thresholds use a common unit and preserve supplied notes",
   const first = fact("80°F heat index");
   const second = fact("90°F heat index");
   const figure = getBillFactFigure([second, first]);
-  assert.equal(figure?.kind, "temperature");
+  assert.equal(figure?.kind, "scale");
   assert.deepEqual(
     figure.points.map((point) => point.amount),
     [80, 90],
@@ -28,11 +29,11 @@ void test("heat-index thresholds use a common unit and preserve supplied notes",
 void test("different units, duplicate thresholds and dates never imply a numeric comparison", () => {
   assert.notEqual(
     getBillFactFigure([fact("80°F heat index"), fact("90°C heat index")])?.kind,
-    "temperature",
+    "scale",
   );
   assert.notEqual(
     getBillFactFigure([fact("80°F heat index"), fact("80°F heat index")])?.kind,
-    "temperature",
+    "scale",
   );
   const dates = [
     fact("July 1, 2029"),
@@ -47,7 +48,7 @@ void test("different units, duplicate thresholds and dates never imply a numeric
       fact("80°F heat index", "Current requirement"),
       fact("90°F heat index", "Current requirement"),
     ])?.kind,
-    "temperature",
+    "scale",
   );
 });
 void test("more thresholds are not silently reduced to a misleading pair", () => {
@@ -57,7 +58,7 @@ void test("more thresholds are not silently reduced to a misleading pair", () =>
       fact("90°F heat index"),
       fact("100°F heat index"),
     ])?.kind,
-    "temperature",
+    "scale",
   );
 });
 void test("unrelated numeric facts keep their full qualifiers without a shared scale", () => {
@@ -104,7 +105,7 @@ void test("a shared temperature graphic retains other facts as supporting contex
     scope,
     fact("80°F heat index"),
   ]);
-  assert.equal(figure?.kind, "temperature");
+  assert.equal(figure?.kind, "scale");
   assert.deepEqual(figure.supporting, [date, scope]);
   assert.deepEqual(
     figure.points.map((point) => point.amount),
@@ -188,4 +189,42 @@ void test("metric icons reflect supplied units and labels without categorizing u
     getBillFactSymbol("tens of millions of tons", "Wood waste each year"),
     null,
   );
+});
+
+void test("a requested scale compares two amounts of one quantity from zero", () => {
+  const smaller = fact("$25,000 per home", "Standard grant", "Grant");
+  const larger = fact("$50,000 per home", "Low-income grant", "Grant");
+  const figure = getBillScaleFigure([larger, smaller]);
+  assert.equal(figure?.kind, "scale");
+  assert.equal(figure.measure, "quantity");
+  assert.deepEqual(
+    figure.points.map((point) => [point.display, point.qualifier]),
+    [
+      ["$25,000", "per home"],
+      ["$50,000", "per home"],
+    ],
+  );
+  // Amounts start at zero so the drawing cannot exaggerate the difference.
+  assert.equal(figure.min, 0);
+  // Sharing a unit is not enough without the writer's request.
+  assert.equal(getBillFactFigure([larger, smaller])?.kind, "metrics");
+});
+
+void test("amounts with different wording, limits or counts are not drawn on a scale", () => {
+  const grant = (value: string) => fact(value, "Grant", "Grant");
+  for (const facts of [
+    [grant("$25,000 per home"), grant("$50,000 per business")],
+    [grant("$25,000"), grant("€50,000")],
+    [grant("Up to $25,000"), grant("Up to $50,000")],
+    [grant("10%"), grant("20%")],
+    [grant("$25,000"), grant("$25,000")],
+    [grant("$1"), grant("$2"), grant("$3")],
+    [grant("July 1, 2027"), grant("July 1, 2028")],
+  ]) {
+    assert.equal(
+      getBillScaleFigure(facts),
+      null,
+      facts.map((f) => f.value).join(" / "),
+    );
+  }
 });

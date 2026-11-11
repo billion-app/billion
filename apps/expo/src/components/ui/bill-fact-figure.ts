@@ -1,7 +1,11 @@
 import { getBillDateValue } from "@acme/validators";
 
-export type { MetricFigure, TemperatureFigure } from "@acme/validators";
-export { getBillFactDisplay, getBillFactFigure } from "@acme/validators";
+export type { MetricFigure, ScaleFigure } from "@acme/validators";
+export {
+  getBillFactDisplay,
+  getBillFactFigure,
+  getBillScaleFigure,
+} from "@acme/validators";
 
 /** Units identify time and energy facts without inventing a policy category. */
 export function getBillFactSymbol(

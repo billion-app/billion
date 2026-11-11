@@ -274,3 +274,24 @@ void test("the stored layout matches the verified brief", () => {
   });
   assert.equal(verifyBriefLayout(source(), "TEST 1").layout, undefined);
 });
+
+void test("a requested scale of two amounts of one quantity is kept", () => {
+  const grants = [
+    { label: "Standard grant", value: "$15,000 per residence" },
+    { label: "Lower-income households", value: "$25,000 per residence" },
+  ];
+  const layout = [{ type: "figure", visual: "scale", facts: [0, 1] }] as const;
+  assert.equal(
+    verifyArticleLayout(layout, source({ facts: grants })).find(
+      (block) => block.type === "figure",
+    )?.visual,
+    "scale",
+  );
+  // Inference never draws a quantity scale on its own.
+  assert.equal(
+    inferArticleLayout(source({ facts: grants })).find(
+      (block) => block.type === "figure",
+    )?.visual,
+    "metrics",
+  );
+});

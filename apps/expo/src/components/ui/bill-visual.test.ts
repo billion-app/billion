@@ -164,6 +164,6 @@ test("every bill gets a suitable visual, including absent and nonnumeric facts",
         note: "Proposed rule",
       },
     ]),
-    "temperature",
+    "scale",
   );
 });
