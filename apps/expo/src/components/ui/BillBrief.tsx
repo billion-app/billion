@@ -40,6 +40,8 @@ import {
 import * as WebBrowser from "expo-web-browser";
 import Markdown from "@ronradtke/react-native-markdown-display";
 
+import type { ArticleLayout } from "@acme/validators";
+
 import type { ArticleBlockData, BillArticleData } from "./bill-article";
 import type { StringKey } from "~/i18n/strings";
 import { useLanguage } from "~/hooks/useLanguage";
@@ -135,6 +137,8 @@ export interface BillBriefData {
     url: string;
     whyRead: string;
   }[];
+  /** The writer's composition (v9); absent for older briefs. */
+  layout?: ArticleLayout;
 }
 
 const DIRECTION: Record<

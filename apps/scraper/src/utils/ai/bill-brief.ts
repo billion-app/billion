@@ -32,6 +32,7 @@ import type {
   BriefLegalStatus,
 } from "@acme/validators";
 import {
+  ArticleLayoutBlockSchema,
   BILL_BRIEF_VERSION,
   BillBriefSchema,
   BriefAffectedSchema,
@@ -48,6 +49,8 @@ import {
   BriefReadingSchema,
   BriefTermSchema,
   deriveBillLifecycle,
+  describeArticleLayoutCatalog,
+  verifyArticleLayout,
 } from "@acme/validators";
 
 import type { DualLensSource } from "./text-generation.js";
@@ -161,6 +164,20 @@ const GeneratedBillBriefSchema = BillBriefSchema.extend({
     ),
   }).nullish(),
   deepDive: BriefDeepDiveSchema.nullish(),
+  // Read loosely and narrowed block by block in `dropInvalidLayoutBlocks`, so
+  // one malformed block costs that block rather than the composition. The
+  // when-to-use guidance reaches the model through the prompt instead.
+  layout: z
+    .array(
+      z.object({
+        type: z.string(),
+        display: z.string().nullish(),
+        visual: z.string().nullish(),
+        items: z.array(z.number()).nullish(),
+        facts: z.array(z.number()).nullish(),
+      }),
+    )
+    .min(1),
 });
 
 /**
@@ -180,6 +197,8 @@ const LOSABLE_SECTIONS = {
   reading: "empty",
   whyNotBefore: "delete",
   deepDive: "delete",
+  // Readers infer a layout for a brief without one.
+  layout: "delete",
 } as const;
 
 /**
@@ -424,7 +443,87 @@ export function dropUnrecognisedChangeKinds(
     `Brief for ${billNumber}: dropped ${dropped.length} change(s) with an ` +
       `unrecognised kind (${dropped.join(", ")}); kept ${kept.length}`,
   );
-  return { ...record, changes: kept };
+  return {
+    ...record,
+    changes: kept,
+    layout: remapLayoutChanges(record.layout, record.changes, kept),
+  };
+}
+
+/**
+ * Keep a layout's change positions pointing at the same changes after some
+ * were removed. A layout refers to changes by position, so without this every
+ * reference after a dropped change would silently shift onto its neighbour.
+ */
+function remapLayoutChanges(
+  layout: unknown,
+  before: readonly unknown[],
+  after: readonly unknown[],
+): unknown {
+  if (!Array.isArray(layout)) return layout;
+  const position = new Map(after.map((change, index) => [change, index]));
+  return layout.map((block: unknown) => {
+    if (!block || typeof block !== "object") return block;
+    const record = block as Record<string, unknown>;
+    if (record.type !== "changes" || !Array.isArray(record.items)) return block;
+    return {
+      ...record,
+      items: record.items.flatMap((index: unknown) => {
+        const next =
+          typeof index === "number" ? position.get(before[index]) : undefined;
+        return next === undefined ? [] : [next];
+      }),
+    };
+  });
+}
+
+/**
+ * Narrow the loosely generated layout to known, well-formed blocks.
+ *
+ * The same rule as the other normalisers: an invented block type or a
+ * malformed one is dropped alone, and the rest of the composition is kept.
+ * Whether the remaining references are in range and honest is decided later
+ * by `verifyArticleLayout`, against the brief as it will be stored.
+ */
+export function dropInvalidLayoutBlocks(
+  value: unknown,
+  billNumber: string,
+): unknown {
+  if (!value || typeof value !== "object") return value;
+  const record = value as Record<string, unknown>;
+  if (!Array.isArray(record.layout)) return value;
+
+  const kept = record.layout.flatMap((block: unknown) => {
+    const parsed = ArticleLayoutBlockSchema.safeParse(block);
+    return parsed.success ? [parsed.data] : [];
+  });
+  const dropped = record.layout.length - kept.length;
+  if (dropped === 0) return value;
+  logger.warn(
+    `Brief for ${billNumber}: dropped ${dropped} invalid layout block(s); kept ${kept.length}`,
+  );
+  if (kept.length) return { ...record, layout: kept };
+  const { layout: _layout, ...rest } = record;
+  return rest;
+}
+
+/**
+ * Store only a layout that is honest about the verified brief: references in
+ * range, every change and fact present, and visuals the facts support. A
+ * changed layout is logged so drift in the writer's choices stays visible.
+ */
+export function verifyBriefLayout(
+  brief: BillBrief,
+  billNumber: string,
+): BillBrief {
+  if (!brief.layout) return brief;
+  const layout = verifyArticleLayout(brief.layout, brief);
+  if (JSON.stringify(layout) !== JSON.stringify(brief.layout)) {
+    logger.warn(
+      `Brief for ${billNumber}: adjusted layout to match its verified content`,
+    );
+  }
+  return { ...brief, layout };
 }
 
 function withoutNulls(value: unknown): unknown {
@@ -1061,7 +1160,9 @@ Field notes:
 - "terms" appears near the top of the article. Include only essential vocabulary that changes how the reader understands the mechanism, and define it in one short everyday sentence. Bold the practical meaning, not the term again.
 - "whyNotBefore" is an optional expandable answer to "Why wasn't this implemented before?" Use it only when the research documents a real historical answer. Explain earlier attempts, disagreements, legal or budget constraints, implementation tradeoffs, or changed circumstances without speculating about motives. State the documented barrier or tradeoff directly. Every point needs at least one citation, the section needs at least two different opened sources overall, and every citation URL must exactly match a verified source below.
 - "deepDive" is an optional long-form Billion explainer for readers who deliberately ask for more. It opens as its own article, so write natural markdown with short paragraphs, useful subheads, selective bolding, and bullets only when they clarify a list. Focus on one important question or consequence instead of repeating the entire structured brief. Use only the length the subject needs. Aim for 150–350 words; a short bill may need less. Do not expand a short source into a long article to fill a target.
-- "reading" recommends outside articles. Use ONLY the verified research sources supplied below, copy their URLs exactly, and explain in one sentence what each adds. Bold the specific concept or evidence the source adds. Omit weak or irrelevant links.${retryNote}${jargonRetryNote}${emphasisRetryNote}
+- "reading" recommends outside articles. Use ONLY the verified research sources supplied below, copy their URLs exactly, and explain in one sentence what each adds. Bold the specific concept or evidence the source adds. Omit weak or irrelevant links.
+- "layout" composes the article for this bill rather than a template. Decide what a newcomer needs first and how each figure is best seen, then refer to changes and facts by their zero-based position in your own lists. Write facts in the form a chosen visual needs, but never reword a figure beyond what the source states to earn a visual; "metrics" is always a valid choice. Blocks:
+${describeArticleLayoutCatalog()}${retryNote}${jargonRetryNote}${emphasisRetryNote}
 
 ---
 Bill: ${billNumber} — ${title}
@@ -1163,11 +1264,14 @@ export async function generateBillBrief(args: {
       const modelVersion = getGeneratedModelVersion({ providerMetadata });
 
       const output = parseBriefWithSectionRecovery(
-        truncateOverlongLists(
-          dropUncitedContextPoints(
-            coerceAffectedDirections(
-              dropUnrecognisedChangeKinds(
-                withoutNulls(generatedOutput),
+        dropInvalidLayoutBlocks(
+          truncateOverlongLists(
+            dropUncitedContextPoints(
+              coerceAffectedDirections(
+                dropUnrecognisedChangeKinds(
+                  withoutNulls(generatedOutput),
+                  args.billNumber,
+                ),
                 args.billNumber,
               ),
               args.billNumber,
@@ -1183,9 +1287,12 @@ export async function generateBillBrief(args: {
         quoteResult.brief,
         readingResearch.sources,
       );
-      const brief = verifyBriefContext(
-        briefWithReading,
-        readingResearch.sources,
+      const brief = verifyBriefLayout(
+        verifyBriefContext(
+          briefWithReading,
+          readingResearch.sources,
+          args.billNumber,
+        ),
         args.billNumber,
       );
       const { verified, dropped } = quoteResult;

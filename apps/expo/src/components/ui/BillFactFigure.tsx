@@ -11,7 +11,7 @@ import {
 import Animated from "react-native-reanimated";
 import Svg, { Circle, Line } from "react-native-svg";
 
-import type { getBillFactFigure } from "./bill-fact-figure";
+import type { MetricFigure, TemperatureFigure } from "./bill-fact-figure";
 import type { BillBriefData, BriefQuote } from "./BillBrief";
 import { useLanguage } from "~/hooks/useLanguage";
 import {
@@ -82,7 +82,9 @@ export function BillFactFigure({
   sourceStatus,
   onInspect,
 }: {
-  figure: NonNullable<ReturnType<typeof getBillFactFigure>>;
+  figure:
+    | TemperatureFigure<BillBriefData["facts"][number]>
+    | MetricFigure<BillBriefData["facts"][number]>;
   /** Whether the block asked for a chronology; dates otherwise stay metrics. */
   timeline?: boolean;
   onViewSource?: (quote: BriefQuote) => void;

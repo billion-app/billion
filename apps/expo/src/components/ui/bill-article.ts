@@ -1,28 +1,15 @@
-import type { ArticleFigureVisual } from "@acme/validators";
+import type { ResolvedArticleBlock } from "@acme/validators";
+import { resolveArticleBlocks } from "@acme/validators";
 
 import type { BillBriefData } from "./BillBrief";
 import { getBillDateMilestones } from "./bill-date-milestones";
 import { getBillFactFigure } from "./bill-fact-figure";
-import { getBillVisualKind } from "./bill-visual";
 
 type Change = BillBriefData["changes"][number];
-type Fact = BillBriefData["facts"][number];
 
-// Mirrors @acme/validators' ArticleBlock with the client's brief pieces, which
-// also carry court document IDs and generated change images.
-export type ArticleBlockData =
-  | { type: "changes"; display: "explorer" | "map"; items: Change[] }
-  | { type: "figure"; visual: ArticleFigureVisual; facts: Fact[] }
-  | { type: "affected"; items: BillBriefData["affected"] }
-  | { type: "unknowns"; items: string[] }
-  | { type: "glossary" }
-  | { type: "context"; context: NonNullable<BillBriefData["whyNotBefore"]> }
-  | { type: "perspectives" }
-  | {
-      type: "furtherReading";
-      deepDive?: BillBriefData["deepDive"];
-      reading: NonNullable<BillBriefData["reading"]>;
-    };
+// Resolved with the client's brief pieces, which also carry court document IDs
+// and generated change images.
+export type ArticleBlockData = ResolvedArticleBlock<BillBriefData>;
 
 export type BillArticleData = Pick<
   BillBriefData,
@@ -94,43 +81,13 @@ export function figureShowsTimeline(block: ArticleBlockOf<"figure">) {
 }
 
 /**
- * Express a v8 brief as an article. The brief's fixed order becomes the block
- * order, and the visual the client used to infer from fact text is recorded on
- * the figure block, so stored articles and adapted briefs render identically.
+ * Express a brief as an article: the writer's verified layout for a v9 brief,
+ * or the order inferred from a v8 brief's content.
  */
 export function billArticleFromBrief(
   brief: BillBriefData,
   options: { perspectives?: boolean } = {},
 ): BillArticleData {
-  const figure = getBillFactFigure(brief.facts);
-  const visual: ArticleFigureVisual =
-    figure?.kind === "temperature"
-      ? "scale"
-      : getBillDateMilestones(brief.facts).length
-        ? "timeline"
-        : "metrics";
-  const reading = brief.reading ?? [];
-  const blocks: (ArticleBlockData | null)[] = [
-    brief.changes.length
-      ? {
-          type: "changes",
-          display:
-            getBillVisualKind(brief.facts) === "changes" ? "map" : "explorer",
-          items: brief.changes,
-        }
-      : null,
-    brief.facts.length ? { type: "figure", visual, facts: brief.facts } : null,
-    brief.affected.length ? { type: "affected", items: brief.affected } : null,
-    brief.unknowns.length ? { type: "unknowns", items: brief.unknowns } : null,
-    brief.terms.length ? { type: "glossary" } : null,
-    brief.whyNotBefore
-      ? { type: "context", context: brief.whyNotBefore }
-      : null,
-    options.perspectives ? { type: "perspectives" } : null,
-    brief.deepDive || reading.length
-      ? { type: "furtherReading", deepDive: brief.deepDive, reading }
-      : null,
-  ];
   return {
     sourceStatus: brief.sourceStatus,
     sourceLabel: brief.sourceLabel,
@@ -139,6 +96,6 @@ export function billArticleFromBrief(
     hook: brief.hook,
     legalStatus: brief.legalStatus,
     terms: brief.terms,
-    blocks: blocks.filter((block): block is ArticleBlockData => block !== null),
+    blocks: resolveArticleBlocks(brief, options),
   };
 }

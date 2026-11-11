@@ -5,7 +5,7 @@ import type { BillBrief } from "@acme/validators";
 import {
   BILL_BRIEF_VERSION,
   BillBriefSchema,
-  isCurrentBillBrief,
+  isReusableBillBrief,
   isUsableBillBrief,
   parseBillBriefRecord,
 } from "@acme/validators";
@@ -152,7 +152,7 @@ void test("reader summaries, questions and answers cannot bypass editorial check
   assert.ok(findOveremphasis(current).includes("changes[0].reader.answer"));
 });
 
-void test("older brief records stay renderable but are not current cache hits", () => {
+void test("older brief records stay renderable but are not reusable cache hits", () => {
   const metadata = {
     legalStatus: "proposed" as const,
     verifiedQuotes: 0,
@@ -165,13 +165,13 @@ void test("older brief records stay renderable but are not current cache hits", 
   const v7 = { ...legacyBrief, ...metadata, version: 7 };
 
   assert.equal(isUsableBillBrief(v5), true);
-  assert.equal(isCurrentBillBrief(v5), false);
+  assert.equal(isReusableBillBrief(v5), false);
   assert.equal(parseBillBriefRecord(v5)?.version, BILL_BRIEF_VERSION);
   assert.equal(isUsableBillBrief(v6), true);
-  assert.equal(isCurrentBillBrief(v6), false);
+  assert.equal(isReusableBillBrief(v6), false);
   assert.equal(parseBillBriefRecord(v6)?.version, BILL_BRIEF_VERSION);
   assert.equal(isUsableBillBrief(v7), true);
-  assert.equal(isCurrentBillBrief(v7), false);
+  assert.equal(isReusableBillBrief(v7), false);
   assert.equal(parseBillBriefRecord(v7)?.version, BILL_BRIEF_VERSION);
   assert.match(parseBillBriefRecord(v7)?.summary ?? "", /Secretary/);
 
@@ -180,7 +180,20 @@ void test("older brief records stay renderable but are not current cache hits", 
     version: BILL_BRIEF_VERSION,
     summary: brief().summary,
   };
-  assert.equal(isCurrentBillBrief(current), true);
+  assert.equal(isReusableBillBrief(current), true);
+
+  // v9 only adds the writer's layout, so v8 content is reused rather than
+  // regenerated, and readers receive it as v9 without a layout.
+  const v8 = { ...current, version: 8 };
+  assert.equal(isReusableBillBrief(v8), true);
+  assert.equal(parseBillBriefRecord(v8)?.version, BILL_BRIEF_VERSION);
+  assert.equal(parseBillBriefRecord(v8)?.layout, undefined);
+
+  const layout = [{ type: "unknowns" as const }];
+  assert.deepEqual(
+    parseBillBriefRecord({ ...current, layout })?.layout,
+    layout,
+  );
 });
 
 void test("v1 briefs receive client defaults at the API boundary", () => {

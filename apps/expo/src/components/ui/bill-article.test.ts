@@ -169,3 +169,21 @@ test("adapted articles satisfy the shared article catalog", () => {
   );
   assert.equal(BillArticleSchema.safeParse(article).success, true);
 });
+
+test("a v9 brief renders the writer's layout instead of the inferred order", () => {
+  const article = billArticleFromBrief(
+    brief({
+      facts: heat,
+      layout: [
+        { type: "figure", visual: "scale", facts: [0, 1] },
+        { type: "changes", display: "explorer", items: [0] },
+        { type: "unknowns" },
+        { type: "affected" },
+      ],
+    }),
+  );
+  assert.deepEqual(
+    article.blocks.map((block) => block.type),
+    ["figure", "changes", "unknowns", "affected"],
+  );
+});

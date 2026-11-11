@@ -96,6 +96,21 @@ The story presentation shows this introduction and one question first. Opening t
 
 The three new prose fields participate in loaded-language, jargon and emphasis checks and in the existing translation field allowlist. Quotations, locators and URLs remain unchanged. The shared schema accepts the object optionally so cached briefs remain readable; the generated-output schema requires it for new changes. This is a compatible extension to v8, with no cache invalidation, paid generation, database repair or automatic backfill. Existing stored wording changes only after an explicit refresh. A source-bound local editorial draft can exercise the new reader without publishing a content update.
 
+### Composed layouts (v9)
+
+A v8 brief is a fixed form. Every bill gets the same fields in the same order, and readers guessed which visual a set of facts deserved by matching their text: a temperature scale appeared only when a fact literally read "87°F heat index". That shape suits generating at scale. A v9 brief adds a `layout`, the writer's composition of the same verified content for a reader who knows nothing about the bill.
+
+The layout chooses which blocks the article needs, their order, and which visual carries each group of figures. It refers to changes and facts by position rather than copying them, so quote verification, the framing and jargon lints, and the translation allowlist apply to the content exactly as before. The [layout catalog](../packages/validators/src/article-layout.ts) is the single description of the option space: each block's schema description is rendered into the prompt, so the writer's guidance and the schema cannot drift apart.
+
+The writer is trusted to choose, not to be honest; [`verifyArticleLayout`](../packages/validators/src/article-blocks.ts) enforces that in code before storage and again in readers:
+
+- References must be in range, and each change or fact appears once.
+- A visual the facts cannot support is drawn as metrics. A scale needs two proposed thresholds in one unit; a timeline needs two complete calendar dates.
+- Every change, fact, affected group and unknown stays on the page. Omitted ones are appended, because leaving a provision out of the layout would hide it as surely as deleting it. Depth blocks (glossary, history, further reading) may be omitted by choice.
+- The cited arguments live in the separately generated dual lens, so readers add or remove the perspectives block depending on whether a lens exists.
+
+Generation reads the layout loosely. An invented or malformed block is dropped alone, and a brief whose layout is unusable keeps its content and renders with an inferred order. Dropping a change with an unrecognized kind remaps the layout so its references still point at the same changes.
+
 ### Where the debate lives
 
 Briefs describe mechanism. They deliberately contain no "supporters say /
@@ -170,14 +185,25 @@ lifecycle so a failed or rate-limited refresh cannot preserve a misleading
 present-tense description forever. Briefs live outside the content tables so
 they can be regenerated, versioned, or dropped without touching scraped rows.
 
-`BILL_BRIEF_VERSION` gates generation and cache reuse. The scraper reuses only
-records that match the current schema, so older rows are regenerated when it
-encounters them. The API separately accepts shipped v1 and v5 records and
-normalizes them into the current client shape (including affected-group
-takeaways and an empty reading list where needed). Invalid or unknown shapes
-are still dropped, so the client can treat every present brief as renderable.
+`BILL_BRIEF_VERSION` names the generation contract; `isReusableBillBrief`
+decides cache reuse. The scraper reuses v9 records and also v8 records, because
+v9 only adds the writer's layout and readers infer an equivalent one for v8
+content. Treating v8 as stale would regenerate every cached brief the scraper
+next touched. A v8 row gains a layout when it refreshes for another reason,
+such as a source change or an explicit forced regeneration; there is no
+automatic backfill. Older shapes are regenerated when encountered. The API
+separately accepts shipped v1 through v8 records and normalizes them into the
+current client shape (including affected-group takeaways and an empty reading
+list where needed). Invalid or unknown shapes are still dropped, so the client
+can treat every present brief as renderable.
 
 ## Rendering
+
+Readers resolve a brief into ordered blocks with `resolveArticleBlocks`: the
+writer's verified layout for v9, or the inferred v8 order. Both mobile
+presentations, the [story overview](../apps/expo/src/components/ui/BillOverview.tsx)
+and the full brief, walk those blocks and skip types the installed app does not
+know. The web reader still renders brief fields directly.
 
 [`apps/expo/src/components/ui/BillBrief.tsx`](../apps/expo/src/components/ui/BillBrief.tsx)
 renders each block as the UI element it actually is: tiles for facts, before →
