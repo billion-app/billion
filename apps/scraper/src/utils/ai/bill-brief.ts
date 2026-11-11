@@ -44,6 +44,7 @@ import {
   BriefDirectionSchema,
   BriefFactSchema,
   BriefQuoteSchema,
+  BriefReaderIntroSchema,
   BriefReadingSchema,
   BriefTermSchema,
   deriveBillLifecycle,
@@ -113,6 +114,7 @@ const GeneratedUnknownSchema = z
 // whole brief over one surplus item; enforcing them after lets the surplus item
 // be the only thing lost.
 const GeneratedBillBriefSchema = BillBriefSchema.extend({
+  headline: BillBriefSchema.shape.headline.unwrap(),
   unknowns: z.array(GeneratedUnknownSchema).min(1),
   // `direction` is read loosely so an unrecognised value reaches
   // `coerceAffectedDirections` instead of rejecting the document.
@@ -142,6 +144,9 @@ const GeneratedBillBriefSchema = BillBriefSchema.extend({
       // eight the model meant risks mislabelling the provision.
       BriefChangeSchema.omit({ kind: true }).extend({
         kind: z.string(),
+        reader: BriefReaderIntroSchema.extend({
+          quote: GeneratedBriefQuoteSchema.nullish(),
+        }),
         quote: GeneratedBriefQuoteSchema.nullish(),
       }),
     )
@@ -535,7 +540,10 @@ export function verifyBriefQuotes(
     brief: {
       ...brief,
       facts: brief.facts.map(check),
-      changes: brief.changes.map(check),
+      changes: brief.changes.map((change) => ({
+        ...check(change),
+        ...(change.reader ? { reader: check(change.reader) } : {}),
+      })),
     },
     verified,
     dropped,
@@ -695,10 +703,18 @@ const LOADED_PATTERN = new RegExp(
  */
 function authoredProse(brief: BillBrief): string[] {
   return [
+    brief.headline ?? "",
     brief.summary,
     brief.hook,
     ...brief.facts.flatMap((f) => [f.label, f.value, f.note ?? ""]),
-    ...brief.changes.flatMap((c) => [c.title, c.before, c.after]),
+    ...brief.changes.flatMap((c) => [
+      c.title,
+      c.before,
+      c.after,
+      ...(c.reader
+        ? [c.reader.summary, c.reader.question, c.reader.answer]
+        : []),
+    ]),
     ...brief.affected.flatMap((a) => [a.group, a.takeaway, a.effect]),
     ...brief.unknowns,
     ...brief.terms.flatMap((t) => [t.term, t.plain]),
@@ -800,10 +816,18 @@ const JARGON_RULES = [
 
 function readerFacingProse(brief: BillBrief): string[] {
   return [
+    brief.headline ?? "",
     brief.summary,
     brief.hook,
     ...brief.facts.flatMap((f) => [f.label, f.value, f.note ?? ""]),
-    ...brief.changes.flatMap((c) => [c.title, c.before, c.after]),
+    ...brief.changes.flatMap((c) => [
+      c.title,
+      c.before,
+      c.after,
+      ...(c.reader
+        ? [c.reader.summary, c.reader.question, c.reader.answer]
+        : []),
+    ]),
     ...brief.affected.flatMap((a) => [a.group, a.takeaway, a.effect]),
     ...brief.unknowns,
     ...(brief.whyNotBefore
@@ -847,59 +871,56 @@ export function findUnexplainedJargon(brief: BillBrief): string[] {
   return [...hits];
 }
 
-const EMPHASIS_PATTERN = /\*\*[^*\n]+\*\*/;
-
-/**
- * Structured prose that should expose at least one concrete scan target.
- * Titles, labels, figures, publishers, and verbatim quotes are intentionally
- * excluded: emphasizing those would add noise or alter source material.
+/** Excess emphasis is an editorial defect; plain text is valid. Source
+ * quotations and long-form paragraphs are deliberately outside this check.
  */
-export function findMissingEmphasis(brief: BillBrief): string[] {
-  const fields: { label: string; value: string }[] = [
-    { label: "summary", value: brief.summary },
-    { label: "hook", value: brief.hook },
-    ...brief.changes.flatMap((change, index) => [
-      { label: `changes[${index}].before`, value: change.before },
-      { label: `changes[${index}].after`, value: change.after },
+export function findOveremphasis(brief: BillBrief): string[] {
+  const fields: { label: string; value: string; allowed: number }[] = [
+    { label: "headline", value: brief.headline ?? "", allowed: 0 },
+    { label: "summary", value: brief.summary, allowed: 1 },
+    { label: "hook", value: brief.hook, allowed: 2 },
+    ...brief.changes.flatMap((item, index) => [
+      { label: `changes[${index}].before`, value: item.before, allowed: 1 },
+      { label: `changes[${index}].after`, value: item.after, allowed: 1 },
+      ...(item.reader
+        ? [
+            {
+              label: `changes[${index}].reader.summary`,
+              value: item.reader.summary,
+              allowed: 1,
+            },
+            {
+              label: `changes[${index}].reader.question`,
+              value: item.reader.question,
+              allowed: 0,
+            },
+            {
+              label: `changes[${index}].reader.answer`,
+              value: item.reader.answer,
+              allowed: 1,
+            },
+          ]
+        : []),
     ]),
-    ...brief.affected.flatMap((group, index) => [
-      { label: `affected[${index}].takeaway`, value: group.takeaway },
-      { label: `affected[${index}].effect`, value: group.effect },
+    ...brief.affected.flatMap((item, index) => [
+      {
+        label: `affected[${index}].takeaway`,
+        value: item.takeaway,
+        allowed: 1,
+      },
+      { label: `affected[${index}].effect`, value: item.effect, allowed: 1 },
     ]),
     ...brief.unknowns.map((value, index) => ({
       label: `unknowns[${index}]`,
       value,
-    })),
-    ...brief.terms.map((term, index) => ({
-      label: `terms[${index}].plain`,
-      value: term.plain,
-    })),
-    ...(brief.whyNotBefore
-      ? [
-          {
-            label: "whyNotBefore.summary",
-            value: brief.whyNotBefore.summary,
-          },
-          ...brief.whyNotBefore.points.map((point, index) => ({
-            label: `whyNotBefore.points[${index}].text`,
-            value: point.text,
-          })),
-        ]
-      : []),
-    ...(brief.deepDive
-      ? [
-          { label: "deepDive.dek", value: brief.deepDive.dek },
-          { label: "deepDive.body", value: brief.deepDive.body },
-        ]
-      : []),
-    ...brief.reading.map((item, index) => ({
-      label: `reading[${index}].whyRead`,
-      value: item.whyRead,
+      allowed: 1,
     })),
   ];
-
   return fields
-    .filter(({ value }) => !EMPHASIS_PATTERN.test(value))
+    .filter(
+      ({ value, allowed }) =>
+        [...value.matchAll(/\*\*[^*\n]+\*\*/g)].length > allowed,
+    )
     .map(({ label }) => label);
 }
 
@@ -941,7 +962,7 @@ function buildBriefPrompt(args: {
   readingSources?: DualLensSource[];
   loadedPhrases?: string[];
   jargonPhrases?: string[];
-  missingEmphasis?: string[];
+  overemphasis?: string[];
 }): string {
   const {
     title,
@@ -958,7 +979,7 @@ function buildBriefPrompt(args: {
     readingSources,
     loadedPhrases,
     jargonPhrases,
-    missingEmphasis,
+    overemphasis,
   } = args;
 
   const tense =
@@ -985,15 +1006,15 @@ function buildBriefPrompt(args: {
           ", ",
         )}. Rewrite each in familiar everyday words. If a technical term is truly essential, add it to "terms", define it simply, and still explain the practical meaning where it appears.\n`
     : "";
-  const emphasisRetryNote = missingEmphasis?.length
-    ? `\n\nYour previous attempt omitted the required selective emphasis in these fields: ${missingEmphasis
+  const emphasisRetryNote = overemphasis?.length
+    ? `\n\nYour previous attempt used too many bold spans in these fields: ${overemphasis
         .map((field) => `"${field}"`)
         .join(
           ", ",
-        )}. Add one short **bold** span to each named field. Emphasize the concrete mechanism, consequence, unresolved choice, or source value a scanner should retain; never bold the whole field.\n`
+        )}. Remove emphasis rather than distributing it across every sentence. Plain text is valid. Use at most one short bold span per field (two for hook), only when it materially helps scanning.\n`
     : "";
 
-  return `You are a nonpartisan civic analyst writing a structured brief on a U.S. bill for a general audience. Your reader is a busy adult, not a policy professional. They will scan before they read, so every field must stand alone.
+  return `You are a careful, nonpartisan editor writing for people who do not follow politics. Earn their attention with a specific everyday consequence, then explain it clearly. Assume no interest in a bill number, an agency acronym, or legislative procedure. The reader must understand each field on its own.
 
 ${tense}
 
@@ -1016,21 +1037,30 @@ Rules that decide whether this brief ships:
 - **No manufactured symmetry.** If the text supports one consequence more strongly than another, say so. Use "mixed" or "unclear" for an affected group rather than balancing the list for its own sake.
 - **Use only the allowed change kinds.** Every change "kind" must be exactly one of: "creates", "repeals", "expands", "restricts", "requires", "waives", "funds", or "transfers". Map synonyms such as "sets" or "establishes" to "creates", and "restructures" to the closest allowed mechanism.
 - **Neutral vocabulary.** In your own voice, avoid words that carry a verdict — "common sense", "radical", "landmark", "reckless", "burdensome", "handout", "much-needed". Attribute goals with "aims to" or "supporters say" rather than asserting them.
+- **Zero assumed knowledge.** The reader may know nothing about politics, government, energy markets or the program in the source. Begin with a familiar human action: who joins, pays, receives something, or faces a rule. Naming a program is not explaining it. On first mention, explain what it does in the visible summary. Replace terms such as "subscription", "capacity", "bill credit" and "appropriation" with everyday words, or immediately explain them in the same sentence. A glossary or extra tap must not be required to understand the takeaway. Preserve source meaning: a credit on an electricity bill does not establish net savings after fees, and capacity is not the electricity actually generated. Do not invent personal benefits or assume a program applies to everyone.
+- **Design for the first encounter.** The headline gives one recognizable idea; the opening summary explains that idea rather than repeating the headline. One leading figure provides its exact value and what it measures. Explain that unit or unfamiliar concept in its short visible fact note. Put legal machinery and remaining figures in the fuller fields. Keep definitions short and preserve material conditions rather than adding a textbook introduction.
 - **Plain language.** Aim for an 8th-grade reading level everywhere. Prefer familiar verbs and concrete descriptions: "Congress approves the money each year", not "subject to annual appropriations"; "several federal programs", not "discretionary federal grants"; "how long states can plan ahead", not "funding horizon". If a general reader might have to look a term up, either translate it or define it in "terms". Even when defined, explain its practical meaning where it appears.
-- **Emphasis is a brief-wide scan aid, not decoration.** Every reader-facing prose field should identify the one phrase a scanner most needs to retain. Use **double asterisks** around one short, concrete phrase in each affected-group "takeaway" and "effect", each "unknowns" item, each term definition, each reading recommendation, the deep-dive preview, and each historical summary or point. "before" and "after" may use up to two short spans; "hook" may use two or three. In long-form deep-dive paragraphs, use one or two only when useful. Never bold a whole sentence, a heading, a verdict, loaded language, or any verbatim source quote.
+- **Let the words carry the story.** Plain text is valid. Do not bold a phrase in every field or every paragraph. Use at most one short bold span in a short field (two in the hook), only when a figure or consequence would otherwise be hard to find. Never bold a whole sentence, heading, verdict, or verbatim quote.
 - **Concise still means coherent.** Every visible field must make sense when read by itself. Never emit a noun phrase, dangling clause, missing subject, or sentence fragment merely to save words. Read each field independently before returning it.
-- **Length limits are hard.** Keep the summary at 180 characters or fewer and the hook at 600; fact labels at 48, values at 60, and notes at 90; change titles at 70 and each before/after at 240; affected-group names at 80, takeaways at 240, and effects at 400; unknowns and term definitions at 250; the "whyNotBefore" summary and each of its point texts at 250 and 420; the deep-dive title at 90 and its preview at 250. Count conservatively, including **bold** markers. Prefer a shorter complete sentence over extra detail. Omit an optional field instead of returning an overlong value.
+- **Length limits are hard.** Keep the summary at 180 characters or fewer and the hook at 600; fact labels at 48, values at 60, and notes at 90; the article headline and change titles at 90 and each before/after at 240; affected-group names at 80, takeaways at 240, and effects at 400; unknowns and term definitions at 250; the "whyNotBefore" summary and each of its point texts at 250 and 420; the deep-dive title at 90 and its preview at 250. Count conservatively, including **bold** markers. Prefer a shorter complete sentence over extra detail. Omit an optional field instead of returning an overlong value.
 
 Field notes:
-- "summary" is the only sentence shown before the reader chooses to expand. State the single most important practical change or catch in one standalone sentence under 180 characters. Preserve legal status, include one short **bold** scan target, and do not spend words introducing the bill.
-- "hook" is rendered under the heading "What this means for you" and replaces a grid of disconnected fact tiles. Write one coherent paragraph of 2–3 short sentences. First explain the most consequential practical changes; then state the most important limitation, condition, or uncertainty. Connect the ideas naturally instead of listing figures. Preserve legal status ("would" for proposals), and do not imply every reader is personally affected. Wrap two or three short, concrete phrases in **double asterisks** so a scanner can retain the key changes. Never bold a whole sentence, generic transition, verdict, or loaded language.
-- Surprise belongs in the "hook". A reader who knows only the bill's title and short description should not be able to predict it. Two things are almost always more useful than restating the title: (a) **provisions unrelated to the bill's stated subject** — unrelated policy riding along in the same text is one of the most consequential things a reader can learn, and a title will never reveal it; and (b) **the gap between what the title promises and what the text does** — a bill named for banning something that restricts only one narrow form of it, grandfathers everything existing, or omits an asset class the reader would assume is covered. When either is present, it belongs in the hook ahead of a fuller recitation of the main provisions. Only describe what the source actually supports; do not manufacture a twist for a bill that genuinely has none, and keep the framing neutral — state the mismatch, let the reader judge it.
+- "headline" is the article's standalone headline, separate from provision titles. Name the specific program, service or action before any summary is read. An unfamiliar reader must be able to answer "Which program? What share of what?" from the headline alone. Never write "Half the program reserved for low-income households" without naming the program and the measured share. Prefer a familiar subject and action over a technical label: naming "renewable energy subscriptions" or "51% of capacity" is not enough if the reader does not know what either means. The headline can leave the exact number to the immediately visible takeaway or lead figure, provided it does not distort the claim. Explain the program and any unfamiliar measurement in those visible fields. Do not call a renewable energy program solar-only, call capacity a share of money or households, or replace an exact minimum with "half". No bill number, acronyms or bold markup. Prefer 6–12 familiar words, but retain the subject and material qualifier rather than making the headline short and meaningless.
+- Before returning, read the headline and each provision title alone, without the bill number, image, deck or comparison. Rewrite any that need those other fields to identify their subject. Do not assert outcomes or timing the text does not establish.
+- "summary" is the short opening sentence before the reader explores individual changes. State the single most important practical change or catch in one standalone sentence under 180 characters. Preserve legal status, do not spend words introducing the bill, and use bold only if it helps.
+- "hook" is the optional extended opening for readers who ask for more context. Write one coherent paragraph of 2–3 short sentences. First explain the most consequential practical changes; then state the most important limitation, condition, or uncertainty. Connect the ideas naturally instead of listing figures. Preserve legal status ("would" for proposals), and do not imply every reader is personally affected. Let plain sentences do the work; at most two short bold spans may mark an essential figure or consequence.
+- **Do not manufacture a twist.** An ordinary, clearly explained consequence is enough. Never force a title-versus-text reveal, unrelated rider, hidden catch, or motive. Identify a genuine mismatch only when the current operative source clearly supports it. Amended documents can contain deleted or superseded text: do not add old and new versions together. When lost formatting makes the status of a provision uncertain, omit that claim and name the uncertainty rather than building a hook around it.
+- **Sound like a person explaining a specific thing.** Prefer a short subject and active verb. Avoid bureaucratic noun stacks such as "fast-pay process implementation", "funding eligibility modification", and "heat-plan requirement" when the actual action fits in ordinary words. Do not open with "This legislation", "The measure seeks to", or "Under the provisions of". Do not repeat the bill number in reader-facing headlines.
+- **Headlines earn interest honestly.** Use a direct, declarative deep-dive headline, usually 5–10 words. State what would change in ordinary language. Do not use rhetorical questions, jokes, or conversational teasers. It must make sense to someone who has never heard of the agency. A question must not smuggle in an unproven claim. Avoid teasing "what you need to know", "what it means for you", "the surprising truth", or generic "would change—and what would stay the same" structures. Do not promise a benefit whose timing or implementation the bill leaves open.
 - "changes" must contrast current law ("before") with the proposal ("after"). If the source does not establish current law, say that in "before" instead of guessing. Evaluate every change independently for a direct supporting quote; when the official text contains one, include it so every supported card has its own route back to the text. Never invent or stretch a quote merely to make the cards look consistent.
-- Each affected-group "takeaway" is the card's always-visible summary. Write one complete standalone sentence that names the group or a clear pronoun and states what would happen. For example: "States would get a **longer window to plan multi-year projects**." Do not return fragments such as "a longer funding horizon" or "depends on final rules." Put qualifications and mechanism detail in "effect".
-- "unknowns" is required. Name what the text leaves open — undefined terms, delegated decisions, unfunded pieces, effects the source does not establish. Bold the exact unresolved choice or consequence, not a generic phrase such as "the text does not say."
+- Every change must also include "reader": a short "summary", a useful "question", and its complete "answer". This is the first encounter for someone with little interest in politics. The title and reader.summary must explain one recognizable human consequence without requiring the before/after comparison, glossary, bill number or agency name. Write the title as a short, direct headline, usually 4–8 familiar words. Prefer a specific action such as "Juries could consider related, less serious crimes" over "Another option for the jury" or "Lesser-related-offense instruction expansion". Name the program or service in each title rather than referring to "the program" or "the rule". Keep the source denominator and exact thresholds when using numbers. Avoid legal noun stacks such as "the court makes findings" in the summary; explain the real action instead.
+- The reader.summary is normally 20–35 words in one or two short sentences. Keep essential scope, conditions and proposed/enacted tense visible. Do not imply the consequence affects everyone or is automatically a benefit. The reader.question is the next useful thing a person would ask; the reader.answer must actually answer it from the source. If you ask about three conditions, explain all three, including their limitations. Preserve the exact notice cut-off and any consent/good-cause exceptions. A judge checking requirements is not the same as having unrestricted discretion to approve. Before/after retain the fuller legal comparison; do not duplicate those paragraphs in reader.summary.
+- reader.quote is optional and must directly support reader.answer, not merely concern the same provision. Include an exact supporting passage and its section locator when available. Never reuse changes.quote just to populate a Source control. An absence claim such as "the bill does not specify a price" may have no single supporting passage; omit reader.quote in that case. Say "whether customers would save" when savings are unknown, rather than "how much they would save". Verification only establishes that quoted words occur in the source, not that a quote proves an interpretation.
+- Each affected-group "takeaway" is a concise effect summary; "effect" is the fuller explanation opened on demand. Write one complete standalone sentence that names the group or a clear pronoun and states what would happen. For example: "States would get a **longer window to plan multi-year projects**." Do not return fragments such as "a longer funding horizon" or "depends on final rules." Put qualifications and mechanism detail in "effect".
+- "unknowns" is required. Name what the text leaves open — undefined terms, delegated decisions, unfunded pieces, effects the source does not establish. State the exact unresolved choice or consequence. Do not add emphasis as a routine formatting step.
 - "terms" appears near the top of the article. Include only essential vocabulary that changes how the reader understands the mechanism, and define it in one short everyday sentence. Bold the practical meaning, not the term again.
-- "whyNotBefore" is an optional expandable answer to "Why wasn't this implemented before?" Use it only when the research documents a real historical answer. Explain earlier attempts, disagreements, legal or budget constraints, implementation tradeoffs, or changed circumstances without speculating about motives. Bold only the documented barrier or tradeoff a scanner should retain. Every point needs at least one citation, the section needs at least two different opened sources overall, and every citation URL must exactly match a verified source below.
-- "deepDive" is an optional long-form Billion explainer for readers who deliberately ask for more. It opens as its own article, so write natural markdown with short paragraphs, useful subheads, selective bolding, and bullets only when they clarify a list. Focus on one important question or consequence instead of repeating the entire structured brief. Aim for 500–900 words when the source supports that depth.
+- "whyNotBefore" is an optional expandable answer to "Why wasn't this implemented before?" Use it only when the research documents a real historical answer. Explain earlier attempts, disagreements, legal or budget constraints, implementation tradeoffs, or changed circumstances without speculating about motives. State the documented barrier or tradeoff directly. Every point needs at least one citation, the section needs at least two different opened sources overall, and every citation URL must exactly match a verified source below.
+- "deepDive" is an optional long-form Billion explainer for readers who deliberately ask for more. It opens as its own article, so write natural markdown with short paragraphs, useful subheads, selective bolding, and bullets only when they clarify a list. Focus on one important question or consequence instead of repeating the entire structured brief. Use only the length the subject needs. Aim for 150–350 words; a short bill may need less. Do not expand a short source into a long article to fill a target.
 - "reading" recommends outside articles. Use ONLY the verified research sources supplied below, copy their URLs exactly, and explain in one sentence what each adds. Bold the specific concept or evidence the source adds. Omit weak or irrelevant links.${retryNote}${jargonRetryNote}${emphasisRetryNote}
 
 ---
@@ -1099,7 +1129,7 @@ export async function generateBillBrief(args: {
   );
   let loadedPhrases: string[] | undefined;
   let jargonPhrases: string[] | undefined;
-  let missingEmphasis: string[] | undefined;
+  let overemphasis: string[] | undefined;
   let verifiedFallback: Omit<BillBriefRecord, "generatedAt"> | undefined;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -1126,7 +1156,7 @@ export async function generateBillBrief(args: {
           readingSources: readingResearch.sources,
           loadedPhrases,
           jargonPhrases,
-          missingEmphasis,
+          overemphasis,
         }),
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
@@ -1167,12 +1197,12 @@ export async function generateBillBrief(args: {
 
       const loaded = findLoadedLanguage(brief);
       const jargon = findUnexplainedJargon(brief);
-      const missing = findMissingEmphasis(brief);
+      const excessive = findOveremphasis(brief);
       // Retry once with the offending phrases named; on the final attempt keep
       // the brief anyway — a slightly colored word is a smaller failure than
       // shipping no brief at all, and the warning surfaces it in the logs.
       if (
-        (loaded.length > 0 || jargon.length > 0 || missing.length > 0) &&
+        (loaded.length > 0 || jargon.length > 0 || excessive.length > 0) &&
         attempt < MAX_ATTEMPTS
       ) {
         verifiedFallback = {
@@ -1183,11 +1213,11 @@ export async function generateBillBrief(args: {
           modelVersion,
         };
         logger.warn(
-          `Brief for ${args.billNumber}: reader-facing copy needs revision (${[...loaded, ...jargon, ...missing].join(", ")}) — regenerating`,
+          `Brief for ${args.billNumber}: reader-facing copy needs revision (${[...loaded, ...jargon, ...excessive].join(", ")}) — regenerating`,
         );
         loadedPhrases = loaded;
         jargonPhrases = jargon;
-        missingEmphasis = missing;
+        overemphasis = excessive;
         continue;
       }
       if (loaded.length > 0) {
@@ -1200,9 +1230,9 @@ export async function generateBillBrief(args: {
           `Brief for ${args.billNumber}: keeping brief with unexplained jargon ${jargon.join(", ")}`,
         );
       }
-      if (missing.length > 0) {
+      if (excessive.length > 0) {
         logger.warn(
-          `Brief for ${args.billNumber}: keeping brief without emphasis in ${missing.join(", ")}`,
+          `Brief for ${args.billNumber}: keeping brief with excess emphasis in ${excessive.join(", ")}`,
         );
       }
 

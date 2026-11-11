@@ -17,6 +17,7 @@ import {
 } from "./content-translation";
 
 const brief = {
+  headline: "Ten years of road funding for states",
   summary: "Gives states **ten years** of road money.",
   hook: "Funding for roads.",
   facts: [
@@ -32,6 +33,15 @@ const brief = {
       title: "Road money for states",
       before: "States apply each year.",
       after: "States get a fixed share.",
+      reader: {
+        summary: "States would get a predictable share of road money.",
+        question: "How would the money be divided?",
+        answer: "The source leaves the exact split to a later decision.",
+        quote: {
+          text: "The agency shall determine the allocation.",
+          locator: "Sec. 3(b)",
+        },
+      },
       quote: { text: "shall apportion", locator: "Sec. 3(a)" },
       imageUri: "data:image/png;base64,AAAA",
     },
@@ -52,11 +62,12 @@ const brief = {
 const upper: TranslateBatch = (texts) =>
   Promise.resolve(texts.map((text) => text.toUpperCase()));
 
-void test("collects authored prose but never quotes, urls, or headlines", () => {
+void test("collects authored prose but never quotes, urls, or cited headlines", () => {
   const keys = collectSegments(brief, BILL_BRIEF_FIELDS, "brief").map(
     (segment) => segment.key,
   );
   assert.deepEqual(keys, [
+    "brief.headline",
     "brief.summary",
     "brief.hook",
     "brief.facts.0.label",
@@ -64,6 +75,9 @@ void test("collects authored prose but never quotes, urls, or headlines", () => 
     "brief.changes.0.title",
     "brief.changes.0.before",
     "brief.changes.0.after",
+    "brief.changes.0.reader.summary",
+    "brief.changes.0.reader.question",
+    "brief.changes.0.reader.answer",
     "brief.unknowns.0",
     "brief.reading.0.whyRead",
   ]);
@@ -80,9 +94,14 @@ void test("applies translations without touching source fields", async () => {
   const [original] = brief.changes;
   const [reading] = translated.reading;
   assert.ok(change && original && reading);
+  assert.equal(translated.headline, "TEN YEARS OF ROAD FUNDING FOR STATES");
   assert.equal(change.title, "ROAD MONEY FOR STATES");
+  assert.equal(change.reader.question, "HOW WOULD THE MONEY BE DIVIDED?");
+  assert.equal(change.reader.summary, original.reader.summary.toUpperCase());
+  assert.equal(change.reader.answer, original.reader.answer.toUpperCase());
   assert.equal(translated.unknowns[0], "WHO DECIDES THE FORMULA?");
   assert.deepEqual(change.quote, original.quote);
+  assert.deepEqual(change.reader.quote, original.reader.quote);
   assert.equal(change.imageUri, original.imageUri);
   assert.equal(reading.title, "A Real Headline");
   assert.equal(reading.url, "https://example.com/a");

@@ -36,6 +36,8 @@ export {
 // ============================================================================
 
 export {
+  BillReaderPalette,
+  BillReaderSpace,
   contentType,
   digest,
   DigestHair,
@@ -170,6 +172,25 @@ export const fontBody = {
   semibold: "AlbertSans-SemiBold",
   bold: "AlbertSans-Bold",
 };
+
+/** Article interiors retain Digest’s display, editorial and body families. */
+export const BillReaderType = {
+  display: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 30,
+    lineHeight: 36,
+    letterSpacing: -0.6,
+  },
+  title: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 20,
+    lineHeight: 28,
+    letterSpacing: -0.25,
+  },
+  body: { fontFamily: fontBody.regular, fontSize: 17, lineHeight: 26 },
+  label: { fontFamily: fontBody.medium, fontSize: 15, lineHeight: 22 },
+  action: { fontFamily: fontBody.semibold, fontSize: 17, lineHeight: 24 },
+} as const;
 
 /** Typography roles used by Digest chrome (import from ~/styles only). */
 export const DigestFonts = {
