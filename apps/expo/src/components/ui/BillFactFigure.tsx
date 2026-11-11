@@ -75,6 +75,7 @@ function FactTarget({
 /** Supporting evidence follows the explanation; unrelated values never share a scale. */
 export function BillFactFigure({
   figure,
+  timeline = true,
   onViewSource,
   changes = [],
   legalStatus = "proposed",
@@ -82,6 +83,8 @@ export function BillFactFigure({
   onInspect,
 }: {
   figure: NonNullable<ReturnType<typeof getBillFactFigure>>;
+  /** Whether the block asked for a chronology; dates otherwise stay metrics. */
+  timeline?: boolean;
   onViewSource?: (quote: BriefQuote) => void;
   changes?: BillBriefData["changes"];
   legalStatus?: BillBriefData["legalStatus"];
@@ -105,7 +108,8 @@ export function BillFactFigure({
   const [labelHeights, setLabelHeights] = useState<Record<string, number>>({});
   const [wrappedValue, setWrappedValue] = useState(false);
   const temperature = figure.kind === "temperature";
-  const dates = temperature ? [] : getBillDateMilestones(figure.points);
+  const dates =
+    temperature || !timeline ? [] : getBillDateMilestones(figure.points);
   const dateIndices = new Set(dates.map((point) => point.index));
   const metricPoints = figure.points.filter(
     (_, index) => !dateIndices.has(index),
