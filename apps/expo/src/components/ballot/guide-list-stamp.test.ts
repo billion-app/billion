@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { guideListStamp } from "./guide-list-stamp";
+import { guideListStamp, resultsReported } from "./guide-list-stamp";
 
 const official = (reportedAt: string, reportingLabel: string) =>
   ({ kind: "official", result: { reportedAt, reportingLabel } }) as const;
@@ -60,5 +60,22 @@ void test("poll status follows the standings request while it is not reported", 
   assert.equal(
     guideListStamp([undefined], "unavailable", true)?.polls,
     "unavailable",
+  );
+});
+
+void test("any official standing marks the election reported", () => {
+  const pending = {
+    measures: { "1": { kind: "poll" } },
+    candidates: { "governor:A": { kind: "none" } },
+    governor: { kind: "poll" },
+  };
+  assert.equal(resultsReported(undefined), false);
+  assert.equal(resultsReported(pending), false);
+  assert.equal(
+    resultsReported({
+      ...pending,
+      candidates: { "governor:A": { kind: "official" } },
+    }),
+    true,
   );
 });
