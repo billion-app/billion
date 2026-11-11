@@ -360,40 +360,15 @@ export const settingsStrings = {
     es: "Enviar comentarios",
     zh: "提交反馈",
   },
-  "feedback.guidedBug": {
-    en: "Use guided bug report form",
-    es: "Usar el formulario guiado de informe de error",
-    zh: "使用引导式错误报告表单",
-  },
-  "feedback.guidedFeature": {
-    en: "Use guided feature request form",
-    es: "Usar el formulario guiado de solicitud de función",
-    zh: "使用引导式功能请求表单",
-  },
-  "feedback.continueBug": {
-    en: "Continue to bug report",
-    es: "Continuar al informe de error",
-    zh: "继续填写错误报告",
-  },
-  "feedback.continueFeature": {
-    en: "Continue to feature request",
-    es: "Continuar a la solicitud de función",
-    zh: "继续填写功能请求",
-  },
-  "feedback.sendContent": {
-    en: "Send content issue via email",
-    es: "Enviar el problema de contenido por correo",
-    zh: "通过电子邮件发送内容问题",
-  },
   "feedback.emailUs": {
     en: "Email us at {email}",
     es: "Escríbenos a {email}",
     zh: "发送邮件至 {email}",
   },
   "feedback.englishNote": {
-    en: "You can write in any language. Forms open in English.",
-    es: "Puedes escribir en cualquier idioma. Los formularios se abren en inglés.",
-    zh: "你可以用任何语言填写。表单以英文打开。",
+    en: "You can write in any language.",
+    es: "Puedes escribir en cualquier idioma.",
+    zh: "你可以用任何语言填写。",
   },
   "feedback.legal": {
     en: "Terms and Privacy Policy",
@@ -429,11 +404,6 @@ export const settingsStrings = {
     en: "Please try again in a moment.",
     es: "Inténtalo de nuevo en un momento.",
     zh: "请稍后再试。",
-  },
-  "feedback.formFailed": {
-    en: "Couldn’t open the feedback form",
-    es: "No se pudo abrir el formulario de comentarios",
-    zh: "无法打开反馈表单",
   },
   "feedback.mailFailed": {
     en: "Couldn’t open your mail app",
@@ -823,9 +793,9 @@ export const settingsStrings = {
     zh: "6. 数据共享",
   },
   "terms.p6Body": {
-    en: "We share information only with service providers that help us operate Billion, and only as needed to run the service: PostHog for analytics and handled-error diagnostics; Resend for waitlist and some feedback email delivery; Google Forms for guided feedback; Democracy Works for address-based ballot lookups; and the Google Civic Information API for district lookups. If you use device location, the operating system’s geocoder processes coordinates as described in Section 4. Open States supplies public representative data without receiving your street address. We require these providers to protect information they process for us and not use it for their own marketing. We may also disclose information if we are required to by law.",
-    es: "Solo compartimos información con proveedores de servicios que nos ayudan a operar Billion, y solo en la medida necesaria para prestar el servicio: PostHog para analíticas y diagnósticos de errores gestionados; Resend para la lista de espera y el envío de algunos correos de comentarios; Google Forms para los comentarios guiados; Democracy Works para buscar boletas por dirección; y la API de Google Civic Information para buscar distritos. Si usas la ubicación del dispositivo, el geocodificador del sistema operativo procesa las coordenadas como se describe en la Sección 4. Open States proporciona datos públicos sobre representantes sin recibir tu dirección. Exigimos a estos proveedores que protejan la información que procesan en nuestro nombre y que no la usen para su propio marketing. También podemos divulgar información si la ley nos lo exige.",
-    zh: "我们仅与帮助我们运营 Billion 的服务提供商共享信息，且仅限于提供服务所必需的范围：PostHog 用于分析和已处理错误的诊断；Resend 用于候补名单及部分反馈邮件的发送；Google Forms 用于引导式反馈；Democracy Works 用于基于地址的选票查询；Google Civic Information API 用于选区查询。如果你使用设备位置，操作系统的地理编码服务会按第 4 节所述处理坐标。Open States 提供公开的代表数据，但不会收到你的街道地址。我们要求这些提供商保护其代为处理的信息，且不得将其用于自身营销。如法律要求，我们也可能披露信息。",
+    en: "We share information only with service providers that help us operate Billion, and only as needed to run the service: PostHog for analytics and handled-error diagnostics; Resend for waitlist and feedback email delivery; Democracy Works for address-based ballot lookups; and the Google Civic Information API for district lookups. If you use device location, the operating system’s geocoder processes coordinates as described in Section 4. Open States supplies public representative data without receiving your street address. We require these providers to protect information they process for us and not use it for their own marketing. We may also disclose information if we are required to by law.",
+    es: "Solo compartimos información con proveedores de servicios que nos ayudan a operar Billion, y solo en la medida necesaria para prestar el servicio: PostHog para analíticas y diagnósticos de errores gestionados; Resend para la lista de espera y el envío de correos de comentarios; Democracy Works para buscar boletas por dirección; y la API de Google Civic Information para buscar distritos. Si usas la ubicación del dispositivo, el geocodificador del sistema operativo procesa las coordenadas como se describe en la Sección 4. Open States proporciona datos públicos sobre representantes sin recibir tu dirección. Exigimos a estos proveedores que protejan la información que procesan en nuestro nombre y que no la usen para su propio marketing. También podemos divulgar información si la ley nos lo exige.",
+    zh: "我们仅与帮助我们运营 Billion 的服务提供商共享信息，且仅限于提供服务所必需的范围：PostHog 用于分析和已处理错误的诊断；Resend 用于候补名单及反馈邮件的发送；Democracy Works 用于基于地址的选票查询；Google Civic Information API 用于选区查询。如果你使用设备位置，操作系统的地理编码服务会按第 4 节所述处理坐标。Open States 提供公开的代表数据，但不会收到你的街道地址。我们要求这些提供商保护其代为处理的信息，且不得将其用于自身营销。如法律要求，我们也可能披露信息。",
   },
   "terms.p7Title": {
     en: "7. Data Retention",
@@ -833,9 +803,9 @@ export const settingsStrings = {
     zh: "7. 数据保留",
   },
   "terms.p7Body": {
-    en: "Billion does not currently offer a usable account sign-in flow in the app. Your onboarding choices remain on your device until you uninstall the app or the app resets its versioned onboarding record. If an authenticated session already exists, topic and content-type selections may also remain in the account's server record. Mailing list email addresses are retained until you unsubscribe or ask us to delete them. Feedback is retained in Google Forms or email so that we can act on it.\n\nYour saved registered address remains on your device until you change or clear it. On iOS, secure storage can survive uninstalling and reinstalling the app; clear the address in the app before uninstalling if you want to remove it. On the web, you can also clear the site’s local storage.\n\nServer lookup caches use a hashed address key and may contain normalized address components. Cached results stop being reused after at most thirty days, but expired records can remain stored until they are replaced or deleted. We do not currently run scheduled deletion of expired lookup records. Clearing an address on your device does not delete server records; you can request deletion using the contact below. Analytics and handled-error diagnostic data are retained by our analytics provider according to its retention settings.",
-    es: "Actualmente, Billion no ofrece en la aplicación un proceso de inicio de sesión utilizable. Tus opciones de configuración inicial permanecen en tu dispositivo hasta que desinstales la aplicación o esta restablezca su registro de configuración. Si ya existe una sesión autenticada, las selecciones de temas y tipos de contenido también pueden permanecer en el registro de la cuenta en el servidor. Las direcciones de la lista de correo se conservan hasta que te des de baja o nos pidas eliminarlas. Los comentarios se conservan en Google Forms o en el correo electrónico para poder atenderlos.\n\nTu dirección registrada guardada permanece en tu dispositivo hasta que la cambies o la borres. En iOS, el almacenamiento seguro puede persistir al desinstalar y reinstalar la aplicación; borra la dirección en la aplicación antes de desinstalarla si quieres eliminarla. En la web, también puedes borrar el almacenamiento local del sitio.\n\nLas cachés de búsqueda del servidor usan una clave de dirección con hash y pueden contener componentes normalizados de la dirección. Los resultados dejan de reutilizarse en un máximo de treinta días, pero los registros caducados pueden permanecer almacenados hasta que se reemplacen o eliminen. Actualmente no ejecutamos una eliminación programada de registros caducados. Borrar la dirección en tu dispositivo no elimina los registros del servidor; puedes solicitar su eliminación mediante el contacto indicado abajo. Nuestro proveedor de analíticas conserva los datos de analíticas y de diagnóstico de errores según su configuración de conservación.",
-    zh: "Billion 目前在应用中不提供可用的账户登录流程。你的初始设置选择会保留在你的设备上，直到你卸载应用或应用重置其带版本号的设置记录。如果已存在经过身份验证的会话，话题和内容类型的选择也可能保留在该账户的服务器记录中。邮件列表中的电子邮件地址会保留到你退订或要求我们删除为止。反馈会保留在 Google Forms 或电子邮件中，以便我们处理。\n\n你保存的登记地址会保留在设备上，直到你更改或清除它。在 iOS 上，安全存储中的数据可能在卸载并重新安装应用后仍然存在；如需删除地址，请在卸载前于应用中清除。在网页版中，你也可以清除网站的本地存储。\n\n服务器查询缓存使用经哈希处理的地址键，可能包含标准化的地址组成部分。缓存结果最长三十天后便不再用于查询，但过期记录可能仍然保留，直到被替换或删除。目前我们不会定期删除过期的查询记录。清除设备上的地址不会删除服务器记录；你可以通过下方联系方式请求删除。分析数据和已处理错误的诊断数据由我们的分析服务商根据其保留设置进行保存。",
+    en: "Billion does not currently offer a usable account sign-in flow in the app. Your onboarding choices remain on your device until you uninstall the app or the app resets its versioned onboarding record. If an authenticated session already exists, topic and content-type selections may also remain in the account's server record. Mailing list email addresses are retained until you unsubscribe or ask us to delete them. Feedback is retained in email so that we can act on it.\n\nYour saved registered address remains on your device until you change or clear it. On iOS, secure storage can survive uninstalling and reinstalling the app; clear the address in the app before uninstalling if you want to remove it. On the web, you can also clear the site’s local storage.\n\nServer lookup caches use a hashed address key and may contain normalized address components. Cached results stop being reused after at most thirty days, but expired records can remain stored until they are replaced or deleted. We do not currently run scheduled deletion of expired lookup records. Clearing an address on your device does not delete server records; you can request deletion using the contact below. Analytics and handled-error diagnostic data are retained by our analytics provider according to its retention settings.",
+    es: "Actualmente, Billion no ofrece en la aplicación un proceso de inicio de sesión utilizable. Tus opciones de configuración inicial permanecen en tu dispositivo hasta que desinstales la aplicación o esta restablezca su registro de configuración. Si ya existe una sesión autenticada, las selecciones de temas y tipos de contenido también pueden permanecer en el registro de la cuenta en el servidor. Las direcciones de la lista de correo se conservan hasta que te des de baja o nos pidas eliminarlas. Los comentarios se conservan en el correo electrónico para poder atenderlos.\n\nTu dirección registrada guardada permanece en tu dispositivo hasta que la cambies o la borres. En iOS, el almacenamiento seguro puede persistir al desinstalar y reinstalar la aplicación; borra la dirección en la aplicación antes de desinstalarla si quieres eliminarla. En la web, también puedes borrar el almacenamiento local del sitio.\n\nLas cachés de búsqueda del servidor usan una clave de dirección con hash y pueden contener componentes normalizados de la dirección. Los resultados dejan de reutilizarse en un máximo de treinta días, pero los registros caducados pueden permanecer almacenados hasta que se reemplacen o eliminen. Actualmente no ejecutamos una eliminación programada de registros caducados. Borrar la dirección en tu dispositivo no elimina los registros del servidor; puedes solicitar su eliminación mediante el contacto indicado abajo. Nuestro proveedor de analíticas conserva los datos de analíticas y de diagnóstico de errores según su configuración de conservación.",
+    zh: "Billion 目前在应用中不提供可用的账户登录流程。你的初始设置选择会保留在你的设备上，直到你卸载应用或应用重置其带版本号的设置记录。如果已存在经过身份验证的会话，话题和内容类型的选择也可能保留在该账户的服务器记录中。邮件列表中的电子邮件地址会保留到你退订或要求我们删除为止。反馈会保留在电子邮件中，以便我们处理。\n\n你保存的登记地址会保留在设备上，直到你更改或清除它。在 iOS 上，安全存储中的数据可能在卸载并重新安装应用后仍然存在；如需删除地址，请在卸载前于应用中清除。在网页版中，你也可以清除网站的本地存储。\n\n服务器查询缓存使用经哈希处理的地址键，可能包含标准化的地址组成部分。缓存结果最长三十天后便不再用于查询，但过期记录可能仍然保留，直到被替换或删除。目前我们不会定期删除过期的查询记录。清除设备上的地址不会删除服务器记录；你可以通过下方联系方式请求删除。分析数据和已处理错误的诊断数据由我们的分析服务商根据其保留设置进行保存。",
   },
   "terms.p8Title": {
     en: "8. Your Choices",

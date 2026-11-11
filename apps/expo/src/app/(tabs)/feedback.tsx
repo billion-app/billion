@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useMutation } from "@tanstack/react-query";
 
 import type { IconName } from "~/components/ui";
 import type { AppStringKey, AppTranslate } from "~/i18n/app-strings";
@@ -30,10 +31,10 @@ import {
   fontDisplay,
   DigestPalette as P,
 } from "~/styles";
+import { trpc } from "~/utils/api";
 import { getAppBuildNumber, getAppVersion } from "~/utils/app-version";
-import { buildFeedbackFormUrl } from "~/utils/feedback-form";
 
-// Direct contact remains available as a fallback to the guided form.
+// Direct contact remains available as a fallback to in-app submission.
 const CONTACT_EMAIL = "bugs@billion-news.app";
 
 type FeedbackCategory = "bug" | "idea" | "content";
@@ -87,79 +88,71 @@ async function openMailto(url: string, t: AppTranslate): Promise<boolean> {
   return false;
 }
 
-async function openFeedbackForm(
-  url: string,
-  t: AppTranslate,
-): Promise<boolean> {
-  try {
-    if (await Linking.canOpenURL(url)) {
-      await Linking.openURL(url);
-      return true;
-    }
-  } catch {
-    // fall through to the failure alert below
-  }
-  Alert.alert(t("feedback.formFailed"), t("feedback.tryLater"));
-  return false;
-}
-
 export default function FeedbackScreen() {
-  const { t: tx } = useAppTranslation();
-
   const router = useRouter();
   const { language, t } = useAppTranslation();
   const insets = useSafeAreaInsets();
   const [cat, setCat] = useState<FeedbackCategory>("bug");
   const [text, setText] = useState("");
+  const [lastSubmittedAt, setLastSubmittedAt] = useState(0);
+  const submitMutation = useMutation(trpc.feedback.submit.mutationOptions());
   const message = text.trim();
-  const formKind = cat === "bug" ? "bug" : cat === "idea" ? "feature" : null;
-  const canSubmit = formKind !== null || message.length >= 5;
+  const canSubmit = message.length >= 5 && !submitMutation.isPending;
 
   const submit = () => {
     if (!canSubmit) return;
+    if (Date.now() - lastSubmittedAt < 30_000) {
+      Alert.alert(t("feedback.alreadySent"), t("feedback.alreadySentBody"));
+      return;
+    }
 
-    if (formKind) {
-      const details = message
-        ? [
-            message,
-            "",
-            "———",
-            tx("App version: {value1} ({value2})", {
-              value1: getAppVersion(),
-              value2: getAppBuildNumber() ?? "—",
-            }),
-            tx("Platform: {value1} {value2}", {
-              value1: Platform.OS,
-              value2: String(Platform.Version),
-            }),
-          ].join("\n")
-        : undefined;
-
-      void openFeedbackForm(buildFeedbackFormUrl(formKind, details), t).then(
-        (opened) => {
-          if (!opened) return;
-          posthog.capture("feedback_form_opened", {
+    submitMutation.mutate(
+      {
+        category: cat,
+        message,
+        appVersion: getAppVersion(),
+        buildNumber: getAppBuildNumber(),
+        platform: Platform.OS,
+        platformVersion: String(Platform.Version),
+      },
+      {
+        onSuccess: () => {
+          setLastSubmittedAt(Date.now());
+          posthog.capture("feedback_submitted", {
             category: cat,
             message_length: message.length,
             app_version: getAppVersion(),
             platform: Platform.OS,
+            channel: "api",
           });
+          setText("");
+          Alert.alert(t("feedback.sent"), t("feedback.sentBody"));
         },
-      );
-      return;
-    }
-
-    void openMailto(buildMailto(cat, message), t).then((opened) => {
-      if (!opened) return;
-      posthog.capture("feedback_submitted", {
-        category: cat,
-        message_length: message.length,
-        app_version: getAppVersion(),
-        platform: Platform.OS,
-        channel: "email",
-      });
-      setText("");
-    });
+        // The server mail path can be down or unconfigured; the reader's
+        // message still reaches us through their own mail app.
+        onError: () => {
+          Alert.alert(t("feedback.sendFailed"), t("feedback.tryLater"), [
+            { text: t("common.cancel"), style: "cancel" },
+            {
+              text: t("feedback.emailUs", { email: CONTACT_EMAIL }),
+              onPress: () => {
+                void openMailto(buildMailto(cat, message), t).then((opened) => {
+                  if (!opened) return;
+                  posthog.capture("feedback_submitted", {
+                    category: cat,
+                    message_length: message.length,
+                    app_version: getAppVersion(),
+                    platform: Platform.OS,
+                    channel: "email",
+                  });
+                  setText("");
+                });
+              },
+            },
+          ]);
+        },
+      },
+    );
   };
 
   const emailDirect = () => {
@@ -284,11 +277,9 @@ export default function FeedbackScreen() {
             disabled={!canSubmit}
           >
             <Text style={s.ctaLabel}>
-              {cat === "bug"
-                ? t("feedback.continueBug")
-                : cat === "idea"
-                  ? t("feedback.continueFeature")
-                  : t("feedback.sendContent")}
+              {submitMutation.isPending
+                ? t("feedback.sending")
+                : t("feedback.submit")}
             </Text>
           </TouchableOpacity>
 

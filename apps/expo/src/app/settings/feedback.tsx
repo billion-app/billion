@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   Alert,
-  Linking,
   Platform,
   StyleSheet,
   TextInput,
@@ -13,7 +12,7 @@ import { useMutation } from "@tanstack/react-query";
 import type { IconName } from "~/components/ui";
 import type { AppStringKey } from "~/i18n/app-strings";
 import { Text } from "~/components/Themed";
-import { GhostButton, Icon, Kicker, ScreenShell } from "~/components/ui";
+import { Icon, Kicker, ScreenShell } from "~/components/ui";
 import { posthog } from "~/config/posthog";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
@@ -26,7 +25,6 @@ import {
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import { getAppBuildNumber, getAppVersion } from "~/utils/app-version";
-import { buildFeedbackFormUrl } from "~/utils/feedback-form";
 
 type FeedbackCategory = "bug" | "idea" | "content";
 
@@ -43,8 +41,6 @@ const CAT_COLOR: Record<FeedbackCategory, string> = {
 };
 
 export default function FeedbackScreen() {
-  const { t: tx } = useAppTranslation();
-
   const { t } = useAppTranslation();
   const [cat, setCat] = useState<FeedbackCategory>("bug");
   const [text, setText] = useState("");
@@ -52,7 +48,6 @@ export default function FeedbackScreen() {
   const submitMutation = useMutation(trpc.feedback.submit.mutationOptions());
   const message = text.trim();
   const canSubmit = message.length >= 5 && !submitMutation.isPending;
-  const formKind = cat === "bug" ? "bug" : cat === "idea" ? "feature" : null;
 
   const submit = () => {
     if (!canSubmit) return;
@@ -88,40 +83,6 @@ export default function FeedbackScreen() {
         },
       },
     );
-  };
-
-  const openGuidedForm = async () => {
-    if (!formKind) return;
-
-    const details = message
-      ? [
-          message,
-          "",
-          "———",
-          tx("App version: {value1} ({value2})", {
-            value1: getAppVersion(),
-            value2: getAppBuildNumber() ?? "—",
-          }),
-          tx("Platform: {value1} {value2}", {
-            value1: Platform.OS,
-            value2: String(Platform.Version),
-          }),
-        ].join("\n")
-      : undefined;
-    const url = buildFeedbackFormUrl(formKind, details);
-
-    try {
-      if (!(await Linking.canOpenURL(url))) throw new Error("Unsupported URL");
-      await Linking.openURL(url);
-      posthog.capture("feedback_form_opened", {
-        category: cat,
-        message_length: message.length,
-        app_version: getAppVersion(),
-        platform: Platform.OS,
-      });
-    } catch {
-      Alert.alert(t("feedback.formFailed"), t("feedback.tryLater"));
-    }
   };
 
   return (
@@ -200,22 +161,6 @@ export default function FeedbackScreen() {
             : t("feedback.submit")}
         </Text>
       </TouchableOpacity>
-
-      {formKind && (
-        <>
-          <Text style={s.orDivider}>{t("common.or")}</Text>
-          <GhostButton
-            label={
-              formKind === "bug"
-                ? t("feedback.guidedBug")
-                : t("feedback.guidedFeature")
-            }
-            onPress={() => void openGuidedForm()}
-            color={P.quiet}
-            style={{ alignSelf: "center" }}
-          />
-        </>
-      )}
     </ScreenShell>
   );
 }
@@ -283,12 +228,5 @@ const s = StyleSheet.create({
     fontFamily: fontBody.semibold,
     fontSize: 16,
     color: P.inkOnNight,
-  },
-  orDivider: {
-    fontFamily: fontBody.medium,
-    fontSize: 13,
-    color: P.quiet,
-    textAlign: "center",
-    marginVertical: 14,
   },
 });
