@@ -10,6 +10,7 @@ import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { usePollVisibility } from "~/hooks/usePollVisibility";
 import { fontBody, DigestPalette as P } from "~/styles";
 import { trpc } from "~/utils/api";
+import { resultsReported } from "./guide-list-stamp";
 
 type Snapshot = RouterOutputs["civic"]["getCaliforniaGuideResults"];
 type Reported = Extract<Snapshot, { status: "reported" }>;
@@ -190,7 +191,7 @@ export function GuideVoteDetails({
     <View style={{ gap: 8 }}>
       {result ? (
         <GuideVoteResult result={result} status="reported" />
-      ) : showPolls ? (
+      ) : showPolls && !resultsReported(snapshot) ? (
         <Text style={s.label}>
           {t(
             query.isPending

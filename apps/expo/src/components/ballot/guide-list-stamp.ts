@@ -51,3 +51,19 @@ export function guideListStamp(
   if (!results && !polls) return undefined;
   return { results, polls };
 }
+
+interface Standings {
+  measures: Record<string, { kind: string }>;
+  candidates: Record<string, { kind: string }>;
+  governor: { kind: string };
+}
+
+/** Once any count is reported the election is over and polls are moot. */
+export function resultsReported(standings: Standings | undefined) {
+  if (!standings) return false;
+  return [
+    ...Object.values(standings.measures),
+    ...Object.values(standings.candidates),
+    standings.governor,
+  ].some((standing) => standing.kind === "official");
+}

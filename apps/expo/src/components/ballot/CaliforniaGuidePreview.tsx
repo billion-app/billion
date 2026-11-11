@@ -49,7 +49,7 @@ import {
 } from "~/utils/proposition-explainers";
 import { regionalMeasureRoute } from "~/utils/regional-measures";
 import { CandidatePortrait } from "./CandidatePortrait";
-import { guideListStamp } from "./guide-list-stamp";
+import { guideListStamp, resultsReported } from "./guide-list-stamp";
 import { GuidePollResult } from "./GuidePollResult";
 import {
   GuideListStampLine,
@@ -304,6 +304,8 @@ export function CaliforniaGuidePreview({
     resultsQuery.data?.electionDate === guide?.electionDate
       ? resultsQuery.data
       : undefined;
+  const electionReported = resultsReported(results);
+  const pollsShown = showPolls && !electionReported;
   const resultsStatus = resultsQuery.isPending
     ? "loading"
     : resultsQuery.isError
@@ -348,7 +350,7 @@ export function CaliforniaGuidePreview({
               ),
           ],
       resultsStatus,
-      showPolls,
+      pollsShown,
     );
   const offices = guide ? officeGroups(guide.candidates) : [];
   const electionDate = guide?.electionDate ?? regional?.electionDate;
@@ -375,7 +377,7 @@ export function CaliforniaGuidePreview({
         renderItem={({ item }) => (
           <MeasureRow
             measure={item}
-            showPolls={showPolls}
+            showPolls={pollsShown}
             standing={results?.measures[item.number]}
             result={officialMeasure(results?.measures[item.number])}
           />
@@ -598,22 +600,24 @@ export function CaliforniaGuidePreview({
                         </Text>
                       </View>
                     )}
-                  <View style={s.pollToggle}>
-                    <Text style={s.toggleText}>{tx("Polls")}</Text>
-                    <Switch
-                      accessibilityLabel={tx("Show polls")}
-                      value={showPolls}
-                      onValueChange={setShowPolls}
-                      hitSlop={8}
-                    />
-                  </View>
+                  {!electionReported && (
+                    <View style={s.pollToggle}>
+                      <Text style={s.toggleText}>{tx("Polls")}</Text>
+                      <Switch
+                        accessibilityLabel={tx("Show polls")}
+                        value={showPolls}
+                        onValueChange={setShowPolls}
+                        hitSlop={8}
+                      />
+                    </View>
+                  )}
                 </View>
                 {stamp && <GuideListStampLine stamp={stamp} />}
               </View>
             )}
             {guide && tab === "offices" && (
               <View style={s.list}>
-                {showPolls && results?.governor.kind === "poll" && (
+                {pollsShown && results?.governor.kind === "poll" && (
                   <View style={s.standingRow}>
                     <GuidePollResult
                       title={tx("Governor poll")}
