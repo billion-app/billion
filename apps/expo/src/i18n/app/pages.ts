@@ -3615,16 +3615,6 @@ export const pageStrings = {
     es: "Vista previa de logística de votación sintética",
     zh: "模拟投票安排预览",
   },
-  "App version: {value1} ({value2})": {
-    en: "App version: {value1} ({value2})",
-    es: "Versión de la app: {value1} ({value2})",
-    zh: "应用版本：{value1}（{value2}）",
-  },
-  "Platform: {value1} {value2}": {
-    en: "Platform: {value1} {value2}",
-    es: "Plataforma: {value1} {value2}",
-    zh: "平台：{value1} {value2}",
-  },
   "The result is disputed. We can’t confirm who took office while the dispute remains unresolved.":
     {
       en: "The result is disputed. We can’t confirm who took office while the dispute remains unresolved.",
